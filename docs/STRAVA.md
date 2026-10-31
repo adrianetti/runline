@@ -69,6 +69,8 @@ External inputs still needed: the user's decision to use a subscription-backed d
 
 ## Handoff checks
 
+Verified on the API 34 emulator: first-use explanation → Android file picker → successful save to Downloads → official uploader URL opened. The saved GPX parsed successfully and contained all 15 synthetic run samples in three segments. The remaining cases below are a test plan; browser sign-in, file selection and publication on Strava have not been verified.
+
 - First-use dialog, cancel, and subsequent-use shortcut.
 - No-route rejection and preservation of the saved run.
 - File-picker cancellation, provider failure, and successful local save.

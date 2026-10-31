@@ -64,7 +64,7 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 34.0.0. Set `ANDROID_HOME`, 
 ./gradlew testDebugUnitTest assembleDebug lintDebug
 ```
 
-The signed v0.2 handoff is `dist/Runline-0.2.0.apk`. With USB debugging enabled, install that build using:
+Download the signed APK from the private [v0.2.0 release](https://github.com/adrianetti/runline/releases/tag/v0.2.0). A local copy is also available at `dist/Runline-0.2.0.apk`. With USB debugging enabled, install that build using:
 
 ```sh
 adb install -r dist/Runline-0.2.0.apk
@@ -86,6 +86,14 @@ python3 tools/import_icons.py --check
 
 ## Version 0.2 verification
 
-**Pending final validation.** The v0.2 build, persistence failure-injection tests, complete Android service flows, monochrome screens and Strava handoff need their results recorded here after the corresponding checks run. Earlier v0.1 emulator and unit-test results do not validate this revision.
+Checked locally on 31 October 2026:
 
-Before using Runline as your only recorder, complete the [device checklist](docs/TESTING.md), including a screen-locked outdoor recording on your own phone. Emulator checks do not establish GPS accuracy, battery consumption or manufacturer background behavior. No Strava activity has been published as part of development verification.
+- `assembleDebug`, `assembleRelease`, `testDebugUnitTest` and `lintDebug` succeeded. All 24 tests passed: 10 calculation/GPX tests and 14 persistence failure-injection tests. Lint reported zero errors.
+- Android API 34 emulator: a synthetic run kept recording GPS after its UI was swiped away.
+- Killing the recording process with `run-as … kill -9` caused Android to recreate the sticky service; capture resumed in a new segment.
+- Force-stop followed by reopening preserved the draft and offered explicit recovery. The active timer stayed frozen during the interruption rather than adding downtime.
+- Reboot followed by reopening retained the recorded points and recovered the run paused. Finish wrote the completed session.
+
+The [initial clean GitHub Actions build](https://github.com/adrianetti/runline/actions/runs/41228763717) also passed. The Strava handoff saved a valid GPX containing all 15 test samples in three separate track segments, then opened the official uploader URL. The app did not publish an activity. The recording, recovery, history, run detail and sharing screens were reviewed in light mode and in dark mode at 1.3× font scale, with no material clipping found. A misleading no-route message was corrected and the local build/checks rerun. The signed release also installed as an update while retaining the completed test run.
+
+No physical-phone field test, hardware battery-exhaustion test or Strava publication has been performed. Before using Runline as your only recorder, complete the [device checklist](docs/TESTING.md), especially a screen-locked outdoor recording on your own phone. These emulator and file tests do not establish real GPS accuracy, battery consumption, device-specific background behavior or uninterrupted capture while a phone is powered off.
