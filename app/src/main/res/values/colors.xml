@@ -1,0 +1,7 @@
+<resources>
+    <color name="primary">#171717</color><color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#E7E7E7</color><color name="on_primary_container">#171717</color>
+    <color name="surface">#FAFAFA</color><color name="on_surface">#171717</color>
+    <color name="surface_variant">#EEEEEE</color><color name="on_surface_variant">#5C5C5C</color>
+    <color name="outline">#777777</color><color name="error">#333333</color>
+</resources>

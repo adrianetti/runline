@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Runline" parent="Base.Theme.Runline"><item name="android:windowLightStatusBar">false</item></style>
+</resources>

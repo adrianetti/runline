@@ -1,0 +1,14 @@
+.gradle/
+.idea/
+**/build/
+local.properties
+*.iml
+.DS_Store
+.impeccable/review/
+.impeccable/mocks/
+dist/
+
+.signing/
+*.jks
+*.keystore
+.env*
