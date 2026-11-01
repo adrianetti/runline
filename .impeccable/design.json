@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-31T18:14:51.812515Z",
+  "generatedAt": "2026-11-01T12:51:23.093707Z",
   "title": "Design System: Runline",
   "extensions": {
     "colorMeta": {
@@ -288,11 +288,11 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Live distance; tabular numerals."
+        "purpose": "Live distance above time/pace; 40sp with tabular numerals."
       },
       "display-detail": {
         "displayName": "Display Detail",
-        "purpose": "Saved run distance."
+        "purpose": "Saved run distance; 36sp."
       },
       "headline": {
         "displayName": "Headline",
@@ -304,11 +304,11 @@
       },
       "metric-value": {
         "displayName": "Metric Value",
-        "purpose": "Time and pace; tabular numerals."
+        "purpose": "Time, pace and replay measurements; 24sp tabular numerals."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Split/section heading."
+        "purpose": "Run totals and splits headings."
       },
       "body": {
         "displayName": "Body",
@@ -356,9 +356,9 @@
       "name": "Live distance",
       "kind": "custom",
       "refersTo": "live-distance",
-      "description": "Empty recording value and separate unit, showing the actual 56sp/24sp relationship at nominal browser scale.",
+      "description": "Empty recording value with the native 40sp/24sp size relationship at nominal browser scale.",
       "html": "<div class=\"ds-distance\"><span class=\"ds-number\">0.00</span><span class=\"ds-unit\">km</span></div>",
-      "css": ".ds-distance{display:flex;align-items:baseline;background:#FAFAFA;color:#171717;font-family:Roboto,Arial,sans-serif}.ds-number{font-size:56px;font-weight:500;font-variant-numeric:tabular-nums}.ds-unit{margin-left:8px;font-size:24px;color:#5C5C5C}"
+      "css": ".ds-distance{display:flex;align-items:baseline;background:#FAFAFA;color:#171717;font-family:Roboto,Arial,sans-serif}.ds-number{font-size:40px;font-weight:500;font-variant-numeric:tabular-nums}.ds-unit{margin-left:8px;font-size:24px;color:#5C5C5C}"
     },
     {
       "name": "Run row",
@@ -369,12 +369,12 @@
       "css": ".ds-history{display:flex;flex-direction:column;text-align:left;width:100%;min-height:80px;background:#FAFAFA;border:0;border-bottom:1px solid #EEEEEE;padding:20px 4px;color:#171717;font-family:Roboto,Arial,sans-serif;cursor:pointer}.ds-date,.ds-summary{font-size:14px;color:#5C5C5C}.ds-history-distance{font-size:26px;font-weight:500;margin-top:6px}.ds-summary{margin-top:4px}.ds-history:hover{background:#EEEEEE}.ds-history:focus-visible{outline:2px solid #171717;outline-offset:-2px}.ds-history:active{background:#E7E7E7}"
     },
     {
-      "name": "Route awaiting a fix",
+      "name": "Satellite map shell",
       "kind": "custom",
-      "refersTo": "route-trace",
-      "description": "A session can show this state while acquiring GPS. The idle Ready screen omits the panel. Populated routes draw actual samples, never illustrative geometry.",
-      "html": "<div class=\"ds-route\" role=\"img\" aria-label=\"Waiting for recorded GPS points\">Finding GPS…</div>",
-      "css": ".ds-route{height:180px;display:flex;align-items:center;justify-content:center;background:#EEEEEE;color:#5C5C5C;font:400 14px Roboto,Arial,sans-serif}"
+      "refersTo": "satellite-map",
+      "description": "A 240dp ready/live map with fit/follow and 48dp credit controls. Below 500dp screen height, it becomes 120dp; saved-run replay maps use 300dp or 160dp. This neutral documentation placeholder contains no imagery or invented route. Runtime imagery retains real colors.",
+      "html": "<div class=\"ds-map\"><span class=\"ds-map-placeholder\">Satellite imagery</span><div class=\"ds-map-controls\"><button aria-label=\"Fit entire route\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\" /><path d=\"M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4\" /><path d=\"M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5\" /></svg></button><button aria-label=\"Follow moving marker\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\" /><path d=\"M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0\" /><path d=\"M12 2l0 2\" /><path d=\"M12 20l0 2\" /><path d=\"M20 12l2 0\" /><path d=\"M2 12l2 0\" /></svg></button></div><button class=\"ds-map-credits\">© IGN · EOX · OpenStreetMap</button></div>",
+      "css": ".ds-map{position:relative;height:240px;background:#EEEEEE;color:#171717;font:400 14px Roboto,Arial,sans-serif}.ds-map-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5C5C5C}.ds-map-controls{position:absolute;right:8px;top:8px;display:flex;flex-direction:column}.ds-map button{background:#FFFFFF;color:#171717;border:0;cursor:pointer}.ds-map-controls button{height:48px;width:48px}.ds-map svg{width:24px;height:24px}.ds-map-credits{position:absolute;left:0;bottom:0;min-height:48px;padding:0 8px;font-size:11px}.ds-map button:focus-visible{outline:2px solid #171717;outline-offset:-3px}.ds-map button:hover{background:#E7E7E7}"
     },
     {
       "name": "Split row",
@@ -383,42 +383,73 @@
       "description": "A compact ruled row with equal columns, muted label and end-aligned value. This example has no measured data.",
       "html": "<div class=\"ds-detail\"><span class=\"ds-detail-label\">Km 1</span><span class=\"ds-detail-value\">— /km</span></div>",
       "css": ".ds-detail{display:flex;align-items:center;background:#FAFAFA;border-bottom:1px solid #EEEEEE;padding:12px 0;font-family:Roboto,Arial,sans-serif}.ds-detail-label{flex:1;color:#5C5C5C;font-size:15px}.ds-detail-value{flex:1;text-align:right;color:#171717;font-size:16px;font-weight:500}"
+    },
+    {
+      "name": "Replay controls",
+      "kind": "custom",
+      "refersTo": "replay-control",
+      "description": "Outlined 52dp Play and speed controls with 20dp Tabler glyphs. Native speed choices are 1×, 5×, 10×, 30× and 60×; these documentation buttons do not play a route.",
+      "html": "<div class=\"ds-replay\"><button><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 4v16l13 -8l-13 -8\" /></svg>Play</button><button aria-label=\"Playback speed, 30 times\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\" /><path d=\"M12 7v5l3 3\" /></svg>30×</button></div>",
+      "css": ".ds-replay{display:flex;gap:8px;background:#FAFAFA}.ds-replay button{display:flex;flex:1;align-items:center;justify-content:center;gap:5px;min-height:52px;border:1px solid #777777;border-radius:12px;background:#FAFAFA;color:#171717;font:500 14px Roboto,Arial,sans-serif;cursor:pointer}.ds-replay svg{width:20px;height:20px}.ds-replay button:hover{background:#EEEEEE}.ds-replay button:focus-visible{outline:2px solid #171717;outline-offset:2px}"
+    },
+    {
+      "name": "Missing altitude",
+      "kind": "custom",
+      "refersTo": "altitude-profile",
+      "description": "Native 144dp altitude panel when no altitude data exists. Measured profiles preserve missing-data and segment gaps; no sample chart is fabricated here.",
+      "html": "<div class=\"ds-altitude\" role=\"img\" aria-label=\"No GPS altitude data\">No GPS altitude data</div>",
+      "css": ".ds-altitude{height:144px;display:flex;align-items:center;justify-content:center;background:#FAFAFA;color:#5C5C5C;font:400 12px Roboto,Arial,sans-serif}"
+    },
+    {
+      "name": "Strava toolbar action",
+      "kind": "button",
+      "refersTo": "toolbar-strava",
+      "description": "A labeled 48dp toolbar action remains accessible above the saved run. It saves GPX and opens a browser; it does not connect or publish an account activity.",
+      "html": "<button class=\"ds-strava\" aria-label=\"Share run to Strava\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\" /><path d=\"M7 9l5 -5l5 5\" /><path d=\"M12 4l0 12\" /></svg>Strava</button>",
+      "css": ".ds-strava{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 8px;border:0;background:#FAFAFA;color:#171717;font:500 14px Roboto,Arial,sans-serif;cursor:pointer}.ds-strava svg{width:20px;height:20px}.ds-strava:hover{background:#EEEEEE}.ds-strava:focus-visible{outline:2px solid #171717;outline-offset:2px}"
     }
   ],
   "narrative": {
     "northStar": "Minimal running instrument",
-    "overview": "The user requested monotone colors, very little text, simple controls and one sporty free icon set. Runline now uses neutral day/night roles, the Tabler outline family and short status/action labels. Distance, time and pace lead; occasional details move to menus. Runline remains a working name.",
+    "overview": "Version 0.3 keeps the user-pinned monotone controls, few words and one Tabler outline family while adding real satellite imagery, GPS replay and more measurements. Satellite images retain their colors. Recording/replay maps are 240dp/300dp, or 120dp/160dp below 500dp screen height; Strava stays in the toolbar. API 34 emulator review covered imagery, playback, light/dark, 1.3× font scale and landscape. The final sharing dialog was confirmed monochrome and the map-credit target measured 48dp; physical-phone coverage remains unverified.",
     "keyCharacteristics": [
-      "Achromatic day/night role colors.",
-      "One Tabler outline family with short action labels.",
-      "Large real measurements and explicit recording states.",
-      "Native Material controls, flat lists and route traces."
+      "Achromatic controls in paired day/night roles; real-color map imagery.",
+      "One Tabler outline family with short labels and accessible icon actions.",
+      "Bottom recording actions and a visible Strava toolbar action.",
+      "Observed GPS replay with explicit missing-data gaps and estimated measurements.",
+      "Flat native lists and local route overlays, with visible map attribution."
     ],
     "rules": [
       {
-        "name": "Paired neutral roles",
-        "body": "Keep foreground and background within the same active day/night scheme; no hue accents are added.",
+        "name": "Neutral chrome, real imagery",
+        "body": "Application controls retain neutral roles. Satellite/aerial tiles and supplied place labels preserve their source colors. Keep credits visible; do not add a brand accent.",
         "section": "colors"
       },
       {
         "name": "Short labels, honest states",
-        "body": "Move explanations into Run info or protection help, but preserve visible errors, GPS uncertainty and recovery actions.",
+        "body": "Use — for missing measurements and expose useful errors. Put detailed calculation rules in Run info; keep replay time distinct from active time.",
         "section": "typography"
+      },
+      {
+        "name": "Display is separate from capture",
+        "body": "Maps request visible tiles, not raw run files. Offline background recording and recovery were checked on the API 34 emulator. Replay uses observed GPS intervals, pauses in the background and does not export video. This evidence does not certify every device or failure path.",
+        "section": "components"
       }
     ],
     "dos": [
       "Use only the pinned Tabler outline icons for app pictograms.",
       "Keep Start/Pause/Resume/Finish labeled and easy to reach.",
-      "Use explicit state words, not color alone.",
-      "Preserve native font scaling and accessible names.",
+      "Keep Strava accessible in the saved-run toolbar.",
+      "Use explicit state words and preserve native font scaling.",
+      "Preserve visible map credits, GPS gaps and unknown altitude.",
       "Keep sharing status honest: a saved file or opened browser is not an upload."
     ],
     "donts": [
-      "Do not reintroduce the green prototype palette or promotional headings.",
+      "Do not recolor satellite imagery to force a monochrome map.",
       "Do not replace important labels with ambiguous icons.",
-      "Do not add decorative maps, charts or invented sensor values.",
-      "Do not turn every row into an elevated card.",
-      "Do not treat browser previews or synthesized neutral ramps as extra native tokens."
+      "Do not invent route geometry, missing altitude, sensor measurements or replay through a pause.",
+      "Do not hide recording actions below the map or every statistic.",
+      "Do not treat browser previews as native visual verification or documentation ramps as extra Android tokens."
     ]
   }
 }

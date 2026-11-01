@@ -4,18 +4,25 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
+import android.provider.OpenableColumns
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.runline.app.core.GpxExporter
 import com.runline.app.core.RunSession
 import com.runline.app.core.continuousSegments
@@ -26,7 +33,8 @@ import java.util.concurrent.Executors
 
 /**
  * User-driven website handoff, not a Strava connection or an upload API.
- * The GPX is written only to the destination chosen in Android's document picker.
+ * Android 10+ saves the GPX to Downloads without a storage permission or save dialog.
+ * Android 8/9 and failed Downloads writes use Android's document picker instead.
  * Opening the website never attaches the GPX or publishes the activity.
  */
 class StravaSharing(
@@ -62,14 +70,16 @@ class StravaSharing(
         if (!preferences.getBoolean(INTRO_SEEN, false)) {
             MaterialAlertDialogBuilder(activity)
                 .setTitle("Share to Strava")
-                .setMessage("1  Save the file\n2  Pick it on Strava\n3  Review and publish\n\nBrowser desktop mode may be needed.")
-                .setPositiveButton("Save & continue") { _, _ ->
+                .setMessage(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    "The GPX will be saved to Downloads.\n\n1  Choose it on Strava\n2  Review and publish\n\nUse Desktop site if needed."
+                    else "Save the GPX, choose it on Strava, then publish.\n\nUse Desktop site if needed.")
+                .setPositiveButton("Continue") { _, _ ->
                     preferences.edit().putBoolean(INTRO_SEEN, true).apply()
-                    chooseDestination(run)
+                    prepareFile(run)
                 }
                 .setNegativeButton("Cancel", null)
                 .show()
-        } else chooseDestination(run)
+        } else prepareFile(run)
     }
 
     fun restoreState(state: Bundle?) {
@@ -109,6 +119,13 @@ class StravaSharing(
         activity.lifecycle.removeObserver(lifecycleObserver)
     }
 
+    private fun prepareFile(run: RunSession) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            onMessage("Saving GPX…")
+            model.exportToDownloads(activity.applicationContext, run, filename(run))
+        } else chooseDestination(run)
+    }
+
     @Suppress("DEPRECATION")
     private fun chooseDestination(run: RunSession) {
         model.pendingRunId = run.id
@@ -137,36 +154,64 @@ class StravaSharing(
         model.outcome = null
         when (result) {
             is StravaExportOutcome.Saved -> {
-                onMessage("GPX saved. Choose ${result.filename} on Strava.")
-                openWebsite()
+                // Remains useful when the user returns from the browser. Copying is
+                // explicit; do not put route-related data on the clipboard unasked.
+                Snackbar.make(activity.findViewById(android.R.id.content),
+                    "${if (result.inDownloads) "Downloads" else "Saved"}: ${result.filename}", Snackbar.LENGTH_INDEFINITE)
+                    .setAction("Copy name") { copyText("GPX filename", result.filename) }.show()
+                openWebsite(result.filename)
             }
-            is StravaExportOutcome.Failed -> onMessage(result.message)
+            is StravaExportOutcome.Failed -> {
+                onMessage(result.message)
+                result.pickerFallback?.let(::chooseDestination)
+            }
         }
     }
 
-    private fun openWebsite() {
+    @Suppress("DEPRECATION")
+    private fun openWebsite(filename: String) {
+        // Resolve against a generic HTTPS page rather than the Strava upload URL.
+        // The native Strava app may claim strava.com links without exposing an
+        // activity-file uploader. Only generic browser handlers receive this URL.
+        val browserProbe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/"))
+            .addCategory(Intent.CATEGORY_BROWSABLE)
+        val manager = activity.packageManager
+        val browsers = manager.queryIntentActivities(browserProbe, PackageManager.MATCH_DEFAULT_ONLY)
+            .mapNotNull { it.activityInfo?.takeIf { info -> info.exported }?.packageName }
+            .distinct()
+        val preferred = manager.resolveActivity(browserProbe, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+        val target = Intent(Intent.ACTION_VIEW, Uri.parse(UPLOAD_URL)).addCategory(Intent.CATEGORY_BROWSABLE)
+        val intent = when {
+            preferred in browsers -> target.setPackage(preferred)
+            browsers.size == 1 -> target.setPackage(browsers.first())
+            browsers.isNotEmpty() -> Intent.createChooser(Intent(target).setPackage(browsers.first()), "Open Strava in browser")
+                .putExtra(Intent.EXTRA_INITIAL_INTENTS, browsers.drop(1).map { Intent(target).setPackage(it) }.toTypedArray())
+            else -> { showWebsiteFallback(filename); return }
+        }
         try {
-            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UPLOAD_URL)).apply {
-                addCategory(Intent.CATEGORY_BROWSABLE)
-            })
+            activity.startActivity(intent)
         } catch (_: ActivityNotFoundException) {
-            showWebsiteFallback()
+            showWebsiteFallback(filename)
         } catch (_: SecurityException) {
-            showWebsiteFallback()
+            showWebsiteFallback(filename)
         }
     }
 
-    private fun showWebsiteFallback() {
+    private fun showWebsiteFallback(filename: String) {
         MaterialAlertDialogBuilder(activity)
             .setTitle("Your GPX file is saved")
-            .setMessage("Open Strava's file uploader in a browser, choose the file, then review and publish your run.")
+            .setMessage("Open Strava's file uploader in a browser and choose $filename, then review and publish.")
             .setPositiveButton("Copy upload link") { _, _ ->
-                activity.getSystemService(ClipboardManager::class.java)
-                    .setPrimaryClip(ClipData.newPlainText("Strava file uploader", UPLOAD_URL))
+                copyText("Strava file uploader", UPLOAD_URL)
                 onMessage("Upload link copied.")
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    private fun copyText(label: String, value: String) {
+        activity.getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText(label, value))
     }
 
     private fun filename(run: RunSession): String {
@@ -179,14 +224,14 @@ class StravaSharing(
         const val REQUEST_CREATE_GPX = 3102
         const val UPLOAD_URL = "https://www.strava.com/upload/select"
         private const val PREFERENCES = "strava_website_sharing"
-        private const val INTRO_SEEN = "intro_seen"
+        private const val INTRO_SEEN = "downloads_intro_seen"
         private const val STATE_RUN_ID = "strava_website_pending_run"
     }
 }
 
 internal sealed interface StravaExportOutcome {
-    data class Saved(val filename: String) : StravaExportOutcome
-    data class Failed(val message: String) : StravaExportOutcome
+    data class Saved(val filename: String, val inDownloads: Boolean = false) : StravaExportOutcome
+    data class Failed(val message: String, val pickerFallback: RunSession? = null) : StravaExportOutcome
 }
 
 /** Keeps an in-flight file write and its one-shot result across Activity recreation. */
@@ -199,30 +244,80 @@ class StravaShareViewModel : ViewModel() {
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
+    @android.annotation.TargetApi(Build.VERSION_CODES.Q)
+    internal fun exportToDownloads(context: Context, run: RunSession, filename: String) {
+        isSaving = true
+        worker.execute {
+            val xml = try { prepareGpx(run) } catch (error: Exception) {
+                complete(StravaExportOutcome.Failed(error.message ?: "This GPX file could not be prepared."))
+                return@execute
+            }
+            var destination: Uri? = null
+            val result = try {
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/gpx+xml")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: error("Downloads did not create a file.")
+                destination = uri
+                writeGpx(context, uri, xml)
+                check(resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null) == 1) {
+                    "The file could not be published to Downloads."
+                }
+                // MediaStore may choose a different name after a filename collision.
+                val actualName = readFilename(context, uri) ?: filename
+                StravaExportOutcome.Saved(actualName, inDownloads = true)
+            } catch (_: Exception) {
+                destination?.let { runCatching { context.contentResolver.delete(it, null, null) } }
+                StravaExportOutcome.Failed("Couldn't save to Downloads. Choose a file location instead.", pickerFallback = run)
+            }
+            complete(result)
+        }
+    }
+
     internal fun export(context: Context, run: RunSession, destination: Uri, filename: String) {
         isSaving = true
         worker.execute {
             val result = try {
-                val xml = GpxExporter.export(run)
-                // The official website accepts a file up to 25 MB. Fail before writing
-                // an export we already know the intended destination will reject.
-                require(xml.toByteArray(Charsets.UTF_8).size <= MAX_FILE_BYTES) {
-                    "This route exceeds Strava's 25 MB file limit. Your recording is still saved."
-                }
-                (context.contentResolver.openOutputStream(destination, "wt")
-                    ?: error("The document provider did not open the file."))
-                    .bufferedWriter(Charsets.UTF_8).use { it.write(xml) }
-                StravaExportOutcome.Saved(filename)
+                val xml = prepareGpx(run)
+                writeGpx(context, destination, xml)
+                StravaExportOutcome.Saved(readFilename(context, destination) ?: filename)
             } catch (error: IllegalArgumentException) {
                 StravaExportOutcome.Failed(error.message ?: "This GPX file could not be prepared.")
             } catch (_: Exception) {
                 StravaExportOutcome.Failed("Couldn't save the GPX file. Choose another location and try again. Your run is still saved.")
             }
-            main.post {
-                isSaving = false
-                outcome = result
-                listener?.invoke()
-            }
+            complete(result)
+        }
+    }
+
+    private fun prepareGpx(run: RunSession): String = GpxExporter.export(run).also {
+        require(it.toByteArray(Charsets.UTF_8).size <= MAX_FILE_BYTES) {
+            "This route exceeds Strava's 25 MB file limit. Your recording is still saved."
+        }
+    }
+
+    private fun writeGpx(context: Context, destination: Uri, xml: String) {
+        (context.contentResolver.openOutputStream(destination, "wt")
+            ?: error("The document provider did not open the file."))
+            .bufferedWriter(Charsets.UTF_8).use { it.write(xml) }
+    }
+
+    private fun readFilename(context: Context, uri: Uri): String? = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull()
+
+    private fun complete(result: StravaExportOutcome) {
+        main.post {
+            isSaving = false
+            outcome = result
+            listener?.invoke()
         }
     }
 

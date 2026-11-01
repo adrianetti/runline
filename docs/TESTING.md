@@ -1,21 +1,23 @@
-# Version 0.2 test checklist
+# Version 0.3 test checklist
 
-This is a checklist, not evidence that tests passed. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report; completed v0.3 checks are summarized at the end and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
-With JDK 17 and SDK 34, run:
+With JDK 17, SDK 34 and Build Tools 34.0.0, use the pinned AGP 8.5.2 / Kotlin 2.0.20 / Gradle 8.7 build:
 
 ```sh
 python3 tools/import_icons.py --check
-./gradlew testDebugUnitTest assembleDebug lintDebug
+./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
 Inspect unit-test and lint reports. Persistence tests should exercise actual temporary files with injected failures, including incomplete journal appends, corrupt metadata, finalization/cleanup interruption and duplicate completion. A passing calculation test does not validate Android service lifecycle or physical storage durability.
 
+Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
 ## Installation and signing
 
-- Verify the packaged `dist/Runline-0.2.0.apk` signature and install that exact artifact. Confirm later v0.2+ builds signed with the same per-app key update in place without deleting runs.
+- Verify the packaged `dist/Runline-0.3.0.apk` signature and version name/code (0.3.0 / 3); install that exact artifact. Update an existing signed v0.2 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
 - Do not treat the old v0.1 debug signature as compatible. If migration requires uninstalling v0.1, export recordings first and verify the exports before uninstalling.
 - Main-branch CI may receive signing secrets; pull-request builds must not. Never log key/password contents or put signing material in test artifacts.
 
@@ -66,7 +68,7 @@ Use isolated test directories or disposable emulator app data, never a user's re
 - Disable location, revoke permission, or move through poor reception. The app must identify the condition, preserve existing samples and avoid stale-fix confidence or a fabricated bridge after signal recovery.
 - Record over one kilometre and finish within the next. Check full splits and the final partial split; split time need not equal active time because it uses GPS intervals.
 - A no-fix run may retain its timer, but route/pace must remain unavailable and the Strava flow must reject unusable tracks.
-- In airplane mode with GPS enabled, record and reopen a run. Recording/history require no network; a cold fix can take longer. Cloud document providers and the Strava website have separate connection requirements.
+- In airplane mode with GPS enabled, record and reopen a run. Recording/history/replay calculations require no network; a cold fix can take longer. Maps may have no imagery outside cached tiles, but recording and geometric route display must remain usable. Cloud document providers and Strava have separate connection requirements.
 - Change the wall clock during a test and exercise recovery across a simulated boot change. Active time uses a monotonic clock; recovery must not infer unobserved elapsed downtime as activity.
 
 ## Physical-phone field check — required
@@ -77,23 +79,45 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 ## UI and accessibility
 
-- Confirm **Record**, **Runs**, **Start run**, **Pause**, **Resume**, **Finish** and **Share to Strava** are easy to find, with one Tabler icon family and neutral colors.
+- Confirm **Record**, **Runs**, **Start run**, **Pause**, **Resume** and **Finish** are easy to find. **Strava** belongs in the saved-run toolbar, not below every statistic. Use one Tabler family and neutral controls; real satellite imagery retains its colors.
 - Check light/dark mode, 1.3 font scale and a smaller supported phone. No clipped measurements, labels or actions; system-bar icons must retain contrast.
-- Check TalkBack labels for toolbar actions, icon/text controls and route content. Decorative icons should not repeat adjacent labels.
+- Check 240dp ready/live and 300dp detail maps in portrait, plus 120dp/160dp maps below 500dp screen height. The compact detail header places distance beside time/pace. Bottom recording actions remain reachable while map gestures retain pan/zoom behavior.
+- Check TalkBack labels for toolbar actions, fit/follow controls, playback speed, seek position, map credits and altitude profile. Decorative icons should not repeat adjacent labels.
 - Rotate during recording and during a Strava file save. Preserve the current session and avoid duplicate export or browser-launch events.
 - Check Android Back from run details and history. Discard/Delete must still ask for confirmation even though Finish is direct.
+
+## Satellite maps and network failure
+
+- Check detailed IGN/PNOA imagery in Spain, global EOX imagery outside Spain, and road/place labels. Compare the visible area with the intended route; record tile provider, zoom and coverage instead of assuming street-level global detail.
+- Pan, pinch, fit the entire route and follow the moving marker. Panning should stop following until explicitly re-enabled. Include a route crossing the date line and a viewport near Spain's boundary.
+- Keep the map credit strip visible and verify its source/license/coverage/privacy dialog. No colored application accents should be introduced by controls.
+- Disable network, provoke tile errors and separately exercise a native map-load failure. Confirm a visible map status, the route/fallback, unchanged saved samples, and uninterrupted recording while Android permits. Restore connectivity and check the display recovers without restarting the run.
+- Background, rotate, navigate repeatedly between Record/Runs/detail, and reopen. Map lifecycle cleanup must avoid crashes, duplicate views or continued hidden rendering. No whole-region downloads should start.
+- Inspect map requests using disposable synthetic data: hosts receive requested tile areas, not a GPX, timestamps, run ID or metrics. Route overlays remain local; viewing a map can still reveal the visible area to its provider.
+
+## Replay and statistics
+
+- Open a saved run and verify the initial paused frame. Play at every multiplier (1×, 5×, 10×, 30×, 60×), change speed during playback, seek in both directions, reach the end and restart. Confirm the recorded run itself never changes.
+- Background or leave the screen during playback. Playback must pause; returning must not accumulate background playback time. Rotate and verify saved position/speed restore without automatic playback.
+- Use synthetic runs with explicit pauses, interruptions, isolated fixes and a GPS gap longer than 15 seconds. Replay time must include only observed intervals and cut across gaps without a fabricated line or animated transit. Average pace/speed still use active time.
+- Compare speed/pace with known GPS intervals and the trailing five-second window. Reject implausible running speed, keep stationary/missing speed meaningful and avoid using the active timer as the replay clock.
+- Test valid, absent, intermittent, flat and non-finite GPS altitude. Chart gaps must remain visible; missing altitude and segment breaks reset ascent/descent accumulation. Check the 3-metre deadband, raw altitude range and unavailable-value dashes.
+- Check totals and kilometre/final partial splits against known samples. Replay metrics and the altitude cursor should track seeking without persistent UI stalls; playback has a 20-update-per-second target, not a hardware performance guarantee.
+- A no-route/one-point run keeps its saved time; unavailable playback controls must be disabled. Do not claim a video export: no MP4 is produced.
 
 ## GPX and Strava handoff
 
 1. Save two runs, reopen the app and check both sessions remain distinct.
-2. Open one and use **Share to Strava**. First use explains the flow; later uses skip that introduction.
-3. Cancel the document picker. The source run remains intact and the website does not open.
-4. Choose Downloads and save. Inspect the actual file as XML before counting this check as passed. Every exported point should preserve coordinates and UTC timestamp, with available altitude and separate pause/interruption segments.
-5. Only after successful file writing should the Strava website uploader open. Opening the website is not an upload and must not mark the run as shared/published.
-6. Simulate a failed/partial destination write and an unavailable browser. Keep the source, show a useful recovery route, and do not report an upload. Retry and remove any incomplete test destination.
-7. Rotate during export and kill the process while the picker is open. Restore the pending saved-run ID correctly. A process death during writing may require retry, but must never delete the source recording.
-8. Verify **Export GPX** and **Share file** in the menu. Test cancellation and recipient readability separately from the Strava handoff.
-9. On the user's phone, check whether the browser requires **Desktop site**. If file selection works, review route/date/visibility on Strava; publishing is a separate user action. Development verification must not publish a real activity merely to test navigation.
+2. Tap **Strava** in the saved-run toolbar. First use explains the flow; cancel and retry. Later uses should skip the introduction.
+3. On Android 10+, confirm automatic Downloads save without a storage permission or save dialog. The file must become visible only after writing succeeds. Inspect the actual XML: preserve coordinates, UTC timestamps, available altitude and pause/interruption segments.
+4. Compare the persistent saved-name message with the actual provider filename, including a duplicate-name suffix. **Copy name** must copy only after a tap.
+5. On Android 8/9, use the document picker. Also provoke an automatic Downloads failure and verify the picker fallback. Canceling the picker must preserve the source and not open the website.
+6. Only after successful file writing should the official Strava uploader open in a browser. Test default browser, multiple browsers and no browser; an installed Strava app must not intercept the upload URL. No-browser fallback must preserve the file and offer **Copy upload link**.
+7. Opening the website is not an upload and must not mark the run as shared/published. Reject no usable route and over-limit GPX before the handoff.
+8. Simulate a failed/partial destination write. Keep the source, clean up the failed new Downloads item where possible, and allow retry. Process death can leave a hidden pending MediaStore item or partial picker destination; inspect and remove disposable leftovers.
+9. Rotate during export, background while saving, and kill the process while the picker is open. Restore the pending run ID, defer browser launch until resumed and avoid duplicate launches. A killed write may require retry, but must never delete the source.
+10. Verify **Export GPX** and **Share file** in the menu. Test cancellation and recipient readability separately from the Strava handoff.
+11. On the user's phone, check whether the browser requires **Desktop site**. If file selection works, review route/date/visibility on Strava; publishing is a separate user action. Development verification must not publish a real activity merely to test navigation.
 
 GPX contains exact start/end coordinates and timestamps. It is a route export, not a complete backup of every internal field. Do not assume an installed Strava Android app accepts GPX via `ACTION_SEND`.
 
@@ -101,4 +125,12 @@ GPX contains exact start/end coordinates and timestamps. It is a route export, n
 
 Export any test recording that must survive uninstalling or clearing app storage. All internal mirrors/recovery copies reside on the same phone; they do not protect against device loss or a wiped app.
 
-Version 0.2 results are pending final verification. Record completed checks, remaining warnings and untested cases in README.md. Historical v0.1 results do not cover the new recorder/storage implementation or simplified sharing flow.
+Recorded v0.3 results on 1 November 2026:
+
+- Signed debug/release builds succeeded; all 38 JVM tests passed (10 metrics/GPX, 14 persistence, 14 replay including the peak-speed regression), and lint reported zero errors.
+- API 34 installed v0.3 over the signed v0.2 build while retaining runs. The final signed release opened after installation and retained both older v0.2 recordings and v0.3 synthetic/offline runs. Actual IGN imagery, route and moving marker rendered; the density-aware route fit was corrected.
+- Replay at 30×, selecting 60×, halfway seeking, Pause, background/return and rotation restoration were exercised. Light/dark, 1.3× font scale and compact landscape were reviewed. The final sharing dialog was confirmed monochrome and the map-credit target measured 48dp.
+- Offline background/screen-locked recording retained seven synthetic GPS samples. Force-stop/reopen recovered the draft, and Finish saved it.
+- Automatic Downloads sharing saved valid GPX with 121 samples in two segments and opened the official browser uploader without a save picker. No Strava account login, upload or publication was tested.
+
+CI results are tracked separately in the repository's [Android workflow](https://github.com/adrianetti/runline/actions/workflows/android.yml). No physical-phone field/battery-exhaustion test, Android 8/9 picker runtime check or 16 KB page-size device test has been completed. Offline imagery is not guaranteed. Unlisted checklist cases remain unverified; the results above do not certify every failure path or device. README.md retains the earlier v0.2 results separately.

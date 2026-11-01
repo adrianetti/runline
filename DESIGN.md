@@ -1,6 +1,6 @@
 ---
 name: "Runline"
-description: "A minimal monochrome Android running recorder with one outline icon family."
+description: "An Android running recorder with monochrome controls, real satellite imagery and GPS replay."
 colors:
   primary: "#171717"
   on-primary: "#FFFFFF"
@@ -25,12 +25,12 @@ colors:
 typography:
   display:
     fontFamily: "sans-serif-medium"
-    fontSize: "56sp"
+    fontSize: "40sp"
     fontWeight: 500
     fontFeature: "tnum"
   display-detail:
     fontFamily: "sans-serif-medium"
-    fontSize: "56sp"
+    fontSize: "36sp"
     fontWeight: 500
   headline:
     fontFamily: "sans-serif-medium"
@@ -63,6 +63,7 @@ typography:
     fontWeight: 400
 rounded:
   control: "16dp"
+  replay-control: "12dp"
 spacing:
   inset-small: "4dp"
   gap-small: "8dp"
@@ -93,10 +94,24 @@ components:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.on-surface}"
     padding: "20dp 4dp"
-  route-trace:
-    backgroundColor: "{colors.surface-variant}"
+  satellite-map:
+    height: "240dp"
+  satellite-map-compact:
+    height: "120dp"
+  replay-map:
+    height: "300dp"
+  replay-map-compact:
+    height: "160dp"
+  replay-control:
     textColor: "{colors.primary}"
-    height: "180dp"
+    rounded: "{rounded.replay-control}"
+    height: "52dp"
+  altitude-profile:
+    textColor: "{colors.primary}"
+    height: "144dp"
+  toolbar-strava:
+    textColor: "{colors.primary}"
+    height: "48dp"
   detail-row:
     textColor: "{colors.on-surface}"
     padding: "12dp 0dp"
@@ -106,17 +121,17 @@ components:
 
 ## Overview
 
-**Direction: Minimal running instrument.** The user explicitly requested monotone colors, very little text, easy controls and a single free icon family. This refresh replaces the prototype's green palette and longer introductory copy. Runline remains the working app name; no separate brand approval is implied.
+**Direction: Minimal running instrument.** The user requested monotone controls, very little text, easy controls and a single free icon family, followed by real satellite maps, replay and more statistics. The application chrome remains neutral; satellite/aerial imagery retains its actual colors. Runline remains the working app name.
 
-Distance, time and pace lead. A short status identifies Ready, Recording, Paused or Run recovered. Start/Pause/Resume/Finish remain labeled controls; supporting detail moves into the toolbar menu instead of becoming unexplained icons. The saved-run screen gives Share to Strava one clear primary position.
+The recording screen puts the map above distance, time and pace, with live speed and GPS altitude during a session. A short status identifies Ready, Recording, Paused or Run recovered. Start/Pause/Resume/Finish remain labeled controls in a bottom action area. A saved run adds playback, altitude and totals; its Strava action stays in the top toolbar instead of below the statistics.
 
-This record follows the implemented `MainActivity.kt`, `RouteView.kt`, Tabler drawables and day/night color resources. Native values use `dp` and `sp`. The sidecar contains browser approximations for documentation, not a competing web interface or new native tokens.
+This record follows `MainActivity.kt`, `SatelliteMapView.kt`, `RunReplayView.kt`, the `RouteView.kt` fallback, Tabler drawables and day/night colors. Native values use `dp` and `sp`. Sidecar previews approximate component structure; map placeholders do not claim to render actual imagery. API 34 emulator review covered actual imagery, replay, light/dark mode, 1.3× font scaling and landscape. The final sharing dialog was confirmed monochrome and the map-credit target measured 48dp; physical-phone coverage remains unverified.
 
 ## Colors
 
 All application role colors are neutral grays. `primary` is dark ink in light mode and near-white in dark mode. The associated `on-primary` foreground reverses with it. `surface` and `surface-variant` separate screen and route/list structure without a hue accent. `on-surface-variant` carries dates, metric labels and GPS status.
 
-The error role is also neutral. Errors must be identifiable through words and available actions, never through color alone. No Strava orange, green success color or other accent is added to Runline's own screens. External Android/Strava screens keep their owners' styling.
+The error role is also neutral. Errors must be identifiable through words and available actions, never through color alone. No Strava orange or colored control accent is added. Real map imagery and its supplied road/place labels are the intentional exception to the monochrome presentation. External Android/Strava screens keep their owners' styling.
 
 `Base.Theme.Runline` supplies shared Material roles. Qualified day/night `Theme.Runline` resources and the window-insets controller keep system-bar icons visible. Keys ending in `-dark` document night-resource overrides; runtime resource names remain the same.
 
@@ -128,46 +143,54 @@ Android system sans is the only text family, with the medium face for important 
 
 The frontmatter records the actual sizes rather than claiming an unimplemented type scale. The large distance is paired with its unit; the two smaller values have persistent labels. All text follows Android font scaling. Missing measurements use an em dash or a short no-data statement.
 
-**Explain on demand:** elapsed time, GPS sample count and calculation details belong in Run info. Retain meaningful permission, storage and recovery messages even when normal-state copy is brief.
+Live distance is 40sp; the saved-run distance is 36sp. Replay metrics use 24sp values with 13sp labels. Short headings and an em dash keep data legible without inventing missing measurements.
+
+**Explain on demand:** saved-run totals expose elapsed time and sample count; detailed calculation rules stay in Run info. Retain meaningful permission, map failure, storage and recovery messages even when normal-state copy is brief.
 
 ## Layout
 
-The phone uses a 64dp top app bar, 48dp Record/Runs tab row and a scrollable content column with 24dp page insets. The recording controls remain in a separate bottom action area. A ready screen does not reserve an empty route panel; once a session exists, its route uses a 180dp panel. Saved runs use that same panel height.
+The phone uses a 64dp top app bar, 48dp Record/Runs tab row and a scrollable content column with 24dp page insets. The recording controls remain in a separate bottom action area. Ready and recording states show a 240dp satellite panel above the measurements. Without an existing route, a permitted last known location may center it; viewing a map does not start recording.
 
-History is a chronological flat list. Run details put date, distance, Time/Pace, route and Share to Strava before the split rows. Export GPX, Share file, Run info and Delete run move to the overflow menu. Discard is available only for a paused/recovered run and still requires confirmation.
+When the available screen height is below 500dp, the recording map shrinks to 120dp and the replay map to 160dp. The compact saved-run header places distance beside time and pace instead of using the larger separate distance heading. This keeps playback closer to the top in landscape.
 
-This is a phone layout. Tablet-specific navigation or a separate tablet composition is not implemented. Larger fonts and different phone sizes must be checked in native captures before claiming coverage.
+History is a chronological flat list. Run details put date, distance and Time/Pace before the 300dp replay map. Play and speed controls, a seek bar, GPS-time clock, replay metrics and a 144dp altitude profile follow. Run totals and splits remain further down the scroll. Strava is a labeled 48dp toolbar action. Export GPX, Share file, Run info and Delete run remain in overflow. Discard is available only for paused/recovered runs and still requires confirmation.
+
+This is a phone layout. Tablet-specific navigation or a separate tablet composition is not implemented. No material layout issue remained in the reviewed emulator configurations; that evidence does not cover every phone size or accessibility setting.
 
 ## Elevation & Depth
 
-Use native Material pressed/focus feedback and dialogs. Content has no custom shadow vocabulary. Route panels use a flat neutral fill; list/detail rows use thin rules rather than elevated cards. No decorative blur, gradients or animation is part of the design.
+Use native Material pressed/focus feedback and dialogs. Content has no custom shadow vocabulary. List/detail rows use thin rules rather than elevated cards. White map controls, a short status strip and visible credits sit above imagery. Playback animation communicates recorded position; it is functional, stops when backgrounded and does not add decorative motion. No blur or decorative gradients are used.
 
 ## Shapes
 
-Primary and outlined controls use the implemented 16dp radius and at least 64dp height. Icons use Tabler's 24-unit geometry, 2-unit round stroke, round caps and round joins. The launcher adapts the same running figure in white on a dark square.
+Main recording controls use a 16dp radius and at least 64dp height. Replay controls use a 12dp radius, at least 52dp height and 20dp icons. Map fit/follow controls and the map-credit strip use 48dp targets. Icons retain Tabler's 24-unit geometry, 2-unit round stroke, round caps and round joins. The launcher uses the same running figure in white on a dark square.
 
-Route geometry remains distinct from icons: a 3.5dp line draws actual accepted GPS samples, a circle marks the start and a square the finish. Pauses and interruptions break the line. No map tiles or invented route illustration are shown.
+Route geometry remains distinct from icons. On satellite imagery, a white route line has a black outline; the starting point and moving position use white circles with black outlines. Pauses, interruption boundaries and replay gaps break the route. The native failure fallback uses the existing neutral geometric trace. Neither the background tiles nor interpolated replay positions modify saved GPS samples.
 
 ## Components
 
 - **Primary action:** one wide, labeled Material button with a Tabler icon. Start run, Pause or Resume matches the state. Once paused, Finish is the secondary outlined action and saves directly.
 - **Record/Runs tabs:** familiar native tabs pair labels with the run/history icons. Keep both labels; the icons are supporting cues.
 - **Protection and overflow:** the shield opens battery/notification information and Android settings. The three-dot menu holds occasional actions. Icon-only controls require accessible names.
-- **Measurements:** distance is large; Time and Pace /km are a balanced pair. Values update without rebuilding unchanged labels.
+- **Measurements:** distance is large; Time and Pace /km are a balanced pair. Live speed and GPS altitude add a second pair during a session. Values update without rebuilding unchanged labels.
 - **Run rows:** date, distance and concise active-time/pace summary form a single native touch target.
-- **Route:** shown only when it serves a recorded/recovered session; missing-fix states say Finding GPS or GPS ready. It is a trace, not a geographic basemap.
-- **Strava handoff:** Share to Strava saves a GPX, then opens the website after a successful save. No connected/uploaded state is invented. Runs without usable route data receive a short explanation.
+- **Satellite map:** a real geographic background with pan/zoom, fit-route and follow-marker controls. Map credits open source/license/coverage/privacy details. Loading and failure states must not imply that GPS recording stopped; map requests are display-only.
+- **Replay:** labeled Play/Pause/Replay and a speed selector for 1×/5×/10×/30×/60×. A seek bar controls position. The UI updates up to 20 times per second, pauses on backgrounding and cuts across unobserved intervals. There is no video export.
+- **Altitude and totals:** show GPS estimates, preserve chart gaps and use — for unknown data. A short note identifies GPS estimates; filtering and timing rules are explained in Run info.
+- **Strava handoff:** the toolbar saves GPX directly to Downloads on Android 10+ and opens the website only after success. Older devices and failed automatic saves use a file picker. The saved filename remains available to copy. Choosing the file and publishing still happen on Strava; no connected/uploaded state is invented.
 - **Recovery:** Run recovered offers Resume/Finish. An unreadable draft exposes Keep draft & reset with a preservation confirmation; completed history is not cleared.
 
 The Tabler license and pinned originals are documented in THIRD_PARTY_NOTICES.md and bundled in app assets, reachable from About. Android system dialogs and external apps are outside Runline's icon-set policy.
 
 ## Do's and Don'ts
 
-- Do keep the palette achromatic in both themes and use one Tabler outline family.
+- Do keep controls achromatic in both themes and use one Tabler outline family; preserve real imagery colors.
 - Do pair icons with short labels for primary actions and accessible labels for icon-only actions.
 - Do let starting a run take one tap after Android's required permissions/settings are satisfied.
 - Do retain state, uncertainty and recovery information in plain language.
 - Do keep lower-frequency detail in menus and preserve confirmation for destructive actions.
+- Do preserve visible map attribution and disclose visible-area network requests without interrupting every run.
+- Do distinguish active time from observed replay time, and estimates from unavailable data.
 - Don't reintroduce promotional headings, paragraphs on the recording screen or decorative cards.
 - Don't replace critical labels with ambiguous sports glyphs.
 - Don't imply that saving a GPX has uploaded or published it on Strava.

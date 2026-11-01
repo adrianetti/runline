@@ -39,7 +39,9 @@ import com.runline.app.core.RunSession
 import com.runline.app.data.RunStore
 import com.runline.app.tracking.TrackingService
 import com.runline.app.tracking.RecordingStatus as TrackingStatus
-import com.runline.app.ui.RouteView
+import com.runline.app.ui.SatelliteMapView
+import com.runline.app.ui.RunReplayView
+import com.runline.app.core.RunReplay
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -66,7 +68,12 @@ class MainActivity : AppCompatActivity() {
     private var durationLabel: TextView? = null
     private var paceLabel: TextView? = null
     private var gpsLabel: TextView? = null
-    private var route: RouteView? = null
+    private var route: SatelliteMapView? = null
+    private var replayView: RunReplayView? = null
+    private var restoredReplayPosition = 0L
+    private var restoredReplaySpeed = 30
+    private var liveSpeedLabel: TextView? = null
+    private var liveAltitudeLabel: TextView? = null
     private val ticker = object : Runnable {
         override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
     }
@@ -103,16 +110,22 @@ class MainActivity : AppCompatActivity() {
         val selectedRunId = savedInstanceState?.getString("runId")
         if (selectedRunId != null) currentRun = runCatching { store.get(selectedRunId) }.getOrNull()
         pendingExport = savedInstanceState?.getString("exportId")?.let { runCatching { store.get(it) }.getOrNull() }
+        restoredReplayPosition = savedInstanceState?.getLong("replayPosition") ?: 0L
+        restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 30
         if (screen == "detail" && currentRun == null) screen = "history"
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
     }
-    override fun onResume() { super.onResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::stravaSharing.isInitialized) stravaSharing.onResume() }
-    override fun onDestroy() { handler.removeCallbacks(ticker); if (::stravaSharing.isInitialized) stravaSharing.close(); super.onDestroy() }
-    override fun onPause() { handler.removeCallbacks(ticker); super.onPause() }
+    override fun onResume() { super.onResume(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::stravaSharing.isInitialized) stravaSharing.onResume() }
+    override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
+    override fun onDestroy() { handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::stravaSharing.isInitialized) stravaSharing.close(); super.onDestroy() }
+    override fun onPause() { handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("screen", screen); outState.putString("runId", currentRun?.id)
-        outState.putString("exportId", pendingExport?.id); stravaSharing.saveState(outState); super.onSaveInstanceState(outState)
+        outState.putString("exportId", pendingExport?.id)
+        outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
+        outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
+        stravaSharing.saveState(outState); super.onSaveInstanceState(outState)
     }
     @Deprecated("Uses platform Back for this single-activity prototype")
     override fun onBackPressed() {
@@ -122,7 +135,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render() {
+        route?.dispose(); replayView?.dispose(); replayView = null
         body.removeAllViews(); distanceLabel = null; durationLabel = null; paceLabel = null; gpsLabel = null; route = null
+        liveSpeedLabel = null; liveAltitudeLabel = null
         toolbar.title = if (screen == "detail") "Run" else "Runline"
         tabs.visibility = if (screen == "detail") View.GONE else View.VISIBLE
         toolbar.navigationIcon = if (screen == "detail") AppCompatResources.getDrawable(this, R.drawable.ic_back) else null
@@ -152,12 +167,18 @@ class MainActivity : AppCompatActivity() {
         val heading = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         heading.addView(iconView(if (state.status == TrackingStatus.RECORDING) R.drawable.ic_location else R.drawable.ic_run), LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(12) })
         heading.addView(text(title, 24, bold = true))
-        content.addView(heading, margin(bottom = 24))
+        content.addView(heading, margin(bottom = 16))
         if (state.status == TrackingStatus.RECOVERY_ERROR) {
             content.addView(text("Keep the damaged draft and start fresh. Saved runs stay untouched.", 14, muted = true))
         } else {
+            route = SatelliteMapView(this).also { map ->
+                map.setFollowing(true)
+                if (state.run?.points.isNullOrEmpty()) centerOnLastKnownLocation(map)
+                content.addView(map, LinearLayout.LayoutParams(-1, dp(if (resources.configuration.screenHeightDp < 500) 120 else 240)).apply { bottomMargin = dp(16) })
+                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) map.onHostResume()
+            }
             val bigMetric = LinearLayout(this).apply { gravity = Gravity.BOTTOM }
-            distanceLabel = text("0.00", 56, bold = true).apply { fontFeatureSettings = "tnum" }
+            distanceLabel = text("0.00", 40, bold = true).apply { fontFeatureSettings = "tnum" }
             bigMetric.addView(distanceLabel)
             bigMetric.addView(text("km", 24, muted = true), LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8); bottomMargin = dp(9) })
             content.addView(bigMetric)
@@ -166,9 +187,14 @@ class MainActivity : AppCompatActivity() {
             val pace = metric("Pace /km", "—"); paceLabel = pace.second
             metrics.addView(time.first, LinearLayout.LayoutParams(0, -2, 1f))
             metrics.addView(pace.first, LinearLayout.LayoutParams(0, -2, 1f))
-            content.addView(metrics, margin(top = 16, bottom = 24))
+            content.addView(metrics, margin(top = 12, bottom = 12))
             if (state.run != null) {
-                route = RouteView(this); content.addView(route, LinearLayout.LayoutParams(-1, dp(180)))
+                val extra = LinearLayout(this)
+                val speed = metric("Speed · km/h", "—"); liveSpeedLabel = speed.second
+                val altitude = metric("GPS altitude · m", "—"); liveAltitudeLabel = altitude.second
+                extra.addView(speed.first, LinearLayout.LayoutParams(0, -2, 1f))
+                extra.addView(altitude.first, LinearLayout.LayoutParams(0, -2, 1f))
+                content.addView(extra, margin(bottom = 8))
             }
         }
         gpsLabel = text("Start outdoors", 14, muted = true)
@@ -205,7 +231,17 @@ class MainActivity : AppCompatActivity() {
         setValue(distanceLabel, String.format(Locale.getDefault(), "%.2f", distance / 1000))
         setValue(durationLabel, duration(run?.activeDurationMs ?: 0))
         setValue(paceLabel, pace(RunMetrics.paceSecondsPerKm(distance, run?.activeDurationMs ?: 0)))
-        route?.points = run?.points ?: emptyList()
+        val points = run?.points ?: emptyList()
+        route?.setRoute(points)
+        route?.setMarker(points.lastOrNull())
+        val latest = points.lastOrNull()
+        val recent = latest != null && !state.gpsStale && state.status == TrackingStatus.RECORDING
+        val speed = if (recent && run != null) {
+            val tail = RunReplay(run.copy(points = points.takeLast(12)))
+            tail.at(tail.durationMs)?.speedMetersPerSecond?.times(3.6)
+        } else null
+        setValue(liveSpeedLabel, number(speed, 1))
+        setValue(liveAltitudeLabel, number(latest?.altitudeMeters, 0))
         val status = when {
             state.status == TrackingStatus.IDLE -> state.message ?: "Start outdoors"
             state.status == TrackingStatus.INTERRUPTED -> "Saved run recovered. Resume or finish."
@@ -245,24 +281,46 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(text("Saved on this phone", 14, muted = true), margin(top = 24))
     }
-    private fun openRun(run: RunSession) { currentRun = run; screen = "detail"; render() }
+    private fun centerOnLastKnownLocation(map: SatelliteMapView) {
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        val manager = getSystemService(LocationManager::class.java)
+        val last = runCatching { manager.getLastKnownLocation(LocationManager.GPS_PROVIDER) }.getOrNull()
+        if (last != null) map.setCenter(last.latitude, last.longitude)
+    }
+    private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 30; screen = "detail"; render() }
     private fun renderDetail(run: RunSession) {
-        val content = scrollContent(); val distance = RunMetrics.distanceMeters(run.points)
-        content.addView(text(date(run.startedAtMs), 14, muted = true))
-        content.addView(text("${String.format(Locale.getDefault(), "%.2f", distance / 1000)} km", 56, bold = true), margin(top = 8, bottom = 24))
+        val content = scrollContent()
+        val replay = RunReplay(run)
+        val distance = replay.summary.distanceMeters
+        val compact = resources.configuration.screenHeightDp < 500
+        content.addView(text(date(run.startedAtMs), 14, muted = true), margin(bottom = if (compact) 8 else 0))
+        if (!compact) content.addView(text("${number(distance / 1000, 2)} km", 36, bold = true), margin(top = 8, bottom = 16))
         val metrics = LinearLayout(this)
+        if (compact) metrics.addView(metric("Distance · km", number(distance / 1000, 2)).first, LinearLayout.LayoutParams(0, -2, 1f))
         val time = metric("Time", duration(run.activeDurationMs))
-        val pace = metric("Pace /km", pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)))
+        val pace = metric("Average pace /km", pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)))
         metrics.addView(time.first, LinearLayout.LayoutParams(0, -2, 1f)); metrics.addView(pace.first, LinearLayout.LayoutParams(0, -2, 1f))
-        content.addView(metrics, margin(bottom = 24))
-        val routeView = RouteView(this).apply { points = run.points }; content.addView(routeView, LinearLayout.LayoutParams(-1, dp(180)))
-        content.addView(button("Share to Strava", iconId = R.drawable.ic_upload) { stravaSharing.start(run) }.apply { isEnabled = run.points.size >= 2 }, margin(top = 24, bottom = 24))
-        if (run.points.size < 2) content.addView(text("No GPS route to share", 14, muted = true), margin(bottom = 24))
+        content.addView(metrics, margin(bottom = if (compact) 12 else 20))
+        replayView = RunReplayView(this, replay).also { view ->
+            view.restore(restoredReplayPosition, restoredReplaySpeed)
+            content.addView(view)
+            if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
+        }
+        if (replay.durationMs == 0L) content.addView(text("No continuous GPS route to share", 14, muted = true), margin(top = 16))
+        content.addView(text("Run totals", 24, bold = true), margin(top = 24, bottom = 8))
+        val summary = replay.summary
+        addDetail(content, "Average speed", "${number(summary.averageSpeedMetersPerSecond?.times(3.6), 1)} km/h")
+        addDetail(content, "Top GPS speed", "${number(summary.maxSpeedMetersPerSecond?.times(3.6), 1)} km/h")
+        addDetail(content, "Ascent / descent", "${number(summary.elevationGainMeters, 0)} / ${number(summary.elevationLossMeters, 0)} m")
+        addDetail(content, "Altitude low / high", "${number(summary.minAltitudeMeters, 0)} / ${number(summary.maxAltitudeMeters, 0)} m")
+        addDetail(content, "Elapsed time", duration((run.endedAtMs - run.startedAtMs).coerceAtLeast(0)))
+        addDetail(content, "GPS samples", run.points.size.toString())
+        content.addView(text("Speed and elevation are GPS estimates.", 13, muted = true), margin(top = 12, bottom = 24))
         content.addView(text("Splits", 24, bold = true), margin(bottom = 8))
-        val splits = RunMetrics.splits(run)
+        val splits = RunMetrics.splits(run.copy(points = replay.segments.flatten()))
         if (splits.isEmpty()) content.addView(text("Not enough GPS data", 14, muted = true))
         else splits.forEach { split ->
-            val label = if (split.distanceMeters >= 999.5) "Km ${split.index}" else "Last ${String.format(Locale.getDefault(), "%.2f", split.distanceMeters / 1000)} km"
+            val label = if (split.distanceMeters >= 999.5) "Km ${split.index}" else "Last ${number(split.distanceMeters / 1000, 2)} km"
             addDetail(content, label, pace(RunMetrics.paceSecondsPerKm(split.distanceMeters, split.durationMs)) + " /km")
         }
     }
@@ -272,6 +330,21 @@ class MainActivity : AppCompatActivity() {
             setIcon(iconId); icon?.setTint(getColor(R.color.on_surface)); setShowAsAction(if (visible) MenuItem.SHOW_AS_ACTION_ALWAYS else MenuItem.SHOW_AS_ACTION_NEVER)
         }
         if (screen == "detail") {
+            item(8, "Strava", R.drawable.ic_upload, true).apply {
+                setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
+                contentDescription = "Share run to Strava"
+                isEnabled = (currentRun?.points?.size ?: 0) >= 2
+                actionView = MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = "Strava"; isAllCaps = false; textSize = 14f
+                    setIconResource(R.drawable.ic_upload); iconSize = dp(20); iconPadding = dp(6)
+                    contentDescription = "Share run to Strava"
+                    minHeight = dp(48); minimumHeight = dp(48)
+                    setPadding(dp(8), 0, dp(8), 0)
+                    layoutParams = ViewGroup.LayoutParams(-2, dp(48))
+                    isEnabled = (currentRun?.points?.size ?: 0) >= 2
+                    setOnClickListener { currentRun?.let { stravaSharing.start(it) } }
+                }
+            }
             item(1, "Export GPX", R.drawable.ic_download)
             item(2, "Share file", R.drawable.ic_share)
             item(3, "Run info", R.drawable.ic_info)
@@ -288,14 +361,15 @@ class MainActivity : AppCompatActivity() {
                 1 -> currentRun?.let { saveGpx(it) }
                 2 -> currentRun?.let { shareGpx(it) }
                 3 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this).setTitle("Run info")
-                    .setMessage("Elapsed ${duration((run.endedAtMs-run.startedAtMs).coerceAtLeast(0))} · ${run.points.size} GPS samples\n\nPace uses active time. Splits use GPS time and exclude pauses and signal gaps. Distance is a GPS estimate.")
+                    .setMessage("Elapsed ${duration((run.endedAtMs-run.startedAtMs).coerceAtLeast(0))} · ${run.points.size} GPS samples\n\nAverage pace uses active time. Replay and splits use GPS time, skipping pauses and gaps over 15 seconds. Replay speed is a five-second GPS estimate. Altitude is raw GPS altitude; ascent and descent ignore changes below 3 m and are not terrain-corrected. Missing measurements show —.")
                     .setPositiveButton("Done", null).show() }
                 4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this).setTitle("Delete run?").setMessage("Export a copy first to keep it.")
                     .setNegativeButton("Keep", null).setPositiveButton("Delete") { _, _ -> try { store.delete(run.id); screen="history"; render() } catch (e: Exception) { notice("Couldn't delete. Try again.") } }.show() }
+                8 -> currentRun?.let { stravaSharing.start(it) }
                 5 -> showProtection()
                 6 -> discardRun()
-                7 -> MaterialAlertDialogBuilder(this).setTitle("Runline 0.2")
-                    .setMessage("Your runs stay on this phone. Export before uninstalling.\n\nIcons: Tabler · MIT license")
+                7 -> MaterialAlertDialogBuilder(this).setTitle("Runline 0.3")
+                    .setMessage("Your recordings stay on this phone. Maps request visible-area tiles from EOX and IGN; they do not upload the run file. Export before uninstalling.\n\nMap attribution is shown on the map. Icons: Tabler · MIT license")
                     .setPositiveButton("Done", null).setNeutralButton("Icon license") { _, _ ->
                         MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT").setMessage(assets.open("licenses/tabler-icons.txt").bufferedReader().use { it.readText() }).setPositiveButton("Done", null).show()
                     }.show()
@@ -403,5 +477,6 @@ class MainActivity : AppCompatActivity() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
     private fun date(millis: Long) = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE, d MMM · HH:mm", Locale.getDefault()))
     private fun duration(millis: Long): String { val seconds = (millis / 1000).coerceAtLeast(0); return if (seconds >= 3600) String.format(Locale.getDefault(), "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) else String.format(Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60) }
+    private fun number(value: Double?, decimals: Int): String = if (value == null || !value.isFinite()) "—" else String.format(Locale.getDefault(), "%.${decimals}f", value)
     private fun pace(seconds: Double?): String { if (seconds == null || !seconds.isFinite() || seconds < 0) return "—"; val rounded = seconds.roundToInt(); return String.format(Locale.getDefault(), "%d:%02d", rounded / 60, rounded % 60) }
 }

@@ -1,8 +1,8 @@
 # Runline
 
-A personal Android running recorder with local history, a minimal monochrome interface and exportable GPS data. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
+A personal Android running recorder with local history, satellite maps, route replay and exportable GPS data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Version 0.2 is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured.
+Version 0.3.0 (version code 3) is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Local build and API 34 emulator checks are recorded below; physical-phone testing remains outstanding.
 
 ## Record a run
 
@@ -10,7 +10,7 @@ Version 0.2 is a sideloaded prototype for Android 8.0 and later. It uses Kotlin,
 2. Wait for a GPS fix outdoors. You can lock the screen or switch apps. The foreground recording service is independent of the visible screen.
 3. Tap **Pause**, then **Resume** or **Finish**. Finished recordings appear under **Runs**.
 
-After the initial Android permissions are granted, starting a run takes one tap. The main screen keeps distance, time, pace and recording status visible. Less frequent actions live in the toolbar menu. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, controls and notification glyph.
+After the initial Android permissions are granted, starting a run takes one tap. The main screen puts a satellite map above distance, time and pace, with speed and GPS altitude during a session. Recording controls stay in the bottom action area. Less frequent actions live in the toolbar menu. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, controls and notification glyph.
 
 The shield control opens **Recording protection**, showing notification and battery-optimization status with a shortcut to Android settings. These checks help identify restrictive settings; they do not certify future GPS continuity on a particular phone.
 
@@ -18,11 +18,24 @@ The shield control opens **Recording protection**, showing notification and batt
 
 - Accepted GPS coordinates, timestamps, accuracy, available altitude and track segments.
 - Active time, elapsed time, distance, average pace and kilometre splits.
+- GPS speed estimates, available altitude, and filtered ascent/descent estimates calculated from the recorded samples.
 - Saved runs and a recoverable unfinished session in the app's private storage.
 
-There is no account, cloud sync, downloaded basemap or automatic Strava upload. The app does not request internet permission. Heart rate and cadence are not recorded without a compatible sensor integration.
+There is no Runline account, cloud recording sync or automatic Strava upload. Internet access loads map tiles; GPS recording and saved-run analysis work without it. Heart rate and cadence are not recorded without a compatible sensor integration.
 
-Distance is an estimate from accepted GPS fixes. Active time includes standing still and waiting for GPS, but excludes explicit pauses and unobserved process downtime. Elapsed time includes pauses. Average pace uses active time divided by distance. Splits use time between GPS samples and interpolate kilometre boundaries; pauses and signal gaps are excluded, so split time can differ from the active timer. **Run info** explains these details without filling the recording screen with text.
+Distance is an estimate from accepted GPS fixes. Active time includes standing still and waiting for GPS, but excludes explicit pauses and unobserved process downtime. Elapsed time includes pauses. Average pace and average speed use active time. Replay and saved-run splits use observed GPS intervals, skipping pauses and gaps over 15 seconds; their duration can differ from the active timer. **Run info** explains these details without filling the recording screen with text.
+
+## Maps, replay and run details
+
+The ready/recording screen has a 240dp map; a saved run has a 300dp map with playback. On screens shorter than 500dp, those heights become 120dp and 160dp to keep controls accessible in compact landscape. Drag to pan, pinch to zoom, tap the route icon to fit the run, or the location icon to follow the marker. The route and marker are drawn locally from the recording, preserving segment breaks.
+
+MapLibre Android 11.13.5 displays worldwide EOX imagery at approximately 10-metre resolution, detailed IGN/PNOA imagery in Spain, and road/place labels. Global imagery is less detailed when enlarged; local coverage and capture dates vary. EOX imagery is licensed for noncommercial use. This personal build requires no map account or API key. Credits and source information are accessible on the map; see [map coverage, licensing and privacy](docs/MAPS.md).
+
+Map providers receive requests for visible tile areas and the phone's network address. Runline does not send them the raw run file, timestamps or session statistics. Maps can reveal the area being viewed. Tile failures do not stop recording or calculation, and a native map-load failure falls back to the geometric route. Recently viewed tiles may be cached; downloaded offline regions are not implemented.
+
+Open a saved run to play or seek through its route at **1×, 5×, 10×, 30× or 60×**. Playback defaults to 30×, updates up to 20 times per second, and pauses when the screen goes into the background. It cuts across missing intervals instead of animating an invented connection. Replay is an in-app view; it does not export an MP4 or other video.
+
+Replay shows speed, pace, GPS altitude, replayed distance and accumulated ascent/descent alongside an altitude chart. Run totals include average and top GPS speed, ascent/descent, altitude range, elapsed time and sample count. Speed uses a trailing five-second GPS estimate, with implausible running speeds omitted. Altitude is raw GPS altitude; ascent/descent ignore changes below 3 metres and are not terrain-corrected. Missing values show **—**, and the altitude chart preserves missing-data and segment gaps. These are estimates, not sensor-grade measurements.
 
 ## Recording safeguards
 
@@ -42,15 +55,16 @@ See [the official-source reliability review](docs/RELIABILITY-RESEARCH.md) for d
 
 ## Share to Strava
 
-Open a saved run and tap **Share to Strava**. On first use, the app explains the short flow:
+Open a saved run and tap **Strava** in the top toolbar. On first use, the app explains the short flow:
 
-1. Save the GPX file, preferably to Downloads.
-2. Runline opens Strava's website uploader after the save succeeds.
-3. Choose the file, review the activity and its visibility, then publish on Strava.
+1. On Android 10+, Runline saves the GPX directly to **Downloads** and opens Strava's website uploader after the save succeeds. Android 8/9 uses a file picker first; a failed automatic save also offers the picker.
+2. Choose the saved file on Strava, review the activity and its visibility, then publish there.
+
+Later uses skip the introduction. A message in Runline shows the actual saved filename and offers **Copy name**. The uploader opens in a browser rather than an installed Strava app that may intercept the link. If no browser is available, the file stays saved and the uploader URL can be copied.
 
 This remains a manual website handoff. Opening Strava does not send the file, connect an account or publish an activity. A phone browser may need **Desktop site**; the saved file can also be uploaded from a computer. Failed or cancelled export leaves the original run intact. The menu also offers **Export GPX** and **Share file**.
 
-The GPX includes exact route locations and timestamps. Review what you share. Strava may calculate distance, time and pace differently. The app does not target an undocumented GPX-import intent in Strava's Android app. Automatic OAuth/API upload is separate and currently requires a personal Strava API application/subscription. See [sharing details and official sources](docs/STRAVA.md).
+The GPX includes exact route locations and timestamps. Review what you share. Strava may calculate distance, time and pace differently. The app does not target an undocumented GPX-import intent in Strava's Android app. **The current sharing flow stays subscription-free:** manual file upload needs no personal API application. Creating a new personal API application currently requires a subscription; an existing registered client may offer a separate integration path. No OAuth connector or automatic upload is implemented here. See [sharing details and official sources](docs/STRAVA.md).
 
 ## Keep your own copy
 
@@ -58,21 +72,21 @@ All recording copies are on the same phone. Android backup is disabled. Uninstal
 
 ## Build and install
 
-Use JDK 17, Android SDK Platform 34 and Build Tools 34.0.0. Set `ANDROID_HOME`, or create an untracked `local.properties` containing `sdk.dir=/absolute/path/to/Android/sdk`.
+Use JDK 17, Android SDK Platform 34 and Build Tools 34.0.0. The project pins AGP 8.5.2, Kotlin 2.0.20 and Gradle 8.7 for MapLibre compatibility. Set `ANDROID_HOME`, or create an untracked `local.properties` containing `sdk.dir=/absolute/path/to/Android/sdk`.
 
 ```sh
-./gradlew testDebugUnitTest assembleDebug lintDebug
+./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Download the signed APK from the private [v0.2.0 release](https://github.com/adrianetti/runline/releases/tag/v0.2.0). A local copy is also available at `dist/Runline-0.2.0.apk`. With USB debugging enabled, install that build using:
+Download the signed [Runline 0.3.0 APK](https://github.com/adrianetti/runline/releases/download/v0.3.0/Runline-0.3.0.apk) from the private release, or use the local `dist/Runline-0.3.0.apk`. Install the local artifact with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.2.0.apk
+adb install -r dist/Runline-0.3.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.
 
-Version 0.2 uses a dedicated per-app signing key so later builds signed with that same key can update in place. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
+Version 0.3 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
 
 GitHub Actions checks pushes and pull requests to `main`. Main-branch builds use repository signing secrets and publish a signed release APK plus check reports as private workflow artifacts. Pull requests do not receive signing secrets. The private key and its local configuration stay outside Git; a fresh clone can build a development APK but does not receive the private release key.
 
@@ -84,7 +98,20 @@ To verify the pinned icon resources without network access:
 python3 tools/import_icons.py --check
 ```
 
-## Version 0.2 verification
+## Version 0.3 verification
+
+Checked locally on 1 November 2026:
+
+- Signed debug and release builds, `testDebugUnitTest` and `lintDebug` succeeded. All 38 JVM tests passed: 10 metrics/GPX, 14 persistence and 14 replay tests, including the peak-speed regression. Lint reported zero errors.
+- The API 34 emulator installed v0.3 over the signed v0.2 app and retained the existing runs. The final signed release also opened after installation and retained both prior v0.2 recordings and the v0.3 synthetic/offline runs.
+- Actual IGN satellite imagery rendered with the route and moving marker. Route fitting was corrected for display density. Playback at 30×, selecting 60×, seeking halfway, Pause, background/return and position restoration after rotation were exercised.
+- Light/dark themes, 1.3× font scale and landscape were reviewed. Compact map heights were added; no other material layout issue was found in those screens. The final sharing dialog was confirmed monochrome; the map-credit target measured 48dp.
+- With Wi-Fi and cellular disabled, GPS recording persisted seven synthetic samples while the app was backgrounded and the screen locked. Force-stop/reopen offered **Run recovered**; Finish saved the recovered run.
+- The Android 10+ Strava path saved a valid GPX with 121 samples in two segments directly to Downloads, then opened the official browser uploader without a file-save picker. No Strava login, upload or publication was performed.
+
+CI results are tracked separately in the private [Android workflow](https://github.com/adrianetti/runline/actions/workflows/android.yml). The [device checklist](docs/TESTING.md) still includes untested cases: a physical-phone field run, hardware battery exhaustion, the Android 8/9 picker path, 16 KB page-size devices, and the user's actual Strava browser flow. Offline imagery is not guaranteed. These specific build/emulator results do not certify GPS accuracy, battery life, every device's background behavior or all failure paths.
+
+## Historical version 0.2 verification
 
 Checked locally on 31 October 2026:
 

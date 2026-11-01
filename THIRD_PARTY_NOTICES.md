@@ -11,3 +11,16 @@ The original SVG files and license are retained in `third_party/tabler-icons/`. 
 To regenerate offline, run `python3 tools/import_icons.py`. To verify the checked-in resources, run `python3 tools/import_icons.py --check`. `--fetch` downloads the same pinned originals; it does not silently follow the latest upstream revision.
 
 The full upstream MIT notice is in [third_party/tabler-icons/LICENSE](third_party/tabler-icons/LICENSE).
+
+## MapLibre Native
+
+Runline uses [MapLibre Native Android 11.13.5](https://github.com/maplibre/maplibre-native/tree/android-v11.13.5) under the BSD-2-Clause license. The full upstream notice is bundled as `app/src/main/assets/licenses/maplibre-native.txt`. MapLibre renders maps locally; imagery is supplied separately by the providers below.
+
+## Satellite imagery and map labels
+
+- Spain imagery: © IGN / PNOA, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), [official service metadata](https://www.idee.es/csw-codsi-idee/srv/api/records/spaignwmts_pnoa-ma).
+- Global imagery: EOxCloudless by [EOX](https://maps.eox.at/), containing modified Copernicus Sentinel data 2025, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). This personal build is noncommercial. Global imagery is approximately 10 metres per pixel; Spain has more detailed PNOA aerial coverage.
+- Label overlay: data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright); rendering © [EOX](https://eox.at/) and [MapServer](https://github.com/mapserver/basemaps).
+- Spain coverage geometry: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain. Extracted from `ne_10m_admin_0_countries.geojson`; this approximate national outline selects imagery, never changes the GPS recording.
+
+The map's visible attribution control links to these sources and license terms. Tile requests reveal the viewed map area and the requesting network address to the imagery providers; recording data and replay calculations remain on the phone. See [map coverage and technical details](docs/MAPS.md).
