@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-01T19:50:54.294910Z",
+  "generatedAt": "2026-11-01T22:26:35.661852Z",
   "title": "Design System: Runline",
   "extensions": {
     "colorMeta": {
@@ -408,7 +408,7 @@
       "name": "Export GPX control",
       "kind": "button",
       "refersTo": "toolbar-export",
-      "description": "Accessible 48dp download control floats above replay. Saves GPX to Downloads on Android 10+ or a document picker on older devices/failure. Actual filename remains available to copy. No browser, account connection or upload.",
+      "description": "Accessible 48dp replay download control opens Downloads, Save to… and Share file choices. Native destinations may include compatible Drive providers. Saved outcomes show the real filename and explicit Share. No automatic account sync or claim of recipient completion.",
       "html": "<button class=\"ds-export\" aria-label=\"Export GPX\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 11l5 5l5 -5\"/><path d=\"M12 4l0 12\"/></svg></button>",
       "css": ".ds-export{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border:0;border-radius:24px;background:#FAFAFA;color:#171717;cursor:pointer}.ds-export svg{width:24px;height:24px}.ds-export:hover{background:#EEEEEE}.ds-export:focus-visible{outline:2px solid #171717;outline-offset:2px}"
     },
@@ -424,14 +424,46 @@
       "name": "Activity picker",
       "kind": "custom",
       "refersTo": "activity-selector",
-      "description": "Idle Record starts with a remembered Run/Walk/Hike choice, without a map. Spanish is the personal-build default; English is selectable. The type persists in the session, while old untyped sessions remain Run. Static HTML preview only.",
-      "html": "<label class=\"ds-activity\">Actividad<select aria-label=\"Actividad\"><option>Carrera</option><option>Caminata</option><option>Senderismo</option></select></label>",
+      "description": "Idle Record has remembered Run/Walk/Hike choice and optional Voice coach, without a map. App follows phone language with English fallback and Spanish support. Type persists in sessions; old untyped sessions remain Run. Static preview only.",
+      "html": "<label class=\"ds-activity\">Activity<select aria-label=\"Activity\"><option>Run</option><option>Walk</option><option>Hike</option></select></label>",
       "css": ".ds-activity{display:flex;flex-direction:column;gap:8px;color:#171717;font:400 14px Roboto,Arial,sans-serif}.ds-activity select{min-height:64px;border:1px solid #777777;border-radius:16px;background:#FAFAFA;color:#171717;padding:12px 16px;font:400 16px Roboto,Arial,sans-serif}.ds-activity select:focus-visible{outline:2px solid #171717;outline-offset:2px}"
+    },
+    {
+      "name": "Voice coach entry",
+      "kind": "button",
+      "refersTo": "voice-coach-control",
+      "description": "Off-by-default entry before recording and in active options. Opens a native sheet with guidance/goal controls and installed-voice preview. This browser button is illustrative and speaks nothing.",
+      "html": "<button class=\"ds-voice\"><!--\ntags: [volume, sound, speaker, audio, loud, unmute, loudness, speaker-on]\ncategory: Media\nversion: \"1.0\"\nunicode: \"eb51\"\n-->\n<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n>\n  <path d=\"M15 8a5 5 0 0 1 0 8\" />\n  <path d=\"M17.7 5a9 9 0 0 1 0 14\" />\n  <path d=\"M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5\" />\n</svg><span>Voice coach · Off</span></button>",
+      "css": ".ds-voice{display:flex;align-items:center;justify-content:center;gap:12px;min-height:64px;width:100%;padding:12px 16px;border:1px solid #777777;border-radius:16px;background:#FAFAFA;color:#171717;font:500 14px Roboto,Arial,sans-serif}.ds-voice svg{width:24px;height:24px}.ds-voice:focus-visible{outline:2px solid #171717;outline-offset:2px}"
+    },
+    {
+      "name": "History chart filters",
+      "kind": "custom",
+      "refersTo": "history-filter",
+      "description": "48dp type controls filter only four-calendar-week charts, not the history list or whole-history export. Long translated labels scroll horizontally. Static preview.",
+      "html": "<div class=\"ds-filters\" aria-label=\"Chart activity\"><button aria-pressed=\"true\">All</button><button aria-pressed=\"false\">Run</button><button aria-pressed=\"false\">Walk</button><button aria-pressed=\"false\">Hike</button></div>",
+      "css": ".ds-filters{display:flex;gap:8px;overflow-x:auto;background:#FAFAFA}.ds-filters button{flex-shrink:0;min-height:48px;padding:0 14px;border:1px solid #777777;border-radius:16px;background:#FAFAFA;color:#171717;font:400 14px Roboto,Arial,sans-serif}.ds-filters button[aria-pressed=true]{background:#171717;color:#FFFFFF;border-color:#171717}.ds-filters button:focus-visible{outline:2px solid #171717;outline-offset:2px}"
+    },
+    {
+      "name": "History chart empty state",
+      "kind": "custom",
+      "refersTo": "history-chart",
+      "description": "Native charts use labelled weekly distances and accessible values, with a type-specific pace trend only when sufficient observations exist. This empty-state preview contains no invented measurements.",
+      "html": "<section class=\"ds-insights\"><h3>Last 4 weeks</h3><p>No activities in this period.</p></section>",
+      "css": ".ds-insights{background:#FAFAFA;color:#171717;font-family:Roboto,Arial,sans-serif}.ds-insights h3{margin:0 0 16px;font-size:24px;font-weight:500}.ds-insights p{color:#5C5C5C;font-size:15px}"
+    },
+    {
+      "name": "Whole-history transfer",
+      "kind": "custom",
+      "refersTo": "history-transfer",
+      "description": "Share all and Export all offer standalone CSV summary or ZIP with every saved GPX, summary and README. Recipients/providers are chosen in Android; no automatic upload is implied.",
+      "html": "<div class=\"ds-transfers\"><button>Share all</button><button>Export all</button></div>",
+      "css": ".ds-transfers{display:flex;gap:12px;background:#FAFAFA}.ds-transfers button{flex:1;min-height:64px;padding:12px 16px;border:1px solid #777777;border-radius:16px;background:#FAFAFA;color:#171717;font:500 14px Roboto,Arial,sans-serif}.ds-transfers button:focus-visible{outline:2px solid #171717;outline-offset:2px}"
     }
   ],
   "narrative": {
     "northStar": "Minimal running instrument",
-    "overview": "Version 0.5 keeps monotone controls and one Tabler family. Idle Record offers a remembered Run/Walk/Hike picker and Start. Active recording and replay fill the content area behind reachable islands. Loading hides the initial world map; safe live fixes and the camera interpolate only for display. Replay defaults to 1×, with tappable details emphasizing climb/descent and a relative elevation profile. Raw altitude is secondary. Spanish is the personal-build default with English selectable. Export GPX replaces Strava and opens no browser/account. Version 0.5 passed bounded API 34 runtime/visual review; README.md#version-05-verification records builds, 69 JVM tests, replay/localization/maps/notifications/exports and physical-device limits.",
+    "overview": "Version 0.6 retains monochrome controls, one Tabler family, activity selection and full-content live/replay maps. Phone language is the default with English fallback and Spanish support. Optional voice coaching is off by default and configured before or during recording; installed offline TTS and temporary audio focus do not alter capture. Four local calendar-week charts compare like activity types. GPX, coordinate-free CSV summaries and route-bearing ZIP files can be saved/shared through Android, including compatible Drive providers. No Strava or automatic cloud sync. Final integrated builds passed 96 JVM tests and lint with zero errors/37 warnings; 24 pinned icons and 270 English/Spanish resources passed source/parity and placeholder checks. Bounded API 34 review of 11 screenshots found no material UI issues in the inspected views. README.md#version-06-verification records exact runtime/release evidence and remaining checks; historical v0.5 results remain separate.",
     "keyCharacteristics": [
       "Achromatic day/night controls; real-color map imagery and one Tabler outline family.",
       "Short localized Spanish/English labels, native font scaling and accessible icon actions.",
@@ -439,7 +471,10 @@
       "Climb/descent and relative elevation profile first; raw GPS altitude is secondary.",
       "Display-only safe live interpolation; observed replay with explicit missing-data gaps.",
       "Portable readable GPX filenames, no guessed street or account/browser flow.",
-      "State-aware notifications; Android/user settings govern lock-screen presentation."
+      "State-aware notifications; Android/user settings govern lock-screen presentation.",
+      "Optional service-owned voice cues, concise goal settings and explicit preview/unavailable states.",
+      "Four labelled weekly distance bars; type-specific pace trends with missing-data semantics.",
+      "Explicit GPX/CSV/ZIP save/share choices through native providers, independent of chart filtering."
     ],
     "rules": [
       {
@@ -464,7 +499,17 @@
       },
       {
         "name": "Explicit file export",
-        "body": "Save GPX off the UI thread and show the actual filename. Names use activity, distance and start date/time. Failed/cancelled export preserves the source; export never opens a browser or claims publication.",
+        "body": "Prepare GPX/CSV/ZIP off the UI thread, show the actual filename and offer explicit Share. Android owns destination choice, including compatible Drive targets. Failed/cancelled exports preserve recordings; showing a chooser does not prove recipient upload. Whole-history exports include all saved activities, not only chart-filtered rows.",
+        "section": "components"
+      },
+      {
+        "name": "Optional voice independent of capture",
+        "body": "Keep speech off by default and settings in a native sheet. Installed offline voice availability and temporary audio focus can affect prompts but never recording. Do not directly alter global media volume or promise player-specific ducking.",
+        "section": "components"
+      },
+      {
+        "name": "Comparable chart data",
+        "body": "Use four local calendar weeks and disclose the partial current week. Compare pace within one activity type, weight aggregate pace by distance and leave missing values unavailable. Never infer that chart filters also limit export.",
         "section": "components"
       }
     ],
@@ -474,7 +519,10 @@
       "Keep download accessible above replay and details available by tapping its island.",
       "Use native font scaling, localized labels and explicit recovery states.",
       "Keep credits, GPS gaps and unavailable elevation visible.",
-      "Preserve activity type; old untyped sessions stay Run."
+      "Preserve activity type; old untyped sessions stay Run.",
+      "Follow phone language unless an explicit supported override is selected.",
+      "Keep voice guidance optional and time goals explicit about excluding pauses.",
+      "Use native share/picker destination selection and separate CSV summaries from route-bearing ZIPs."
     ],
     "donts": [
       "Do not recolor imagery or add colored controls.",
@@ -482,7 +530,9 @@
       "Do not invent missing measurements, corrected terrain heights or grade percentages.",
       "Do not animate across GPS gaps or describe smoothing as increased GPS accuracy.",
       "Do not claim export uploads or connects an account.",
-      "Do not treat browser previews or historical emulator evidence as current native verification."
+      "Do not treat browser previews or historical emulator evidence as current native verification.",
+      "Do not promise Spotify/headphone ducking or a completed Drive upload without device/recipient evidence.",
+      "Do not compare mixed activity types as a single pace trend."
     ]
   }
 }

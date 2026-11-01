@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="coach_voice_preview">Voice coach is ready. Your music can stay on while I speak.</string>
+    <plurals name="coach_voice_kilometres">
+        <item quantity="one">%1$d kilometre completed.</item>
+        <item quantity="other">%1$d kilometres completed.</item>
+    </plurals>
+    <string name="coach_voice_average_pace">Average pace: %1$d minutes and %2$d seconds per kilometre.</string>
+    <string name="coach_voice_one_remaining">One kilometre to your distance goal.</string>
+    <string name="coach_voice_goal_reached">Distance goal reached. Well done.</string>
+    <string name="coach_voice_goal_in_time">Distance goal reached within your target time. Well done.</string>
+    <string name="coach_voice_goal_over_time">Distance goal reached. Your active time is above your target.</string>
+    <string name="coach_voice_slower">You are slower than your target pace.</string>
+    <string name="coach_voice_faster">You are faster than your target pace.</string>
+    <string name="coach_voice_on_pace">You are back at your target pace.</string>
+</resources>

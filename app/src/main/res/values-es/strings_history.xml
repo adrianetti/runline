@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="history_progress">Últimas 4 semanas</string>
+    <string name="history_all">Todo</string>
+    <string name="history_run">Correr</string>
+    <string name="history_walk">Caminar</string>
+    <string name="history_hike">Senderismo</string>
+    <string name="history_filter_description">Actividad de los gráficos: %1$s</string>
+    <string name="history_distance">Distancia · km</string>
+    <string name="history_active_time">Tiempo activo</string>
+    <string name="history_weekly_distance">Distancia semanal · km</string>
+    <string name="history_week_note">Las semanas empiezan en lunes. La actual aún no ha terminado.</string>
+    <string name="history_week_value">Semana del %1$s: %2$s kilómetros</string>
+    <string name="history_empty">No hay actividades en este periodo.</string>
+    <string name="history_pace_title">Ritmo medio · min/km</string>
+    <string name="history_pace_type_hint">Elige una actividad para comparar el ritmo.</string>
+    <string name="history_pace_empty">Graba dos actividades con GPS para ver la evolución del ritmo.</string>
+    <string name="history_pace_note">Últimas %1$d actividades de este periodo. Más arriba es más rápido; se usa el tiempo activo.</string>
+    <string name="history_pace_value">%1$s: %2$s por kilómetro</string>
+    <string name="history_period_pace">Media del periodo: %1$s /km</string>
+    <string name="history_pace_weight_note">Ponderada por distancia; no incluye actividades sin GPS o tiempo válido.</string>
+    <string name="history_time_hours_minutes">%1$d h %2$d min</string>
+    <string name="history_time_minutes">%1$d min</string>
+    <plurals name="history_activity_count">
+        <item quantity="one">%1$d actividad</item>
+        <item quantity="other">%1$d actividades</item>
+    </plurals>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="main_phone_language">Phone language</string>
+    <string name="main_share_all">Share all</string>
+    <string name="main_export_all">Export all</string>
+    <string name="main_save_to">Save to…</string>
+    <string name="main_activity_file">Activity file</string>
+    <string name="main_download_gpx">Download GPX</string>
+    <string name="main_downloads">Downloads</string>
+    <string name="main_summary_csv">Summary · CSV</string>
+    <string name="main_archive_zip">All routes + summary · ZIP</string>
+</resources>

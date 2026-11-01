@@ -28,6 +28,10 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import com.runline.app.R
+import com.runline.app.coaching.CoachSpeech
+import com.runline.app.coaching.VoiceCoachSettings
+import com.runline.app.core.CoachConfig
+import com.runline.app.core.CoachEngine
 import com.runline.app.core.ActivityType
 import com.runline.app.i18n.AppLanguage
 import com.runline.app.core.RunMetrics
@@ -77,6 +81,9 @@ class TrackingService : Service(), LocationListener {
     private var messageRes: Int? = null
     private var lastSavedAt: Long? = null
     private var bootCount = -1
+    private var coachConfig = CoachConfig()
+    private var coachEngine: CoachEngine? = null
+    private var coachSpeech: CoachSpeech? = null
     @Volatile private var foreground = false
     @Volatile private var published = TrackingState()
 
@@ -102,6 +109,7 @@ class TrackingService : Service(), LocationListener {
             if (!safely { persistCheckpoint() }) return
             if (isGpsStale()) { accuracy = null; messageRes = R.string.tracking_gps_lost }
             if (tickCount % 300 == 0) wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
+            updateCoaching()
             publish()
             if (tickCount % 5 == 0) updateNotification()
             worker.postDelayed(this, 1000)
@@ -228,6 +236,7 @@ class TrackingService : Service(), LocationListener {
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Runline:recording").apply {
                     setReferenceCounted(false); acquire(WAKE_LOCK_TIMEOUT_MS)
                 }
+            reloadCoaching()
             worker.removeCallbacks(ticker); worker.post(ticker)
             publish(); updateNotification()
         } catch (_: Exception) { fail(R.string.tracking_check_location_storage) }
@@ -330,8 +339,33 @@ class TrackingService : Service(), LocationListener {
         if (current == null) { stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf() }
     }
     private fun releaseRecordingResources() {
+        coachEngine?.pause(); coachSpeech?.stop()
         worker.removeCallbacks(ticker); runCatching { locations.removeUpdates(this) }
         wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
+    }
+    /** Optional audio must never be part of the recorder's storage/error path. */
+    private fun reloadCoaching() {
+        runCatching {
+            val next = VoiceCoachSettings.load(this)
+            if (next != coachConfig || coachEngine == null) {
+                coachConfig = next
+                coachEngine = CoachEngine(next, snapshotRun())
+                coachSpeech?.stop()
+            }
+            if (next.enabled && mode == RecordingStatus.RECORDING) {
+                if (coachSpeech == null) coachSpeech = CoachSpeech(this)
+                coachSpeech?.prepare()
+            } else {
+                coachSpeech?.close(); coachSpeech = null
+            }
+        }
+    }
+    private fun updateCoaching() {
+        runCatching {
+            val run = snapshotRun() ?: return
+            coachEngine?.update(run, mode == RecordingStatus.RECORDING,
+                accuracy != null && lastLocationElapsed > 0 && !isGpsStale())?.let { coachSpeech?.speak(it) }
+        }
     }
     private fun notification(): Notification {
         val openIntent = packageManager.getLaunchIntentForPackage(packageName)!!
@@ -409,6 +443,7 @@ class TrackingService : Service(), LocationListener {
         runCatching { unregisterReceiver(shutdown) }; stopForeground(STOP_FOREGROUND_REMOVE); foreground = false
         worker.post {
             freezeTimer(); releaseRecordingResources()
+            coachSpeech?.close(); coachSpeech = null
             if (current != null) {
                 mode = RecordingStatus.INTERRUPTED; runCatching { persistCheckpoint() }
                 messageRes = R.string.tracking_recovered_hint; publish()
@@ -454,6 +489,10 @@ class TrackingService : Service(), LocationListener {
                 cached = recorder.published
                 recorder.updateNotification()
             } }
+        }
+        /** Apply optional voice preferences without starting or altering a recording. */
+        fun refreshCoaching() {
+            instance?.let { recorder -> recorder.worker.post { recorder.reloadCoaching() } }
         }
         /** Visible Activity controls; notifications use their own run-scoped PendingIntents. */
         fun command(context: Context, action: String, activityType: ActivityType = ActivityType.RUN) {

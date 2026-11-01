@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="coach_ui_title">Voice coach</string>
+    <string name="coach_ui_on">Voice coach · On</string>
+    <string name="coach_ui_off">Voice coach · Off</string>
+    <string name="coach_ui_hint">Optional spoken updates. Music lowers briefly when your player allows it.</string>
+    <string name="coach_ui_enabled">Spoken guidance</string>
+    <string name="coach_ui_goal">Goal</string>
+    <string name="coach_ui_no_goal">Progress only</string>
+    <string name="coach_ui_goal_distance">Distance</string>
+    <string name="coach_ui_goal_pace">Target pace</string>
+    <string name="coach_ui_goal_time">Distance within a time</string>
+    <string name="coach_ui_distance">Distance · km</string>
+    <string name="coach_ui_pace">Pace · min:sec /km</string>
+    <string name="coach_ui_time">Time limit · minutes</string>
+    <string name="coach_ui_kilometres">Every kilometre</string>
+    <string name="coach_ui_test">Test voice</string>
+    <string name="coach_ui_settings">Voice settings</string>
+    <string name="coach_ui_save">Save</string>
+    <string name="coach_ui_preparing">Preparing voice…</string>
+    <string name="coach_ui_ready">Voice ready.</string>
+    <string name="coach_ui_unavailable">Install an offline voice for the app’s language in your phone’s text-to-speech settings, then try again.</string>
+    <string name="coach_ui_audio_busy">Audio is busy. Try again when your call or other spoken audio finishes.</string>
+    <string name="coach_ui_error">The voice could not play. Check your phone’s voice settings and try again.</string>
+    <string name="coach_ui_distance_error">Enter 0.1 to 500 km.</string>
+    <string name="coach_ui_pace_error">Use min:sec, from 1:00 to 60:00 /km.</string>
+    <string name="coach_ui_time_error">Enter 1 to 1440 minutes.</string>
+    <string name="coach_ui_invalid">Check your goal values.</string>
+    <string name="coach_ui_combination_error">Choose a time that gives a pace between 1:00 and 60:00 /km.</string>
+    <string name="coach_ui_active_time">Active time · pauses excluded</string>
+</resources>

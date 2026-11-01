@@ -1,6 +1,6 @@
-# Version 0.5 test checklist
+# Version 0.6 test checklist
 
-The checklist is not a blanket pass report. Completed v0.5 checks and remaining release checks are recorded below; historical v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.6 checks and remaining release checks are recorded below; historical v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -21,7 +21,7 @@ Replay tests should cover time/distance interpolation, explicit segments, gaps o
 
 ## Installation and signing
 
-- Verify the packaged `dist/Runline-0.5.0.apk` signature and version name/code (0.5.0 / 5); install that exact artifact. Update an existing signed v0.4 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
+- Verify the packaged `dist/Runline-0.6.0.apk` signature and version name/code (0.6.0 / 6); install that exact artifact. Update an existing signed v0.5 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
 - Do not treat the old v0.1 debug signature as compatible. If migration requires uninstalling v0.1, export recordings first and verify the exports before uninstalling.
 - Main-branch CI may receive signing secrets; pull-request builds must not. Never log key/password contents or put signing material in test artifacts.
 
@@ -94,8 +94,8 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 ## UI, localization and accessibility
 
-- On a fresh personal-build install, verify Spanish is selected. Switch to English through the app menu, rotate/relaunch and verify persistence. On Android 13+, also check system per-app language selection; do not continually override an explicit choice. Test a pre-Android-13 device/emulator path separately.
-- Inspect both languages in the activity picker, history, active/recovered/error states, replay and details, map credits/status, protection/settings guidance, notification actions and exporter. Activity names, dates and decimal separators must follow the app locale. GPX numeric XML/UTC timestamps must remain standards-compliant.
+- On a fresh install, verify phone language is followed, with English fallback and Spanish support. Upgrade v0.5 and confirm its forced-Spanish override is cleared once. Select explicit English/Spanish, rotate/relaunch and ensure later choices are retained. Return to Phone language and change the system locale. On Android 13+, also check per-app system settings; test the pre-13 custom-storage path separately.
+- Inspect both languages in the activity picker, history/charts, active/recovered/error states, replay/details, map credits/status, coaching settings/preview, protection guidance, notification actions and exporter. Activity names, dates and decimal separators must follow the app locale. GPX numeric XML/UTC timestamps must remain standards-compliant.
 - Confirm Record, Activities, Start, Pause, Resume and Finish are easy to find. The saved replay has Back/options and an accessible download control. There is no Strava button or automatic website navigation. Use one Tabler family and neutral controls; imagery stays in real colors.
 - Check light/dark mode, 1.3× font scale and a smaller supported phone in both languages. No clipped values/labels/actions; system-bar icons retain contrast. Spanish playback labels should align without truncating the metrics.
 - Inspect full-content live and replay maps in portrait and landscape. Islands sit bottom or lower left; scrollable information must not hide the recording/playback controls. Marker, credits and map controls avoid overlays. System bars remain visible. The idle screen has no map.
@@ -129,22 +129,57 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 1. Save Run, Walk and Hike recordings and reopen; sessions and activity types remain distinct. Older untyped sessions remain Run.
 2. Tap the saved replay's download control or Export GPX menu item. No Strava introduction, browser launch, OAuth screen or account connection should occur anywhere in the export flow.
-3. On Android 10+, confirm automatic Downloads save without storage permission or save dialog. The item becomes visible only after writing succeeds. Validate GPX coordinates, UTC timestamps, available altitude, activity type and pause/interruption segments.
-4. Check readable filenames in both app languages: activity, recorded kilometre distance, local start date/time and `.gpx`. No inferred street/location or opaque UUID filename. The persistent success message must match the actual provider filename, including duplicate suffixes. Copy name runs only after a tap.
+3. On Android 10+, choose Downloads and confirm saving without broad storage permission or a save dialog. Save to… must always open the document picker. The Downloads item becomes visible only after writing succeeds. Validate GPX coordinates, UTC timestamps, available altitude, activity type and pause/interruption segments.
+4. Check readable filenames in both app languages: activity, recorded kilometre distance, local start date/time and `.gpx`. No inferred street/location or opaque UUID filename. The persistent success message must match the actual provider filename, including duplicate suffixes, and its Share action must open the chooser only after a tap.
 5. On Android 8/9, use the document picker. Provoke automatic Downloads failure and verify the picker fallback. Cancellation leaves the source intact and launches nothing else.
 6. Export the two-hour fixture. GPX encoding/destination I/O must remain off the UI thread; panning/navigation should remain responsive. Repeated export taps while saving/picking must not start concurrent writes.
 7. Simulate failed/partial destination writes. Preserve the source, clean up the newly created Downloads row where possible and allow retry. Process death may leave a hidden pending item or partial picker destination; inspect/remove disposable leftovers.
-8. Rotate during encoding/writing and while the picker is open. Background the app during completion: deliver a single result only after returning to resumed state. Kill/recreate during the picker; restore its pending run ID and reload the source. A killed write may require retry but must never delete a session.
-9. Test Share file separately through Android's chooser, including cancellation and a recipient that reads GPX. A listed recipient is not proof it can import a completed workout; do not claim an account upload was completed.
+8. Rotate during encoding/writing and while the picker is open. Background the app during completion: deliver a single result only after returning to resumed state. Kill/recreate during the picker; restore the prepared cached file reference, filename and MIME type. Evict that cache file and confirm failure leaves source history and an existing chosen destination intact. A killed write may require retry but must never delete a session.
+9. Test Share file separately through Android's chooser, including cancellation and a recipient that reads GPX. Receive a first shared URI after preparing another export and confirm its content remains unchanged. Check read-only grants and matching GPX/CSV/ZIP MIME types. A listed recipient is not proof it can import a completed workout; do not claim an account upload was completed.
 10. Preserve both source recording and a previously exported file after a later export fails. Check local/cloud document providers separately; the latter may need their own network/account.
 
 GPX contains exact route coordinates and timestamps and is not a complete backup of every internal field. [EXPORTS.md](EXPORTS.md) describes the implementation; [STRAVA.md](STRAVA.md) is a historical archive only.
+
+## History charts and whole-history files
+
+- Check four Monday-start local calendar weeks across a DST boundary, year/month changes, the current partial week and future timestamps. Empty weeks show honest zero distance; an empty period does not invent a trend.
+- Filter All/Run/Walk/Hike. Filters change charts only; history rows and Share/Export all still include every saved activity. Preserve the selected chart type across rotation and language recreation.
+- Compare period pace with total eligible active time divided by total distance, not the mean of individual paces. No-GPS recordings contribute count/time but no zero-pace observation. Pace trends require a single activity type, at least two eligible observations and at most the latest eight in the window.
+- Inspect English/Spanish, light/dark, 1.3× text, narrow portrait and landscape. Test horizontal filter scrolling and TalkBack descriptions of every chart value.
+- Export and share both standalone CSV and full ZIP from history. Parse CSV quoting/headers/decimal conventions; inspect units, unavailable blanks, UTC/local timestamps, activity types and sample/segment counts. CSV must contain no raw route-coordinate columns.
+- Inspect ZIP entries: README, CSV and a unique readable GPX per saved activity. Every CSV `gpx_file` must match a ZIP entry; no unfinished draft is included. Compare GPX samples/segments/altitude with saved sessions, including the two-hour fixture.
+- Exercise direct Downloads, post-save Share and Save to… for all three formats, repeated filenames, cancellation and failed writes. Test Google Drive only when installed/configured; record a real recipient upload separately from showing an Android chooser/picker. Do not infer ChatGPT import success without actually testing the target.
+
+## Optional voice coach
+
+- Verify guidance defaults off and no TTS initialization/focus request is needed for ordinary recording. Open settings before and during recording; preserve unsaved draft fields through rotation. Save valid goals, expose distance/time/pace validation errors and allow disabling despite an invalid draft.
+- Preview English and Spanish with installed offline voices. Exercise missing voice data, absent/broken engine, initialization timeout, repeated preview taps, settings navigation and cancellation/backgrounding. Source recordings and the service must remain intact.
+- Simulate none/distance/pace/distance-with-active-time goals. Cover exact boundaries, within/over time completion, every-kilometre enabled/disabled and one kilometre remaining. Explicit pauses must not consume goal time.
+- Feed sufficient fresh movement to exercise warmup, rolling pace, stable-band confirmation, tolerance and cooldown. Test poor accuracy, stale GPS, stops, invalid coordinates, timestamp regressions and new segments; no stale reminder should fire when data becomes unreliable.
+- Enable/change coaching mid-activity or recover a draft. Do not speak previous kilometre/goal catch-up. If speech is busy, do not queue old pace/km cues; any pending completion must be short-lived and cancelled on pause/error/focus loss.
+- Use a real music player and headphones: confirm temporary lowering or player-appropriate pause, restore after completion, and no global volume change. Repeat across foreground/background/screen lock, wired/Bluetooth, another voice prompt, calls, denied focus and engine error/watchdog timeout. Log Android/player/TTS/route versions. An emulator/fake TTS pass is not Spotify or Samsung evidence.
+- Pause/resume/finish and close/reopen the Activity while coaching. Only recording sessions can produce live cues; speech failure must not block point persistence, timer checkpoints or notification controls.
 
 ## Data retention and results
 
 Export any test recording that must survive uninstalling or clearing app storage. All internal mirrors/recovery copies reside on the same phone; they do not protect against device loss or a wiped app.
 
-Recorded v0.5 checks on 1 November 2026, using the API 34 emulator and disposable synthetic data:
+Current v0.6 checks on the API 34 emulator, using disposable synthetic data:
+
+- Final integrated debug/release builds succeeded. All **96 JVM tests passed**, with zero failures or errors; lint reported **zero errors and 37 warnings**. All **24 pinned icons** matched their sources. English/Spanish checks confirmed parity for **270 string/plural resources** and their format placeholders.
+- The signed debug update retained v0.5 history, reset its forced locale override to follow the English phone setting and showed Voice coach Off. Bounded review of **11 screenshots**, including the current Spanish UI, larger text and landscape layouts, found no material issues in the inspected views.
+- The exported ZIP contained **17 summary rows, 17 GPX files and README.txt**. Comparing its GPX point and segment data with the saved activities passed. The standalone CSV contained **17 rows** and no latitude/longitude columns. Direct Downloads saving worked; the post-save Share action opened Android's chooser with Drive present. No Drive account upload was performed. Save to… also saved a CSV successfully after rotating with the document picker open.
+- Coaching rejected **5 km in 2 minutes** with a validation error. Disabling coaching still worked with that invalid draft present.
+- English Test voice reported Voice ready from the TTS start callback using an installed Google offline voice. Spanish correctly displayed the missing-offline-voice message: the installed engine had English offline data only. Spanish spoken preview success is not claimed. Audio logs showed Runline requesting MAY_DUCK speech/navigation focus at **23:22:32** and abandoning it at **23:22:37**. These emulator log events establish the request/release path, not physical playback or music ducking.
+
+- With a **0.1 km distance goal**, synthetic movement crossed the goal while the Activity was backgrounded. Audio logs recorded the automatic speech focus request at **23:36:05** and its release at **23:36:09**. Notification Pause/Finish saved the activity with **32 accepted fixes**; the emulator's initial Vancouver fix and Granada test movement remained separated. The coaching draft also survived landscape/portrait rotation. This tests the background cue/focus path, not audible music ducking.
+- The new activity's GPX Share file action opened the native chooser with Drive and a readable **Walk 0.22 km** filename; no account transfer was attempted.
+
+- The exact packaged **0.6.0 / version code 6** release installed in place and opened successfully. A fresh CSV export retained all **18 activity IDs**, including the two-hour walk fixture and live coaching test. The release signing certificate matched the stable per-app key: `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. APK SHA-256: `633c91a592ca950d596a4e116342470cfb49f1a6e641c24429b1bd5058fe1447`.
+
+No real Drive account upload, Spotify/headphone behavior or physical Samsung field/battery test is claimed. The broader checklist remains a set of test cases, not a statement that every device, failure path or lifecycle edge case passed.
+
+Historical v0.5 checks on 1 November 2026, using the API 34 emulator and disposable synthetic data:
 
 - Final integrated debug/release builds completed, including the neutral snackbar inverse-theme adjustment and four-line saved-filename allowance. All **71 JVM tests passed**, with zero failures; lint reported **zero errors and 28 warnings**. All **23 generated icon resources** matched their pinned sources. English/Spanish checks confirmed parity for **196 string/plural resources** and matching format placeholders.
 - The debug update from v0.4 to v0.5 retained older recordings. The exact packaged **0.5.0 / version code 5** release then installed and retained all older history, the two-hour walk fixture and the newly recorded Walk. Its signing-certificate SHA-256, `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`, matched the stable per-app key used since v0.2. APK SHA-256: `e8b8010bc7c6b9f6b3936d47922aed1e090848bf614a8ae25c327129ef43e84d`.

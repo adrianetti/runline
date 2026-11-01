@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="coach_ui_title">Guía de voz</string>
+    <string name="coach_ui_on">Guía de voz · Activada</string>
+    <string name="coach_ui_off">Guía de voz · Desactivada</string>
+    <string name="coach_ui_hint">Avisos de voz opcionales. La música baja brevemente si tu reproductor lo permite.</string>
+    <string name="coach_ui_enabled">Avisos de voz</string>
+    <string name="coach_ui_goal">Objetivo</string>
+    <string name="coach_ui_no_goal">Solo progreso</string>
+    <string name="coach_ui_goal_distance">Distancia</string>
+    <string name="coach_ui_goal_pace">Ritmo objetivo</string>
+    <string name="coach_ui_goal_time">Distancia en un tiempo</string>
+    <string name="coach_ui_distance">Distancia · km</string>
+    <string name="coach_ui_pace">Ritmo · min:seg /km</string>
+    <string name="coach_ui_time">Tiempo límite · minutos</string>
+    <string name="coach_ui_kilometres">Cada kilómetro</string>
+    <string name="coach_ui_test">Probar voz</string>
+    <string name="coach_ui_settings">Ajustes de voz</string>
+    <string name="coach_ui_save">Guardar</string>
+    <string name="coach_ui_preparing">Preparando voz…</string>
+    <string name="coach_ui_ready">Voz lista.</string>
+    <string name="coach_ui_unavailable">Instala una voz sin conexión para el idioma de la app en los ajustes de texto a voz del teléfono y vuelve a intentarlo.</string>
+    <string name="coach_ui_audio_busy">El audio está ocupado. Prueba cuando termine la llamada u otro aviso de voz.</string>
+    <string name="coach_ui_error">No se pudo reproducir la voz. Revisa los ajustes de voz del teléfono y vuelve a intentarlo.</string>
+    <string name="coach_ui_distance_error">Introduce entre 0,1 y 500 km.</string>
+    <string name="coach_ui_pace_error">Usa min:seg, entre 1:00 y 60:00 /km.</string>
+    <string name="coach_ui_time_error">Introduce entre 1 y 1440 minutos.</string>
+    <string name="coach_ui_invalid">Revisa los valores del objetivo.</string>
+    <string name="coach_ui_combination_error">Elige un tiempo que dé un ritmo entre 1:00 y 60:00 /km.</string>
+    <string name="coach_ui_active_time">Tiempo activo · sin contar las pausas</string>
+</resources>

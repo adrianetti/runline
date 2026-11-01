@@ -131,6 +131,20 @@ components:
   toolbar-export:
     textColor: "{colors.primary}"
     height: "48dp"
+  voice-coach-control:
+    textColor: "{colors.primary}"
+    rounded: "{rounded.control}"
+    height: "64dp"
+  history-filter:
+    textColor: "{colors.primary}"
+    height: "48dp"
+  history-chart:
+    textColor: "{colors.on-surface}"
+    backgroundColor: "{colors.surface}"
+  history-transfer:
+    textColor: "{colors.primary}"
+    rounded: "{rounded.control}"
+    height: "64dp"
   detail-row:
     textColor: "{colors.on-surface}"
     padding: "12dp 0dp"
@@ -140,9 +154,9 @@ components:
 
 ## Overview
 
-**Direction: Minimal running instrument.** The user requested monotone controls, very little text, one free sporty icon family, satellite maps and replay. Version 0.5 makes recording and replay maps fill the content area, with information in reachable islands. Elevation changes lead the detailed analysis. The idle Record screen is a simple activity selector and Start button. Application chrome stays neutral; imagery retains its real colors. Runline remains the working name.
+**Direction: Minimal running instrument.** The user requested monotone controls, very little text, one free sporty icon family, satellite maps and replay. Version 0.6 retains full-content recording/replay maps and reachable islands, adding optional voice coaching, history charts and explicit file sharing. Elevation changes lead the detailed analysis. The idle Record screen has a simple activity selector, Start and a clearly optional Voice coach control. Application chrome stays neutral; imagery retains its real colors. Runline remains the working name.
 
-This record follows `MainActivity.kt`, `ActiveRunView.kt`, `SatelliteMapView.kt`, `MarkerMotion.kt`, `GpsCourse.kt`, `RunReplayView.kt`, `ActivityExporter.kt`, `AppLanguage.kt`, the geometric `RouteView.kt` fallback and the pinned Tabler resources. Native values use dp/sp. Sidecar previews illustrate structure, not native rendering or invented route data. Version 0.5 passed bounded API 34 replay, location-loading/follow, Spanish/English, notification and export checks, including light/dark, 1.3× font and landscape review; see [verified scope and limits](README.md#version-05-verification). Historical v0.3/v0.4 API 34 reviews covered bounded light/dark, 1.3× font and landscape configurations; README.md retains the exact results and limitations.
+This record follows `MainActivity.kt`, `ActiveRunView.kt`, `SatelliteMapView.kt`, `MarkerMotion.kt`, `GpsCourse.kt`, `RunReplayView.kt`, `ActivityExporter.kt`, `VoiceCoachSheet.kt`, `HistoryInsightsView.kt`, `AppLanguage.kt`, the geometric `RouteView.kt` fallback and the pinned Tabler resources. Native values use dp/sp. Sidecar previews illustrate structure, not native rendering or invented route data. Final integrated v0.6 builds passed 96 JVM tests and lint with zero errors/37 warnings; 24 icons and 270 English/Spanish resources passed source/parity and placeholder checks. A bounded API 34 review of 11 screenshots, including Spanish, larger text and landscape, found no material UI issues in the inspected views. [Verified scope and limits](README.md#version-06-verification) records runtime and release evidence. Historical v0.5 passed bounded API 34 replay, location-loading/follow, localization, notification and export checks, including light/dark, 1.3× font and landscape review. Historical v0.3/v0.4 API 34 reviews covered bounded light/dark, 1.3× font and landscape configurations; README.md retains the exact results and limitations.
 
 ## Colors
 
@@ -152,19 +166,23 @@ Use neutral grays for every application role. Primary is dark ink in light mode 
 
 ## Typography and language
 
-Use Android system sans, medium for key measurements/headings, with tabular numerals for live values. Preserve font scaling. Normal-state copy is short, with persistent units and labels; — indicates unavailable data. Spanish is the personal-build default; English is selectable in the app menu. Translate controls, error/recovery messages, map explanations, notifications and export names. Locale-aware numbers/date labels must not change GPX's numeric/XML conventions or UTC sample timestamps.
+Use Android system sans, medium for key measurements/headings, with tabular numerals for live values. Preserve font scaling. Normal-state copy is short, with persistent units and labels; — indicates unavailable data. Follow phone language by default, with English fallback and Spanish support; explicit system/English/Spanish choices remain available. The v0.5 forced-Spanish setting is cleared once on upgrade. Translate controls, error/recovery messages, map explanations, notifications and export names. Locale-aware numbers/date labels must not change GPX's numeric/XML conventions or UTC sample timestamps.
 
 The ready heading is 30sp. Active values are nominally 26sp and fit 16–26sp; labels are 12sp and the state heading 16sp. Replay distance and compact metric values are nominally 22sp and fit down where needed. Replay metric labels reserve two lines so Spanish labels align. Detail-sheet values use a larger 26sp treatment. Prefer on-demand calculation information to paragraphs in the island, but retain meaningful failure and recovery messages.
 
 ## Layout
 
-Idle Record and history retain the app bar and Record/Activities tabs. Record shows Run/Walk/Hike in an exposed dropdown and one Start action, without a map. The choice is remembered and stored in each session. Do not infer a legacy recording's activity type from speed; untyped sessions remain Run.
+Idle Record and history retain the app bar and Record/Activities tabs. Record shows Run/Walk/Hike in an exposed dropdown and one Start action, without a map. Voice coach has an off-by-default speaker control before starting and an entry in the active **…** menu. The choice is remembered and stored in each session. Do not infer a legacy recording's activity type from speed; untyped sessions remain Run.
 
 Active, paused and recovered recording hide the app bar/tabs. The map fills the content area under floating 48dp Activities/options controls and a bottom island inset 16dp. Three columns show distance, active time and average pace; portrait adds climbed/descended elevation. Pause, or Resume/Finish, remains below scrollable information. The island is capped at 55% of portrait content height. Landscape places it lower left with width capped at 340dp or 45% of available width. Its measured bounds reserve map space for the marker and credits. Android status/navigation bars remain visible.
 
 Saved replay uses the same full-content composition: floating Back/options/download controls, map, and a compact bottom island. Replayed distance and Details sit above speed/climbed/descended columns. Play/Pause, speed, seek, time and pace remain reachable below. Tap the statistics or Details for a scrollable bottom sheet. It pauses playback and exposes total distance/time/pace, prominent climb/descent and a 160dp elevation-change profile, then secondary raw altitude, speed totals and splits. Landscape moves the island lower left rather than shrinking the map to a fixed panel.
 
-History remains a chronological flat list with activity type/date, distance and active-time/pace summary. The export icon stays above the replay map, with Export GPX and Share file also available in options. Discard/Delete retain confirmation; Finish is a direct save. There is no Strava toolbar or browser flow. A tablet-specific composition is not implemented.
+History places a four-local-calendar-week summary above the chronological flat list. All/Run/Walk/Hike controls filter only charts; long translated filter labels scroll horizontally. Weekly distance bars have explicit values and local Monday labels. A single activity type enables the latest-eight pace trend when at least two observations exist; no mixed-type or fabricated zero-pace trend. Chart content descriptions expose measurements to accessibility. Period pace is distance-weighted; current-week incompleteness and missing GPS remain explicit.
+
+Share all and Export all sit between the charts and saved rows. They offer CSV summary without raw coordinates or ZIP with every saved GPX plus CSV/README, independent of the chart filter. The replay download control offers Downloads, Save to… and Share file; the native chooser/document picker owns destination selection, including compatible Drive providers. A saved result displays the real filename and a Share action. Discard/Delete retain confirmation; Finish is a direct save. Strava remains absent. A tablet-specific composition is not implemented.
+
+Voice settings use a scrollable native sheet with an explicit guidance switch, goal dropdown, only relevant goal fields, kilometre switch, voice preview/settings and Save. Preserve unsaved fields through recreation. Show field-level validation, including incompatible distance/time combinations, without blocking the user from turning guidance off. Goals use active time and exclude explicit pauses. Do not clutter the recording island with coaching configuration.
 
 ## Motion and map behavior
 
@@ -189,10 +207,12 @@ Route geometry stays distinct from icons: white line with dark outline, circular
 - **Activity picker and Start:** native dropdown, remembered Run/Walk/Hike choice, one labeled Start action after required permissions.
 - **Recording island:** short state/GPS status, primary metrics, elevation change and state-appropriate actions. Information can scroll while controls stay reachable.
 - **Replay island and details sheet:** compact playback controls and climb/descent; tap for totals, relative profile and splits. Raw altitude is secondary.
-- **Export:** accessible download icon opens the file-only export. Android 10+ saves to Downloads; older devices and failures use a picker. Encoding/writes stay off the UI thread. Show actual filename and explicit Copy name. Names use localized activity, distance and local date/time, with no guessed street. Cancel/failure preserves the original session; no browser, account or publication status.
+- **File transfer:** accessible download icon exposes Downloads, Save to… and Share file. Native pickers/choosers handle destinations; show the saved name and explicit Share action. Names remain readable and extension-safe. CSV/ZIP history actions have concise format labels. Preparation/copying stays off the UI thread; cancelled/failed transfer preserves originals. Do not claim the recipient uploaded or imported a file.
+- **History insights:** four labelled weekly bars, totals and type-specific pace trend with a clear empty state. Period/type filters never silently narrow whole-history export.
+- **Voice coach:** off-by-default speaker entry, scrollable goal sheet, preview and actionable unavailable-voice states. Installed offline English/Spanish TTS; brief optional prompts independent of recording. Temporary audio focus may lower another player; do not directly set global volume or promise Spotify/headphone behavior.
 - **Satellite map:** pan/zoom, fit/follow, location-loading and clear missing-imagery states. Keep source/license/coverage/privacy credits visible around islands. Requests expose the visible area, not raw recordings; map failure does not stop capture.
 - **Protection and overflow:** expose battery/notification status and Android settings without implying continuity is guaranteed. Icon-only actions have localized accessible names.
-- **Ongoing notification:** distance, average pace, chronometer and GPS status with Pause or Resume/Finish. Paused time freezes; actions validate session/state. Android/user settings govern lock-screen visibility. Samsung Now bar and music/media-session behavior are not claimed.
+- **Ongoing notification:** distance, average pace, chronometer and GPS status with Pause or Resume/Finish. Paused time freezes; actions validate session/state. Android/user settings govern lock-screen visibility. Samsung Now bar and music-player impersonation are not claimed; optional speech uses temporary audio focus separately.
 - **Recovery:** recovered sessions offer Resume/Finish. Unreadable drafts offer preservation before reset; completed history is not cleared.
 
 All app pictograms use the pinned MIT Tabler outline subset; originals/license are in THIRD_PARTY_NOTICES.md and bundled in About. Preserve 24-unit geometry, 2-unit rounded strokes, caps and joins. Android system dialogs and external apps are outside this icon policy.
@@ -203,6 +223,8 @@ All app pictograms use the pinned MIT Tabler outline subset; originals/license a
 - Label primary actions; give icon-only actions accessible localized names.
 - Keep start, pause, resume and finish reachable, including landscape and larger Spanish text.
 - Keep climbs/descents prominent and unfamiliar calculation details on demand.
+- Make voice guidance optional, keep its settings out of live metrics and explain timed goals using active time.
+- Distinguish chart filters from all-history export, and name CSV versus route-bearing ZIP clearly.
 - Preserve uncertainty, missing-data gaps, original samples and recovery messages.
 - Keep credits visible and loading/recenter feedback explicit.
 - Do not infer activity types, place names, missing sensor data or terrain-corrected elevation.

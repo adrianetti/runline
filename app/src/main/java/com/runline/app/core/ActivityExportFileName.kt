@@ -7,15 +7,16 @@ import java.util.Locale
 
 /** A portable, human-readable export name; it never requires geocoding or network access. */
 object ActivityExportFileName {
-    /** Reserve a readable name ourselves; some providers append collisions after .gpx. */
+    /** Reserve a readable name ourselves; some providers append collisions after an unknown extension. */
     fun availableName(desired: String, existingNames: Collection<String>): String {
-        require(desired.endsWith(".gpx", ignoreCase = true))
+        val extension = desired.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        require(extension in setOf("gpx", "zip", "csv"))
         val taken = existingNames.mapTo(HashSet()) { it.lowercase(Locale.ROOT) }
         if (desired.lowercase(Locale.ROOT) !in taken) return desired
-        val stem = desired.dropLast(4)
+        val stem = desired.dropLast(extension.length + 1)
         var copy = 2
         while (true) {
-            val candidate = "$stem ($copy).gpx"
+            val candidate = "$stem ($copy).$extension"
             if (candidate.lowercase(Locale.ROOT) !in taken) return candidate
             copy++
         }

@@ -1,8 +1,8 @@
 # Runline
 
-A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay and exportable GPS data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
+A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Version 0.5.0 (version code 5) is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Signed release builds and bounded API 34 emulator checks are recorded below. A controlled physical-phone field and battery test remains outstanding.
+Version 0.6.0 (version code 6) is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Signed release builds and bounded API 34 emulator checks are recorded below. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -10,15 +10,31 @@ Version 0.5.0 (version code 5) is a sideloaded prototype for Android 8.0 and lat
 2. A loading state stays over the map until a usable GPS fix arrives. Wait outdoors; the status explains disabled location or missing permission. You can lock the screen or switch apps while the independent foreground service records.
 3. Tap **Pause**, then **Resume** or **Finish**. Finished recordings appear under **Activities**, with their chosen activity type.
 
-The idle Record tab is a simple activity picker with a Start button. Your choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
+The idle Record tab has an activity picker, a Start button and optional Voice coach settings. Your choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
 
 During recording, the satellite map fills the app content area. A bottom island keeps distance, active time, average pace and Pause within reach; portrait also shows climbed and descended elevation. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
 
-This personal build starts in **Spanish**. Choose **Idioma → English** in the app menu to switch; Spanish and English are the supported app languages. Controls, messages, recording notifications and exported activity names follow the selected app language. Android permission dialogs and third-party document providers follow their own language settings.
+The app follows the **phone’s language** by default, with English fallback and Spanish support. **Language / Idioma** offers Phone language, English and Español. Updating from v0.5 clears its forced-Spanish setting once; later explicit language choices are retained. Controls, messages, recording notifications and exported activity names follow the selected app language. Android permission dialogs and third-party document providers follow their own language settings.
 
 The shield control, or **Recording protection** in the active-run menu, shows notification and battery-optimization status with shortcuts to Android settings. These checks help identify restrictive settings; they do not certify future GPS continuity on a particular phone.
 
 The ongoing notification shows distance, average pace and a live active-time chronometer, with GPS status when expanded. Tap **Pause**, then **Resume** or **Finish**; the timer freezes while paused. Tapping the notification opens the current recording. Allow lock-screen notifications, including silent notifications where the phone has a separate setting, to use the controls there. Samsung may show icons until expanded, and its Now bar supports selected apps; Runline does not claim Now bar integration or pose as a music player. See [Android notification visibility](https://developer.android.com/develop/ui/compose/notifications/create-notification) and [Samsung Now bar guidance](https://www.samsung.com/my/support/mobile-devices/how-to-use-the-now-bar-on-the-lock-screen-of-your-samsung-galaxy-device/).
+
+## Optional voice coach
+
+Voice coaching starts **off**. Open **Voice coach** before starting, or from the recording **…** menu while an activity is underway. Enable spoken guidance, optionally announce every kilometre, and choose progress only, distance, target pace, or distance within a time limit. Goals apply to the activity’s total distance and **active time**; explicit pauses do not consume the time limit. Disabling guidance remains possible even while an unfinished goal edit is invalid.
+
+Use **Test voice** before heading out. Coaching uses an installed offline English or Spanish Android text-to-speech voice for the app language; it does not generate or download a person’s voice. Voice settings opens the phone’s TTS settings when available. If a suitable voice is missing, recording still works and the settings screen explains how to add one.
+
+The recorder service owns the coach, so leaving the screen does not intentionally stop it. Brief prompts can announce kilometre progress, one kilometre remaining, goal completion, or a sustained pace above/below the target. Weak/stale GPS, pauses and recovery do not produce a backlog of old cues. Pace guidance waits for sufficient recent movement and uses tolerance/cooldown rather than speaking on every GPS change. Distance-plus-time guidance uses the target’s average required pace; it does not calculate a changing catch-up pace.
+
+Before speech, Runline requests temporary audio focus that allows music to lower. It releases focus after speech, failure, timeout or interruption and never changes the phone’s global media volume directly. Actual ducking, Bluetooth routing and interruptions depend on Android, the TTS engine and the other player. **Spotify/headphone and physical Samsung behavior have not been verified.** Recording is independent of successful speech. See [coaching behavior and limits](docs/COACHING.md).
+
+## History charts
+
+**Activities** starts with distance totals, active time and weekly distance bars for the **last four local calendar weeks**, including the current week so far. Weeks start on Monday. The All / Run / Walk / Hike filter changes the charts, not the saved-activity list or whole-history exports.
+
+Choose one activity type to compare pace: the trend shows the latest eight eligible activities in that period, with faster pace higher on the chart. At least two usable observations are needed. Period average pace is total active time divided by total distance for activities with both values; it is not an unweighted average of their paces. A recording without usable GPS still contributes its count/active time but does not become a zero-pace result. Chart data is derived from saved samples and remains a GPS estimate.
 
 ## What is recorded
 
@@ -67,13 +83,22 @@ Closing or swiping away the screen does not itself stop the recording service. A
 
 See [the official-source reliability review](docs/RELIABILITY-RESEARCH.md) for documented Strava behavior, Android limits and what remains unknown about Strava's implementation.
 
-## Export GPX
+## Export and share
 
-Open a saved activity and tap the download icon, **Export GPX**. Android 10+ saves directly to **Downloads**, with no storage permission or save dialog. Android 8/9 uses a file picker; an unsuccessful automatic save also offers the picker. Encoding and writing happen away from the UI thread. A persistent success message shows the actual filename and offers **Copy name**.
+From a saved activity’s download control, choose **Downloads**, **Save to…** or **Share file**. Downloads saves GPX directly on Android 10+; Android 8/9 and failed automatic saves use the document picker. Save to… always opens that picker. Share file opens Android’s chooser, and a successful save also offers **Share**. File generation and copying run away from the UI thread.
 
-Files use a readable name such as `Caminata 8,42 km - 2026-11-01 10-30.gpx`: selected activity type in the app language, recorded distance, and local start date/time. Repeated Downloads exports add a suffix before the extension, such as `(2).gpx`. Runline does not guess a street or place name. The menu also offers **Share file** through Android's chooser.
+You can select Google Drive in the chooser or document picker **when the installed/configured Drive app exposes a compatible destination**. Other compatible apps work the same way. Runline has no Drive account integration or automatic cloud sync; the selected app/provider handles its own account, network and upload. Showing the chooser is not proof that a recipient finished saving the file.
 
-The Strava button and website handoff have been removed in v0.5. Export does not open a browser, connect an account or upload an activity. You choose what to do with the file afterward. Cancelled or failed export leaves the original recording intact. GPX contains precise route locations and timestamps; it is not a complete backup of Runline's internal fields. See [export behavior and limits](docs/EXPORTS.md); the previous Strava research is [archived](docs/STRAVA.md).
+GPX names remain readable, for example `Caminata 8,42 km - 2026-11-01 10-30.gpx`. They use the localized activity, recorded distance and local start time. Repeated Downloads exports keep the extension last, such as `(2).gpx`. No street name is guessed. The success message shows the provider’s actual filename.
+
+In **Activities**, **Share all** and **Export all** offer:
+
+- **Summary CSV:** one row per saved activity with type, time, distance, pace/speed, ascent/descent and sample/segment counts, without raw route coordinates. This is the smaller option for feedback from ChatGPT or a spreadsheet.
+- **All activities ZIP:** the CSV, a README explaining units/missing values, and a readable GPX for each saved activity under `activities/`.
+
+These actions include **all saved activities**, regardless of the chart’s four-week/type filter; an unfinished recording is not included. CSV headers and numeric conventions stay stable in English with decimal points; blank values mean unavailable, and timestamps include UTC plus a local-time/time-zone column. The ZIP includes precise routes and sample timestamps. Neither format is a complete restorable backup of the private recording journal.
+
+Strava remains removed. Cancelled or failed export keeps the source recordings. See [export formats, sharing and lifecycle](docs/EXPORTS.md); previous Strava research is [archived](docs/STRAVA.md).
 
 ## Keep your own copy
 
@@ -87,15 +112,15 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 34.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Download the signed [Runline 0.5.0 APK](https://github.com/adrianetti/runline/releases/download/v0.5.0/Runline-0.5.0.apk) from the private release, or use the packaged local artifact `dist/Runline-0.5.0.apk`. Install it with USB debugging enabled:
+The signed APK is available on the private [v0.6.0 release page](https://github.com/adrianetti/runline/releases/tag/v0.6.0). Its packaged local path is `dist/Runline-0.6.0.apk`. Install it with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.5.0.apk
+adb install -r dist/Runline-0.6.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.
 
-Version 0.5 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
+Version 0.6 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
 
 GitHub Actions checks pushes and pull requests to `main`. Main-branch builds use repository signing secrets and publish a signed release APK plus check reports as private workflow artifacts. Pull requests do not receive signing secrets. The private key and its local configuration stay outside Git; a fresh clone can build a development APK but does not receive the private release key.
 
@@ -107,9 +132,23 @@ To verify the pinned icon resources without network access:
 python3 tools/import_icons.py --check
 ```
 
+## Version 0.6 verification
+
+- Final integrated debug/release builds succeeded. All **96 JVM tests passed**, with zero failures or errors; lint reported **zero errors and 37 warnings**. All **24 pinned icons** matched their sources. English/Spanish checks confirmed parity for **270 string/plural resources** and their format placeholders.
+- On API 34, a signed debug update retained v0.5 history and cleared its forced locale to follow the English phone setting; Record showed Voice coach Off. Bounded review of **11 screenshots**, including Spanish, larger text and landscape, found no material UI issues in the inspected views.
+- The exported archive contained **17 CSV rows, 17 GPX files and README.txt**. GPX point and segment comparisons matched the saved activities; the standalone CSV also had 17 rows and no latitude/longitude columns. Direct Downloads saving worked. The post-save share chooser listed Drive; no Drive upload was performed. Save to… completed after rotating while the CSV document picker was open.
+- Coaching rejected an invalid **5 km in 2 minutes** goal and allowed disabling despite that invalid draft. English Test voice reached its TTS start callback using an installed Google offline voice. Spanish correctly showed the missing-offline-voice message because only English voice data was installed. Audio logs recorded a transient MAY_DUCK speech/navigation focus request and release five seconds later; this does not establish audible headphone playback or music ducking.
+
+- With a **0.1 km distance goal**, synthetic movement crossed the goal while the Activity was backgrounded. Audio logs recorded the automatic speech focus request at **23:36:05** and its release at **23:36:09**. Notification Pause/Finish saved the activity with **32 accepted fixes**; the emulator's initial Vancouver fix and Granada test movement remained separated. The coaching draft also survived landscape/portrait rotation. This tests the background cue/focus path, not audible music ducking.
+- The new activity's GPX Share file action opened the native chooser with Drive and a readable **Walk 0.22 km** filename; no account transfer was attempted.
+
+- The exact packaged **0.6.0 / version code 6** release installed in place and opened successfully. A fresh CSV export retained all **18 activity IDs**, including the two-hour walk fixture and live coaching test. The release signing certificate matched the stable per-app key: `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. APK SHA-256: `633c91a592ca950d596a4e116342470cfb49f1a6e641c24429b1bd5058fe1447`.
+
+These are bounded local build/emulator checks. Physical Spotify/headphone behavior, a Google Drive account upload and Samsung field/battery behavior remain unverified. See [docs/TESTING.md](docs/TESTING.md) for the checklist and detailed evidence.
+
 ## Version 0.5 verification
 
-Checked locally on 1 November 2026:
+Historical results, checked locally on 1 November 2026:
 
 - Final signed debug/release builds succeeded. All **71 JVM tests passed** with zero failures; lint reported **zero errors and 28 warnings**. All **23 generated icons** matched the pinned sources. English/Spanish checks confirmed parity for **196 string/plural resources** and their format placeholders.
 - The exact packaged **0.5.0 / version code 5** release installed on the API 34 emulator and retained older history, the two-hour fixture and a newly recorded Walk. Its signing certificate matched the per-app key used since v0.2. A preceding debug update from v0.4 also retained existing recordings.

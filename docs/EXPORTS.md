@@ -1,29 +1,44 @@
-# Activity file exports
+# Activity file exports and sharing
 
-Runline 0.5 exports a local GPX file. The Strava button, website launch and account handoff are removed. Export does not upload or publish an activity. The previous integration research is archived in [STRAVA.md](STRAVA.md).
+Runline 0.6 saves or shares local GPX, CSV and ZIP files. Strava remains removed. Runline connects no external account and does not automatically sync recordings; a destination chosen through Android handles its own account, network and upload.
 
-## Save a file
+## One activity
 
-Open a saved activity and tap the download control, **Export GPX** / **Exportar GPX**. Android 10+ saves to **Downloads** without a broad storage permission or save dialog. Android 8/9 uses `ACTION_CREATE_DOCUMENT`; an automatic Downloads failure also offers that picker. The source recording remains in Runline after success, cancellation or failure.
+Open a saved activity and use its download control to choose **Downloads**, **Save to…** or **Share file**. The options menu exposes the same actions. Downloads saves GPX directly on Android 10+ without broad storage access. Android 8/9 and failed automatic saves use the document picker; Save to… always opens it. A successful save shows the actual filename and offers **Share**.
 
-The filename combines the localized activity type, distance in kilometres and local start date/time. For example, `Caminata 8,42 km - 2026-11-01 10-30.gpx` in Spanish or `Walk 8.42 km - 2026-11-01 10-30.gpx` in English. These are illustrative values, not bundled recordings. Invalid filename characters are removed. Runline does not geocode or guess a street name. Downloads reserves duplicate names with a suffix before the extension, such as `(2).gpx`; other document providers control their own naming; the success message reads back the actual saved name and offers **Copy name** only after an explicit tap.
+Share file opens Android’s chooser with a read-only content URI, matching MIME type and stream grant. Google Drive can appear when an installed/configured Drive app exposes a compatible share target. Save to… can expose Drive through Android’s document-provider UI. Availability is provider/device-specific; an entry in a chooser is not evidence that the recipient completed an upload or can import a workout. The user selects the destination. No real Drive account upload has been verified for this release.
 
-**Share file** in the activity menu opens Android's generic chooser. A receiving app must support GPX; the presence of an app in the chooser is not a guarantee that it accepts a completed workout. No particular destination or published state is assumed.
+Names use localized activity, recorded kilometres and local start time, such as `Caminata 8,42 km - 2026-11-01 10-30.gpx` or `Walk 8.42 km - 2026-11-01 10-30.gpx`. These are examples. Invalid filename characters are removed; streets are not geocoded or guessed. Downloads allocates collision suffixes before the extension, such as `(2).gpx`, and checks the provider’s actual name. Other document providers control their own naming.
 
-## Contents and privacy
+## All saved activities
 
-GPX preserves accepted coordinates, UTC sample timestamps, available GPS altitude and track segments. The stored activity type is included; legacy sessions without one remain Run. Display smoothing never changes exported points. The filename uses local time for readability; GPX point timestamps remain UTC. Distance is Runline's GPS estimate, so another app may calculate a different total.
+**Share all** and **Export all** in Activities offer two formats. Both include every saved activity, independent of the chart type filter or four-week window. An unfinished recording is excluded.
 
-The file includes precise start/end locations and timestamps. Choose its destination deliberately. GPX is a portable route export, not a full backup of every timing, recovery or internal storage field. Uninstalling Runline or clearing its storage still removes internal recordings and recovery copies; save important files outside the app.
+| Format | Contents | Intended use |
+| --- | --- | --- |
+| Summary CSV | One row per saved activity; no raw route coordinates | Compact analysis in ChatGPT or a spreadsheet |
+| All activities ZIP | `summary.csv`, `README.txt` and one GPX per activity under `activities/` | Analysis that needs routes, plus a portable collection of GPS files |
 
-## Implementation and lifecycle
+ZIP filenames combine the localized collection name and export time. Each internal GPX has a readable activity/distance/start-time name; collisions remain unique. `gpx_file` in the CSV points to the corresponding ZIP entry. A standalone CSV does not include those GPX files.
 
-`sharing/ActivityExporter.kt` owns saving, `ActivityExportName.kt` provides localized names, and `core/ActivityExportFileName.kt` formats them. `MainActivity` invokes this exporter from replay and the menu. GPX generation and destination writes use a single background worker retained by a `ViewModel`; repeated requests while saving/picking are rejected. An in-flight write survives Activity rotation, and one-shot results wait until the Activity is resumed. The pending run ID is saved while a document picker is open, allowing the source session to be reloaded after recreation.
+The CSV uses stable English headers, decimal points, ISO UTC timestamps and additional local start/time-zone columns. Fields include activity identity/type, active/elapsed/GPS-observed seconds, distance in kilometres, average pace in seconds per kilometre, average speed in kilometres per hour, ascent/descent in metres, sample count and exported-segment count. Blank cells mean unavailable measurements, not zero. Quoted fields preserve commas, quotes and newlines.
 
-On Android 10+, `MediaStore.Downloads` creates an item with `IS_PENDING=1`; after writing and closing the stream, the exporter clears pending status. Failed writes attempt to delete the newly created row before offering the picker. Downloads name allocation and insertion are serialized within the app, and the actual provider name is checked to retain `.gpx` before writing. Unexpected collision names trigger a bounded retry of a new empty pending item. No browser is launched and no account tokens or credentials are used.
+## Meaning and privacy
 
-Process death can interrupt a write. A pending Downloads item may remain hidden until the provider expires it; a picker destination may contain a partial file. Cleanup after process death is not guaranteed. The original activity is never deleted by export, so the user can retry. Cloud document providers have their own availability, login and network requirements.
+GPX preserves accepted coordinates, UTC sample timestamps, available GPS altitude and recording segments. Display smoothing never adds exported points. Legacy sessions without a stored type remain Run. Average pace/speed use active time, including standing still and GPS wait but excluding explicit pauses. Observed GPS time skips interruptions and may be shorter. Elevation is a GPS estimate with a 3-metre noise threshold, not terrain-corrected height or slope. Other apps may calculate different totals.
 
-## Verification status
+CSV avoids raw routes, but still contains precise activity times and statistics. The ZIP includes precise routes and sample timestamps. Neither format is a complete restorable backup of the private recording journal. Uninstalling or clearing Runline still removes internal recordings/recovery copies; keep important exports outside the app.
 
-Version 0.5 API 34 checks confirmed direct Downloads exports in Spanish and English without opening a browser/account flow. A parsed two-hour walk export retained 7,201 points, two segments and walking type; a separate live-recorded Walk export matched all 13 stored fixes and three segments. Readable names used the selected language and date/time. Two repeated exports produced `(2).gpx` and `(3).gpx`, each with all 7,201 points and two segments, while keeping the earlier exports. See [release evidence](../README.md#version-05-verification). The broader [checklist](TESTING.md) includes older-Android picker runtime, failure injection, duplicate names and lifecycle cases; unlisted cases are not implied to have passed. Earlier Downloads/browser results remain historical v0.2–v0.4 evidence.
+## Preparation and lifecycle
+
+`sharing/ActivityExporter.kt` prepares each export on a retained worker. GPX encoding, archive generation and destination copying run off the UI thread. Each operation uses a separate cache directory and immutable prepared file, so a later share does not overwrite a file already granted to a recipient. Cache is temporary storage, not a backup; Android can reclaim it.
+
+The worker survives Activity recreation, and pending result delivery waits until the Activity is resumed. A document-picker request stores a small prepared-file reference, filename and format in saved state rather than embedding all activities. After process recreation, the cached source is opened before the destination so an evicted source does not truncate a destination. A missing cached file requires retrying export from intact saved history.
+
+Android 10+ Downloads uses `IS_PENDING=1` until copying succeeds. Name allocation/insertion is serialized within the app. Unexpected provider collision names trigger bounded retry of new empty pending items; failed writes attempt to remove the new row before offering a picker. A process death can still leave a hidden pending item or a partial picker destination, so cleanup after death is not guaranteed. Export never removes the source recordings. Cloud providers retain their own availability, login and transfer requirements.
+
+## Verification
+
+Final integrated v0.6 builds passed all 96 JVM tests and lint with zero errors/37 warnings; pinned-icon and English/Spanish resource checks also passed. On API 34, the exported ZIP contained 17 summary rows, 17 GPX files and README.txt; point and segment comparisons matched the saved activities. Standalone CSV contained 17 rows without latitude/longitude columns. Direct Downloads saving and post-save sharing worked; the chooser listed Drive, but no Drive upload was performed. Save to… completed after rotating with the CSV document picker open. [README.md](../README.md#version-06-verification) and [TESTING.md](TESTING.md) retain the exact verified scope and remaining checks. These results do not establish a real Drive, ChatGPT or other recipient’s end-to-end transfer, older-Android picker behavior or every export-failure path.
+
+Historical v0.5 API 34 checks confirmed direct bilingual GPX Downloads exports, a 7,201-point/two-segment walk export, and a second export matching 13 saved points/three segments. Repeated exports preserved `(2).gpx` and `(3).gpx`. Those results do not validate every new v0.6 archive/share path.

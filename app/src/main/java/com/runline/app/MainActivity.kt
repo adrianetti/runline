@@ -1,7 +1,6 @@
 package com.runline.app
 
 import android.Manifest
-import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -30,7 +29,6 @@ import com.runline.app.core.ActivityType
 import com.runline.app.i18n.AppLanguage
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -38,8 +36,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import com.runline.app.sharing.ActivityExporter
-import com.runline.app.sharing.ActivityExportName
-import com.runline.app.core.GpxExporter
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.RunSession
 import com.runline.app.data.RunStore
@@ -48,9 +44,11 @@ import com.runline.app.tracking.RecordingStatus as TrackingStatus
 import com.runline.app.ui.SatelliteMapView
 import com.runline.app.ui.RunReplayView
 import com.runline.app.ui.ActiveRunView
+import com.runline.app.ui.VoiceCoachSheet
+import com.runline.app.ui.HistoryInsightsView
+import com.runline.app.coaching.VoiceCoachSettings
 import androidx.appcompat.widget.PopupMenu
 import com.runline.app.core.RunReplay
-import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -76,6 +74,8 @@ class MainActivity : AppCompatActivity() {
     private var restoredReplaySpeed = 1
     private var activeRunView: ActiveRunView? = null
     private var selectedActivity = ActivityType.RUN
+    private var coachSheet: VoiceCoachSheet? = null
+    private var historyType: ActivityType? = null
     private val ticker = object : Runnable {
         override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
     }
@@ -85,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         AppLanguage.afterCreate(this)
         selectedActivity = ActivityType.fromStorage(savedInstanceState?.getString("activityType") ?: getPreferences(0).getString("activityType", null))
+        historyType = savedInstanceState?.getString("historyType")?.let(ActivityType::fromStorage)
         pendingAction = savedInstanceState?.getString("pendingAction") ?: TrackingService.ACTION_START
         store = RunStore(this)
         val isNight = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
@@ -123,6 +124,7 @@ class MainActivity : AppCompatActivity() {
         if (screen == "detail" && currentRun == null) screen = "history"
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
+        savedInstanceState?.getBundle("coachSheet")?.let(::showCoach)
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent)
@@ -133,15 +135,17 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
-    override fun onPause() { handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
+    override fun onDestroy() { coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
+        outState.putString("historyType", historyType?.storageValue)
         outState.putString("pendingAction", pendingAction)
         outState.putString("screen", screen); outState.putString("runId", currentRun?.id)
         outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
         exporter.saveState(outState); super.onSaveInstanceState(outState)
+        coachSheet?.takeIf { it.isShowing }?.let { outState.putBundle("coachSheet", it.saveState()) }
     }
     @Deprecated("Uses platform Back for this single-activity prototype")
     override fun onBackPressed() {
@@ -219,6 +223,7 @@ class MainActivity : AppCompatActivity() {
         field.addView(choice, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, margin(bottom = 16))
         content.addView(text(getString(R.string.main_start_hint), 15, muted = true))
+        content.addView(button(getString(if (VoiceCoachSettings.load(this).enabled) R.string.coach_ui_on else R.string.coach_ui_off), outlined = true, iconId = R.drawable.ic_speaker) { showCoach() }, margin(top = 24))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
@@ -241,10 +246,14 @@ class MainActivity : AppCompatActivity() {
     private fun renderHistory() {
         val content = scrollContent()
         val runs = try { store.list() } catch (e: Exception) { notice(getString(R.string.main_history_failed)); emptyList() }
-        content.addView(text(getString(R.string.main_this_week), 24, bold = true))
-        val recent = runs.filter { it.startedAtMs >= System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L }
-        val km = recent.sumOf { RunMetrics.distanceMeters(it.points) } / 1000
-        content.addView(text(resources.getQuantityString(R.plurals.main_week_summary, recent.size, number(km, 1), recent.size), 16, muted = true), margin(top = 8, bottom = 28))
+        if (runs.isNotEmpty()) {
+            content.addView(HistoryInsightsView(this, runs, historyType) { historyType = it })
+            val transfers = LinearLayout(this)
+            transfers.addView(button(getString(R.string.main_share_all), outlined = true, iconId = R.drawable.ic_share) { showHistoryTransfer(runs, share = true) }, LinearLayout.LayoutParams(0, -2, 1f))
+            transfers.addView(button(getString(R.string.main_export_all), outlined = true, iconId = R.drawable.ic_download) { showHistoryTransfer(runs, share = false) }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
+            content.addView(transfers, margin(top = 16, bottom = 28))
+            content.addView(text(getString(R.string.main_activities), 24, bold = true))
+        }
         if (runs.isEmpty()) {
             content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
             content.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { tabs.getTabAt(0)?.select() })
@@ -270,7 +279,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderDetail(run: RunSession) {
         replayView = RunReplayView(this, RunReplay(run),
             onBack = { screen = "history"; tabs.getTabAt(1)?.select(); render() },
-            onExport = { exporter.start(run) }, onMore = ::showDetailOptions,
+            onExport = { showActivityTransfer(run) }, onMore = ::showDetailOptions,
         ).also { view ->
             view.restore(restoredReplayPosition, restoredReplaySpeed)
             body.addView(view, LinearLayout.LayoutParams(-1, -1))
@@ -285,15 +294,17 @@ class MainActivity : AppCompatActivity() {
         }
         toolbar.menu.add(0, 9, 1, R.string.main_language)
         toolbar.menu.add(0, 7, 2, R.string.main_about)
+        if (screen == "record") toolbar.menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
         toolbar.overflowIcon = AppCompatResources.getDrawable(this, R.drawable.ic_more)?.apply { setTint(getColor(R.color.on_surface)) }
         toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) { 5 -> showProtection(); 9 -> showLanguage(); 7 -> showAbout() }; true
+            when (item.itemId) { 5 -> showProtection(); 9 -> showLanguage(); 7 -> showAbout(); 10 -> showCoach() }; true
         }
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
             menu.add(0, 1, 0, R.string.main_export)
             menu.add(0, 2, 1, R.string.main_share_file)
+            menu.add(0, 6, 2, R.string.main_save_to)
             menu.add(0, 3, 2, R.string.main_run_info)
             menu.add(0, 9, 3, R.string.main_language)
             menu.add(0, 4, 4, R.string.main_delete_activity)
@@ -301,6 +312,7 @@ class MainActivity : AppCompatActivity() {
                 when (item.itemId) {
                     1 -> currentRun?.let(::saveGpx)
                     2 -> currentRun?.let(::shareGpx)
+                    6 -> currentRun?.let { exporter.saveAs(it) }
                     3 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_run_info)
                         .setMessage(R.string.main_run_info_body).setPositiveButton(R.string.main_done, null).show()
                     9 -> showLanguage()
@@ -316,12 +328,15 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showRunOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
+            menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
+            setForceShowIcon(true)
             menu.add(0, 1, 0, R.string.main_protection)
             menu.add(0, 2, 1, R.string.main_direction)
             menu.add(0, 9, 2, R.string.main_language)
             if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 3, R.string.main_discard_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    10 -> showCoach()
                     1 -> showProtection()
                     2 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_direction)
                         .setMessage(R.string.main_direction_body).setPositiveButton(R.string.main_done, null).show()
@@ -332,15 +347,15 @@ class MainActivity : AppCompatActivity() {
         }.show()
     }
     private fun showLanguage() {
-        val tags = arrayOf("es", "en")
-        val current = resources.configuration.locales[0].language
+        val tags = arrayOf("", "en", "es")
+        val current = AppLanguage.selectedTag(this).substringBefore(',')
         MaterialAlertDialogBuilder(this).setTitle(R.string.main_language)
-            .setSingleChoiceItems(arrayOf("Español", "English"), tags.indexOf(current)) { dialog, which ->
+            .setSingleChoiceItems(arrayOf(getString(R.string.main_phone_language), "English", "Español"), tags.indexOf(current).coerceAtLeast(0)) { dialog, which ->
                 dialog.dismiss(); AppLanguage.select(this, tags[which])
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.5")
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.6")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
@@ -395,22 +410,36 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton(getString(R.string.main_keep), null).show()
     }
     private fun saveGpx(run: RunSession) { exporter.start(run) }
+    private fun showActivityTransfer(run: RunSession) {
+        MaterialAlertDialogBuilder(this).setTitle(R.string.main_activity_file)
+            .setItems(arrayOf(getString(R.string.main_download_gpx), getString(R.string.main_share_file), getString(R.string.main_save_to))) { _, which ->
+                when (which) { 0 -> exporter.start(run); 1 -> exporter.share(run); 2 -> exporter.saveAs(run) }
+            }.show()
+    }
+    private fun showHistoryTransfer(runs: List<RunSession>, share: Boolean) {
+        MaterialAlertDialogBuilder(this).setTitle(if (share) R.string.main_share_all else R.string.main_export_all)
+            .setItems(arrayOf(getString(R.string.main_summary_csv), getString(R.string.main_archive_zip))) { _, format ->
+                if (share) { if (format == 0) exporter.shareSummary(runs) else exporter.shareArchive(runs) }
+                else MaterialAlertDialogBuilder(this).setTitle(R.string.main_export_all)
+                    .setItems(arrayOf(getString(R.string.main_downloads), getString(R.string.main_save_to))) { _, destination ->
+                        if (format == 0) { if (destination == 0) exporter.startSummary(runs) else exporter.saveSummaryAs(runs) }
+                        else { if (destination == 0) exporter.startArchive(runs) else exporter.saveArchiveAs(runs) }
+                    }.show()
+            }.show()
+    }
+    private fun showCoach(state: Bundle? = null) {
+        coachSheet?.close()
+        coachSheet = VoiceCoachSheet(this, state) {
+            TrackingService.refreshCoaching()
+            if (screen == "record" && activeRunView == null) render()
+        }.also { it.show() }
+    }
     @Deprecated("Platform document result is supported on the minimum SDK")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         exporter.handleActivityResult(requestCode, resultCode, data)
     }
-    private fun shareGpx(run: RunSession) {
-        try {
-            val dir = File(cacheDir, "exports").apply { mkdirs() }; val file = File(dir, filename(run)); file.writeText(GpxExporter.export(run))
-            val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = "application/gpx+xml"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                clipData = ClipData.newUri(contentResolver, getString(R.string.main_gpx_label), uri)
-            }, getString(R.string.main_share_file)))
-        } catch (e: Exception) { notice(getString(R.string.main_share_failed)) }
-    }
-    private fun filename(run: RunSession) = ActivityExportName.fileName(this, run)
+    private fun shareGpx(run: RunSession) = exporter.share(run)
     private fun notice(message: String) { Snackbar.make(root, message, Snackbar.LENGTH_LONG).show() }
     private fun text(value: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(this).apply {
         text = value; textSize = size.toFloat(); setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
