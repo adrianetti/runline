@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-01T12:51:23.093707Z",
+  "generatedAt": "2026-11-01T14:54:14.446854Z",
   "title": "Design System: Runline",
   "extensions": {
     "colorMeta": {
@@ -288,7 +288,7 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Live distance above time/pace; 40sp with tabular numerals."
+        "purpose": "Ready-screen distance; 40sp with tabular numerals."
       },
       "display-detail": {
         "displayName": "Display Detail",
@@ -321,6 +321,10 @@
       "label": {
         "displayName": "Label",
         "purpose": "Metric names."
+      },
+      "live-metric": {
+        "displayName": "Live Metric",
+        "purpose": "Active island measurements; nominal 26sp tabular values, fitted between 16sp and 26sp."
       }
     },
     "shadows": [],
@@ -340,7 +344,7 @@
       "name": "Outlined action",
       "kind": "button",
       "refersTo": "button-outlined",
-      "description": "Secondary Finish action shown below Resume when paused. Example browser interaction overlays are illustrative, not additional app tokens.",
+      "description": "Secondary Finish action beside Resume in the paused/recovered island. Browser preview uses the existing general control; native active buttons are 60dp, or 48dp in landscape.",
       "html": "<button class=\"ds-outlined\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 7a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -10\" /></svg><span>Finish</span></button>",
       "css": ".ds-outlined{display:flex;align-items:center;justify-content:center;gap:12px;background:#FAFAFA;color:#171717;border:1px solid #777777;border-radius:16px;padding:12px 16px;min-height:64px;width:100%;font:500 14px Roboto,Arial,sans-serif;cursor:pointer}.ds-outlined svg{width:24px;height:24px}.ds-outlined:hover{background:#EEEEEE}.ds-outlined:focus-visible{outline:3px solid #171717;outline-offset:3px}.ds-outlined:active{background:#E7E7E7}"
     },
@@ -348,7 +352,7 @@
       "name": "Record and Runs tabs",
       "kind": "nav",
       "refersTo": "navigation-tabs",
-      "description": "Two native tabs with Tabler icons and persistent short labels. Preview indicates selection but does not navigate.",
+      "description": "Two native tabs outside active recording, with Tabler icons and persistent short labels. During a run the map uses a floating Runs control. Preview does not navigate.",
       "html": "<nav class=\"ds-tabs\" aria-label=\"Runline\"><button class=\"ds-tab ds-selected\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M11.007 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\" /><path d=\"M4 17l5 1l.75 -1.5\" /><path d=\"M15 21v-4l-4 -3l1 -6\" /><path d=\"M7 12v-3l5 -1l3 3l3 1\" /></svg>Record</button><button class=\"ds-tab\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 8l0 4l2 2\" /><path d=\"M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5\" /></svg>Runs</button></nav>",
       "css": ".ds-tabs{display:flex;min-height:48px;background:#FAFAFA}.ds-tab{position:relative;display:flex;justify-content:center;align-items:center;gap:8px;flex:1;border:0;background:transparent;color:#5C5C5C;font:500 14px Roboto,Arial,sans-serif;cursor:pointer}.ds-tab svg{width:24px;height:24px}.ds-selected{color:#171717}.ds-selected:after{content:\"\";position:absolute;bottom:0;left:25%;right:25%;height:3px;background:#171717}.ds-tab:hover{background:#EEEEEE}.ds-tab:focus-visible{outline:2px solid #171717;outline-offset:-3px}.ds-tab:active{background:#E7E7E7}"
     },
@@ -356,9 +360,9 @@
       "name": "Live distance",
       "kind": "custom",
       "refersTo": "live-distance",
-      "description": "Empty recording value with the native 40sp/24sp size relationship at nominal browser scale.",
-      "html": "<div class=\"ds-distance\"><span class=\"ds-number\">0.00</span><span class=\"ds-unit\">km</span></div>",
-      "css": ".ds-distance{display:flex;align-items:baseline;background:#FAFAFA;color:#171717;font-family:Roboto,Arial,sans-serif}.ds-number{font-size:40px;font-weight:500;font-variant-numeric:tabular-nums}.ds-unit{margin-left:8px;font-size:24px;color:#5C5C5C}"
+      "description": "One active-island metric column at nominal 26sp; native values fit between 16sp and 26sp. The island uses three equal distance/time/average-pace columns.",
+      "html": "<div class=\"ds-distance\"><span class=\"ds-unit\">Distance · km</span><span class=\"ds-number\">0.00</span></div>",
+      "css": ".ds-distance{display:flex;flex-direction:column;background:#FAFAFA;color:#171717;font-family:Roboto,Arial,sans-serif}.ds-number{font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:3px}.ds-unit{font-size:12px;color:#5C5C5C}"
     },
     {
       "name": "Run row",
@@ -372,7 +376,7 @@
       "name": "Satellite map shell",
       "kind": "custom",
       "refersTo": "satellite-map",
-      "description": "A 240dp ready/live map with fit/follow and 48dp credit controls. Below 500dp screen height, it becomes 120dp; saved-run replay maps use 300dp or 160dp. This neutral documentation placeholder contains no imagery or invented route. Runtime imagery retains real colors.",
+      "description": "The ready map is 240dp or 120dp below 500dp screen height; saved-run maps use 300dp/160dp. Active maps instead fill the content area behind the information island and use padded zoom-18 following. This neutral documentation placeholder contains no imagery or invented route; runtime imagery retains real colors.",
       "html": "<div class=\"ds-map\"><span class=\"ds-map-placeholder\">Satellite imagery</span><div class=\"ds-map-controls\"><button aria-label=\"Fit entire route\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\" /><path d=\"M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4\" /><path d=\"M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5\" /></svg></button><button aria-label=\"Follow moving marker\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\" /><path d=\"M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0\" /><path d=\"M12 2l0 2\" /><path d=\"M12 20l0 2\" /><path d=\"M20 12l2 0\" /><path d=\"M2 12l2 0\" /></svg></button></div><button class=\"ds-map-credits\">© IGN · EOX · OpenStreetMap</button></div>",
       "css": ".ds-map{position:relative;height:240px;background:#EEEEEE;color:#171717;font:400 14px Roboto,Arial,sans-serif}.ds-map-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5C5C5C}.ds-map-controls{position:absolute;right:8px;top:8px;display:flex;flex-direction:column}.ds-map button{background:#FFFFFF;color:#171717;border:0;cursor:pointer}.ds-map-controls button{height:48px;width:48px}.ds-map svg{width:24px;height:24px}.ds-map-credits{position:absolute;left:0;bottom:0;min-height:48px;padding:0 8px;font-size:11px}.ds-map button:focus-visible{outline:2px solid #171717;outline-offset:-3px}.ds-map button:hover{background:#E7E7E7}"
     },
@@ -388,8 +392,8 @@
       "name": "Replay controls",
       "kind": "custom",
       "refersTo": "replay-control",
-      "description": "Outlined 52dp Play and speed controls with 20dp Tabler glyphs. Native speed choices are 1×, 5×, 10×, 30× and 60×; these documentation buttons do not play a route.",
-      "html": "<div class=\"ds-replay\"><button><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 4v16l13 -8l-13 -8\" /></svg>Play</button><button aria-label=\"Playback speed, 30 times\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\" /><path d=\"M12 7v5l3 3\" /></svg>30×</button></div>",
+      "description": "Outlined 52dp Play and speed controls with 20dp Tabler glyphs. Speed defaults to 1×; choices are 1×, 5×, 10×, 30× and 60×. These documentation buttons do not play a route.",
+      "html": "<div class=\"ds-replay\"><button><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 4v16l13 -8l-13 -8\" /></svg>Play</button><button aria-label=\"Playback speed, 1 times\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\" /><path d=\"M12 7v5l3 3\" /></svg>1×</button></div>",
       "css": ".ds-replay{display:flex;gap:8px;background:#FAFAFA}.ds-replay button{display:flex;flex:1;align-items:center;justify-content:center;gap:5px;min-height:52px;border:1px solid #777777;border-radius:12px;background:#FAFAFA;color:#171717;font:500 14px Roboto,Arial,sans-serif;cursor:pointer}.ds-replay svg{width:20px;height:20px}.ds-replay button:hover{background:#EEEEEE}.ds-replay button:focus-visible{outline:2px solid #171717;outline-offset:2px}"
     },
     {
@@ -407,17 +411,26 @@
       "description": "A labeled 48dp toolbar action remains accessible above the saved run. It saves GPX and opens a browser; it does not connect or publish an account activity.",
       "html": "<button class=\"ds-strava\" aria-label=\"Share run to Strava\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\" /><path d=\"M7 9l5 -5l5 5\" /><path d=\"M12 4l0 12\" /></svg>Strava</button>",
       "css": ".ds-strava{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 8px;border:0;background:#FAFAFA;color:#171717;font:500 14px Roboto,Arial,sans-serif;cursor:pointer}.ds-strava svg{width:20px;height:20px}.ds-strava:hover{background:#EEEEEE}.ds-strava:focus-visible{outline:2px solid #171717;outline-offset:2px}"
+    },
+    {
+      "name": "Active run island",
+      "kind": "custom",
+      "refersTo": "active-run-island",
+      "description": "Functional bottom overlay on the full-content map, inset 16dp with 24dp corners and 3dp native elevation. Nominal 26sp values fit as needed. The landscape island moves lower left; native information can scroll while actions remain visible. This static preview contains no recorded session.",
+      "html": "<div class=\"ds-island\"><strong>Recording</strong><span class=\"ds-island-status\">Finding GPS…</span><div class=\"ds-island-metrics\"><div>Distance · km<strong>0.00</strong></div><div>Time<strong>00:00</strong></div><div>Avg /km<strong>—</strong></div></div><button><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12\"/><path d=\"M14 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12\"/></svg>Pause</button></div>",
+      "css": ".ds-island{display:flex;flex-direction:column;gap:8px;padding:16px 16px 12px;border-radius:24px;background:#FAFAFA;color:#171717;font:400 16px Roboto,Arial,sans-serif;max-width:400px}.ds-island-status,.ds-island-metrics{color:#5C5C5C;font-size:12px}.ds-island-metrics{display:flex;gap:8px;margin:4px 0}.ds-island-metrics>div{flex:1}.ds-island-metrics strong{display:block;font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;color:#171717;margin-top:3px}.ds-island button{display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:16px;min-height:60px;background:#171717;color:#FFFFFF;font:500 14px Roboto,Arial,sans-serif}.ds-island svg{width:22px;height:22px}.ds-island button:focus-visible{outline:3px solid #777777;outline-offset:3px}"
     }
   ],
   "narrative": {
     "northStar": "Minimal running instrument",
-    "overview": "Version 0.3 keeps the user-pinned monotone controls, few words and one Tabler outline family while adding real satellite imagery, GPS replay and more measurements. Satellite images retain their colors. Recording/replay maps are 240dp/300dp, or 120dp/160dp below 500dp screen height; Strava stays in the toolbar. API 34 emulator review covered imagery, playback, light/dark, 1.3× font scale and landscape. The final sharing dialog was confirmed monochrome and the map-credit target measured 48dp; physical-phone coverage remains unverified.",
+    "overview": "Version 0.4 keeps monotone controls, few words and one Tabler family. The active map fills the content area behind a bottom statistics/control island, or lower-left island in landscape. North-up zoom-18 following centers a GPS movement arrow in the unobscured map; initial heading and course after a new GPS segment remain neutral until reliable movement. Replay defaults to 1×. Ongoing notifications expose time/distance/pace and state-appropriate controls; Samsung Now bar support is not claimed. Ready/replay maps retain 240dp/300dp or compact 120dp/160dp heights. Bounded v0.4 API 34 checks covered heading/follow, notification controls, 1× replay and light/dark/large-font/landscape layouts. Detailed results and physical-device limitations remain in README.md.",
     "keyCharacteristics": [
       "Achromatic controls in paired day/night roles; real-color map imagery.",
       "One Tabler outline family with short labels and accessible icon actions.",
-      "Bottom recording actions and a visible Strava toolbar action.",
+      "Full-content live map, reachable bottom island and a visible saved-run Strava toolbar action.",
       "Observed GPS replay with explicit missing-data gaps and estimated measurements.",
-      "Flat native lists and local route overlays, with visible map attribution."
+      "Flat native lists and local route overlays, with visible map attribution.",
+      "State-appropriate ongoing notification controls; Android/user settings, including silent-notification visibility, govern lock-screen presentation."
     ],
     "rules": [
       {
@@ -433,6 +446,11 @@
       {
         "name": "Display is separate from capture",
         "body": "Maps request visible tiles, not raw run files. Offline background recording and recovery were checked on the API 34 emulator. Replay uses observed GPS intervals, pauses in the background and does not export video. This evidence does not certify every device or failure path.",
+        "section": "components"
+      },
+      {
+        "name": "GPS direction is movement",
+        "body": "The navigation arrow uses accepted GPS course on a north-up map, not phone compass direction. Preserve a neutral initial marker, reset across gaps and keep follow independently controllable. The map never controls capture.",
         "section": "components"
       }
     ],

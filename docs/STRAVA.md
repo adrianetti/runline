@@ -2,6 +2,8 @@
 
 Reviewed against live official sources on 1 November 2026.
 
+**Decision after the direct-sync audit:** keep the free manual GPX handoff. The user declined a subscription and asked to retain this path if a supported free connection for Runline could not be established. No documented, reliable automatic-upload path was found for our own recorder without registering an integration. This does not mean every existing watch or app integration requires its users to subscribe.
+
 ## Current path: save automatically, then open the uploader
 
 Runline's **Share to Strava** action prepares a GPX and opens the website uploader. On Android 10 and later it saves directly to **Downloads**, without a storage permission or file-save dialog. The first-use explanation says what will happen; subsequent uses go directly to saving. On Strava:
@@ -21,7 +23,14 @@ The official instructions describe a computer browser. A phone browser may need 
 
 Strava documents an Android app-to-app **authorization** handoff: an `ACTION_VIEW` intent to `https://www.strava.com/oauth/mobile/authorize` can open the installed Strava app to ask for consent. That endpoint needs a registered client ID and callback; completing OAuth still requires a confidential client-secret exchange and API upload. Installing Strava alone does not provide those application credentials. [Mobile OAuth documentation](https://developers.strava.com/docs/authentication/#requestingaccess).
 
-No official public contract was found for creating a recorded activity by sending GPX to Strava's Android app with `ACTION_SEND`. A social post/share action or importing a route for navigation is not the same as uploading a completed workout. Runline does not use an undocumented intent, reuse another app's API credentials or treat opening Strava as successful upload.
+No official public contract was found for creating a recorded activity by sending GPX to Strava's Android app with `ACTION_SEND`. Strava's Suunto instructions explicitly direct manual activity-file uploads to the website. A social post/share action or importing a route for navigation is not the same as uploading a completed workout. Runline does not use an undocumented intent, reuse another app's API credentials or treat opening Strava as successful upload. [Official file-import instructions](https://support.strava.com/en-us/articles/15401781-suunto-app-and-strava).
+
+Watch companion apps use their own existing integrations. For example, Mi Fitness asks the user to authorize Mi Fitness to access Strava; this does not register Runline or grant it the companion app's credentials. [Mi Fitness connection guide](https://support.strava.com/en-us/articles/15401633-mi-fitness-and-strava).
+
+## Health-platform alternatives checked on 1 November 2026
+
+- **Health Connect:** Strava documents sending activity time, distance and calories to Health Connect, and receiving weight. It does not document importing completed activities from Health Connect, so writing a Runline recording there would not establish Strava sync. [Strava's Health Connect guide](https://support.strava.com/en-us/articles/15401554-health-connect-and-strava).
+- **Samsung Health:** it can send GPS activities to Strava and exchange some exercise data with Health Connect. However, the reviewed documentation does not establish that GPS routes written by Runline through Health Connect would be imported and forwarded to Strava. This remains unverified, not a promised workaround. Direct writes through Samsung's Health Data SDK require partner approval. [Samsung–Strava integration](https://support.strava.com/en-us/articles/15401747-samsung-health-and-strava), [Samsung's Health Connect data support](https://developer.samsung.com/health/blog/en/accessing-samsung-health-data-through-health-connect), [Samsung SDK registration process](https://developer.samsung.com/health/data/process.html).
 
 ## Module contract
 

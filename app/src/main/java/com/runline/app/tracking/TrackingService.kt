@@ -12,13 +12,16 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.graphics.drawable.Icon
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
@@ -31,6 +34,7 @@ import com.runline.app.data.DraftRecord
 import com.runline.app.data.RunStore
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.roundToLong
 
 enum class RecordingStatus { IDLE, RECORDING, PAUSED, INTERRUPTED, RECOVERY_ERROR }
 
@@ -50,6 +54,9 @@ class TrackingService : Service(), LocationListener {
     private lateinit var locations: LocationManager
     private val thread = HandlerThread("RunlineRecorder")
     private lateinit var worker: Handler
+    private val main = Handler(Looper.getMainLooper())
+    // Accessed only on the main thread, where Android delivers start commands.
+    private var latestStartId = 0
     private var wakeLock: PowerManager.WakeLock? = null
     private var current: RunSession? = null
     private var recovered: DraftRecord? = null
@@ -88,7 +95,7 @@ class TrackingService : Service(), LocationListener {
             if (isGpsStale()) { accuracy = null; message = "GPS lost · time continues" }
             if (tickCount % 300 == 0) wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
             publish()
-            if (tickCount % 10 == 0) updateNotification()
+            if (tickCount % 5 == 0) updateNotification()
             worker.postDelayed(this, 1000)
         }
     }
@@ -100,7 +107,11 @@ class TrackingService : Service(), LocationListener {
         bootCount = runCatching { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT) }.getOrDefault(-1)
         thread.start(); worker = Handler(thread.looper)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL, "Run recording", NotificationManager.IMPORTANCE_LOW))
+            NotificationChannel(CHANNEL, "Run recording", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Live time, distance and run controls"
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            })
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(shutdown, IntentFilter(Intent.ACTION_SHUTDOWN), RECEIVER_NOT_EXPORTED)
         else registerReceiver(shutdown, IntentFilter(Intent.ACTION_SHUTDOWN))
         instance = this
@@ -119,18 +130,42 @@ class TrackingService : Service(), LocationListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         val action = intent?.action
-        if (action == null || action == ACTION_START || action == ACTION_RESUME) {
+        val fromNotification = intent?.hasExtra(EXTRA_NOTIFICATION_RUN_ID) == true
+        val expectedRunId = intent?.getStringExtra(EXTRA_NOTIFICATION_RUN_ID)
+        val wasForeground = foreground
+        var foregroundFailed = false
+        if (!foreground && (action == null || action == ACTION_START || action == ACTION_RESUME)) {
             try {
                 if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIFICATION, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
                 else startForeground(NOTIFICATION, notification())
                 foreground = true
             } catch (_: RuntimeException) {
-                worker.post { fail("Open the app to resume recording"); stopSelf() }
-                return START_NOT_STICKY
+                foregroundFailed = true
             }
         }
         worker.post {
+            // onCreate's recovery runs first on this same worker. Never trust the snapshot
+            // shown when a PendingIntent was built: it may belong to a finished/older run.
+            if (fromNotification && !RunNotificationActions.isAllowed(action, expectedRunId, current?.id, mode)) {
+                if (!wasForeground && mode != RecordingStatus.RECORDING) {
+                    // A newer Start/Resume may already have reused our foreground state.
+                    // Serialize cleanup with onStartCommand so an old action cannot remove
+                    // that protection, including between the ID check and stopForeground.
+                    main.post {
+                        if (latestStartId == startId && published.status != RecordingStatus.RECORDING) {
+                            stopForeground(STOP_FOREGROUND_REMOVE); foreground = false
+                            stopSelfResult(startId)
+                        }
+                    }
+                } else updateNotification()
+                return@post
+            }
+            if (foregroundFailed) {
+                fail("Open the app to resume recording"); stopSelfResult(startId)
+                return@post
+            }
             when (action) {
                 null -> {
                     // Only the OS's sticky-service recreation enters here. A normal app launch
@@ -149,7 +184,9 @@ class TrackingService : Service(), LocationListener {
                 ACTION_ARCHIVE_DRAFT -> archiveDraft()
             }
         }
-        return if (action == null || action == ACTION_START || action == ACTION_RESUME) START_STICKY else START_NOT_STICKY
+        // A rejected, old notification action must not remove sticky recovery from an
+        // active recorder. Paused drafts still cannot auto-resume (mayRestart checks that).
+        return START_STICKY
     }
 
     private fun startRun() {
@@ -286,17 +323,59 @@ class TrackingService : Service(), LocationListener {
         wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
     }
     private fun notification(): Notification {
-        val open = PendingIntent.getActivity(this, 0, packageManager.getLaunchIntentForPackage(packageName)!!, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val state = published; val distance = state.run?.let { RunMetrics.distanceMeters(it.points) / 1000 } ?: 0.0
+        val openIntent = packageManager.getLaunchIntentForPackage(packageName)!!
+            .putExtra(EXTRA_OPEN_RECORDING, true)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val open = PendingIntent.getActivity(this, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val state = published
+        val run = state.run
+        val recording = state.status == RecordingStatus.RECORDING
+        val distance = run?.let { RunMetrics.distanceMeters(it.points) } ?: 0.0
+        val duration = run?.activeDurationMs ?: 0L
+        val paceSeconds = RunMetrics.paceSecondsPerKm(distance, duration)?.roundToLong()
+        val pace = paceSeconds?.let { String.format(Locale.getDefault(), "%d:%02d", it / 60, it % 60) } ?: "—"
+        val metrics = String.format(Locale.getDefault(), "%.2f km · %s /km avg", distance / 1000, pace)
+        val elapsedSeconds = duration.coerceAtLeast(0) / 1000
+        val elapsed = if (elapsedSeconds >= 3600)
+            String.format(Locale.getDefault(), "%d:%02d:%02d", elapsedSeconds / 3600, elapsedSeconds / 60 % 60, elapsedSeconds % 60)
+        else String.format(Locale.getDefault(), "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
+        val title = when {
+            recording -> "Running"
+            run != null && state.status == RecordingStatus.INTERRUPTED -> "Run recovered"
+            run != null -> "Run paused · $elapsed"
+            else -> "Opening run…"
+        }
+        val detail = state.message?.takeUnless { it == "Paused" }
+        val expanded = listOfNotNull(metrics, if (!recording) "$elapsed active time" else null, detail).joinToString("\n")
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_run)
-            .setContentTitle(if (state.status == RecordingStatus.RECORDING) "Runline · Recording" else "Runline · Paused")
-            .setContentText(String.format(Locale.getDefault(), "%.2f km · Open run", distance)).setContentIntent(open)
-            .setOngoing(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PRIVATE).setCategory(Notification.CATEGORY_SERVICE)
-        if (state.status == RecordingStatus.RECORDING) {
-            val pause = PendingIntent.getService(this, 1, Intent(this, TrackingService::class.java).setAction(ACTION_PAUSE), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            builder.addAction(Notification.Action.Builder(null, "Pause", pause).build())
-        } else builder.addAction(Notification.Action.Builder(null, "Open run", open).build())
+            .setContentTitle(title).setContentText(if (run == null) "Your recording is kept on this phone" else metrics)
+            .setContentIntent(open).setStyle(Notification.BigTextStyle().bigText(expanded))
+            .setWhen(System.currentTimeMillis() - duration).setShowWhen(recording).setUsesChronometer(recording)
+            .setOngoing(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setCategory(Notification.CATEGORY_SERVICE)
+        if (Build.VERSION.SDK_INT >= 31) builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        if (run != null) {
+            if (recording) {
+                builder.addAction(notificationAction(R.drawable.ic_pause, "Pause", ACTION_PAUSE, run.id))
+            } else if (state.status == RecordingStatus.PAUSED || state.status == RecordingStatus.INTERRUPTED) {
+                builder.addAction(notificationAction(R.drawable.ic_play, "Resume", ACTION_RESUME, run.id))
+                // Two deliberate steps: Pause, then Finish. A stale Finish is rejected if
+                // recording has already resumed, even when it still belongs to this run.
+                builder.addAction(notificationAction(R.drawable.ic_stop, "Finish", ACTION_FINISH, run.id))
+            }
+        }
         return builder.build()
+    }
+    private fun notificationAction(icon: Int, label: String, action: String, runId: String): Notification.Action {
+        val intent = Intent(this, TrackingService::class.java).setAction(action)
+            .setData(Uri.Builder().scheme("runline").authority("recording").appendPath(runId).appendPath(action).build())
+            .putExtra(EXTRA_NOTIFICATION_RUN_ID, runId)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        // A user tapping a notification is an explicit exemption to both background FGS
+        // start restrictions and Android 14's while-in-use location checks.
+        val pending = if (action == ACTION_RESUME) PendingIntent.getForegroundService(this, 0, intent, flags)
+            else PendingIntent.getService(this, 0, intent, flags)
+        return Notification.Action.Builder(Icon.createWithResource(this, icon), label, pending).build()
     }
     private fun updateNotification() { if (foreground) getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification()) }
     override fun onDestroy() {
@@ -321,6 +400,8 @@ class TrackingService : Service(), LocationListener {
         const val ACTION_FINISH = "com.runline.app.FINISH"
         const val ACTION_DISCARD = "com.runline.app.DISCARD"
         const val ACTION_ARCHIVE_DRAFT = "com.runline.app.ARCHIVE_DRAFT"
+        const val EXTRA_OPEN_RECORDING = "com.runline.app.OPEN_RECORDING"
+        private const val EXTRA_NOTIFICATION_RUN_ID = "com.runline.app.NOTIFICATION_RUN_ID"
         private const val CHANNEL = "run_recording"
         private const val NOTIFICATION = 1001
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
@@ -337,7 +418,7 @@ class TrackingService : Service(), LocationListener {
             } catch (_: Exception) { TrackingState(RecordingStatus.RECOVERY_ERROR, message = "Draft needs recovery · files kept") }
             cached = recovered; return recovered
         }
-        /** START/RESUME are explicit actions from the visible Activity; sticky restart is system-managed. */
+        /** Visible Activity controls; notifications use their own run-scoped PendingIntents. */
         fun command(context: Context, action: String) {
             val intent = Intent(context, TrackingService::class.java).setAction(action)
             if (action == ACTION_START || action == ACTION_RESUME) context.startForegroundService(intent) else context.startService(intent)

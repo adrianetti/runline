@@ -2,6 +2,8 @@ package com.runline.app.ui
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.Html
@@ -15,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
+import com.runline.app.core.GpsCourse
 import com.runline.app.core.RunPoint
 import com.runline.app.core.continuousSegments
 import com.runline.app.core.hasValidCoordinates
@@ -31,6 +34,7 @@ import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.tile.TileOperation
 import org.maplibre.geojson.Feature
@@ -59,6 +63,9 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private var resumed = false
     private var started = false
     private var following = false
+    private var navigationMode = false
+    private val course = GpsCourse()
+    private var overlayInsets = intArrayOf(0, 0, 0, 0)
     private var pnoaVisible = false
     private var pnoaUnavailable = false
     private var readyTiles = false
@@ -87,6 +94,9 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         setOnClickListener { showCredits() }
     }
     private val fallback = RouteView(context).apply { visibility = GONE }
+    private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+
+    val navigationBearingAvailable: Boolean get() = navigationMode && course.bearingDegrees != null
 
     init {
         setBackgroundColor(Color.rgb(44, 44, 44))
@@ -102,7 +112,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             setMargins(dp(8), dp(8), dp(64), 0)
         })
         addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START))
-        val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         controls.addView(mapButton(R.drawable.ic_route, "Fit entire route") { fitRoute() })
         controls.addView(mapButton(R.drawable.ic_location, "Follow moving marker") { setFollowing(true) })
         addView(controls, LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
@@ -118,6 +127,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                     parent?.requestDisallowInterceptTouchEvent(true)
                 }
                 MotionEvent.ACTION_MOVE -> if (hypot(event.x - downX, event.y - downY) > dp(8)) following = false
+                MotionEvent.ACTION_POINTER_DOWN -> following = false
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> parent?.requestDisallowInterceptTouchEvent(false)
             }
             false
@@ -170,11 +180,17 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                 ready.addSource(GeoJsonSource("position"))
                 ready.addLayer(CircleLayer("position-dot", "position").withProperties(
                     circleColor(Color.WHITE), circleRadius(8f), circleStrokeColor(Color.BLACK), circleStrokeWidth(3f)))
+                ready.addImage("navigation-arrow", navigationImage())
+                ready.addLayer(SymbolLayer("position-arrow", "position").withProperties(
+                    iconImage("navigation-arrow"), iconAllowOverlap(true), iconIgnorePlacement(true),
+                    iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP), iconRotate(0f),
+                    visibility(Property.NONE)))
                 updateRoute()
                 updateMarker()
-                initialCenter?.let { loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(it, 16.0)) }
+                applyCameraInsets()
+                initialCenter?.let { loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(it, if (navigationMode) 18.0 else 16.0)) }
                 val keepFollowing = following
-                if (fitPending || routePoints.isNotEmpty()) fitRoute()
+                if (fitPending || (!navigationMode && routePoints.isNotEmpty())) fitRoute()
                 following = keepFollowing
                 if (following) followMarker()
                 updateImageryCoverage()
@@ -186,10 +202,20 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     fun setRoute(points: List<RunPoint>) {
         if (disposed || points === routePoints) return
         val firstRoute = routePoints.isEmpty() && points.isNotEmpty()
+        if (navigationMode) {
+            // Process only newly appended fixes during recording. A replaced/recovered
+            // track rebuilds the course once, rather than rescanning every fix each second.
+            val appended = points.size >= routePoints.size &&
+                (routePoints.isEmpty() || points[routePoints.lastIndex] == routePoints.last())
+            if (!appended) course.reset()
+            val from = if (appended) routePoints.size else 0
+            for (index in from until points.size) course.update(points[index])
+        }
         routePoints = points
         fallback.points = points
         updateRoute()
-        if (firstRoute) {
+        updateMarker()
+        if (firstRoute && !navigationMode) {
             val keepFollowing = following
             fitRoute()
             following = keepFollowing
@@ -207,13 +233,54 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     fun setCenter(latitude: Double, longitude: Double) {
         if (disposed || !latitude.isFinite() || !longitude.isFinite() || abs(latitude) >= 85.051129 || abs(longitude) > 180.0) return
         initialCenter = LatLng(latitude, longitude)
-        map?.moveCamera(CameraUpdateFactory.newLatLngZoom(initialCenter!!, 16.0))
+        map?.moveCamera(CameraUpdateFactory.newLatLngZoom(initialCenter!!, if (navigationMode) 18.0 else 16.0))
         updateImageryCoverage()
     }
 
     fun setFollowing(enabled: Boolean) {
         following = enabled
         if (enabled) followMarker()
+    }
+
+    /** Live GPS uses an arrow once movement establishes a course; replay keeps its dot. */
+    fun setNavigationMode(enabled: Boolean) {
+        if (disposed || navigationMode == enabled) return
+        navigationMode = enabled
+        course.reset()
+        if (enabled) {
+            routePoints.forEach(course::update)
+            following = true
+            fitPending = false
+        }
+        updateMarker()
+        applyCameraInsets()
+        if (following) followMarker()
+    }
+
+    /** Physical View pixels occupied by the host's floating controls and run island. */
+    fun setOverlayInsets(leftPx: Int, topPx: Int, rightPx: Int, bottomPx: Int) {
+        if (disposed) return
+        val next = intArrayOf(leftPx, topPx, rightPx, bottomPx).map { it.coerceAtLeast(0) }.toIntArray()
+        if (overlayInsets.contentEquals(next)) return
+        overlayInsets = next
+        (status.layoutParams as LayoutParams).apply {
+            setMargins(next[0] + dp(8), next[1] + dp(8), next[2] + dp(64), 0)
+            status.layoutParams = this
+        }
+        (credits.layoutParams as LayoutParams).apply {
+            setMargins(next[0] + dp(8), 0, next[2] + dp(8), next[3] + dp(8))
+            credits.layoutParams = this
+        }
+        (controls.layoutParams as LayoutParams).apply {
+            setMargins(0, next[1] + dp(8), next[2] + dp(8), 0)
+            controls.layoutParams = this
+        }
+        (fallback.layoutParams as LayoutParams).apply {
+            setMargins(next[0], next[1], next[2], next[3] + dp(56))
+            fallback.layoutParams = this
+        }
+        applyCameraInsets()
+        if (following) followMarker()
     }
 
     /** Fit handles routes crossing the date line without zooming out to the entire world. */
@@ -235,11 +302,12 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val spanY = max(ys.max() - ys.min(), 0.000002)
         // MapLibre's native viewport is measured in density-independent pixels:
         // NativeMapView.resizeView divides Android's physical size by pixelRatio.
-        // Reserve 64 dp on each side for the 48 dp map controls, and 52 dp above/
-        // below for the 40 dp credit strip, so the fitted route remains unobscured.
+        // Additional route-fit margins leave room for the map controls. Camera padding
+        // is passed in physical pixels; native MapLibre divides it by the same pixelRatio.
         val density = resources.displayMetrics.density.toDouble()
-        val usableWidth = max(width / density - 128.0, 80.0)
-        val usableHeight = max(height / density - 104.0, 80.0)
+        val padding = cameraInsets()
+        val usableWidth = max((width - padding[0] - padding[2]) / density - 128.0, 80.0)
+        val usableHeight = max((height - padding[1] - padding[3]) / density - 104.0, 80.0)
         val zoom = min(log2(usableWidth / 512.0 / spanX), log2(usableHeight / 512.0 / spanY)).coerceIn(1.0, 17.0)
         val centerLng = ((lngs.max() + lngs.min()) / 2.0 + 540.0) % 360.0 - 180.0
         val centerY = (ys.max() + ys.min()) / 2.0
@@ -283,6 +351,9 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                 if (following) followMarker()
             }
         }
+        if (navigationMode && following && w > 0 && h > 0) post {
+            if (!disposed && following) { applyCameraInsets(); followMarker() }
+        }
     }
 
     private fun updateRoute() {
@@ -298,15 +369,45 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
 
     private fun updateMarker() {
-        style?.getSourceAs<GeoJsonSource>("position")?.setGeoJson(pointCollection(marker))
+        val ready = style ?: return
+        ready.getSourceAs<GeoJsonSource>("position")?.setGeoJson(pointCollection(marker))
+        val arrow = navigationBearingAvailable
+        ready.getLayer("position-dot")?.setProperties(visibility(if (arrow) Property.NONE else Property.VISIBLE))
+        ready.getLayer("position-arrow")?.setProperties(
+            visibility(if (arrow) Property.VISIBLE else Property.NONE), iconRotate((course.bearingDegrees ?: 0.0).toFloat()))
     }
 
     private fun followMarker() {
         val point = marker ?: return
         val loaded = map ?: return
-        if (loaded.cameraPosition.zoom < 13.0) loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 16.0))
+        if (navigationMode) loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 18.0))
+        else if (loaded.cameraPosition.zoom < 13.0) loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 16.0))
         else loaded.moveCamera(CameraUpdateFactory.newLatLng(LatLng(point.latitude, point.longitude)))
         updateImageryCoverage()
+    }
+
+    private fun cameraInsets(): DoubleArray {
+        if (!navigationMode && overlayInsets.all { it == 0 }) return doubleArrayOf(0.0, 0.0, 0.0, 0.0)
+        return doubleArrayOf((overlayInsets[0] + dp(8)).toDouble(), (overlayInsets[1] + dp(8)).toDouble(),
+            (overlayInsets[2] + dp(8)).toDouble(), (overlayInsets[3] + dp(56)).toDouble())
+    }
+
+    private fun applyCameraInsets() {
+        val loaded = map ?: return
+        loaded.moveCamera(CameraUpdateFactory.newCameraPosition(
+            CameraPosition.Builder(loaded.cameraPosition).padding(cameraInsets()).build()))
+    }
+
+    private fun navigationImage(): Bitmap {
+        val size = dp(48)
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        // MapLibre derives the icon's logical size from Bitmap.density.
+        bitmap.density = resources.displayMetrics.densityDpi
+        context.getDrawable(R.drawable.ic_navigation)!!.mutate().apply {
+            setBounds(0, 0, size, size)
+            draw(Canvas(bitmap))
+        }
+        return bitmap
     }
 
     private fun updateImageryCoverage() {

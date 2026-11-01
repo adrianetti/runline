@@ -90,6 +90,10 @@
     "LICENSE": {
       "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/LICENSE"
+    },
+    "icons/outline/navigation.svg": {
+      "sha256": "30df2817b9f3667661422bd6a3e8b6a502f08a58be779f47769b23f29aa54402",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/navigation.svg"
     }
   }
 }

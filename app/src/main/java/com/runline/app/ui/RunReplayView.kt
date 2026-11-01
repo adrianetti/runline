@@ -25,14 +25,14 @@ class RunReplayView(context: Context, private val replay: RunReplay) : LinearLay
     val map = SatelliteMapView(context)
     var positionMs: Long = 0L
         private set
-    var playbackSpeed: Int = 30
+    var playbackSpeed: Int = 1
         private set
     private var playing = false
     private var lastTick = 0L
     private var resumed = false
     private val handler = Handler(Looper.getMainLooper())
     private val play = control("Play", R.drawable.ic_play)
-    private val speed = control("30×", R.drawable.ic_clock)
+    private val speed = control("1×", R.drawable.ic_clock)
     private val seek = SeekBar(context).apply { max = 1000; contentDescription = "Replay position"; minimumHeight = dp(48) }
     private val clock = label("", 13, muted = true)
     private val speedValue = label("—", 24, bold = true)
@@ -65,7 +65,7 @@ class RunReplayView(context: Context, private val replay: RunReplay) : LinearLay
         speed.isEnabled = replay.durationMs > 0L
         seek.isEnabled = replay.durationMs > 0L
         play.setOnClickListener { if (playing) pausePlayback() else startPlayback() }
-        speed.contentDescription = "Playback speed, 30 times"
+        speed.contentDescription = "Playback speed, 1 times"
         speed.setOnClickListener {
             val values = intArrayOf(1, 5, 10, 30, 60)
             MaterialAlertDialogBuilder(context).setTitle("Playback speed")
@@ -111,7 +111,7 @@ class RunReplayView(context: Context, private val replay: RunReplay) : LinearLay
         play.setIconResource(R.drawable.ic_play)
     }
     private fun setPlaybackSpeed(value: Int) {
-        playbackSpeed = value.takeIf { it in listOf(1, 5, 10, 30, 60) } ?: 30
+        playbackSpeed = value.takeIf { it in listOf(1, 5, 10, 30, 60) } ?: 1
         speed.text = "$playbackSpeed×"; speed.contentDescription = "Playback speed, $playbackSpeed times"
     }
     private fun setPosition(value: Long) {

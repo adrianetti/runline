@@ -1,6 +1,6 @@
-# Version 0.3 test checklist
+# Version 0.4 test checklist
 
-The checklist is not a blanket pass report; completed v0.3 checks are summarized at the end and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report; completed v0.4 and historical v0.3 checks are summarized at the end and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -13,11 +13,13 @@ python3 tools/import_icons.py --check
 
 Inspect unit-test and lint reports. Persistence tests should exercise actual temporary files with injected failures, including incomplete journal appends, corrupt metadata, finalization/cleanup interruption and duplicate completion. A passing calculation test does not validate Android service lifecycle or physical storage durability.
 
+Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
+
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
 
 ## Installation and signing
 
-- Verify the packaged `dist/Runline-0.3.0.apk` signature and version name/code (0.3.0 / 3); install that exact artifact. Update an existing signed v0.2 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
+- Verify the packaged `dist/Runline-0.4.0.apk` signature and version name/code (0.4.0 / 4); install that exact artifact. Update an existing signed v0.3 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
 - Do not treat the old v0.1 debug signature as compatible. If migration requires uninstalling v0.1, export recordings first and verify the exports before uninstalling.
 - Main-branch CI may receive signing secrets; pull-request builds must not. Never log key/password contents or put signing material in test artifacts.
 
@@ -29,6 +31,15 @@ Replay tests should cover time/distance interpolation, explicit segments, gaps o
 - Pause, resume, then finish. Pause freezes active time and route capture; Finish creates one saved session. Repeated Finish/reopen must not duplicate it.
 - Deny notifications and verify the service handles Android's foreground-notification policy without crashing. Restore notifications for normal runs.
 - Inspect **Recording protection**, then open app settings. Report actual battery and notification status rather than treating those labels as a recording guarantee.
+
+## Notification and lock-screen controls
+
+- While recording, expand the ongoing notification. Verify distance, average pace, active-time chronometer and relevant GPS status. Metrics refresh periodically; only the chronometer needs to advance each second.
+- Tap Pause from the notification while the app is backgrounded. Confirm capture and active time stop, the timer freezes, and Resume/Finish replace Pause. Tap Resume and verify capture restarts in a new segment; pause again, then Finish and confirm one saved run and removal of the ongoing notification.
+- Keep a stale action available where the test harness permits. Wrong-session actions must not alter another run; an old Finish must not finish a session that has resumed. No stale action should disable sticky recovery of a currently active session.
+- From Runs or a saved detail screen, tap the notification body and confirm the active recording screen opens. Rotate, return to history and repeat.
+- Lock the screen with Runline notifications allowed, including silent lock-screen notifications if separately controlled. Check visible time/distance, expansion and action behavior under the device’s actual privacy settings. Repeat with a secure PIN/password lock; a no-PIN emulator result is not sufficient evidence for that case. Repeat on the user’s Samsung, recording the One UI version and notification style. An emulator notification pass does not establish Samsung Now bar support; Runline does not register as music playback or claim promoted Live Updates.
+- Disable lock-screen notification details or deny notification permission and verify the app settings guidance is accurate. Do not label absent system presentation as lost recorded data.
 
 ## Screen closure and process interruption
 
@@ -81,7 +92,7 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 - Confirm **Record**, **Runs**, **Start run**, **Pause**, **Resume** and **Finish** are easy to find. **Strava** belongs in the saved-run toolbar, not below every statistic. Use one Tabler family and neutral controls; real satellite imagery retains its colors.
 - Check light/dark mode, 1.3 font scale and a smaller supported phone. No clipped measurements, labels or actions; system-bar icons must retain contrast.
-- Check 240dp ready/live and 300dp detail maps in portrait, plus 120dp/160dp maps below 500dp screen height. The compact detail header places distance beside time/pace. Bottom recording actions remain reachable while map gestures retain pan/zoom behavior.
+- Check the full-content active map and bottom island in portrait, then the lower-left island in landscape. Distance, time, average pace and recording controls remain reachable; short screens may scroll island information without hiding its actions. The marker, credits, status and map controls must avoid the island. Ready/detail maps remain 240dp/300dp, or 120dp/160dp below 500dp screen height. The compact detail header places distance beside time/pace.
 - Check TalkBack labels for toolbar actions, fit/follow controls, playback speed, seek position, map credits and altitude profile. Decorative icons should not repeat adjacent labels.
 - Rotate during recording and during a Strava file save. Preserve the current session and avoid duplicate export or browser-launch events.
 - Check Android Back from run details and history. Discard/Delete must still ask for confirmation even though Finish is direct.
@@ -89,7 +100,8 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 ## Satellite maps and network failure
 
 - Check detailed IGN/PNOA imagery in Spain, global EOX imagery outside Spain, and road/place labels. Compare the visible area with the intended route; record tile provider, zoom and coverage instead of assuming street-level global detail.
-- Pan, pinch, fit the entire route and follow the moving marker. Panning should stop following until explicitly re-enabled. Include a route crossing the date line and a viewport near Spain's boundary.
+- Pan, pinch, fit the entire route and follow the moving marker. Pan/pinch should stop following until explicitly re-enabled. Live follow returns to zoom 18 with the marker centered in the unobscured area; the map stays north-up. Include a route crossing the date line and a viewport near Spain's boundary.
+- Begin stationary: the marker stays neutral until accepted movement exceeds GPS noise. Move along a known bearing and turn; inspect arrow orientation and stability during stops. Resume across a pause/gap and require a fresh movement baseline. Phone rotation alone must not pretend to change GPS course.
 - Keep the map credit strip visible and verify its source/license/coverage/privacy dialog. No colored application accents should be introduced by controls.
 - Disable network, provoke tile errors and separately exercise a native map-load failure. Confirm a visible map status, the route/fallback, unchanged saved samples, and uninterrupted recording while Android permits. Restore connectivity and check the display recovers without restarting the run.
 - Background, rotate, navigate repeatedly between Record/Runs/detail, and reopen. Map lifecycle cleanup must avoid crashes, duplicate views or continued hidden rendering. No whole-region downloads should start.
@@ -97,7 +109,7 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 ## Replay and statistics
 
-- Open a saved run and verify the initial paused frame. Play at every multiplier (1×, 5×, 10×, 30×, 60×), change speed during playback, seek in both directions, reach the end and restart. Confirm the recorded run itself never changes.
+- Open a saved run and verify the initial paused frame and default **1×** speed, including opening a different run after using a faster multiplier. Play at every multiplier (1×, 5×, 10×, 30×, 60×), change speed during playback, seek in both directions, reach the end and restart. Confirm the recorded run itself never changes.
 - Background or leave the screen during playback. Playback must pause; returning must not accumulate background playback time. Rotate and verify saved position/speed restore without automatic playback.
 - Use synthetic runs with explicit pauses, interruptions, isolated fixes and a GPS gap longer than 15 seconds. Replay time must include only observed intervals and cut across gaps without a fabricated line or animated transit. Average pace/speed still use active time.
 - Compare speed/pace with known GPS intervals and the trailing five-second window. Reject implausible running speed, keep stationary/missing speed meaningful and avoid using the active timer as the replay clock.
@@ -125,7 +137,18 @@ GPX contains exact start/end coordinates and timestamps. It is a route export, n
 
 Export any test recording that must survive uninstalling or clearing app storage. All internal mirrors/recovery copies reside on the same phone; they do not protect against device loss or a wiped app.
 
-Recorded v0.3 results on 1 November 2026:
+Recorded v0.4 results on 1 November 2026:
+
+- Signed debug/release builds succeeded; 53 JVM tests passed (38 existing, nine GPS-course, six notification-action guard tests). Lint reported zero errors and 28 warnings. All 23 generated icon resources matched the pinned subset.
+- The API 34 signed v0.4 update retained v0.3 and older runs. An unfinished draft survived an additional update and offered recovery. The exact packaged release APK also installed and opened successfully, retaining the new 0.14 km test run and older history. Its signature matched the existing per-app key; its checksum is in README.md.
+- Synthetic east-to-north movement produced the corresponding arrow and close centering. Pan disengaged follow and the location control restored it. Light/dark, 1.3× font scale and landscape screenshot review found no material clipping in those captures. Final paused-state text and lock-screen guidance were confirmed visible without clipping.
+- With the Activity absent, notification Pause/Resume/Finish worked; paused time froze. Finish removed the notification and saved 45 fixes in three segments. Notification tap from history opened recording; navigating back to history and rotating retained history.
+- Lock-screen statistics were visible after enabling silent lock-screen notifications (`lock_screen_show_silent_notifications=1` on the emulator). Expanding from the lock screen opened the shade; Pause worked there. No PIN was set, so secure-lock-screen actions and physical Samsung/Now bar presentation remain untested.
+- Replay opened at 1×; three seconds of playback advanced to 00:03 and Pause stopped it. Strava implementation remained unchanged; no account upload/publication was attempted.
+
+These are bounded build/emulator checks. Unlisted cases, physical-phone field/battery behavior, Android 8/9 picker runtime and 16 KB page-size devices remain unverified.
+
+Historical v0.3 results on 1 November 2026:
 
 - Signed debug/release builds succeeded; all 38 JVM tests passed (10 metrics/GPX, 14 persistence, 14 replay including the peak-speed regression), and lint reported zero errors.
 - API 34 installed v0.3 over the signed v0.2 build while retaining runs. The final signed release opened after installation and retained both older v0.2 recordings and v0.3 synthetic/offline runs. Actual IGN imagery, route and moving marker rendered; the density-aware route fit was corrected.

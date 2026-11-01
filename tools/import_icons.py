@@ -25,7 +25,7 @@ ICONS = {
     "share": "share", "trash": "trash", "info": "info-circle", "battery": "battery",
     "shield_check": "shield-check", "back": "arrow-left", "more": "dots",
     "external_link": "external-link", "clock": "clock", "check": "check",
-    "settings": "settings", "close": "x", "location": "current-location",
+    "settings": "settings", "close": "x", "location": "current-location", "navigation": "navigation",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)
@@ -65,8 +65,10 @@ def vector(resource: str, source_name: str, launcher: bool = False) -> str:
         fill = child.get("fill", source.get("fill", "none"))
         if fill not in ("none", "currentColor"):
             raise ValueError(f"Unexpected fill {fill!r}")
+        # The map's navigation marker keeps Tabler's exact path with a white interior,
+        # so satellite imagery cannot obscure its direction. Other icons stay outline-only.
         attrs = {
-            a("fillColor"): "@android:color/transparent" if fill == "none" else ("#FFFFFF" if launcher else "#151515"),
+            a("fillColor"): "#FFFFFF" if resource == "navigation" else ("@android:color/transparent" if fill == "none" else ("#FFFFFF" if launcher else "#151515")),
             a("strokeColor"): "#FFFFFF" if launcher else "#151515",
             a("strokeWidth"): child.get("stroke-width", source.get("stroke-width", "2")),
             a("strokeLineCap"): child.get("stroke-linecap", source.get("stroke-linecap", "round")),

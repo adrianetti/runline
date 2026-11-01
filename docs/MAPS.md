@@ -1,6 +1,14 @@
 # Satellite maps
 
-Runline 0.3 displays interactive satellite/aerial imagery with a GPS route and optional playback marker. Pinch to zoom, drag to pan, use the route icon to fit the whole run and the location icon to follow the marker. The surrounding controls remain monochrome; imagery retains its real colours.
+Runline 0.4 displays interactive satellite/aerial imagery with a GPS route and optional playback marker. Pinch to zoom, drag to pan, use the route icon to fit the whole run and the location icon to follow the marker. The surrounding controls remain monochrome; imagery retains its real colours.
+
+## Live navigation view
+
+Active, paused and recovered sessions use the full app content area for the map. `ActiveRunView` floats a statistics/control island at the bottom, or lower left in landscape; its measured bounds are passed to the map as physical-pixel insets. Camera padding keeps the marker centered in the remaining visible map, with room for credits and controls. System status/navigation bars remain Android-owned.
+
+Follow uses zoom 18 on a north-up map. Accepted GPS movement establishes the direction of the pinned Tabler navigation arrow; the initial marker stays neutral until movement is reliable. `GpsCourse` uses an accuracy-aware distance threshold and rejects jumps, invalid fixes and stale/gapped intervals. Stationary jitter does not continually spin the arrow, and the last established heading survives a stop. A new segment or GPS gap resets the baseline. This is direction of travel, not a magnetic phone compass, and it does not modify stored samples.
+
+Panning or pinching disengages follow. The location control returns to close following; the route control fits the whole track. Saved-run replay keeps its circular playback marker and its own fit/follow behavior.
 
 ## Imagery and coverage
 
@@ -29,8 +37,10 @@ val map = SatelliteMapView(context)
 map.setRoute(run.points)       // preserves segment breaks
 map.setMarker(replayPoint)     // null hides the marker in an unobserved interval
 map.setCenter(latitude, longitude) // optional known location, no GPS request
-map.setFollowing(true)
-map.fitRoute()
+map.setNavigationMode(true)  // live heading arrow and close follow; false for replay
+map.setOverlayInsets(leftPx, topPx, rightPx, bottomPx) // occupied host areas, physical pixels
+map.setFollowing(true)       // center within the available viewport
+map.fitRoute()               // deliberately leaves follow mode
 
 map.onHostResume()
 map.onHostPause()
@@ -44,4 +54,6 @@ The native SDK is pinned to **MapLibre Android 11.13.5** (BSD-2-Clause). Its pub
 
 ## Verification scope
 
-Direct HTTPS requests returned valid imagery for Madrid from PNOA at zoom 18 and EOX at zoom 14, plus the EOX label overlay at zoom 14. Higher label zoom requests returned 404, so they are intentionally capped. The API 34 emulator subsequently rendered actual IGN imagery beneath the synthetic route and moving marker. Route fitting was corrected for display density, and the replay was checked in light/dark modes, at 1.3× text size and in landscape. With Wi-Fi and mobile data disabled, GPS recording continued while backgrounded and screen-locked; a force-stopped session recovered and finished successfully. These checks do not establish map coverage or performance on the user's physical phone. Build and update evidence is recorded in the main README.
+Version 0.4 API 34 checks confirmed synthetic east-to-north heading, close centering, pan disengaging follow and the location control restoring it. Light/dark, 1.3× font scale and landscape captures showed no material clipping in the reviewed configurations. The nine GPS-course tests passed as part of the 53-test suite. This does not establish physical-phone heading accuracy or map performance; detailed results are in README.md and docs/TESTING.md.
+
+Historical v0.3 checks: direct HTTPS requests returned valid imagery for Madrid from PNOA at zoom 18 and EOX at zoom 14, plus the EOX label overlay at zoom 14. Higher label zoom requests returned 404, so they are intentionally capped. The API 34 emulator subsequently rendered actual IGN imagery beneath the synthetic route and moving marker. Route fitting was corrected for display density, and the replay was checked in light/dark modes, at 1.3× text size and in landscape. With Wi-Fi and mobile data disabled, GPS recording continued while backgrounded and screen-locked; a force-stopped session recovered and finished successfully. These checks do not establish map coverage or performance on the user's physical phone. Build and update evidence is recorded in the main README.

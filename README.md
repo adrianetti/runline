@@ -2,7 +2,7 @@
 
 A personal Android running recorder with local history, satellite maps, route replay and exportable GPS data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Version 0.3.0 (version code 3) is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Local build and API 34 emulator checks are recorded below; physical-phone testing remains outstanding.
+Version 0.4.0 (version code 4) is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Local build and API 34 emulator checks are recorded below; physical-phone testing remains outstanding.
 
 ## Record a run
 
@@ -10,9 +10,11 @@ Version 0.3.0 (version code 3) is a sideloaded prototype for Android 8.0 and lat
 2. Wait for a GPS fix outdoors. You can lock the screen or switch apps. The foreground recording service is independent of the visible screen.
 3. Tap **Pause**, then **Resume** or **Finish**. Finished recordings appear under **Runs**.
 
-After the initial Android permissions are granted, starting a run takes one tap. The main screen puts a satellite map above distance, time and pace, with speed and GPS altitude during a session. Recording controls stay in the bottom action area. Less frequent actions live in the toolbar menu. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, controls and notification glyph.
+After the initial Android permissions are granted, starting a run takes one tap. During a run, the satellite map fills the app content area. A bottom island keeps distance, active time, average pace and Pause within reach; portrait also shows GPS speed and altitude. Paused and recovered runs offer Resume and Finish in the same island. Runs and the options menu float above the map. In landscape the island sits at the lower left, leaving the map visible beside it. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph (22 pinned glyphs, 23 generated VectorDrawables including the launcher).
 
-The shield control opens **Recording protection**, showing notification and battery-optimization status with a shortcut to Android settings. These checks help identify restrictive settings; they do not certify future GPS continuity on a particular phone.
+The shield control, or **Recording protection** in the active-run menu, shows notification and battery-optimization status with shortcuts to Android settings. These checks help identify restrictive settings; they do not certify future GPS continuity on a particular phone.
+
+The ongoing notification shows distance, average pace and a live active-time chronometer, with GPS status when expanded. Tap **Pause**, then **Resume** or **Finish**; the timer freezes while paused. Tapping the notification opens the current recording. Allow lock-screen notifications, including silent notifications where the phone has a separate setting, to use the controls there. Samsung may show icons until expanded, and its Now bar supports selected apps; Runline does not claim Now bar integration or pose as a music player. See [Android notification visibility](https://developer.android.com/develop/ui/compose/notifications/create-notification) and [Samsung Now bar guidance](https://www.samsung.com/my/support/mobile-devices/how-to-use-the-now-bar-on-the-lock-screen-of-your-samsung-galaxy-device/).
 
 ## What is recorded
 
@@ -27,13 +29,15 @@ Distance is an estimate from accepted GPS fixes. Active time includes standing s
 
 ## Maps, replay and run details
 
-The ready/recording screen has a 240dp map; a saved run has a 300dp map with playback. On screens shorter than 500dp, those heights become 120dp and 160dp to keep controls accessible in compact landscape. Drag to pan, pinch to zoom, tap the route icon to fit the run, or the location icon to follow the marker. The route and marker are drawn locally from the recording, preserving segment breaks.
+The active-run map fills the content area, with its camera centered in the visible space around the island and controls. Follow uses close zoom 18 and keeps the map north-up. A Tabler arrow points in the direction of accepted GPS movement; a neutral marker remains until movement establishes a reliable heading. It is not a phone compass. The last known heading is retained while stopped, and gaps or new recording segments require a fresh heading.
+
+Drag or pinch to explore, tap the route icon to fit the run, or the location icon to return to close following. The ready screen retains a 240dp map and a saved run a 300dp playback map; below 500dp screen height these become 120dp and 160dp. The route and marker are drawn locally from the recording, preserving segment breaks. Map credits remain visible above or beside the recording island.
 
 MapLibre Android 11.13.5 displays worldwide EOX imagery at approximately 10-metre resolution, detailed IGN/PNOA imagery in Spain, and road/place labels. Global imagery is less detailed when enlarged; local coverage and capture dates vary. EOX imagery is licensed for noncommercial use. This personal build requires no map account or API key. Credits and source information are accessible on the map; see [map coverage, licensing and privacy](docs/MAPS.md).
 
 Map providers receive requests for visible tile areas and the phone's network address. Runline does not send them the raw run file, timestamps or session statistics. Maps can reveal the area being viewed. Tile failures do not stop recording or calculation, and a native map-load failure falls back to the geometric route. Recently viewed tiles may be cached; downloaded offline regions are not implemented.
 
-Open a saved run to play or seek through its route at **1×, 5×, 10×, 30× or 60×**. Playback defaults to 30×, updates up to 20 times per second, and pauses when the screen goes into the background. It cuts across missing intervals instead of animating an invented connection. Replay is an in-app view; it does not export an MP4 or other video.
+Open a saved run to play or seek through its route at **1×, 5×, 10×, 30× or 60×**. Playback defaults to 1×, updates up to 20 times per second, and pauses when the screen goes into the background. It cuts across missing intervals instead of animating an invented connection. Replay is an in-app view; it does not export an MP4 or other video.
 
 Replay shows speed, pace, GPS altitude, replayed distance and accumulated ascent/descent alongside an altitude chart. Run totals include average and top GPS speed, ascent/descent, altitude range, elapsed time and sample count. Speed uses a trailing five-second GPS estimate, with implausible running speeds omitted. Altitude is raw GPS altitude; ascent/descent ignore changes below 3 metres and are not terrain-corrected. Missing values show **—**, and the altitude chart preserves missing-data and segment gaps. These are estimates, not sensor-grade measurements.
 
@@ -78,15 +82,15 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 34.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Download the signed [Runline 0.3.0 APK](https://github.com/adrianetti/runline/releases/download/v0.3.0/Runline-0.3.0.apk) from the private release, or use the local `dist/Runline-0.3.0.apk`. Install the local artifact with USB debugging enabled:
+Download the signed [Runline 0.4.0 APK](https://github.com/adrianetti/runline/releases/download/v0.4.0/Runline-0.4.0.apk) from the private release, or use the local `dist/Runline-0.4.0.apk`. Install the local artifact with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.3.0.apk
+adb install -r dist/Runline-0.4.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.
 
-Version 0.3 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
+Version 0.4 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
 
 GitHub Actions checks pushes and pull requests to `main`. Main-branch builds use repository signing secrets and publish a signed release APK plus check reports as private workflow artifacts. Pull requests do not receive signing secrets. The private key and its local configuration stay outside Git; a fresh clone can build a development APK but does not receive the private release key.
 
@@ -98,7 +102,20 @@ To verify the pinned icon resources without network access:
 python3 tools/import_icons.py --check
 ```
 
-## Version 0.3 verification
+## Version 0.4 verification
+
+Checked locally on 1 November 2026:
+
+- Signed debug/release builds succeeded. All 53 JVM tests passed: the previous 38 calculation/persistence/replay tests, nine GPS-course tests and six notification-action guard tests. Lint reported zero errors and 28 warnings; all 23 generated icon resources matched their pinned sources.
+- The API 34 emulator accepted the signed v0.4 update over v0.3 and retained older recordings. An unfinished draft survived an additional update and offered explicit recovery. The exact packaged release APK then installed and opened successfully, retaining the new 0.14 km test run and older history; its signature matched the same per-app key used since v0.2.
+- Synthetic GPS movement east, then north, produced the correct heading arrow and close centering. Panning disengaged follow; the location control restored it. Bounded screenshot review covered light/dark, 1.3× font scale and landscape without material clipping. The final paused-state text and lock-screen settings guidance were also visible without clipping.
+- Notification Pause, Resume and Finish worked with the app screen absent. Pause froze the timer; Finish removed the notification and saved 45 fixes across three segments. Tapping the notification from history opened the active run; returning to history and rotating stayed in history.
+- Lock-screen statistics became visible after allowing silent lock-screen notifications. Expanding the notification opened the shade, where Pause worked. This was an emulator without a PIN; secure-lock-screen and Samsung Now bar behavior remain unverified.
+- Saved-run replay opened at 1×. Playing for three seconds advanced to 00:03, and Pause stopped playback. The free Strava handoff was unchanged; its current official-source audit is in [docs/STRAVA.md](docs/STRAVA.md).
+
+The packaged `Runline-0.4.0.apk` SHA-256 is `98a9b82e5106f12810281613435004a7580fe8b226f0174c896b779f43fec786`. CI results are tracked in the private [Android workflow](https://github.com/adrianetti/runline/actions/workflows/android.yml). No physical Samsung field/battery test, secure lock-screen action test, Android 8/9 picker runtime check, 16 KB page-size device test or Strava publication was performed. These results cover the listed build/emulator cases, not every device or failure path.
+
+## Historical version 0.3 verification
 
 Checked locally on 1 November 2026:
 

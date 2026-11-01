@@ -41,6 +41,8 @@ import com.runline.app.tracking.TrackingService
 import com.runline.app.tracking.RecordingStatus as TrackingStatus
 import com.runline.app.ui.SatelliteMapView
 import com.runline.app.ui.RunReplayView
+import com.runline.app.ui.ActiveRunView
+import androidx.appcompat.widget.PopupMenu
 import com.runline.app.core.RunReplay
 import java.io.File
 import java.time.Instant
@@ -71,7 +73,8 @@ class MainActivity : AppCompatActivity() {
     private var route: SatelliteMapView? = null
     private var replayView: RunReplayView? = null
     private var restoredReplayPosition = 0L
-    private var restoredReplaySpeed = 30
+    private var restoredReplaySpeed = 1
+    private var activeRunView: ActiveRunView? = null
     private var liveSpeedLabel: TextView? = null
     private var liveAltitudeLabel: TextView? = null
     private val ticker = object : Runnable {
@@ -111,10 +114,20 @@ class MainActivity : AppCompatActivity() {
         if (selectedRunId != null) currentRun = runCatching { store.get(selectedRunId) }.getOrNull()
         pendingExport = savedInstanceState?.getString("exportId")?.let { runCatching { store.get(it) }.getOrNull() }
         restoredReplayPosition = savedInstanceState?.getLong("replayPosition") ?: 0L
-        restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 30
+        restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 1
+        if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
+            intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING); screen = "record"
+        }
         if (screen == "detail" && currentRun == null) screen = "history"
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent); setIntent(intent)
+        if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
+            intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING)
+            screen = "record"; tabs.getTabAt(0)?.select(); render()
+        }
     }
     override fun onResume() { super.onResume(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::stravaSharing.isInitialized) stravaSharing.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
@@ -137,9 +150,12 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         route?.dispose(); replayView?.dispose(); replayView = null
         body.removeAllViews(); distanceLabel = null; durationLabel = null; paceLabel = null; gpsLabel = null; route = null
-        liveSpeedLabel = null; liveAltitudeLabel = null
+        liveSpeedLabel = null; liveAltitudeLabel = null; activeRunView = null
+        val state = TrackingService.state(this)
+        val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
+        toolbar.visibility = if (live) View.GONE else View.VISIBLE
         toolbar.title = if (screen == "detail") "Run" else "Runline"
-        tabs.visibility = if (screen == "detail") View.GONE else View.VISIBLE
+        tabs.visibility = if (screen == "detail" || live) View.GONE else View.VISIBLE
         toolbar.navigationIcon = if (screen == "detail") AppCompatResources.getDrawable(this, R.drawable.ic_back) else null
         toolbar.navigationIcon?.setTint(getColor(R.color.on_surface))
         toolbar.navigationContentDescription = "Back to runs"
@@ -156,6 +172,20 @@ class MainActivity : AppCompatActivity() {
     private fun renderRecord() {
         val state = TrackingService.state(this)
         renderedStatus = state.status.name
+        if (state.run != null && state.status != TrackingStatus.RECOVERY_ERROR) {
+            activeRunView = ActiveRunView(this, state,
+                onOpenRuns = { tabs.getTabAt(1)?.select() },
+                onOptions = ::showRunOptions,
+                onPause = { command(TrackingService.ACTION_PAUSE) },
+                onResume = { requestRecording(TrackingService.ACTION_RESUME) },
+                onFinish = { command(TrackingService.ACTION_FINISH) },
+            ).also { view ->
+                route = view.map
+                body.addView(view, LinearLayout.LayoutParams(-1, -1))
+                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.map.onHostResume()
+            }
+            return
+        }
         val content = scrollContent()
         val title = when (state.status) {
             TrackingStatus.RECORDING -> "Recording"
@@ -227,6 +257,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun updateMetrics() {
         val state = TrackingService.state(this); val run = state.run
+        activeRunView?.let { it.update(state); return }
         val distance = RunMetrics.distanceMeters(run?.points ?: emptyList())
         setValue(distanceLabel, String.format(Locale.getDefault(), "%.2f", distance / 1000))
         setValue(durationLabel, duration(run?.activeDurationMs ?: 0))
@@ -287,7 +318,7 @@ class MainActivity : AppCompatActivity() {
         val last = runCatching { manager.getLastKnownLocation(LocationManager.GPS_PROVIDER) }.getOrNull()
         if (last != null) map.setCenter(last.latitude, last.longitude)
     }
-    private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 30; screen = "detail"; render() }
+    private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 1; screen = "detail"; render() }
     private fun renderDetail(run: RunSession) {
         val content = scrollContent()
         val replay = RunReplay(run)
@@ -368,7 +399,7 @@ class MainActivity : AppCompatActivity() {
                 8 -> currentRun?.let { stravaSharing.start(it) }
                 5 -> showProtection()
                 6 -> discardRun()
-                7 -> MaterialAlertDialogBuilder(this).setTitle("Runline 0.3")
+                7 -> MaterialAlertDialogBuilder(this).setTitle("Runline 0.4")
                     .setMessage("Your recordings stay on this phone. Maps request visible-area tiles from EOX and IGN; they do not upload the run file. Export before uninstalling.\n\nMap attribution is shown on the map. Icons: Tabler · MIT license")
                     .setPositiveButton("Done", null).setNeutralButton("Icon license") { _, _ ->
                         MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT").setMessage(assets.open("licenses/tabler-icons.txt").bufferedReader().use { it.readText() }).setPositiveButton("Done", null).show()
@@ -376,12 +407,29 @@ class MainActivity : AppCompatActivity() {
             }; true
         }
     }
+    private fun showRunOptions(anchor: View) {
+        PopupMenu(this, anchor).apply {
+            menu.add(0, 1, 0, "Recording protection")
+            menu.add(0, 2, 1, "GPS direction")
+            if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 2, "Discard run")
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> showProtection()
+                    2 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle("GPS direction")
+                        .setMessage("The arrow follows your movement, not the direction your phone is facing. Move outdoors to establish a heading. While stopped, it keeps the last known direction. Drag to explore; tap the location button to follow again.")
+                        .setPositiveButton("Done", null).show()
+                    3 -> discardRun()
+                }; true
+            }
+        }.show()
+    }
     private fun showProtection() {
         val unrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         val notifications = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
         MaterialAlertDialogBuilder(this).setTitle("Recording protection")
-            .setMessage("Battery: ${if (unrestricted) "unrestricted" else "optimized"}\nNotifications: ${if (notifications) "on" else "off"}\n\nScreen off or app swiped away: recording continues while Android permits. After shutdown or force-stop: reopen to recover saved data.\n\nFor long runs, allow unrestricted battery use in Android settings.")
+            .setMessage("Battery: ${if (unrestricted) "unrestricted" else "optimized"}\nNotifications: ${if (notifications) "on" else "off"}\n\nScreen off or app swiped away: recording continues while Android permits. After shutdown or force-stop: reopen to recover saved data.\n\nFor long runs, allow unrestricted battery use in Android settings.\n\nAllow Runline and silent notifications on the lock screen to see time, distance and controls. Expand the notification for actions. Samsung Now Bar support depends on your phone and One UI version.")
             .setPositiveButton("App settings") { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+            .setNeutralButton("Notifications") { _, _ -> startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) }
             .setNegativeButton("Done", null).show()
     }
     private fun addDetail(parent: LinearLayout, label: String, value: String) {
