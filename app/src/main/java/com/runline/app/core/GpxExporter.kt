@@ -3,7 +3,7 @@ package com.runline.app.core
 import java.math.BigDecimal
 import java.time.Instant
 
-/** Standard GPX 1.1 suitable for a manual Strava upload or a portable personal backup. */
+/** Standard GPX 1.1 for a portable copy of the recorded activity route. */
 object GpxExporter {
     fun export(run: RunSession): String = buildString {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -12,8 +12,8 @@ object GpxExporter {
         append(Instant.ofEpochMilli(run.startedAtMs))
         append("</time></metadata>\n")
         append("  <trk><name>")
-        append(escapeXml("Run ${run.id}"))
-        append("</name><type>running</type>\n")
+        append(escapeXml("${run.activityType.gpxName} ${run.id}"))
+        append("</name><type>").append(run.activityType.gpxType).append("</type>\n")
         for (segment in continuousSegments(run.points)) {
             append("    <trkseg>\n")
             for (point in segment) {

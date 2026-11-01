@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="export_activity_run">Carrera</string>
+    <string name="export_activity_walk">Caminata</string>
+    <string name="export_activity_hike">Senderismo</string>
+    <string name="export_finish_saving">Termina de guardar el archivo actual primero.</string>
+    <string name="export_save_retry">No se pudo guardar el archivo. Abre la actividad y expórtala de nuevo.</string>
+    <string name="export_saving">Guardando GPX…</string>
+    <string name="export_no_picker">No hay selector de archivos disponible. Usa Compartir archivo.</string>
+    <string name="export_picker_failed">No se pudo abrir el selector. Tu actividad sigue guardada.</string>
+    <string name="export_copy_name">Copiar nombre</string>
+    <string name="export_filename_label">Nombre del archivo GPX</string>
+    <string name="export_downloads_filename">Guardado en Descargas: %1$s</string>
+    <string name="export_saved_filename">Guardado: %1$s</string>
+    <string name="export_downloads_failed">No se pudo guardar en Descargas. Elige otra ubicación.</string>
+    <string name="export_write_failed">No se pudo guardar el GPX. Elige otra ubicación y reinténtalo. Tu actividad sigue guardada.</string>
+    <string name="export_prepare_failed">No se pudo preparar el GPX. Tu actividad sigue guardada.</string>
+</resources>

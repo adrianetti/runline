@@ -12,6 +12,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.location.Location
 import android.location.LocationListener
@@ -27,12 +28,13 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import com.runline.app.R
+import com.runline.app.core.ActivityType
+import com.runline.app.i18n.AppLanguage
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.RunPoint
 import com.runline.app.core.RunSession
 import com.runline.app.data.DraftRecord
 import com.runline.app.data.RunStore
-import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToLong
 
@@ -46,7 +48,13 @@ data class TrackingState(
     val savedRunId: String? = null,
     val lastSavedAtMs: Long? = null,
     val gpsStale: Boolean = false,
-)
+    val messageRes: Int? = null,
+) {
+    /** Resolve again when read so a language change also updates a paused/recovered state. */
+    fun localized(context: Context): TrackingState = messageRes?.let {
+        copy(message = AppLanguage.localizedContext(context).getString(it))
+    } ?: this
+}
 
 /** User-started foreground recorder. UI closure never stops it; force-stop and reboot never auto-start it. */
 class TrackingService : Service(), LocationListener {
@@ -66,7 +74,7 @@ class TrackingService : Service(), LocationListener {
     private var segment = 0
     private var tickCount = 0
     private var accuracy: Float? = null
-    private var message: String? = null
+    private var messageRes: Int? = null
     private var lastSavedAt: Long? = null
     private var bootCount = -1
     @Volatile private var foreground = false
@@ -92,7 +100,7 @@ class TrackingService : Service(), LocationListener {
             tickCount++
             // Durability does not depend on onPause/onDestroy/shutdown callbacks being delivered.
             if (!safely { persistCheckpoint() }) return
-            if (isGpsStale()) { accuracy = null; message = "GPS lost · time continues" }
+            if (isGpsStale()) { accuracy = null; messageRes = R.string.tracking_gps_lost }
             if (tickCount % 300 == 0) wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
             publish()
             if (tickCount % 5 == 0) updateNotification()
@@ -106,12 +114,7 @@ class TrackingService : Service(), LocationListener {
         locations = getSystemService(LocationManager::class.java)
         bootCount = runCatching { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT) }.getOrDefault(-1)
         thread.start(); worker = Handler(thread.looper)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL, "Run recording", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Live time, distance and run controls"
-                setShowBadge(false)
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            })
+        refreshNotificationChannel()
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(shutdown, IntentFilter(Intent.ACTION_SHUTDOWN), RECEIVER_NOT_EXPORTED)
         else registerReceiver(shutdown, IntentFilter(Intent.ACTION_SHUTDOWN))
         instance = this
@@ -122,16 +125,24 @@ class TrackingService : Service(), LocationListener {
                     mode = RecordingStatus.INTERRUPTED
                     lastSavedAt = it.endedAtMs
                     segment = (it.points.maxOfOrNull { point -> point.segment } ?: -1) + 1
-                    message = if (recovered?.recoveredWithDamage == true) "Recovered available points · check your route" else "Run recovered · resume or save"
+                    messageRes = if (recovered?.recoveredWithDamage == true) R.string.tracking_recovered_damage else R.string.tracking_recovered_hint
                 }
-            } catch (_: Exception) { mode = RecordingStatus.RECOVERY_ERROR; message = "Draft needs recovery · files kept" }
+            } catch (_: Exception) { mode = RecordingStatus.RECOVERY_ERROR; messageRes = R.string.tracking_recovery_error }
             publish()
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Services survive configuration changes. A paused recorder has no ticker,
+        // so refresh its notification when the OS changes the app language too.
+        refreshLanguage()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         latestStartId = startId
         val action = intent?.action
+        val requestedType = ActivityType.fromStorage(intent?.getStringExtra(EXTRA_ACTIVITY_TYPE))
         val fromNotification = intent?.hasExtra(EXTRA_NOTIFICATION_RUN_ID) == true
         val expectedRunId = intent?.getStringExtra(EXTRA_NOTIFICATION_RUN_ID)
         val wasForeground = foreground
@@ -163,7 +174,7 @@ class TrackingService : Service(), LocationListener {
                 return@post
             }
             if (foregroundFailed) {
-                fail("Open the app to resume recording"); stopSelfResult(startId)
+                fail(R.string.tracking_open_to_resume); stopSelfResult(startId)
                 return@post
             }
             when (action) {
@@ -176,7 +187,7 @@ class TrackingService : Service(), LocationListener {
                         stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
                     }
                 }
-                ACTION_START -> startRun()
+                ACTION_START -> startRun(requestedType)
                 ACTION_RESUME -> resumeRun()
                 ACTION_PAUSE -> pauseRun()
                 ACTION_FINISH -> finishRun()
@@ -189,11 +200,11 @@ class TrackingService : Service(), LocationListener {
         return START_STICKY
     }
 
-    private fun startRun() {
-        if (mode == RecordingStatus.RECOVERY_ERROR) { fail("Set aside the damaged draft first"); return }
+    private fun startRun(activityType: ActivityType) {
+        if (mode == RecordingStatus.RECOVERY_ERROR) { fail(R.string.tracking_set_aside_first); return }
         if (current != null) { publish(); updateNotification(); return }
         val now = System.currentTimeMillis()
-        val run = RunSession(UUID.randomUUID().toString(), now, now, 0L, emptyList())
+        val run = RunSession(UUID.randomUUID().toString(), now, now, 0L, emptyList(), activityType)
         if (!safely { store.beginDraft(run) }) return
         current = run; lastSavedAt = now; segment = 0
         resumeRun()
@@ -203,14 +214,14 @@ class TrackingService : Service(), LocationListener {
         if (mode == RecordingStatus.RECORDING) return
         if (current == null) { stopSelf(); return }
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            fail("Allow precise location to resume"); return
+            fail(R.string.tracking_allow_location); return
         }
-        if (!locations.isProviderEnabled(LocationManager.GPS_PROVIDER)) { fail("Turn on location, then resume"); return }
+        if (!locations.isProviderEnabled(LocationManager.GPS_PROVIDER)) { fail(R.string.tracking_enable_location); return }
         try {
             // Neither the timer nor the route connects across any process outage or pause.
             segment = (current!!.points.maxOfOrNull { it.segment } ?: -1) + 1
             activeSince = SystemClock.elapsedRealtime(); lastLocationElapsed = 0L; tickCount = 0
-            mode = RecordingStatus.RECORDING; accuracy = null; message = "Finding GPS"
+            mode = RecordingStatus.RECORDING; accuracy = null; messageRes = R.string.tracking_finding_gps
             persistCheckpoint()
             locations.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, this, thread.looper)
             wakeLock = getSystemService(PowerManager::class.java)
@@ -219,13 +230,13 @@ class TrackingService : Service(), LocationListener {
                 }
             worker.removeCallbacks(ticker); worker.post(ticker)
             publish(); updateNotification()
-        } catch (_: Exception) { fail("Recording paused · check location and storage") }
+        } catch (_: Exception) { fail(R.string.tracking_check_location_storage) }
     }
 
     private fun pauseRun() {
         if (current == null) { stopSelf(); return }
         freezeTimer(); mode = RecordingStatus.PAUSED
-        releaseRecordingResources(); message = "Paused"
+        releaseRecordingResources(); messageRes = R.string.tracking_paused
         safely { persistCheckpoint() }
         publish(); updateNotification()
     }
@@ -241,7 +252,7 @@ class TrackingService : Service(), LocationListener {
     }
 
     private fun discardRun() {
-        if (mode == RecordingStatus.RECOVERY_ERROR) { fail("Set aside the damaged draft to keep its recovery files"); return }
+        if (mode == RecordingStatus.RECOVERY_ERROR) { fail(R.string.tracking_preserve_damaged); return }
         freezeTimer(); mode = RecordingStatus.PAUSED; releaseRecordingResources()
         if (!safely { store.discardDraft() }) return
         current = null; mode = RecordingStatus.IDLE; published = TrackingState(); cached = published
@@ -249,9 +260,9 @@ class TrackingService : Service(), LocationListener {
     }
 
     private fun archiveDraft() {
-        if (mode != RecordingStatus.RECOVERY_ERROR || current != null) { message = "Finish your current run first"; publish(); return }
-        try { store.archiveDraft(); mode = RecordingStatus.IDLE; message = "Draft kept in recovery storage" }
-        catch (_: Exception) { message = "Recovery files kept · free space and retry" }
+        if (mode != RecordingStatus.RECOVERY_ERROR || current != null) { messageRes = R.string.tracking_finish_first; publish(); return }
+        try { store.archiveDraft(); mode = RecordingStatus.IDLE; messageRes = R.string.tracking_archived }
+        catch (_: Exception) { messageRes = R.string.tracking_free_space_retry }
         publish(); stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
     }
 
@@ -260,7 +271,7 @@ class TrackingService : Service(), LocationListener {
         val ageMs = (SystemClock.elapsedRealtimeNanos() - location.elapsedRealtimeNanos) / 1_000_000
         if (!location.hasAccuracy() || !location.accuracy.isFinite() || location.accuracy !in 0f..30f || ageMs !in 0..15_000 ||
             !location.latitude.isFinite() || location.latitude !in -90.0..90.0 || !location.longitude.isFinite() || location.longitude !in -180.0..180.0) {
-            accuracy = null; message = "Weak GPS · time continues"; publish(); return
+            accuracy = null; messageRes = R.string.tracking_weak_gps; publish(); return
         }
         val elapsed = location.elapsedRealtimeNanos / 1_000_000
         if (elapsed < activeSince || location.time < 0) return // Never import a cached fix from before Start/Resume.
@@ -282,7 +293,7 @@ class TrackingService : Service(), LocationListener {
         if (!safely { store.appendPoint(point, checkpoint) }) return
         current = current!!.copy(points = current!!.points + point)
         lastLocationElapsed = elapsed; lastSavedAt = System.currentTimeMillis()
-        accuracy = location.accuracy; message = null
+        accuracy = location.accuracy; messageRes = null
         publish()
     }
 
@@ -291,7 +302,7 @@ class TrackingService : Service(), LocationListener {
         worker.post { if (current != null) safely { persistCheckpoint() } }
         super.onTaskRemoved(rootIntent)
     }
-    override fun onProviderDisabled(provider: String) { if (provider == LocationManager.GPS_PROVIDER) fail("Location off · turn it on and resume") }
+    override fun onProviderDisabled(provider: String) { if (provider == LocationManager.GPS_PROVIDER) fail(R.string.tracking_location_off) }
     override fun onProviderEnabled(provider: String) = Unit
     @Deprecated("Required on Android 8–10")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
@@ -306,13 +317,13 @@ class TrackingService : Service(), LocationListener {
     private fun freezeTimer() { if (mode == RecordingStatus.RECORDING) { current = snapshotRun(); activeSince = SystemClock.elapsedRealtime() } }
     private fun isGpsStale() = mode == RecordingStatus.RECORDING &&
         SystemClock.elapsedRealtime() - (lastLocationElapsed.takeIf { it > 0 } ?: activeSince) > 15_000
-    private fun publish() { published = TrackingState(mode, snapshotRun(), accuracy, message, lastSavedAtMs = lastSavedAt, gpsStale = isGpsStale()); cached = published }
+    private fun publish() { published = TrackingState(mode, snapshotRun(), accuracy, lastSavedAtMs = lastSavedAt, gpsStale = isGpsStale(), messageRes = messageRes).localized(this); cached = published }
     private fun safely(block: () -> Unit): Boolean = try { block(); true } catch (_: Exception) {
-        fail("Recording paused · free storage and save again"); false
+        fail(R.string.tracking_storage_paused); false
     }
-    private fun fail(reason: String) {
+    private fun fail(reason: Int) {
         freezeTimer(); mode = if (mode == RecordingStatus.RECOVERY_ERROR) mode else if (current == null) RecordingStatus.IDLE else RecordingStatus.PAUSED
-        releaseRecordingResources(); message = reason
+        releaseRecordingResources(); messageRes = reason
         // Best effort: this is additional protection, never the only durable copy.
         if (current != null) runCatching { persistCheckpoint() }
         publish(); updateNotification()
@@ -327,28 +338,33 @@ class TrackingService : Service(), LocationListener {
             .putExtra(EXTRA_OPEN_RECORDING, true)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val open = PendingIntent.getActivity(this, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val state = published
+        val state = published.localized(this)
         val run = state.run
         val recording = state.status == RecordingStatus.RECORDING
         val distance = run?.let { RunMetrics.distanceMeters(it.points) } ?: 0.0
         val duration = run?.activeDurationMs ?: 0L
+        val formatLocale = AppLanguage.localizedContext(this).resources.configuration.locales[0]
         val paceSeconds = RunMetrics.paceSecondsPerKm(distance, duration)?.roundToLong()
-        val pace = paceSeconds?.let { String.format(Locale.getDefault(), "%d:%02d", it / 60, it % 60) } ?: "—"
-        val metrics = String.format(Locale.getDefault(), "%.2f km · %s /km avg", distance / 1000, pace)
+        val pace = paceSeconds?.let { String.format(formatLocale, "%d:%02d", it / 60, it % 60) } ?: "—"
+        val metrics = tr(R.string.tracking_metrics, distance / 1000, pace)
         val elapsedSeconds = duration.coerceAtLeast(0) / 1000
         val elapsed = if (elapsedSeconds >= 3600)
-            String.format(Locale.getDefault(), "%d:%02d:%02d", elapsedSeconds / 3600, elapsedSeconds / 60 % 60, elapsedSeconds % 60)
-        else String.format(Locale.getDefault(), "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
+            String.format(formatLocale, "%d:%02d:%02d", elapsedSeconds / 3600, elapsedSeconds / 60 % 60, elapsedSeconds % 60)
+        else String.format(formatLocale, "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
         val title = when {
-            recording -> "Running"
-            run != null && state.status == RecordingStatus.INTERRUPTED -> "Run recovered"
-            run != null -> "Run paused · $elapsed"
-            else -> "Opening run…"
+            recording -> tr(when (run?.activityType) {
+                ActivityType.WALK -> R.string.tracking_walking
+                ActivityType.HIKE -> R.string.tracking_hiking
+                else -> R.string.tracking_running
+            })
+            run != null && state.status == RecordingStatus.INTERRUPTED -> tr(R.string.tracking_recovered)
+            run != null -> tr(R.string.tracking_notification_paused, elapsed)
+            else -> tr(R.string.tracking_opening)
         }
-        val detail = state.message?.takeUnless { it == "Paused" }
-        val expanded = listOfNotNull(metrics, if (!recording) "$elapsed active time" else null, detail).joinToString("\n")
+        val detail = state.message.takeUnless { state.messageRes == R.string.tracking_paused }
+        val expanded = listOfNotNull(metrics, if (!recording) tr(R.string.tracking_active_time, elapsed) else null, detail).joinToString("\n")
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_run)
-            .setContentTitle(title).setContentText(if (run == null) "Your recording is kept on this phone" else metrics)
+            .setContentTitle(title).setContentText(if (run == null) tr(R.string.tracking_saved_on_phone) else metrics)
             .setContentIntent(open).setStyle(Notification.BigTextStyle().bigText(expanded))
             .setWhen(System.currentTimeMillis() - duration).setShowWhen(recording).setUsesChronometer(recording)
             .setOngoing(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -356,16 +372,27 @@ class TrackingService : Service(), LocationListener {
         if (Build.VERSION.SDK_INT >= 31) builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         if (run != null) {
             if (recording) {
-                builder.addAction(notificationAction(R.drawable.ic_pause, "Pause", ACTION_PAUSE, run.id))
+                builder.addAction(notificationAction(R.drawable.ic_pause, tr(R.string.tracking_action_pause), ACTION_PAUSE, run.id))
             } else if (state.status == RecordingStatus.PAUSED || state.status == RecordingStatus.INTERRUPTED) {
-                builder.addAction(notificationAction(R.drawable.ic_play, "Resume", ACTION_RESUME, run.id))
+                builder.addAction(notificationAction(R.drawable.ic_play, tr(R.string.tracking_action_resume), ACTION_RESUME, run.id))
                 // Two deliberate steps: Pause, then Finish. A stale Finish is rejected if
                 // recording has already resumed, even when it still belongs to this run.
-                builder.addAction(notificationAction(R.drawable.ic_stop, "Finish", ACTION_FINISH, run.id))
+                builder.addAction(notificationAction(R.drawable.ic_stop, tr(R.string.tracking_action_finish), ACTION_FINISH, run.id))
             }
         }
         return builder.build()
     }
+    private fun refreshNotificationChannel() {
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL, tr(R.string.tracking_channel), NotificationManager.IMPORTANCE_LOW).apply {
+                description = tr(R.string.tracking_channel_description)
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            })
+    }
+
+    private fun tr(id: Int, vararg args: Any): String = AppLanguage.localizedContext(this).getString(id, *args)
+
     private fun notificationAction(icon: Int, label: String, action: String, runId: String): Notification.Action {
         val intent = Intent(this, TrackingService::class.java).setAction(action)
             .setData(Uri.Builder().scheme("runline").authority("recording").appendPath(runId).appendPath(action).build())
@@ -384,7 +411,7 @@ class TrackingService : Service(), LocationListener {
             freezeTimer(); releaseRecordingResources()
             if (current != null) {
                 mode = RecordingStatus.INTERRUPTED; runCatching { persistCheckpoint() }
-                message = "Run recovered · resume or save"; publish()
+                messageRes = R.string.tracking_recovered_hint; publish()
             }
             if (instance === this) instance = null
             thread.quitSafely()
@@ -400,6 +427,7 @@ class TrackingService : Service(), LocationListener {
         const val ACTION_FINISH = "com.runline.app.FINISH"
         const val ACTION_DISCARD = "com.runline.app.DISCARD"
         const val ACTION_ARCHIVE_DRAFT = "com.runline.app.ARCHIVE_DRAFT"
+        const val EXTRA_ACTIVITY_TYPE = "com.runline.app.ACTIVITY_TYPE"
         const val EXTRA_OPEN_RECORDING = "com.runline.app.OPEN_RECORDING"
         private const val EXTRA_NOTIFICATION_RUN_ID = "com.runline.app.NOTIFICATION_RUN_ID"
         private const val CHANNEL = "run_recording"
@@ -408,19 +436,29 @@ class TrackingService : Service(), LocationListener {
         @Volatile private var instance: TrackingService? = null
         @Volatile private var cached: TrackingState? = null
         fun state(context: Context): TrackingState {
-            instance?.let { return it.published }; cached?.let { return it }
+            instance?.let { return it.published.localized(context) }; cached?.let { return it.localized(context) }
             val recovered = try {
                 RunStore(context).loadDraftRecord()?.let {
                     TrackingState(RecordingStatus.INTERRUPTED, it.run,
-                        message = if (it.recoveredWithDamage) "Recovered available points · check your route" else "Run recovered · resume or save",
+                        messageRes = if (it.recoveredWithDamage) R.string.tracking_recovered_damage else R.string.tracking_recovered_hint,
                         lastSavedAtMs = it.run.endedAtMs)
                 } ?: TrackingState()
-            } catch (_: Exception) { TrackingState(RecordingStatus.RECOVERY_ERROR, message = "Draft needs recovery · files kept") }
-            cached = recovered; return recovered
+            } catch (_: Exception) { TrackingState(RecordingStatus.RECOVERY_ERROR, messageRes = R.string.tracking_recovery_error) }
+            cached = recovered; return recovered.localized(context)
+        }
+        /** A language change must also update an existing paused notification. */
+        fun refreshLanguage() {
+            instance?.let { recorder -> recorder.worker.post {
+                recorder.refreshNotificationChannel()
+                recorder.published = recorder.published.localized(recorder)
+                cached = recorder.published
+                recorder.updateNotification()
+            } }
         }
         /** Visible Activity controls; notifications use their own run-scoped PendingIntents. */
-        fun command(context: Context, action: String) {
+        fun command(context: Context, action: String, activityType: ActivityType = ActivityType.RUN) {
             val intent = Intent(context, TrackingService::class.java).setAction(action)
+            if (action == ACTION_START) intent.putExtra(EXTRA_ACTIVITY_TYPE, activityType.storageValue)
             if (action == ACTION_START || action == ACTION_RESUME) context.startForegroundService(intent) else context.startService(intent)
         }
     }

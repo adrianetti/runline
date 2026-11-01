@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tracking_channel">Grabación de actividades</string>
+    <string name="tracking_channel_description">Tiempo, distancia y controles de la actividad</string>
+    <string name="tracking_gps_lost">Sin señal GPS · el tiempo continúa</string>
+    <string name="tracking_recovered_damage">Puntos disponibles recuperados · revisa tu ruta</string>
+    <string name="tracking_recovered_hint">Actividad recuperada · reanuda o guarda</string>
+    <string name="tracking_recovery_error">Borrador por recuperar · archivos conservados</string>
+    <string name="tracking_open_to_resume">Abre la app para reanudar la grabación</string>
+    <string name="tracking_set_aside_first">Aparta primero el borrador dañado</string>
+    <string name="tracking_allow_location">Permite la ubicación precisa para reanudar</string>
+    <string name="tracking_enable_location">Activa la ubicación y reanuda</string>
+    <string name="tracking_finding_gps">Buscando tu ubicación actual…</string>
+    <string name="tracking_check_location_storage">Grabación en pausa · revisa ubicación y almacenamiento</string>
+    <string name="tracking_paused">En pausa</string>
+    <string name="tracking_preserve_damaged">Aparta el borrador dañado para conservar sus archivos</string>
+    <string name="tracking_finish_first">Finaliza primero tu actividad actual</string>
+    <string name="tracking_archived">Borrador guardado para recuperación</string>
+    <string name="tracking_free_space_retry">Archivos conservados · libera espacio y reintenta</string>
+    <string name="tracking_weak_gps">Señal GPS débil · el tiempo continúa</string>
+    <string name="tracking_location_off">Ubicación desactivada · actívala y reanuda</string>
+    <string name="tracking_storage_paused">Grabación en pausa · libera espacio y vuelve a guardar</string>
+    <string name="tracking_metrics">%1$.2f km · %2$s /km de media</string>
+    <string name="tracking_walking">Caminando</string>
+    <string name="tracking_hiking">Senderismo</string>
+    <string name="tracking_running">Corriendo</string>
+    <string name="tracking_recovered">Actividad recuperada</string>
+    <string name="tracking_notification_paused">Actividad en pausa · %1$s</string>
+    <string name="tracking_opening">Abriendo actividad…</string>
+    <string name="tracking_active_time">%1$s de tiempo activo</string>
+    <string name="tracking_saved_on_phone">La grabación se guarda en este teléfono</string>
+    <string name="tracking_action_pause">Pausar</string>
+    <string name="tracking_action_resume">Reanudar</string>
+    <string name="tracking_action_finish">Finalizar</string>
+</resources>

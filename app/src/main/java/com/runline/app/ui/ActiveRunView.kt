@@ -15,10 +15,9 @@ import androidx.core.widget.TextViewCompat
 import com.google.android.material.button.MaterialButton
 import com.runline.app.R
 import com.runline.app.core.RunMetrics
-import com.runline.app.core.RunReplay
+import com.runline.app.core.ElevationProgress
 import com.runline.app.tracking.RecordingStatus
 import com.runline.app.tracking.TrackingState
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /** A map-first recording surface. It only renders the independently saved service state. */
@@ -37,25 +36,26 @@ class ActiveRunView(
     private val distance = value()
     private val time = value()
     private val pace = value()
-    private val gps = label("Finding GPS…", 12, muted = true)
+    private val gps = label(context.getString(R.string.active_loading), 12, muted = true)
     private val extra = label("", 12, muted = true)
-    private val heading = label(when (initial.status) {
-        RecordingStatus.PAUSED -> "Paused"
-        RecordingStatus.INTERRUPTED -> "Run recovered"
-        else -> "Recording"
-    }, 16, bold = true)
+    private val elevation = ElevationProgress()
+    private val heading = label(context.getString(when (initial.status) {
+        RecordingStatus.PAUSED -> R.string.active_paused
+        RecordingStatus.INTERRUPTED -> R.string.active_recovered
+        else -> R.string.active_recording
+    }), 16, bold = true)
 
     init {
         map.setNavigationMode(true)
         map.setFollowing(true)
         addView(map, LayoutParams(-1, -1))
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(floatingButton("Runs", R.drawable.ic_back).apply {
-            contentDescription = "Open runs without stopping recording"
+        header.addView(floatingButton(context.getString(R.string.main_activities), R.drawable.ic_back).apply {
+            contentDescription = context.getString(R.string.active_open_activities)
             setOnClickListener { onOpenRuns() }
         }, LinearLayout.LayoutParams(-2, dp(48)))
         header.addView(floatingButton("", R.drawable.ic_more).apply {
-            contentDescription = "Run options"
+            contentDescription = context.getString(R.string.active_options)
             setPadding(dp(12), 0, dp(12), 0)
             iconPadding = 0
             setOnClickListener { onOptions(this) }
@@ -74,7 +74,7 @@ class ActiveRunView(
         information.addView(heading, row(bottom = 4))
         information.addView(gps, row(bottom = 12))
         val metrics = LinearLayout(context)
-        listOf(Triple("Distance · km", distance, 0), Triple("Time", time, 1), Triple("Avg /km", pace, 2)).forEach { (name, amount, index) ->
+        listOf(Triple(context.getString(R.string.active_distance), distance, 0), Triple(context.getString(R.string.active_time), time, 1), Triple(context.getString(R.string.active_pace), pace, 2)).forEach { (name, amount, index) ->
             val column = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(label(name, 12, muted = true))
@@ -91,10 +91,10 @@ class ActiveRunView(
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val controls = LinearLayout(context)
         val paused = initial.status != RecordingStatus.RECORDING
-        controls.addView(action(if (paused) "Resume" else "Pause", if (paused) R.drawable.ic_play else R.drawable.ic_pause).apply {
+        controls.addView(action(if (paused) context.getString(R.string.active_resume) else context.getString(R.string.active_pause), if (paused) R.drawable.ic_play else R.drawable.ic_pause).apply {
             setOnClickListener { if (paused) onResume() else onPause() }
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        if (paused) controls.addView(action("Finish", R.drawable.ic_stop, outlined = true).apply {
+        if (paused) controls.addView(action(context.getString(R.string.active_finish), R.drawable.ic_stop, outlined = true).apply {
             setOnClickListener { onFinish() }
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
         panel.addView(controls, row(top = 12))
@@ -124,21 +124,22 @@ class ActiveRunView(
     fun update(state: TrackingState) {
         val run = state.run ?: return
         val points = run.points
+        map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
+        map.setLocationWaitingMessage(if (state.status == RecordingStatus.RECORDING) state.message else context.getString(if (state.status == RecordingStatus.PAUSED) R.string.active_paused_hint else R.string.active_recovered_hint))
         map.setRoute(points)
         map.setMarker(points.lastOrNull())
         val meters = RunMetrics.distanceMeters(points)
         change(distance, number(meters / 1000, 2))
         change(time, duration(run.activeDurationMs))
         change(pace, pace(RunMetrics.paceSecondsPerKm(meters, run.activeDurationMs)))
-        val tail = if (state.status == RecordingStatus.RECORDING && !state.gpsStale && points.isNotEmpty()) RunReplay(run.copy(points = points.takeLast(12))) else null
-        val speed = tail?.at(tail.durationMs)?.speedMetersPerSecond?.times(3.6)
-        change(extra, "Speed ${number(speed, 1)} km/h · GPS altitude ${number(points.lastOrNull()?.altitudeMeters, 0)} m")
+        elevation.update(points)
+        change(extra, context.getString(R.string.active_elevation, number(elevation.climbedMeters, 0), number(elevation.descendedMeters, 0)))
         val status = when {
-            state.status == RecordingStatus.INTERRUPTED -> state.message ?: "Saved on phone · resume or finish"
-            state.status == RecordingStatus.PAUSED -> state.message?.takeUnless { it == "Paused" } ?: "Time and GPS paused"
+            state.status == RecordingStatus.INTERRUPTED -> state.message ?: context.getString(R.string.active_recovered_hint)
+            state.status == RecordingStatus.PAUSED -> state.message?.takeUnless { state.messageRes == R.string.tracking_paused } ?: context.getString(R.string.active_paused_hint)
             state.message != null -> state.message
-            state.accuracyMeters != null -> "GPS ±${state.accuracyMeters.roundToInt()} m · saved on phone"
-            else -> "Finding GPS…"
+            state.accuracyMeters != null -> context.getString(R.string.active_accuracy, state.accuracyMeters.roundToInt())
+            else -> context.getString(R.string.active_loading)
         }
         change(gps, status)
     }
@@ -171,9 +172,9 @@ class ActiveRunView(
     private fun row(top: Int = 0, bottom: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom) }
     private fun change(view: TextView, value: String) { if (view.text != value) view.text = value }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
-    private fun number(value: Double?, decimals: Int) = if (value == null || !value.isFinite()) "—" else String.format(Locale.getDefault(), "%.${decimals}f", value)
-    private fun pace(value: Double?): String = if (value == null || !value.isFinite() || value < 0) "—" else value.roundToInt().let { String.format(Locale.getDefault(), "%d:%02d", it / 60, it % 60) }
-    private fun duration(ms: Long): String { val s = ms / 1000; return if (s >= 3600) String.format(Locale.getDefault(), "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(Locale.getDefault(), "%02d:%02d", s / 60, s % 60) }
+    private fun number(value: Double?, decimals: Int) = if (value == null || !value.isFinite()) "—" else String.format(resources.configuration.locales[0], "%.${decimals}f", value)
+    private fun pace(value: Double?): String = if (value == null || !value.isFinite() || value < 0) "—" else value.roundToInt().let { String.format(resources.configuration.locales[0], "%d:%02d", it / 60, it % 60) }
+    private fun duration(ms: Long): String { val s = ms / 1000; return if (s >= 3600) String.format(resources.configuration.locales[0], "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(resources.configuration.locales[0], "%02d:%02d", s / 60, s % 60) }
 
     private class CappedColumn(context: Context) : LinearLayout(context) {
         var maxHeight = Int.MAX_VALUE

@@ -14,10 +14,10 @@ import kotlin.math.min
 /** Offline route geometry only: no downloaded map, tile service, or location transmission. */
 class RouteView(context: Context) : View(context) {
     var points: List<RunPoint> = emptyList()
-        set(value) { if (field === value) return; field = value; contentDescription = if (value.size < 2) "No GPS route" else "Recorded route, ${value.size} GPS samples"; invalidate() }
+        set(value) { if (field === value) return; field = value; contentDescription = if (value.size < 2) context.getString(R.string.route_no_gps) else context.getString(R.string.route_samples, value.size); invalidate() }
     private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
     private val density get() = resources.displayMetrics.density
-    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES; contentDescription = "No GPS route" }
+    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES; contentDescription = context.getString(R.string.route_no_gps) }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(context.getColor(R.color.surface_variant))
@@ -26,7 +26,7 @@ class RouteView(context: Context) : View(context) {
             ink.color = context.getColor(R.color.on_surface_variant)
             ink.textSize = 14 * resources.displayMetrics.scaledDensity
             ink.textAlign = Paint.Align.CENTER
-            canvas.drawText("No GPS route", width / 2f, height / 2f, ink)
+            canvas.drawText(context.getString(R.string.route_no_gps), width / 2f, height / 2f, ink)
             return
         }
         val latCenter = valid.map { it.latitude }.average()

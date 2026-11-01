@@ -23,6 +23,11 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.ArrayAdapter
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import com.google.android.material.textfield.TextInputLayout
+import com.runline.app.core.ActivityType
+import com.runline.app.i18n.AppLanguage
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.FileProvider
@@ -32,7 +37,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
-import com.runline.app.sharing.StravaSharing
+import com.runline.app.sharing.ActivityExporter
+import com.runline.app.sharing.ActivityExportName
 import com.runline.app.core.GpxExporter
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.RunSession
@@ -48,7 +54,6 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
@@ -57,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabs: TabLayout
     private lateinit var body: LinearLayout
     private lateinit var store: RunStore
-    private lateinit var stravaSharing: StravaSharing
+    private lateinit var exporter: ActivityExporter
     private var actionPendingUntil = 0L
     private val handler = Handler(Looper.getMainLooper())
     private var screen = "record"
@@ -65,24 +70,22 @@ class MainActivity : AppCompatActivity() {
     private var renderedStatus = ""
     private var lastSavedId: String? = null
     private var pendingAction = TrackingService.ACTION_START
-    private var pendingExport: RunSession? = null
-    private var distanceLabel: TextView? = null
-    private var durationLabel: TextView? = null
-    private var paceLabel: TextView? = null
-    private var gpsLabel: TextView? = null
     private var route: SatelliteMapView? = null
     private var replayView: RunReplayView? = null
     private var restoredReplayPosition = 0L
     private var restoredReplaySpeed = 1
     private var activeRunView: ActiveRunView? = null
-    private var liveSpeedLabel: TextView? = null
-    private var liveAltitudeLabel: TextView? = null
+    private var selectedActivity = ActivityType.RUN
     private val ticker = object : Runnable {
         override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppLanguage.beforeCreate(this)
         super.onCreate(savedInstanceState)
+        AppLanguage.afterCreate(this)
+        selectedActivity = ActivityType.fromStorage(savedInstanceState?.getString("activityType") ?: getPreferences(0).getString("activityType", null))
+        pendingAction = savedInstanceState?.getString("pendingAction") ?: TrackingService.ACTION_START
         store = RunStore(this)
         val isNight = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         WindowCompat.getInsetsController(window, window.decorView).apply { isAppearanceLightStatusBars = !isNight; isAppearanceLightNavigationBars = !isNight }
@@ -93,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(64)))
         tabs = TabLayout(this).apply {
             isInlineLabel = true
-            addTab(newTab().setText("Record").setIcon(R.drawable.ic_run)); addTab(newTab().setText("Runs").setIcon(R.drawable.ic_history))
+            addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_run)); addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_history))
             tabIconTint = ColorStateList.valueOf(getColor(R.color.primary))
             setSelectedTabIndicatorColor(getColor(R.color.primary))
             setTabTextColors(getColor(R.color.on_surface_variant), getColor(R.color.primary))
@@ -106,13 +109,12 @@ class MainActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: TabLayout.Tab) = Unit
             override fun onTabReselected(tab: TabLayout.Tab) = Unit
         })
-        stravaSharing = StravaSharing(this, { id -> runCatching { store.get(id) }.getOrNull() }, ::notice)
-        stravaSharing.restoreState(savedInstanceState)
+        exporter = ActivityExporter(this, { id -> runCatching { store.get(id) }.getOrNull() }, ::notice)
+        exporter.restoreState(savedInstanceState)
         lastSavedId = TrackingService.state(this).savedRunId
         screen = savedInstanceState?.getString("screen") ?: "record"
         val selectedRunId = savedInstanceState?.getString("runId")
         if (selectedRunId != null) currentRun = runCatching { store.get(selectedRunId) }.getOrNull()
-        pendingExport = savedInstanceState?.getString("exportId")?.let { runCatching { store.get(it) }.getOrNull() }
         restoredReplayPosition = savedInstanceState?.getLong("replayPosition") ?: 0L
         restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 1
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
@@ -129,16 +131,17 @@ class MainActivity : AppCompatActivity() {
             screen = "record"; tabs.getTabAt(0)?.select(); render()
         }
     }
-    override fun onResume() { super.onResume(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::stravaSharing.isInitialized) stravaSharing.onResume() }
+    override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::stravaSharing.isInitialized) stravaSharing.close(); super.onDestroy() }
+    override fun onDestroy() { handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("activityType", selectedActivity.storageValue)
+        outState.putString("pendingAction", pendingAction)
         outState.putString("screen", screen); outState.putString("runId", currentRun?.id)
-        outState.putString("exportId", pendingExport?.id)
         outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
-        stravaSharing.saveState(outState); super.onSaveInstanceState(outState)
+        exporter.saveState(outState); super.onSaveInstanceState(outState)
     }
     @Deprecated("Uses platform Back for this single-activity prototype")
     override fun onBackPressed() {
@@ -149,16 +152,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun render() {
         route?.dispose(); replayView?.dispose(); replayView = null
-        body.removeAllViews(); distanceLabel = null; durationLabel = null; paceLabel = null; gpsLabel = null; route = null
-        liveSpeedLabel = null; liveAltitudeLabel = null; activeRunView = null
+        body.removeAllViews(); route = null; activeRunView = null
         val state = TrackingService.state(this)
         val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
-        toolbar.visibility = if (live) View.GONE else View.VISIBLE
-        toolbar.title = if (screen == "detail") "Run" else "Runline"
+        toolbar.visibility = if (live || screen == "detail") View.GONE else View.VISIBLE
+        toolbar.title = "Runline"
         tabs.visibility = if (screen == "detail" || live) View.GONE else View.VISIBLE
         toolbar.navigationIcon = if (screen == "detail") AppCompatResources.getDrawable(this, R.drawable.ic_back) else null
         toolbar.navigationIcon?.setTint(getColor(R.color.on_surface))
-        toolbar.navigationContentDescription = "Back to runs"
+        toolbar.navigationContentDescription = getString(R.string.main_back_activities)
         configureMenu()
         toolbar.setNavigationOnClickListener { screen = "history"; tabs.getTabAt(1)?.select(); render() }
         when (screen) { "history" -> renderHistory(); "detail" -> currentRun?.let { renderDetail(it) }; else -> renderRecord() }
@@ -174,8 +176,7 @@ class MainActivity : AppCompatActivity() {
         renderedStatus = state.status.name
         if (state.run != null && state.status != TrackingStatus.RECOVERY_ERROR) {
             activeRunView = ActiveRunView(this, state,
-                onOpenRuns = { tabs.getTabAt(1)?.select() },
-                onOptions = ::showRunOptions,
+                onOpenRuns = { tabs.getTabAt(1)?.select() }, onOptions = ::showRunOptions,
                 onPause = { command(TrackingService.ACTION_PAUSE) },
                 onResume = { requestRecording(TrackingService.ACTION_RESUME) },
                 onFinish = { command(TrackingService.ACTION_FINISH) },
@@ -187,65 +188,46 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val content = scrollContent()
-        val title = when (state.status) {
-            TrackingStatus.RECORDING -> "Recording"
-            TrackingStatus.PAUSED -> "Paused"
-            TrackingStatus.INTERRUPTED -> "Run recovered"
-            TrackingStatus.RECOVERY_ERROR -> "Draft needs recovery"
-            else -> "Ready"
-        }
-        val heading = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        heading.addView(iconView(if (state.status == TrackingStatus.RECORDING) R.drawable.ic_location else R.drawable.ic_run), LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(12) })
-        heading.addView(text(title, 24, bold = true))
-        content.addView(heading, margin(bottom = 16))
         if (state.status == TrackingStatus.RECOVERY_ERROR) {
-            content.addView(text("Keep the damaged draft and start fresh. Saved runs stay untouched.", 14, muted = true))
-        } else {
-            route = SatelliteMapView(this).also { map ->
-                map.setFollowing(true)
-                if (state.run?.points.isNullOrEmpty()) centerOnLastKnownLocation(map)
-                content.addView(map, LinearLayout.LayoutParams(-1, dp(if (resources.configuration.screenHeightDp < 500) 120 else 240)).apply { bottomMargin = dp(16) })
-                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) map.onHostResume()
-            }
-            val bigMetric = LinearLayout(this).apply { gravity = Gravity.BOTTOM }
-            distanceLabel = text("0.00", 40, bold = true).apply { fontFeatureSettings = "tnum" }
-            bigMetric.addView(distanceLabel)
-            bigMetric.addView(text("km", 24, muted = true), LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8); bottomMargin = dp(9) })
-            content.addView(bigMetric)
-            val metrics = LinearLayout(this)
-            val time = metric("Time", "00:00"); durationLabel = time.second
-            val pace = metric("Pace /km", "—"); paceLabel = pace.second
-            metrics.addView(time.first, LinearLayout.LayoutParams(0, -2, 1f))
-            metrics.addView(pace.first, LinearLayout.LayoutParams(0, -2, 1f))
-            content.addView(metrics, margin(top = 12, bottom = 12))
-            if (state.run != null) {
-                val extra = LinearLayout(this)
-                val speed = metric("Speed · km/h", "—"); liveSpeedLabel = speed.second
-                val altitude = metric("GPS altitude · m", "—"); liveAltitudeLabel = altitude.second
-                extra.addView(speed.first, LinearLayout.LayoutParams(0, -2, 1f))
-                extra.addView(altitude.first, LinearLayout.LayoutParams(0, -2, 1f))
-                content.addView(extra, margin(bottom = 8))
+            content.addView(text(getString(R.string.main_recovery_title), 24, bold = true))
+            content.addView(text(getString(R.string.main_recovery_body), 14, muted = true), margin(top = 16))
+            content.addView(button(getString(R.string.main_keep_reset), iconId = R.drawable.ic_shield_check) {
+                MaterialAlertDialogBuilder(this).setTitle(R.string.main_archive_title).setMessage(R.string.main_archive_body)
+                    .setPositiveButton(R.string.main_keep_reset) { _, _ -> command(TrackingService.ACTION_ARCHIVE_DRAFT) }
+                    .setNegativeButton(R.string.main_cancel, null).show()
+            }, margin(top = 24))
+            return
+        }
+        content.addView(iconView(R.drawable.ic_run), LinearLayout.LayoutParams(dp(64), dp(64)).apply { bottomMargin = dp(24) })
+        content.addView(text(getString(R.string.main_ready), 30, bold = true), margin(bottom = 24))
+        val types = ActivityType.entries
+        val field = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedExposedDropdownMenuStyle).apply {
+            hint = getString(R.string.main_activity_type)
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+        }
+        val choice = MaterialAutoCompleteTextView(field.context).apply {
+            inputType = android.text.InputType.TYPE_NULL
+            setAdapter(ArrayAdapter(context, android.R.layout.simple_list_item_1, types.map(::activityName)))
+            setText(activityName(selectedActivity), false)
+            minHeight = dp(64); setPadding(dp(16), dp(12), dp(16), dp(12))
+            setOnItemClickListener { _, _, index, _ ->
+                selectedActivity = types[index]
+                getPreferences(0).edit().putString("activityType", selectedActivity.storageValue).apply()
             }
         }
-        gpsLabel = text("Start outdoors", 14, muted = true)
-        content.addView(gpsLabel, margin(top = 16))
+        field.addView(choice, LinearLayout.LayoutParams(-1, -2))
+        content.addView(field, margin(bottom = 16))
+        content.addView(text(getString(R.string.main_start_hint), 15, muted = true))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
-        when (state.status) {
-            TrackingStatus.RECORDING -> actions.addView(button("Pause", iconId = R.drawable.ic_pause) { command(TrackingService.ACTION_PAUSE) })
-            TrackingStatus.PAUSED, TrackingStatus.INTERRUPTED -> {
-                actions.addView(button("Resume", iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_RESUME) })
-                actions.addView(button("Finish", outlined = true, iconId = R.drawable.ic_stop) { command(TrackingService.ACTION_FINISH) }, margin(top = 8))
-            }
-            TrackingStatus.RECOVERY_ERROR -> actions.addView(button("Keep draft & reset", iconId = R.drawable.ic_shield_check) {
-                MaterialAlertDialogBuilder(this).setTitle("Set aside this draft?")
-                    .setMessage("A copy stays on this phone for recovery. Your saved runs are unchanged.")
-                    .setPositiveButton("Keep & reset") { _, _ -> command(TrackingService.ACTION_ARCHIVE_DRAFT) }.setNegativeButton("Cancel", null).show()
-            })
-            else -> actions.addView(button("Start run", iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
-        }
+        actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
-        updateMetrics()
     }
+    private fun activityName(type: ActivityType) = getString(when(type) {
+        ActivityType.RUN -> R.string.main_type_run
+        ActivityType.WALK -> R.string.main_type_walk
+        ActivityType.HIKE -> R.string.main_type_hike
+    })
     private fun refreshRecording() {
         val state = TrackingService.state(this)
         if (state.savedRunId != null && state.savedRunId != lastSavedId) {
@@ -255,45 +237,17 @@ class MainActivity : AppCompatActivity() {
         if (screen != "record") return
         if (state.status.name != renderedStatus) render() else updateMetrics()
     }
-    private fun updateMetrics() {
-        val state = TrackingService.state(this); val run = state.run
-        activeRunView?.let { it.update(state); return }
-        val distance = RunMetrics.distanceMeters(run?.points ?: emptyList())
-        setValue(distanceLabel, String.format(Locale.getDefault(), "%.2f", distance / 1000))
-        setValue(durationLabel, duration(run?.activeDurationMs ?: 0))
-        setValue(paceLabel, pace(RunMetrics.paceSecondsPerKm(distance, run?.activeDurationMs ?: 0)))
-        val points = run?.points ?: emptyList()
-        route?.setRoute(points)
-        route?.setMarker(points.lastOrNull())
-        val latest = points.lastOrNull()
-        val recent = latest != null && !state.gpsStale && state.status == TrackingStatus.RECORDING
-        val speed = if (recent && run != null) {
-            val tail = RunReplay(run.copy(points = points.takeLast(12)))
-            tail.at(tail.durationMs)?.speedMetersPerSecond?.times(3.6)
-        } else null
-        setValue(liveSpeedLabel, number(speed, 1))
-        setValue(liveAltitudeLabel, number(latest?.altitudeMeters, 0))
-        val status = when {
-            state.status == TrackingStatus.IDLE -> state.message ?: "Start outdoors"
-            state.status == TrackingStatus.INTERRUPTED -> "Saved run recovered. Resume or finish."
-            state.status == TrackingStatus.PAUSED -> state.message ?: "Time and GPS paused"
-            state.message != null -> state.message
-            state.accuracyMeters != null -> "GPS ±${state.accuracyMeters.roundToInt()} m · saving on phone"
-            else -> "Finding GPS…"
-        }
-        setValue(gpsLabel, status)
-    }
-    private fun setValue(view: TextView?, value: CharSequence) { if (view?.text != value) view?.text = value }
+    private fun updateMetrics() { activeRunView?.update(TrackingService.state(this)) }
     private fun renderHistory() {
         val content = scrollContent()
-        val runs = try { store.list() } catch (e: Exception) { notice("Couldn't read run history. Your files have been kept."); emptyList() }
-        content.addView(text("This week", 24, bold = true))
+        val runs = try { store.list() } catch (e: Exception) { notice(getString(R.string.main_history_failed)); emptyList() }
+        content.addView(text(getString(R.string.main_this_week), 24, bold = true))
         val recent = runs.filter { it.startedAtMs >= System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L }
         val km = recent.sumOf { RunMetrics.distanceMeters(it.points) } / 1000
-        content.addView(text("${String.format(Locale.getDefault(), "%.1f", km)} km · ${recent.size} runs · last 7 days", 16, muted = true), margin(top = 8, bottom = 28))
+        content.addView(text(resources.getQuantityString(R.plurals.main_week_summary, recent.size, number(km, 1), recent.size), 16, muted = true), margin(top = 8, bottom = 28))
         if (runs.isEmpty()) {
-            content.addView(text("No runs yet", 24, bold = true), margin(top = 28))
-            content.addView(button("Start a run", iconId = R.drawable.ic_play) { tabs.getTabAt(0)?.select() })
+            content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
+            content.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { tabs.getTabAt(0)?.select() })
         } else {
             runs.forEach { run ->
                 val distance = RunMetrics.distanceMeters(run.points)
@@ -302,141 +256,108 @@ class MainActivity : AppCompatActivity() {
                     isClickable = true; isFocusable = true
                     val attrs = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)); background = attrs.getDrawable(0); attrs.recycle()
                     setOnClickListener { openRun(run) }
-                    contentDescription = "${date(run.startedAtMs)}, ${String.format(Locale.getDefault(), "%.2f", distance / 1000)} kilometres, ${duration(run.activeDurationMs)}. View run."
+                    contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(run.activeDurationMs))
                 }
-                row.addView(text(date(run.startedAtMs), 14, muted = true))
-                row.addView(text("${String.format(Locale.getDefault(), "%.2f", distance / 1000)} km", 26, bold = true), margin(top = 6))
-                row.addView(text("${duration(run.activeDurationMs)} active · ${pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs))} /km", 14, muted = true), margin(top = 4))
+                row.addView(text(getString(R.string.main_activity_date, activityName(run.activityType), date(run.startedAtMs)), 14, muted = true))
+                row.addView(text(getString(R.string.main_distance_km, number(distance / 1000, 2)), 26, bold = true), margin(top = 6))
+                row.addView(text(getString(R.string.main_history_stats, duration(run.activeDurationMs), pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs))), 14, muted = true), margin(top = 4))
                 content.addView(row); content.addView(divider())
             }
         }
-        content.addView(text("Saved on this phone", 14, muted = true), margin(top = 24))
-    }
-    private fun centerOnLastKnownLocation(map: SatelliteMapView) {
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
-        val manager = getSystemService(LocationManager::class.java)
-        val last = runCatching { manager.getLastKnownLocation(LocationManager.GPS_PROVIDER) }.getOrNull()
-        if (last != null) map.setCenter(last.latitude, last.longitude)
+        content.addView(text(getString(R.string.main_saved_local), 14, muted = true), margin(top = 24))
     }
     private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 1; screen = "detail"; render() }
     private fun renderDetail(run: RunSession) {
-        val content = scrollContent()
-        val replay = RunReplay(run)
-        val distance = replay.summary.distanceMeters
-        val compact = resources.configuration.screenHeightDp < 500
-        content.addView(text(date(run.startedAtMs), 14, muted = true), margin(bottom = if (compact) 8 else 0))
-        if (!compact) content.addView(text("${number(distance / 1000, 2)} km", 36, bold = true), margin(top = 8, bottom = 16))
-        val metrics = LinearLayout(this)
-        if (compact) metrics.addView(metric("Distance · km", number(distance / 1000, 2)).first, LinearLayout.LayoutParams(0, -2, 1f))
-        val time = metric("Time", duration(run.activeDurationMs))
-        val pace = metric("Average pace /km", pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)))
-        metrics.addView(time.first, LinearLayout.LayoutParams(0, -2, 1f)); metrics.addView(pace.first, LinearLayout.LayoutParams(0, -2, 1f))
-        content.addView(metrics, margin(bottom = if (compact) 12 else 20))
-        replayView = RunReplayView(this, replay).also { view ->
+        replayView = RunReplayView(this, RunReplay(run),
+            onBack = { screen = "history"; tabs.getTabAt(1)?.select(); render() },
+            onExport = { exporter.start(run) }, onMore = ::showDetailOptions,
+        ).also { view ->
             view.restore(restoredReplayPosition, restoredReplaySpeed)
-            content.addView(view)
+            body.addView(view, LinearLayout.LayoutParams(-1, -1))
             if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
-        }
-        if (replay.durationMs == 0L) content.addView(text("No continuous GPS route to share", 14, muted = true), margin(top = 16))
-        content.addView(text("Run totals", 24, bold = true), margin(top = 24, bottom = 8))
-        val summary = replay.summary
-        addDetail(content, "Average speed", "${number(summary.averageSpeedMetersPerSecond?.times(3.6), 1)} km/h")
-        addDetail(content, "Top GPS speed", "${number(summary.maxSpeedMetersPerSecond?.times(3.6), 1)} km/h")
-        addDetail(content, "Ascent / descent", "${number(summary.elevationGainMeters, 0)} / ${number(summary.elevationLossMeters, 0)} m")
-        addDetail(content, "Altitude low / high", "${number(summary.minAltitudeMeters, 0)} / ${number(summary.maxAltitudeMeters, 0)} m")
-        addDetail(content, "Elapsed time", duration((run.endedAtMs - run.startedAtMs).coerceAtLeast(0)))
-        addDetail(content, "GPS samples", run.points.size.toString())
-        content.addView(text("Speed and elevation are GPS estimates.", 13, muted = true), margin(top = 12, bottom = 24))
-        content.addView(text("Splits", 24, bold = true), margin(bottom = 8))
-        val splits = RunMetrics.splits(run.copy(points = replay.segments.flatten()))
-        if (splits.isEmpty()) content.addView(text("Not enough GPS data", 14, muted = true))
-        else splits.forEach { split ->
-            val label = if (split.distanceMeters >= 999.5) "Km ${split.index}" else "Last ${number(split.distanceMeters / 1000, 2)} km"
-            addDetail(content, label, pace(RunMetrics.paceSecondsPerKm(split.distanceMeters, split.durationMs)) + " /km")
         }
     }
     private fun configureMenu() {
         toolbar.menu.clear()
-        fun item(id: Int, title: String, iconId: Int, visible: Boolean = false) = toolbar.menu.add(0, id, id, title).apply {
-            setIcon(iconId); icon?.setTint(getColor(R.color.on_surface)); setShowAsAction(if (visible) MenuItem.SHOW_AS_ACTION_ALWAYS else MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.menu.add(0, 5, 0, R.string.main_protection).apply {
+            setIcon(R.drawable.ic_shield_check); icon?.setTint(getColor(R.color.on_surface))
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        if (screen == "detail") {
-            item(8, "Strava", R.drawable.ic_upload, true).apply {
-                setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
-                contentDescription = "Share run to Strava"
-                isEnabled = (currentRun?.points?.size ?: 0) >= 2
-                actionView = MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                    text = "Strava"; isAllCaps = false; textSize = 14f
-                    setIconResource(R.drawable.ic_upload); iconSize = dp(20); iconPadding = dp(6)
-                    contentDescription = "Share run to Strava"
-                    minHeight = dp(48); minimumHeight = dp(48)
-                    setPadding(dp(8), 0, dp(8), 0)
-                    layoutParams = ViewGroup.LayoutParams(-2, dp(48))
-                    isEnabled = (currentRun?.points?.size ?: 0) >= 2
-                    setOnClickListener { currentRun?.let { stravaSharing.start(it) } }
-                }
-            }
-            item(1, "Export GPX", R.drawable.ic_download)
-            item(2, "Share file", R.drawable.ic_share)
-            item(3, "Run info", R.drawable.ic_info)
-            item(4, "Delete run", R.drawable.ic_trash)
-        } else {
-            item(5, "Recording protection", R.drawable.ic_shield_check, true)
-            val status = TrackingService.state(this).status
-            if (status == TrackingStatus.PAUSED || status == TrackingStatus.INTERRUPTED) item(6, "Discard run", R.drawable.ic_trash)
-            item(7, "About", R.drawable.ic_info)
-        }
+        toolbar.menu.add(0, 9, 1, R.string.main_language)
+        toolbar.menu.add(0, 7, 2, R.string.main_about)
         toolbar.overflowIcon = AppCompatResources.getDrawable(this, R.drawable.ic_more)?.apply { setTint(getColor(R.color.on_surface)) }
         toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                1 -> currentRun?.let { saveGpx(it) }
-                2 -> currentRun?.let { shareGpx(it) }
-                3 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this).setTitle("Run info")
-                    .setMessage("Elapsed ${duration((run.endedAtMs-run.startedAtMs).coerceAtLeast(0))} · ${run.points.size} GPS samples\n\nAverage pace uses active time. Replay and splits use GPS time, skipping pauses and gaps over 15 seconds. Replay speed is a five-second GPS estimate. Altitude is raw GPS altitude; ascent and descent ignore changes below 3 m and are not terrain-corrected. Missing measurements show —.")
-                    .setPositiveButton("Done", null).show() }
-                4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this).setTitle("Delete run?").setMessage("Export a copy first to keep it.")
-                    .setNegativeButton("Keep", null).setPositiveButton("Delete") { _, _ -> try { store.delete(run.id); screen="history"; render() } catch (e: Exception) { notice("Couldn't delete. Try again.") } }.show() }
-                8 -> currentRun?.let { stravaSharing.start(it) }
-                5 -> showProtection()
-                6 -> discardRun()
-                7 -> MaterialAlertDialogBuilder(this).setTitle("Runline 0.4")
-                    .setMessage("Your recordings stay on this phone. Maps request visible-area tiles from EOX and IGN; they do not upload the run file. Export before uninstalling.\n\nMap attribution is shown on the map. Icons: Tabler · MIT license")
-                    .setPositiveButton("Done", null).setNeutralButton("Icon license") { _, _ ->
-                        MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT").setMessage(assets.open("licenses/tabler-icons.txt").bufferedReader().use { it.readText() }).setPositiveButton("Done", null).show()
-                    }.show()
-            }; true
+            when (item.itemId) { 5 -> showProtection(); 9 -> showLanguage(); 7 -> showAbout() }; true
         }
     }
-    private fun showRunOptions(anchor: View) {
+    private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
-            menu.add(0, 1, 0, "Recording protection")
-            menu.add(0, 2, 1, "GPS direction")
-            if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 2, "Discard run")
+            menu.add(0, 1, 0, R.string.main_export)
+            menu.add(0, 2, 1, R.string.main_share_file)
+            menu.add(0, 3, 2, R.string.main_run_info)
+            menu.add(0, 9, 3, R.string.main_language)
+            menu.add(0, 4, 4, R.string.main_delete_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    1 -> showProtection()
-                    2 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle("GPS direction")
-                        .setMessage("The arrow follows your movement, not the direction your phone is facing. Move outdoors to establish a heading. While stopped, it keeps the last known direction. Drag to explore; tap the location button to follow again.")
-                        .setPositiveButton("Done", null).show()
-                    3 -> discardRun()
+                    1 -> currentRun?.let(::saveGpx)
+                    2 -> currentRun?.let(::shareGpx)
+                    3 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_run_info)
+                        .setMessage(R.string.main_run_info_body).setPositiveButton(R.string.main_done, null).show()
+                    9 -> showLanguage()
+                    4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this@MainActivity)
+                        .setTitle(R.string.main_delete_title).setMessage(R.string.main_delete_body)
+                        .setNegativeButton(R.string.main_keep, null).setPositiveButton(R.string.main_delete) { _, _ ->
+                            try { store.delete(run.id); screen = "history"; tabs.getTabAt(1)?.select(); render() }
+                            catch (_: Exception) { notice(getString(R.string.main_delete_failed)) }
+                        }.show() }
                 }; true
             }
         }.show()
     }
+    private fun showRunOptions(anchor: View) {
+        PopupMenu(this, anchor).apply {
+            menu.add(0, 1, 0, R.string.main_protection)
+            menu.add(0, 2, 1, R.string.main_direction)
+            menu.add(0, 9, 2, R.string.main_language)
+            if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 3, R.string.main_discard_activity)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> showProtection()
+                    2 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_direction)
+                        .setMessage(R.string.main_direction_body).setPositiveButton(R.string.main_done, null).show()
+                    3 -> discardRun()
+                    9 -> showLanguage()
+                }; true
+            }
+        }.show()
+    }
+    private fun showLanguage() {
+        val tags = arrayOf("es", "en")
+        val current = resources.configuration.locales[0].language
+        MaterialAlertDialogBuilder(this).setTitle(R.string.main_language)
+            .setSingleChoiceItems(arrayOf("Español", "English"), tags.indexOf(current)) { dialog, which ->
+                dialog.dismiss(); AppLanguage.select(this, tags[which])
+            }.setNegativeButton(R.string.main_cancel, null).show()
+    }
+    private fun showAbout() {
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.5")
+            .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
+            .setNeutralButton(R.string.main_icon_license) { _, _ ->
+                MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
+                    .setMessage(assets.open("licenses/tabler-icons.txt").bufferedReader().use { it.readText() })
+                    .setPositiveButton(R.string.main_done, null).show()
+            }.show()
+    }
     private fun showProtection() {
         val unrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         val notifications = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
-        MaterialAlertDialogBuilder(this).setTitle("Recording protection")
-            .setMessage("Battery: ${if (unrestricted) "unrestricted" else "optimized"}\nNotifications: ${if (notifications) "on" else "off"}\n\nScreen off or app swiped away: recording continues while Android permits. After shutdown or force-stop: reopen to recover saved data.\n\nFor long runs, allow unrestricted battery use in Android settings.\n\nAllow Runline and silent notifications on the lock screen to see time, distance and controls. Expand the notification for actions. Samsung Now Bar support depends on your phone and One UI version.")
-            .setPositiveButton("App settings") { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
-            .setNeutralButton("Notifications") { _, _ -> startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) }
-            .setNegativeButton("Done", null).show()
-    }
-    private fun addDetail(parent: LinearLayout, label: String, value: String) {
-        val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(12)) }
-        row.addView(text(label, 15, muted = true), LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(text(value, 16, bold = true).apply { gravity = Gravity.END }, LinearLayout.LayoutParams(0, -2, 1f))
-        parent.addView(row); parent.addView(divider())
+        MaterialAlertDialogBuilder(this).setTitle(R.string.main_protection)
+            .setMessage(getString(R.string.main_protection_body,
+                getString(if (unrestricted) R.string.main_unrestricted else R.string.main_optimized),
+                getString(if (notifications) R.string.main_on else R.string.main_off)))
+            .setPositiveButton(R.string.main_app_settings) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+            .setNeutralButton(R.string.main_notifications) { _, _ -> startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) }
+            .setNegativeButton(R.string.main_done, null).show()
     }
     private fun requestRecording(action: String) {
         pendingAction = action
@@ -450,8 +371,8 @@ class MainActivity : AppCompatActivity() {
         }
         val manager = getSystemService(LocationManager::class.java)
         if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            MaterialAlertDialogBuilder(this).setTitle("Turn on location").setMessage("Enable your phone's location setting, then return and start your run.")
-                .setPositiveButton("Location settings") { _, _ -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }.setNegativeButton("Cancel", null).show(); return
+            MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_location_title)).setMessage(getString(R.string.main_location_body))
+                .setPositiveButton(getString(R.string.main_location_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }.setNegativeButton(getString(R.string.main_cancel), null).show(); return
         }
         command(action)
     }
@@ -459,36 +380,25 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) requestRecording(pendingAction)
-            else MaterialAlertDialogBuilder(this).setTitle("Precise location is needed").setMessage("Approximate location cannot measure a run reliably. You can enable precise location in app settings.")
-                .setPositiveButton("App settings") { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }.setNegativeButton("Close", null).show()
+            else MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_precise_title)).setMessage(getString(R.string.main_precise_body))
+                .setPositiveButton(getString(R.string.main_app_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }.setNegativeButton(getString(R.string.main_close), null).show()
         } else if (requestCode == 101) requestRecording(pendingAction)
     }
     private fun command(action: String) {
         if (android.os.SystemClock.elapsedRealtime() < actionPendingUntil) return
         actionPendingUntil = android.os.SystemClock.elapsedRealtime() + 700
-        try { TrackingService.command(this, action); handler.postDelayed({ refreshRecording() }, 150) }
-        catch (e: Exception) { notice("Couldn't start recording. Check location permission and try again.") }
+        try { TrackingService.command(this, action, selectedActivity); handler.postDelayed({ refreshRecording() }, 150) }
+        catch (e: Exception) { notice(getString(R.string.main_start_failed)) }
     }
     private fun discardRun() {
-        MaterialAlertDialogBuilder(this).setTitle("Discard this recording?").setMessage("This cannot be undone.")
-            .setPositiveButton("Discard") { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton("Keep run", null).show()
+        MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_discard_title)).setMessage(getString(R.string.main_discard_body))
+            .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton(getString(R.string.main_keep), null).show()
     }
-    private fun saveGpx(run: RunSession) {
-        pendingExport = run
-        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE); type = "application/gpx+xml"; putExtra(Intent.EXTRA_TITLE, filename(run))
-        }, 200)
-    }
+    private fun saveGpx(run: RunSession) { exporter.start(run) }
     @Deprecated("Platform document result is supported on the minimum SDK")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (stravaSharing.handleActivityResult(requestCode, resultCode, data)) return
-        if (requestCode == 200 && resultCode == RESULT_OK) {
-            val run = pendingExport ?: return; val uri = data?.data ?: return
-            try { (contentResolver.openOutputStream(uri) ?: error("No destination")).use { output -> output.bufferedWriter().use { it.write(GpxExporter.export(run)) } }; notice("GPX file saved.") }
-            catch (e: Exception) { notice("Couldn't save the GPX file. Choose another location and try again.") }
-        }
-        if (requestCode == 200) pendingExport = null
+        exporter.handleActivityResult(requestCode, resultCode, data)
     }
     private fun shareGpx(run: RunSession) {
         try {
@@ -496,11 +406,11 @@ class MainActivity : AppCompatActivity() {
             val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
             startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                 type = "application/gpx+xml"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                clipData = ClipData.newUri(contentResolver, "Run GPX", uri)
-            }, "Share run file"))
-        } catch (e: Exception) { notice("Couldn't share this run. Try Save GPX file instead.") }
+                clipData = ClipData.newUri(contentResolver, getString(R.string.main_gpx_label), uri)
+            }, getString(R.string.main_share_file)))
+        } catch (e: Exception) { notice(getString(R.string.main_share_failed)) }
     }
-    private fun filename(run: RunSession) = "runline-${Instant.ofEpochMilli(run.startedAtMs).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss"))}.gpx"
+    private fun filename(run: RunSession) = ActivityExportName.fileName(this, run)
     private fun notice(message: String) { Snackbar.make(root, message, Snackbar.LENGTH_LONG).show() }
     private fun text(value: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(this).apply {
         text = value; textSize = size.toFloat(); setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
@@ -523,8 +433,8 @@ class MainActivity : AppCompatActivity() {
     private fun divider() = View(this).apply { setBackgroundColor(getColor(R.color.surface_variant)); layoutParams = LinearLayout.LayoutParams(-1, dp(1)) }
     private fun margin(top: Int = 0, bottom: Int = 0, left: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom); marginStart = dp(left) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
-    private fun date(millis: Long) = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE, d MMM · HH:mm", Locale.getDefault()))
-    private fun duration(millis: Long): String { val seconds = (millis / 1000).coerceAtLeast(0); return if (seconds >= 3600) String.format(Locale.getDefault(), "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) else String.format(Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60) }
-    private fun number(value: Double?, decimals: Int): String = if (value == null || !value.isFinite()) "—" else String.format(Locale.getDefault(), "%.${decimals}f", value)
-    private fun pace(seconds: Double?): String { if (seconds == null || !seconds.isFinite() || seconds < 0) return "—"; val rounded = seconds.roundToInt(); return String.format(Locale.getDefault(), "%d:%02d", rounded / 60, rounded % 60) }
+    private fun date(millis: Long) = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE, d MMM · HH:mm", resources.configuration.locales[0]))
+    private fun duration(millis: Long): String { val seconds = (millis / 1000).coerceAtLeast(0); return if (seconds >= 3600) String.format(resources.configuration.locales[0], "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) else String.format(resources.configuration.locales[0], "%02d:%02d", seconds / 60, seconds % 60) }
+    private fun number(value: Double?, decimals: Int): String = if (value == null || !value.isFinite()) "—" else String.format(resources.configuration.locales[0], "%.${decimals}f", value)
+    private fun pace(seconds: Double?): String { if (seconds == null || !seconds.isFinite() || seconds < 0) return "—"; val rounded = seconds.roundToInt(); return String.format(resources.configuration.locales[0], "%d:%02d", rounded / 60, rounded % 60) }
 }

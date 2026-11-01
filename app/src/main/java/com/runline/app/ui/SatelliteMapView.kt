@@ -1,23 +1,30 @@
 package com.runline.app.ui
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.SystemClock
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
 import com.runline.app.core.GpsCourse
+import com.runline.app.core.MarkerMotion
 import com.runline.app.core.RunPoint
 import com.runline.app.core.continuousSegments
 import com.runline.app.core.hasValidCoordinates
@@ -57,6 +64,13 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private var style: Style? = null
     private var routePoints: List<RunPoint> = emptyList()
     private var marker: RunPoint? = null
+    private var displayedMarker: RunPoint? = null
+    private var displayedBearing: Double? = null
+    private var motionAnimator: ValueAnimator? = null
+    private var liveMotionEnabled = true
+    private var locationWaitingMessage: String? = null
+    private var tileMessage: String? = context.getString(R.string.map_loading_satellite)
+    private var mapFailed = false
     private var initialCenter: LatLng? = null
     private var fitPending = false
     private var disposed = false
@@ -71,12 +85,12 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private var readyTiles = false
     private val loadingTimeout = Runnable {
         if (!disposed && !readyTiles) {
-            status.text = "Map tiles not loaded · route still shown"
-            status.visibility = VISIBLE
+            tileMessage = context.getString(R.string.map_tiles_not_loaded)
+            updateLocationPresentation()
         }
     }
     private val status = TextView(context).apply {
-        text = "Loading satellite…"
+        text = context.getString(R.string.map_loading_satellite)
         textSize = 12f
         setTextColor(Color.BLACK)
         setPadding(dp(8), dp(5), dp(8), dp(5))
@@ -84,19 +98,44 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
     }
     private val credits = TextView(context).apply {
-        text = "© IGN · EOX · OpenStreetMap"
+        text = context.getString(R.string.map_attribution)
         textSize = 11f
         setTextColor(Color.BLACK)
         setBackgroundColor(Color.WHITE)
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(8), 0, dp(8), 0)
-        contentDescription = "Map credits and imagery coverage"
+        contentDescription = context.getString(R.string.map_credits_accessibility)
         setOnClickListener { showCredits() }
     }
     private val fallback = RouteView(context).apply { visibility = GONE }
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val waitingSpinner = ProgressBar(context).apply {
+        indeterminateTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val waitingText = TextView(context).apply {
+        textSize = 18f; gravity = Gravity.CENTER
+        setTextColor(context.getColor(R.color.on_surface))
+        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
+    }
+    private val waitingHint = TextView(context).apply {
+        setText(R.string.map_location_hint); textSize = 14f; gravity = Gravity.CENTER
+        setTextColor(context.getColor(R.color.on_surface_variant))
+    }
+    private val waitingContent = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+        setPadding(dp(24), dp(16), dp(24), dp(16))
+        addView(waitingSpinner, LinearLayout.LayoutParams(dp(32), dp(32)).apply { bottomMargin = dp(20) })
+        addView(waitingText, LinearLayout.LayoutParams(-1, -2))
+        addView(waitingHint, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+    }
+    private val waitingPanel = FrameLayout(context).apply {
+        isClickable = true // Do not let touches on loading content pan the hidden map.
+        setBackgroundColor(context.getColor(R.color.surface))
+        addView(waitingContent, LayoutParams(-1, -1))
+    }
 
-    val navigationBearingAvailable: Boolean get() = navigationMode && course.bearingDegrees != null
+    val navigationBearingAvailable: Boolean get() = navigationMode && displayedBearing != null
 
     init {
         setBackgroundColor(Color.rgb(44, 44, 44))
@@ -108,16 +147,17 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             .camera(CameraPosition.Builder().target(LatLng(15.0, 0.0)).zoom(1.0).build()))
         addView(mapView, LayoutParams(-1, -1))
         addView(fallback, LayoutParams(-1, -1))
+        addView(waitingPanel, LayoutParams(-1, -1))
         addView(status, LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
             setMargins(dp(8), dp(8), dp(64), 0)
         })
         addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START))
-        controls.addView(mapButton(R.drawable.ic_route, "Fit entire route") { fitRoute() })
-        controls.addView(mapButton(R.drawable.ic_location, "Follow moving marker") { setFollowing(true) })
+        controls.addView(mapButton(R.drawable.ic_route, context.getString(R.string.map_fit_route)) { fitRoute() })
+        controls.addView(mapButton(R.drawable.ic_location, context.getString(R.string.map_follow_marker)) { setFollowing(true) })
         addView(controls, LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
             setMargins(0, dp(8), dp(8), 0)
         })
-        mapView.contentDescription = "Satellite map. Drag to pan and pinch to zoom."
+        mapView.contentDescription = context.getString(R.string.map_accessibility)
         var downX = 0f
         var downY = 0f
         mapView.setOnTouchListener { _, event ->
@@ -136,10 +176,10 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         mapView.setMaximumFps(30)
         mapView.addOnDidFailLoadingMapListener {
             if (!disposed) {
-                status.text = "Map unavailable · route still shown"
-                status.visibility = VISIBLE
+                mapFailed = true
+                tileMessage = context.getString(R.string.map_unavailable)
                 fallback.points = routePoints
-                fallback.visibility = VISIBLE
+                updateLocationPresentation()
             }
         }
         mapView.addOnTileActionListener { operation, _, _, _, _, _, source ->
@@ -147,15 +187,16 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                 when (operation) {
                     TileOperation.LoadFromNetwork, TileOperation.LoadFromCache -> {
                         readyTiles = true
-                        status.visibility = GONE
+                        tileMessage = null
+                        updateLocationPresentation()
                     }
                     TileOperation.Error -> {
                         if (source == "spain") {
                             pnoaUnavailable = true
                             updateImageryCoverage()
                         }
-                        status.text = "Some map tiles unavailable"
-                        status.visibility = VISIBLE
+                        tileMessage = context.getString(R.string.map_some_tiles_unavailable)
+                        updateLocationPresentation()
                     }
                     else -> Unit
                 }
@@ -194,8 +235,10 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                 following = keepFollowing
                 if (following) followMarker()
                 updateImageryCoverage()
+                updateLocationPresentation()
             }
         }
+        updateLocationPresentation()
         postDelayed(loadingTimeout, 12_000)
     }
 
@@ -214,7 +257,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         routePoints = points
         fallback.points = points
         updateRoute()
-        updateMarker()
         if (firstRoute && !navigationMode) {
             val keepFollowing = following
             fitRoute()
@@ -225,9 +267,67 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     /** Pass null while playback is in a pause or unavailable GPS interval. */
     fun setMarker(point: RunPoint?) {
         if (disposed) return
-        marker = point?.takeIf { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
-        updateMarker()
-        if (following) followMarker()
+        val target = point?.takeIf { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
+        if (target == marker) return // A timer refresh must not restart an in-flight movement.
+        val previous = marker
+        val from = displayedMarker
+        val fromBearing = displayedBearing
+        marker = target
+        val targetBearing = if (navigationMode) course.bearingDegrees else null
+        cancelMotion()
+        if (navigationMode && liveMotionEnabled && resumed && style != null && from != null && target != null &&
+            MarkerMotion.canInterpolate(previous, target) && from.segment == target.segment) {
+            var lastFrameMs = 0L
+            val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = MarkerMotion.durationMs(previous!!, target)
+                interpolator = LinearInterpolator()
+                addUpdateListener { animation ->
+                    if (disposed || !resumed) return@addUpdateListener
+                    val fraction = animation.animatedFraction.toDouble()
+                    val now = SystemClock.uptimeMillis()
+                    if (fraction < 1.0 && now - lastFrameMs < 30L) return@addUpdateListener
+                    lastFrameMs = now
+                    displayedMarker = MarkerMotion.interpolate(from, target, fraction)
+                    displayedBearing = MarkerMotion.interpolateBearing(fromBearing, targetBearing, fraction)
+                    updateMarker()
+                    if (following) followMarker()
+                }
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        if (motionAnimator === animation) motionAnimator = null
+                    }
+                })
+            }
+            motionAnimator = animator
+            animator.start()
+        } else {
+            displayedMarker = target
+            displayedBearing = targetBearing
+            updateMarker()
+            if (following) followMarker()
+        }
+        updateLocationPresentation()
+    }
+
+    /** Disable interpolation while paused/recovered. GPS files are never modified. */
+    fun setLiveMotionEnabled(enabled: Boolean) {
+        if (liveMotionEnabled == enabled) return
+        liveMotionEnabled = enabled
+        if (!enabled) {
+            cancelMotion()
+            displayedMarker = marker
+            displayedBearing = if (navigationMode) course.bearingDegrees else null
+            updateMarker()
+            if (following) followMarker()
+        }
+        updateLocationPresentation()
+    }
+
+    /** Optional service status while awaiting the first fix; controls remain available. */
+    fun setLocationWaitingMessage(message: String?) {
+        if (locationWaitingMessage == message) return
+        locationWaitingMessage = message
+        updateLocationPresentation()
     }
 
     fun setCenter(latitude: Double, longitude: Double) {
@@ -239,22 +339,35 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     fun setFollowing(enabled: Boolean) {
         following = enabled
-        if (enabled) followMarker()
+        if (!enabled) return
+        if (displayedMarker != null) followMarker()
+        else {
+            if (navigationMode) updateLocationPresentation()
+            else {
+                status.setText(R.string.map_no_position)
+                status.visibility = VISIBLE
+            }
+            announceForAccessibility(context.getString(R.string.map_no_position))
+        }
     }
 
     /** Live GPS uses an arrow once movement establishes a course; replay keeps its dot. */
     fun setNavigationMode(enabled: Boolean) {
         if (disposed || navigationMode == enabled) return
         navigationMode = enabled
+        cancelMotion()
         course.reset()
         if (enabled) {
             routePoints.forEach(course::update)
             following = true
             fitPending = false
         }
+        displayedMarker = marker
+        displayedBearing = if (enabled) course.bearingDegrees else null
         updateMarker()
         applyCameraInsets()
         if (following) followMarker()
+        updateLocationPresentation()
     }
 
     /** Physical View pixels occupied by the host's floating controls and run island. */
@@ -279,6 +392,10 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             setMargins(next[0], next[1], next[2], next[3] + dp(56))
             fallback.layoutParams = this
         }
+        (waitingContent.layoutParams as LayoutParams).apply {
+            setMargins(next[0], next[1], next[2], next[3])
+            waitingContent.layoutParams = this
+        }
         applyCameraInsets()
         if (following) followMarker()
     }
@@ -286,15 +403,20 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     /** Fit handles routes crossing the date line without zooming out to the entire world. */
     fun fitRoute() {
         if (disposed) return
-        following = false
         val valid = routePoints.filter { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
+        if (valid.isEmpty()) {
+            if (navigationMode) updateLocationPresentation()
+            else { status.setText(R.string.route_no_gps); status.visibility = VISIBLE }
+            announceForAccessibility(context.getString(R.string.route_no_gps))
+            return
+        }
+        following = false
         val currentMap = map
         if (currentMap == null || width == 0 || height == 0) {
             fitPending = true
             return
         }
         fitPending = false
-        if (valid.isEmpty()) return
         val origin = valid.first().longitude
         val lngs = valid.map { origin + ((it.longitude - origin + 540.0) % 360.0) - 180.0 }
         val ys = valid.map { mercatorY(it.latitude) }
@@ -321,10 +443,16 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (!started) { mapView.onStart(); started = true }
         mapView.onResume()
         resumed = true
+        // Return directly to the last observed fix; never animate unseen background time.
+        displayedMarker = marker
+        displayedBearing = if (navigationMode) course.bearingDegrees else null
+        updateMarker()
+        if (following) followMarker()
     }
 
     fun onHostPause() {
         if (disposed) return
+        cancelMotion()
         if (resumed) { mapView.onPause(); resumed = false }
         if (started) { mapView.onStop(); started = false }
     }
@@ -370,20 +498,44 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     private fun updateMarker() {
         val ready = style ?: return
-        ready.getSourceAs<GeoJsonSource>("position")?.setGeoJson(pointCollection(marker))
+        ready.getSourceAs<GeoJsonSource>("position")?.setGeoJson(pointCollection(displayedMarker))
         val arrow = navigationBearingAvailable
         ready.getLayer("position-dot")?.setProperties(visibility(if (arrow) Property.NONE else Property.VISIBLE))
         ready.getLayer("position-arrow")?.setProperties(
-            visibility(if (arrow) Property.VISIBLE else Property.NONE), iconRotate((course.bearingDegrees ?: 0.0).toFloat()))
+            visibility(if (arrow) Property.VISIBLE else Property.NONE), iconRotate((displayedBearing ?: 0.0).toFloat()))
     }
 
     private fun followMarker() {
-        val point = marker ?: return
+        val point = displayedMarker ?: return
         val loaded = map ?: return
         if (navigationMode) loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 18.0))
         else if (loaded.cameraPosition.zoom < 13.0) loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 16.0))
         else loaded.moveCamera(CameraUpdateFactory.newLatLng(LatLng(point.latitude, point.longitude)))
         updateImageryCoverage()
+    }
+
+    private fun cancelMotion() {
+        motionAnimator?.cancel()
+        motionAnimator = null
+    }
+
+    private fun updateLocationPresentation() {
+        if (disposed) return
+        val waitingForPosition = navigationMode && marker == null
+        val waiting = waitingForPosition || (style == null && !mapFailed)
+        val message = if (waitingForPosition) locationWaitingMessage ?: context.getString(R.string.map_loading_location)
+            else context.getString(R.string.map_loading_satellite)
+        if (waitingText.text != message) waitingText.text = message
+        waitingSpinner.visibility = if (!waitingForPosition || liveMotionEnabled) VISIBLE else GONE
+        waitingHint.visibility = if (waitingForPosition && liveMotionEnabled) VISIBLE else GONE
+        waitingPanel.visibility = if (waiting) VISIBLE else GONE
+        // Keep the TextureView alive underneath the opaque loading panel. Making it
+        // invisible can defer GL surface creation and prevent the style from loading.
+        mapView.importantForAccessibility = if (waiting) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        fallback.visibility = if (mapFailed && !waiting) VISIBLE else GONE
+        credits.visibility = if (waiting) GONE else VISIBLE
+        status.text = tileMessage
+        status.visibility = if (!waiting && tileMessage != null) VISIBLE else GONE
     }
 
     private fun cameraInsets(): DoubleArray {
@@ -436,25 +588,21 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     private fun showCredits() {
         val message = TextView(context).apply {
-            text = Html.fromHtml(CREDITS, Html.FROM_HTML_MODE_LEGACY)
+            text = Html.fromHtml(context.getString(R.string.map_credits_html), Html.FROM_HTML_MODE_LEGACY)
             setTextColor(context.getColor(R.color.on_surface))
             setLinkTextColor(context.getColor(R.color.on_surface))
             textSize = 14f
             setPadding(dp(24), dp(8), dp(24), dp(8))
             movementMethod = LinkMovementMethod.getInstance()
         }
-        MaterialAlertDialogBuilder(context).setTitle("Satellite map")
-            .setView(message).setPositiveButton("Close", null).show()
+        MaterialAlertDialogBuilder(context).setTitle(R.string.map_title)
+            .setView(message).setPositiveButton(R.string.map_close, null).show()
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
     private fun mercatorY(latitude: Double) = (1.0 - asinh(tan(Math.toRadians(latitude))) / Math.PI) / 2.0
 
     companion object {
-        private const val CREDITS = "<p>Spain: <a href=\"https://www.ign.es/web/ide-area-nodo-ide-ign\">© IGN / PNOA</a>, <a href=\"https://creativecommons.org/licenses/by/4.0/\">CC BY 4.0</a>. Aerial detail is available when the map is centred in Spain.</p>" +
-            "<p>Worldwide: <a href=\"https://maps.eox.at/\">EOxCloudless by EOX</a>. Contains modified Copernicus Sentinel data 2025. <a href=\"https://creativecommons.org/licenses/by-nc-sa/4.0/\">CC BY-NC-SA 4.0</a>. Worldwide imagery is about 10 metres per pixel, so close zooms can look soft.</p>" +
-            "<p>Labels: © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>; rendering © <a href=\"https://eox.at/\">EOX</a> and <a href=\"https://github.com/mapserver/basemaps\">MapServer</a>. Map display: <a href=\"https://maplibre.org/\">MapLibre</a>. Coverage outline: Natural Earth, public domain.</p>" +
-            "<p>Imagery needs internet and may be cached. The providers receive tile-area requests and your network address. Your run file and timestamps stay on this phone. Recording works without map tiles.</p>"
         private const val BASE_STYLE = """
         {"version":8,"sources":{
           "world":{"type":"raster","tiles":["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"],"tileSize":256,"minzoom":0,"maxzoom":14},

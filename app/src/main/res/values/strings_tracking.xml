@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tracking_channel">Activity recording</string>
+    <string name="tracking_channel_description">Live time, distance and activity controls</string>
+    <string name="tracking_gps_lost">GPS lost · time continues</string>
+    <string name="tracking_recovered_damage">Recovered available points · check your route</string>
+    <string name="tracking_recovered_hint">Activity recovered · resume or save</string>
+    <string name="tracking_recovery_error">Draft needs recovery · files kept</string>
+    <string name="tracking_open_to_resume">Open the app to resume recording</string>
+    <string name="tracking_set_aside_first">Set aside the damaged draft first</string>
+    <string name="tracking_allow_location">Allow precise location to resume</string>
+    <string name="tracking_enable_location">Turn on location, then resume</string>
+    <string name="tracking_finding_gps">Loading your current location…</string>
+    <string name="tracking_check_location_storage">Recording paused · check location and storage</string>
+    <string name="tracking_paused">Paused</string>
+    <string name="tracking_preserve_damaged">Set aside the damaged draft to keep its recovery files</string>
+    <string name="tracking_finish_first">Finish your current activity first</string>
+    <string name="tracking_archived">Draft kept in recovery storage</string>
+    <string name="tracking_free_space_retry">Recovery files kept · free space and retry</string>
+    <string name="tracking_weak_gps">Weak GPS · time continues</string>
+    <string name="tracking_location_off">Location off · turn it on and resume</string>
+    <string name="tracking_storage_paused">Recording paused · free storage and save again</string>
+    <string name="tracking_metrics">%1$.2f km · %2$s /km avg</string>
+    <string name="tracking_walking">Walking</string>
+    <string name="tracking_hiking">Hiking</string>
+    <string name="tracking_running">Running</string>
+    <string name="tracking_recovered">Activity recovered</string>
+    <string name="tracking_notification_paused">Activity paused · %1$s</string>
+    <string name="tracking_opening">Opening activity…</string>
+    <string name="tracking_active_time">%1$s active time</string>
+    <string name="tracking_saved_on_phone">Your recording is kept on this phone</string>
+    <string name="tracking_action_pause">Pause</string>
+    <string name="tracking_action_resume">Resume</string>
+    <string name="tracking_action_finish">Finish</string>
+</resources>

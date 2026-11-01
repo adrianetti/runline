@@ -35,7 +35,8 @@ data class ReplayFrame(
  * Construction is O(n log n); a frame seek is O(log n). Build once for a saved run, then
  * advance position using a monotonic UI clock and the selected playback multiplier.
  */
-class RunReplay(run: RunSession) {
+class RunReplay(val session: RunSession) {
+    private val run = session
     val segments: List<List<RunPoint>> = safeSegments(run.points)
     val durationMs: Long
     val summary: RunAnalysis

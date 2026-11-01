@@ -16,7 +16,7 @@
             <data android:scheme="https" />
         </intent>
     </queries>
-    <application android:theme="@style/Theme.Runline" android:label="Runline" android:icon="@drawable/ic_runline" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
+    <application android:localeConfig="@xml/locale_config" android:theme="@style/Theme.Runline" android:label="Runline" android:icon="@drawable/ic_runline" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>

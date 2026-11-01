@@ -1,5 +1,18 @@
 package com.runline.app.core
 
+/** Stored independently of display language. Unknown/legacy values remain compatible. */
+enum class ActivityType(val storageValue: String, val gpxType: String, val gpxName: String) {
+    RUN("run", "running", "Run"),
+    WALK("walk", "walking", "Walk"),
+    HIKE("hike", "hiking", "Hike");
+
+    companion object {
+        fun fromStorage(value: String?): ActivityType = entries.firstOrNull {
+            it.storageValue.equals(value, ignoreCase = true)
+        } ?: RUN
+    }
+}
+
 /** One accepted GPS fix. [segment] changes whenever recording resumes after a pause. */
 data class RunPoint(
     val latitude: Double,
@@ -17,6 +30,7 @@ data class RunSession(
     val endedAtMs: Long,
     val activeDurationMs: Long,
     val points: List<RunPoint>,
+    val activityType: ActivityType = ActivityType.RUN,
 )
 
 /** A kilometre, or the final partial kilometre, measured from recorded GPS samples. */

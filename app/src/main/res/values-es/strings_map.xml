@@ -1,0 +1,19 @@
+<resources>
+    <string name="map_loading_satellite">Cargando mapa de satélite…</string>
+    <string name="map_tiles_not_loaded">Mapa sin cargar · el recorrido sigue visible</string>
+    <string name="map_unavailable">Mapa no disponible · el recorrido sigue visible</string>
+    <string name="map_some_tiles_unavailable">Algunas zonas del mapa no están disponibles</string>
+    <string name="map_loading_location">Buscando tu ubicación actual…</string>
+    <string name="map_location_hint">Sal al aire libre para obtener señal GPS.</string>
+    <string name="map_no_position">Aún no hay una posición GPS disponible</string>
+    <string name="map_fit_route">Ver todo el recorrido</string>
+    <string name="map_follow_marker">Seguir la posición</string>
+    <string name="map_accessibility">Mapa de satélite. Arrastra para moverlo y pellizca para cambiar el zoom.</string>
+    <string name="map_attribution">© IGN · EOX · OpenStreetMap</string>
+    <string name="map_credits_accessibility">Créditos y cobertura del mapa</string>
+    <string name="map_title">Mapa de satélite</string>
+    <string name="map_close">Cerrar</string>
+    <string name="route_no_gps">Sin recorrido GPS</string>
+    <string name="route_samples">Recorrido grabado, %1$d muestras GPS</string>
+    <string name="map_credits_html"><![CDATA[<p>España: <a href="https://www.ign.es/web/ide-area-nodo-ide-ign">© IGN / PNOA</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Hay imágenes aéreas detalladas cuando el mapa está centrado en España.</p><p>Resto del mundo: <a href="https://maps.eox.at/">EOxCloudless de EOX</a>. Contiene datos modificados de Copernicus Sentinel de 2025. <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>. La resolución mundial es de unos 10 metros por píxel; al ampliar mucho, la imagen puede verse borrosa.</p><p>Etiquetas: © <a href="https://www.openstreetmap.org/copyright">colaboradores de OpenStreetMap</a>; representación © <a href="https://eox.at/">EOX</a> y <a href="https://github.com/mapserver/basemaps">MapServer</a>. Visor: <a href="https://maplibre.org/">MapLibre</a>. Contorno de cobertura: Natural Earth, dominio público.</p><p>Las imágenes necesitan internet y pueden guardarse en caché. Los proveedores reciben solicitudes de las zonas visibles y tu dirección de red. El archivo de tu actividad y sus marcas de tiempo permanecen en este teléfono. La grabación funciona sin imágenes del mapa.</p>]]></string>
+</resources>

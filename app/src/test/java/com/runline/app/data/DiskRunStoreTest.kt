@@ -1,5 +1,6 @@
 package com.runline.app.data
 
+import com.runline.app.core.ActivityType
 import com.runline.app.core.RunPoint
 import com.runline.app.core.RunSession
 import org.json.JSONObject
@@ -9,6 +10,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.IOException
+import java.util.zip.CRC32
 
 class DiskRunStoreTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -145,4 +147,60 @@ class DiskRunStoreTest {
         assertEquals("legacy", recovered.run.id); assertEquals(1, recovered.run.points.size)
         assertEquals(1000L, recovered.run.activeDurationMs); assertFalse(recovered.wantsRecording)
     }
+
+    @Test fun legacyAndUnknownActivityTypesPreserveTheEntireSavedRecording() {
+        val expected = base.copy(endedAtMs = 8_200_000, activeDurationMs = 7_200_000, points = listOf(point(1), point(2)))
+        for (storedType in listOf<String?>(null, "future-sport")) {
+            val dir = temporary.newFolder()
+            DiskRunStore(dir).save(expected)
+            for (suffix in listOf("", ".backup")) {
+                val file = File(dir, "run-test-run.json" + suffix)
+                val value = JSONObject(JSONObject(file.readText()).getString("payload"))
+                if (storedType == null) value.remove("activityType") else value.put("activityType", storedType)
+                file.writeText(sealForTest(value))
+            }
+            assertEquals(expected, DiskRunStore(dir).get(base.id))
+            assertEquals(ActivityType.RUN, DiskRunStore(dir).list().single().activityType)
+        }
+    }
+
+    @Test fun selectedTypeSurvivesSeedJournalRecoveryAndFinalBackup() {
+        for (activityType in ActivityType.entries) {
+            val dir = temporary.newFolder()
+            val selected = base.copy(activityType = activityType)
+            val store = DiskRunStore(dir)
+            store.beginDraft(selected)
+            assertEquals(activityType, DiskRunStore(dir).loadDraftRecord()!!.run.activityType)
+            store.appendPoint(point(1), DraftRecord(selected.copy(activeDurationMs = 1000, endedAtMs = 1_001_000), true, 7, 101_000))
+            listOf("draft.json", "draft-checkpoint.json", "draft-seed.json").forEach { File(dir, it).writeText("corrupt") }
+            val reopened = DiskRunStore(dir)
+            val recovered = reopened.loadDraftRecord()!!
+            assertEquals(activityType, recovered.run.activityType)
+            assertEquals(listOf(point(1)), recovered.run.points)
+            assertEquals(1000L, recovered.run.activeDurationMs)
+            reopened.complete(recovered.run)
+            File(dir, "run-test-run.json").writeText("corrupt")
+            assertEquals(recovered.run, DiskRunStore(dir).get(selected.id))
+            assertNull(DiskRunStore(dir).loadDraftRecord())
+        }
+    }
+
+    @Test fun activityTypePersistsInTimerOnlyCheckpointsBeforeGpsArrives() {
+        val dir = temporary.newFolder()
+        val selected = base.copy(activityType = ActivityType.WALK)
+        val store = DiskRunStore(dir)
+        store.beginDraft(selected)
+        store.checkpoint(DraftRecord(selected.copy(activeDurationMs = 5000, endedAtMs = 1_005_000), true, 7, 105_000))
+        File(dir, "draft.json").writeText("corrupt")
+        val recovered = DiskRunStore(dir).loadDraftRecord()!!
+        assertEquals(ActivityType.WALK, recovered.run.activityType)
+        assertEquals(5000L, recovered.run.activeDurationMs)
+        assertTrue(recovered.mayRestart(7, 106_000))
+    }
+
+    private fun sealForTest(value: JSONObject): String {
+        val payload = value.toString()
+        return JSONObject().put("payload", payload).put("crc32", CRC32().apply { update(payload.toByteArray(Charsets.UTF_8)) }.value).toString()
+    }
+
 }

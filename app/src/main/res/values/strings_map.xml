@@ -1,0 +1,19 @@
+<resources>
+    <string name="map_loading_satellite">Loading satellite…</string>
+    <string name="map_tiles_not_loaded">Map tiles not loaded · route still shown</string>
+    <string name="map_unavailable">Map unavailable · route still shown</string>
+    <string name="map_some_tiles_unavailable">Some map tiles unavailable</string>
+    <string name="map_loading_location">Loading your current location…</string>
+    <string name="map_location_hint">Go outdoors for a GPS fix.</string>
+    <string name="map_no_position">No GPS position available yet</string>
+    <string name="map_fit_route">Fit entire route</string>
+    <string name="map_follow_marker">Follow moving marker</string>
+    <string name="map_accessibility">Satellite map. Drag to pan and pinch to zoom.</string>
+    <string name="map_attribution">© IGN · EOX · OpenStreetMap</string>
+    <string name="map_credits_accessibility">Map credits and imagery coverage</string>
+    <string name="map_title">Satellite map</string>
+    <string name="map_close">Close</string>
+    <string name="route_no_gps">No GPS route</string>
+    <string name="route_samples">Recorded route, %1$d GPS samples</string>
+    <string name="map_credits_html"><![CDATA[<p>Spain: <a href="https://www.ign.es/web/ide-area-nodo-ide-ign">© IGN / PNOA</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Aerial detail is available when the map is centred in Spain.</p><p>Worldwide: <a href="https://maps.eox.at/">EOxCloudless by EOX</a>. Contains modified Copernicus Sentinel data 2025. <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>. Worldwide imagery is about 10 metres per pixel, so close zooms can look soft.</p><p>Labels: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>; rendering © <a href="https://eox.at/">EOX</a> and <a href="https://github.com/mapserver/basemaps">MapServer</a>. Map display: <a href="https://maplibre.org/">MapLibre</a>. Coverage outline: Natural Earth, public domain.</p><p>Imagery needs internet and may be cached. The providers receive tile-area requests and your network address. Your activity file and timestamps stay on this phone. Recording works without map tiles.</p>]]></string>
+</resources>

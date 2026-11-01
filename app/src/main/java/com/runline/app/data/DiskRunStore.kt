@@ -1,5 +1,6 @@
 package com.runline.app.data
 
+import com.runline.app.core.ActivityType
 import com.runline.app.core.RunPoint
 import com.runline.app.core.RunSession
 import org.json.JSONArray
@@ -317,10 +318,11 @@ class DiskRunStore(
         value.optInt("bootCount", -1), value.optLong("checkpointElapsedMs", 0), value.optLong("revision", 0))
     private fun encodeRun(run: RunSession) = JSONObject().apply {
         put("version", 2); put("id", run.id); put("startedAtMs", run.startedAtMs); put("endedAtMs", run.endedAtMs)
-        put("activeDurationMs", run.activeDurationMs); put("points", JSONArray().apply { run.points.forEach { put(encodePoint(it)) } })
+        put("activeDurationMs", run.activeDurationMs); put("activityType", run.activityType.storageValue); put("points", JSONArray().apply { run.points.forEach { put(encodePoint(it)) } })
     }
     private fun decodeRun(value: JSONObject): RunSession = RunSession(value.getString("id"), value.getLong("startedAtMs"),
-        value.getLong("endedAtMs"), value.getLong("activeDurationMs"), value.getJSONArray("points").let { a -> (0 until a.length()).map { decodePoint(a.getJSONObject(it)) } })
+        value.getLong("endedAtMs"), value.getLong("activeDurationMs"), value.getJSONArray("points").let { a -> (0 until a.length()).map { decodePoint(a.getJSONObject(it)) } },
+        ActivityType.fromStorage(value.optString("activityType", null)))
         .also { require(it.id.matches(Regex("[A-Za-z0-9_-]+")) && it.activeDurationMs >= 0 && it.startedAtMs >= 0) }
     private fun encodePoint(p: RunPoint) = JSONObject().apply {
         put("latitude", p.latitude); put("longitude", p.longitude); put("timestampMs", p.timestampMs)
