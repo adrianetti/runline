@@ -1,0 +1,13 @@
+<resources>
+    <string name="v7_training_plan">Plan de entrenamiento</string>
+    <string name="v7_ai_settings">Conexiones de IA</string>
+    <string name="v7_edit_activity">Editar actividad</string>
+    <string name="v7_run_review">Análisis del entrenador</string>
+    <string name="v7_share_short">Compartir</string>
+    <string name="v7_export_short">Exportar</string>
+    <string name="v7_detected_laps">Vueltas detectadas</string>
+    <string name="v7_lap_number">Vuelta %1$d</string>
+    <string name="v7_lap_stats">%1$s km · %2$s · %3$s /km</string>
+    <string name="v7_lap_sector_comparison">En la última vuelta, el tramo %1$d de 4 fue aproximadamente un %2$s%% más lento que el mismo tramo anterior.</string>
+    <string name="v7_lap_note">Estimaciones GPS de vueltas similares. Los tramos siguen el sentido de la marcha; los cambios pueden deberse al terreno, las paradas o el ruido del GPS.</string>
+</resources>

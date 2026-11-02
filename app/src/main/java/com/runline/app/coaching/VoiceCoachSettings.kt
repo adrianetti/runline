@@ -16,6 +16,8 @@ object VoiceCoachSettings {
             paceSecondsPerKm = p.getInt("paceSecondsPerKm", 360),
             targetMinutes = p.getString("targetMinutes", "30.0")?.toDoubleOrNull() ?: 30.0,
             kilometreAnnouncements = p.getBoolean("kilometreAnnouncements", true),
+            paceFeedback = p.getBoolean("paceFeedback", true), encouragement = p.getBoolean("encouragement", true),
+            terrainFeedback = p.getBoolean("terrainFeedback", true), lapFeedback = p.getBoolean("lapFeedback", true),
         )
         return config.takeIf(CoachConfig::isValid) ?: CoachConfig()
     }
@@ -23,7 +25,9 @@ object VoiceCoachSettings {
         if (!config.isValid()) return false
         preferences(context).edit().putBoolean("enabled", config.enabled).putString("goal", config.goal.name)
             .putString("distanceKm", config.distanceKm.toString()).putInt("paceSecondsPerKm", config.paceSecondsPerKm)
-            .putString("targetMinutes", config.targetMinutes.toString()).putBoolean("kilometreAnnouncements", config.kilometreAnnouncements).apply()
+            .putString("targetMinutes", config.targetMinutes.toString()).putBoolean("kilometreAnnouncements", config.kilometreAnnouncements)
+            .putBoolean("paceFeedback", config.paceFeedback).putBoolean("encouragement", config.encouragement)
+            .putBoolean("terrainFeedback", config.terrainFeedback).putBoolean("lapFeedback", config.lapFeedback).apply()
         return true
     }
 }

@@ -41,7 +41,7 @@ class ActivityArchiveTest {
         }
         val csv = parseCsv(files.getValue("summary.csv").toString(Charsets.UTF_8))
         assertEquals(3, csv.size)
-        assertEquals(entries[0].filename, csv[1].last())
+        assertEquals(entries[0].filename, csv[1][csv[0].indexOf("gpx_file")])
         assertEquals(originals, sessions)
     }
 
@@ -88,6 +88,31 @@ class ActivityArchiveTest {
     @Test fun archivesAndCsvCopiesKeepTheirRecognizableExtensions() {
         assertEquals("Runline activities (2).zip", ActivityExportFileName.availableName("Runline activities.zip", listOf("Runline activities.zip")))
         assertEquals("Runline summary (3).csv", ActivityExportFileName.availableName("Runline summary.csv", listOf("Runline summary.csv", "Runline summary (2).csv")))
+    }
+
+
+    @Test fun editedMetadataAppearsInGpxAndCsvWithoutTurningTextIntoSpreadsheetFormulas() {
+        val notes = ActivityDetails("=Three <laps> & \"friends\"", "@Warmup, then\nsteady <effort>.", 7, ActivityType.RUN, RoutineType.TEMPO)
+        val entries = ActivityArchive.entries(listOf(run()), Locale.ENGLISH, zone, mapOf("walk" to notes)) { it.gpxName }
+        val rows = parseCsv(ActivityArchive.summaryCsv(entries, zone))
+        val row = rows[0].zip(rows[1]).toMap()
+        assertEquals("'" + notes.title, row["title"])
+        assertEquals("'" + notes.description, row["description"])
+        assertEquals("7", row["effort"]); assertEquals("tempo", row["routine"]); assertEquals("run", row["activity_type"])
+        val xml = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }.newDocumentBuilder()
+            .parse(ByteArrayInputStream(GpxExporter.export(entries.single().run, notes).toByteArray()))
+        assertEquals(notes.title, xml.getElementsByTagNameNS("*", "name").item(0).textContent)
+        assertEquals(notes.description, xml.getElementsByTagNameNS("*", "desc").item(0).textContent)
+        assertEquals("running", xml.getElementsByTagNameNS("*", "type").item(0).textContent)
+        assertEquals(points.size, xml.getElementsByTagNameNS("*", "trkpt").length)
+        assertTrue(ActivityArchive.README.contains("Photos are private"))
+    }
+
+    @Test fun formulaTextGuardIncludesWhitespaceAndLeavesOrdinaryNotesReadable() {
+        for (text in listOf("=2+2", "+SUM(A1)", "-1+2", "@lookup", "  =1", "\tplain", "\rline", "\nline"))
+            assertEquals("'" + text, ActivityArchive.safeSpreadsheetText(text))
+        assertEquals("Three park laps 🏃", ActivityArchive.safeSpreadsheetText("Three park laps 🏃"))
+        assertEquals("", ActivityArchive.safeSpreadsheetText(""))
     }
 
     private fun readZip(bytes: ByteArray): Map<String, ByteArray> {

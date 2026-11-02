@@ -13,4 +13,99 @@
     <string name="coach_voice_slower">You are slower than your target pace.</string>
     <string name="coach_voice_faster">You are faster than your target pace.</string>
     <string name="coach_voice_on_pace">You are back at your target pace.</string>
+
+    <string-array name="coach_phrase_slower">
+        <item>You are a little behind your target. Pick it up gently if it feels comfortable.</item>
+        <item>There is room to lift the pace a little. Keep the effort controlled.</item>
+        <item>You have eased below your target speed. A small adjustment is enough.</item>
+        <item>Try a slightly quicker rhythm if you feel ready. No need to surge.</item>
+        <item>Your recent pace is slower than the goal. Build back into it gradually.</item>
+        <item>A gentle lift can bring you toward your target. Stay relaxed.</item>
+        <item>If you feel comfortable, find a slightly quicker rhythm here.</item>
+        <item>You are behind your pace target. Listen to your effort before speeding up.</item>
+    </string-array>
+    <string-array name="coach_phrase_faster">
+        <item>You are going faster than planned. You can slow down a little.</item>
+        <item>You are ahead of your target pace. Ease back and save some energy.</item>
+        <item>Your pace is quicker than the goal. There is no need to rush.</item>
+        <item>A touch slower will bring you closer to your target. Stay comfortable.</item>
+        <item>You have picked up speed. Settle back into your planned rhythm.</item>
+        <item>You are moving faster than your goal. A gentler pace is fine.</item>
+        <item>Leave a little in reserve. You are ahead of your pace target.</item>
+        <item>Your recent pace is quick. Ease off slightly to match your plan.</item>
+    </string-array>
+    <string-array name="coach_phrase_on_pace">
+        <item>That is it. You are back around your target pace.</item>
+        <item>Good adjustment. You are back in your target range.</item>
+        <item>Your pace has settled near the goal. Keep it comfortable.</item>
+        <item>You have found your planned rhythm again. Nice work.</item>
+        <item>Back on target. Small, steady adjustments are enough.</item>
+        <item>That recent adjustment brought you back toward the goal.</item>
+        <item>You are close to your target again. Stay relaxed.</item>
+        <item>Your recent pace matches the plan. Keep listening to your effort.</item>
+    </string-array>
+    <string-array name="coach_phrase_settling">
+        <item>You are getting into the session. Find a rhythm that feels comfortable.</item>
+        <item>Nice start. Let the rhythm settle without forcing it.</item>
+        <item>Keep the opening effort comfortable. There is time to build.</item>
+        <item>You are underway. Relax your shoulders and find your rhythm.</item>
+        <item>Good to be moving. Settle in at an effort you can sustain.</item>
+        <item>Take the session one stretch at a time. Keep the effort comfortable.</item>
+    </string-array>
+    <string-array name="coach_phrase_steady">
+        <item>Keep taking it one stretch at a time. You are doing the work.</item>
+        <item>Check in with your effort. It is fine to ease off when you need to.</item>
+        <item>Nice commitment. Stay relaxed and keep the next stretch comfortable.</item>
+        <item>Let the rhythm come to you. There is no need to force every step.</item>
+        <item>Keep your shoulders loose and choose an effort you can maintain.</item>
+        <item>You are putting time into your goal. Keep listening to your body.</item>
+        <item>Stay present for the next stretch. Small, steady steps add up.</item>
+        <item>Keep it comfortable. Finishing with something in reserve is a good option.</item>
+    </string-array>
+    <string-array name="coach_phrase_halfway">
+        <item>You are past halfway to your distance goal. Keep the next part controlled.</item>
+        <item>More than half the planned distance is done. Take it one stretch at a time.</item>
+        <item>Halfway is behind you. Keep some energy for the rest.</item>
+        <item>You have passed the halfway mark. Stay with a sustainable effort.</item>
+        <item>Over halfway to your distance goal. Nice progress.</item>
+        <item>The first half is done. Keep listening to your effort for the next part.</item>
+    </string-array>
+    <string-array name="coach_phrase_final">
+        <item>You are into the last part of your distance goal. Bring it home comfortably.</item>
+        <item>The distance goal is getting close. Keep the effort controlled.</item>
+        <item>You have covered most of your planned distance. Stay relaxed.</item>
+        <item>You are in the final stretch toward your distance goal. No sprint needed.</item>
+        <item>Not much of the planned distance remains. Keep a rhythm that feels good.</item>
+        <item>You are getting close to your goal. Finish at an effort that suits you.</item>
+    </string-array>
+    <string-array name="coach_phrase_endurance">
+        <item>You have been moving for a while. Check your effort and take water if needed.</item>
+        <item>Good time on your feet. Keep the effort sustainable.</item>
+        <item>Consistency is adding up. It is fine to ease off or take a break.</item>
+        <item>Keep the next stretch manageable. Comfort matters more than forcing the pace.</item>
+        <item>You are building time on your feet. Stay aware of how you feel.</item>
+        <item>Take a moment to check in with yourself. Adjust the effort if you need to.</item>
+    </string-array>
+    <string-array name="coach_phrase_uphill">
+        <item>The GPS suggests a climb. Let the pace ease and keep your effort comfortable.</item>
+        <item>This looks like an uphill stretch. There is no need to chase your flat pace.</item>
+        <item>It looks like you are gaining height. Keep the effort controlled.</item>
+        <item>The route appears to climb here. Shorter, comfortable steps may help.</item>
+        <item>GPS height is trending upward. Ease the pace if the effort rises.</item>
+        <item>This stretch seems uphill. Keep something in reserve instead of chasing speed.</item>
+    </string-array>
+    <string-array name="coach_phrase_downhill">
+        <item>The GPS suggests a descent. Keep the pace controlled and watch your footing.</item>
+        <item>This looks downhill. Stay comfortable rather than chasing extra speed.</item>
+        <item>It looks like you are losing height. Keep your steps controlled.</item>
+        <item>The route appears to descend here. Leave room to react to the path.</item>
+        <item>GPS height is trending downward. Choose control over extra speed.</item>
+        <item>This stretch seems downhill. Keep an eye on the surface ahead.</item>
+    </string-array>
+    <string name="coach_lap_complete">This looks like lap %1$d on the same loop.</string>
+    <string name="coach_lap_slower">That lap was slower than the previous one. Keep the effort comfortable.</string>
+    <string name="coach_lap_faster">That lap was quicker than the previous one. Keep something in reserve.</string>
+    <string name="coach_lap_even">Your lap pace was close to the previous one. Nice consistency.</string>
+    <string name="coach_lap_sector">Quarter %1$d of the loop took longer this time.</string>
+    <string name="coach_lap_sector_climb">GPS height rose through that section, so a slower pace can be sensible.</string>
 </resources>

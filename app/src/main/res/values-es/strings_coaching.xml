@@ -13,4 +13,99 @@
     <string name="coach_voice_slower">Vas más despacio que tu ritmo objetivo.</string>
     <string name="coach_voice_faster">Vas más rápido que tu ritmo objetivo.</string>
     <string name="coach_voice_on_pace">Vuelves a estar en tu ritmo objetivo.</string>
+
+    <string-array name="coach_phrase_slower">
+        <item>Vas un poco por debajo del objetivo. Aumenta suavemente si te sientes bien.</item>
+        <item>Puedes subir un poco el ritmo. Mantén el esfuerzo controlado.</item>
+        <item>Tu velocidad está por debajo del objetivo. Basta con un pequeño ajuste.</item>
+        <item>Prueba un ritmo algo más ágil si te ves con ganas. Sin acelerones.</item>
+        <item>Tu ritmo reciente es más lento que el objetivo. Recupéralo poco a poco.</item>
+        <item>Un pequeño aumento te acercará al objetivo. Mantente relajado.</item>
+        <item>Si te encuentras bien, busca un ritmo un poco más ágil aquí.</item>
+        <item>Vas por detrás del ritmo objetivo. Valora tu esfuerzo antes de acelerar.</item>
+    </string-array>
+    <string-array name="coach_phrase_faster">
+        <item>Vas más rápido de lo previsto. Puedes aflojar un poquito.</item>
+        <item>Vas por delante del ritmo objetivo. Afloja y guarda algo de energía.</item>
+        <item>Tu ritmo supera el objetivo. No hace falta correr de más.</item>
+        <item>Un poquito más despacio te acercará al objetivo. Busca comodidad.</item>
+        <item>Has aumentado la velocidad. Vuelve a tu ritmo previsto.</item>
+        <item>Vas más rápido que tu objetivo. Puedes bajar el ritmo sin problema.</item>
+        <item>Guarda algo de energía. Vas por delante del ritmo objetivo.</item>
+        <item>Tu ritmo reciente es rápido. Afloja un poco para seguir el plan.</item>
+    </string-array>
+    <string-array name="coach_phrase_on_pace">
+        <item>Eso es. Vuelves a estar cerca de tu ritmo objetivo.</item>
+        <item>Buen ajuste. Has vuelto al rango de tu objetivo.</item>
+        <item>Tu ritmo se ha estabilizado cerca del objetivo. Busca comodidad.</item>
+        <item>Has recuperado tu ritmo previsto. Bien hecho.</item>
+        <item>Otra vez en el objetivo. Bastan pequeños ajustes constantes.</item>
+        <item>Ese ajuste te ha vuelto a acercar al ritmo objetivo.</item>
+        <item>Estás cerca de tu objetivo de nuevo. Mantente relajado.</item>
+        <item>Tu ritmo reciente encaja con el plan. Sigue escuchando a tu cuerpo.</item>
+    </string-array>
+    <string-array name="coach_phrase_settling">
+        <item>Ya estás entrando en la sesión. Busca un ritmo que te resulte cómodo.</item>
+        <item>Buen comienzo. Deja que el ritmo se asiente sin forzarlo.</item>
+        <item>Mantén un esfuerzo cómodo al principio. Hay tiempo para progresar.</item>
+        <item>Ya estás en marcha. Relaja los hombros y encuentra tu ritmo.</item>
+        <item>Qué bien estar en movimiento. Busca un esfuerzo que puedas mantener.</item>
+        <item>Ve tramo a tramo. Mantén un esfuerzo cómodo.</item>
+    </string-array>
+    <string-array name="coach_phrase_steady">
+        <item>Sigue tramo a tramo. Estás haciendo el trabajo.</item>
+        <item>Revisa cómo te encuentras. Puedes aflojar cuando lo necesites.</item>
+        <item>Buen compromiso. Relájate y busca comodidad en el siguiente tramo.</item>
+        <item>Deja que el ritmo fluya. No hace falta forzar cada paso.</item>
+        <item>Afloja los hombros y elige un esfuerzo que puedas mantener.</item>
+        <item>Estás dedicando tiempo a tu objetivo. Sigue escuchando a tu cuerpo.</item>
+        <item>Céntrate en el siguiente tramo. Los pasos constantes van sumando.</item>
+        <item>Busca comodidad. Terminar con algo de energía de reserva también está bien.</item>
+    </string-array>
+    <string-array name="coach_phrase_halfway">
+        <item>Has pasado la mitad de tu objetivo de distancia. Mantén el control.</item>
+        <item>Ya llevas más de la mitad de la distancia prevista. Sigue tramo a tramo.</item>
+        <item>La mitad ya queda atrás. Guarda algo de energía para lo que falta.</item>
+        <item>Has pasado la mitad. Mantén un esfuerzo que puedas sostener.</item>
+        <item>Más de la mitad del objetivo de distancia. Buen progreso.</item>
+        <item>La primera mitad está hecha. Sigue valorando tu esfuerzo en lo que viene.</item>
+    </string-array>
+    <string-array name="coach_phrase_final">
+        <item>Estás en la última parte de tu objetivo de distancia. Termina con comodidad.</item>
+        <item>El objetivo de distancia se acerca. Mantén el esfuerzo controlado.</item>
+        <item>Ya has cubierto casi toda la distancia prevista. Mantente relajado.</item>
+        <item>Estás en el tramo final hacia tu objetivo. No hace falta esprintar.</item>
+        <item>Queda poca distancia del plan. Mantén un ritmo con el que te encuentres bien.</item>
+        <item>Te acercas al objetivo. Termina con un esfuerzo adecuado para ti.</item>
+    </string-array>
+    <string-array name="coach_phrase_endurance">
+        <item>Llevas un buen rato en marcha. Revisa tu esfuerzo y bebe agua si lo necesitas.</item>
+        <item>Buen tiempo en movimiento. Mantén un esfuerzo sostenible.</item>
+        <item>La constancia va sumando. Puedes aflojar o hacer una pausa.</item>
+        <item>Haz cómodo el siguiente tramo. Es mejor eso que forzar el ritmo.</item>
+        <item>Estás sumando tiempo en movimiento. Presta atención a cómo te encuentras.</item>
+        <item>Revisa un momento cómo estás. Ajusta el esfuerzo si lo necesitas.</item>
+    </string-array>
+    <string-array name="coach_phrase_uphill">
+        <item>El GPS indica una subida. Deja bajar el ritmo y busca un esfuerzo cómodo.</item>
+        <item>Parece un tramo de subida. No hace falta mantener el ritmo de llano.</item>
+        <item>Parece que estás ganando altura. Mantén el esfuerzo controlado.</item>
+        <item>La ruta parece subir aquí. Unos pasos más cortos y cómodos pueden ayudar.</item>
+        <item>La altura del GPS va subiendo. Afloja el ritmo si aumenta el esfuerzo.</item>
+        <item>Este tramo parece cuesta arriba. Guarda energía en vez de buscar velocidad.</item>
+    </string-array>
+    <string-array name="coach_phrase_downhill">
+        <item>El GPS indica una bajada. Controla el ritmo y presta atención al terreno.</item>
+        <item>Parece una bajada. Busca comodidad en vez de más velocidad.</item>
+        <item>Parece que estás perdiendo altura. Mantén los pasos controlados.</item>
+        <item>La ruta parece bajar aquí. Deja margen para reaccionar al camino.</item>
+        <item>La altura del GPS va bajando. Prioriza el control sobre la velocidad.</item>
+        <item>Este tramo parece cuesta abajo. Presta atención al suelo que tienes delante.</item>
+    </string-array>
+    <string name="coach_lap_complete">Parece la vuelta %1$d por el mismo recorrido.</string>
+    <string name="coach_lap_slower">Esa vuelta fue más lenta que la anterior. Mantén un esfuerzo cómodo.</string>
+    <string name="coach_lap_faster">Esa vuelta fue más rápida que la anterior. Guarda algo de energía.</string>
+    <string name="coach_lap_even">El ritmo de esta vuelta se parece al de la anterior. Buena constancia.</string>
+    <string name="coach_lap_sector">El cuarto %1$d del recorrido llevó más tiempo esta vez.</string>
+    <string name="coach_lap_sector_climb">La altura del GPS subió en ese tramo, así que bajar el ritmo puede tener sentido.</string>
 </resources>

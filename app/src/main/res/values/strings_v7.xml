@@ -1,0 +1,13 @@
+<resources>
+    <string name="v7_training_plan">Training plan</string>
+    <string name="v7_ai_settings">AI connections</string>
+    <string name="v7_edit_activity">Edit activity</string>
+    <string name="v7_run_review">Coach review</string>
+    <string name="v7_share_short">Share</string>
+    <string name="v7_export_short">Export</string>
+    <string name="v7_detected_laps">Detected laps</string>
+    <string name="v7_lap_number">Lap %1$d</string>
+    <string name="v7_lap_stats">%1$s km · %2$s · %3$s /km</string>
+    <string name="v7_lap_sector_comparison">On the latest lap, section %1$d of 4 was about %2$s%% slower than the same section before.</string>
+    <string name="v7_lap_note">GPS estimates from matching loops. Sections follow your direction of travel; changes can reflect terrain, stops or GPS noise.</string>
+</resources>

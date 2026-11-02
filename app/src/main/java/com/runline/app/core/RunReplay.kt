@@ -140,7 +140,7 @@ class RunReplay(val session: RunSession) {
         val first = segments.firstOrNull()?.firstOrNull() ?: return null
         val position = positionMs.coerceIn(0L, durationMs)
         if (edges.isEmpty() || position == 0L) {
-            return frame(first, position, 0.0, null, 0.0, 0.0, first.segment)
+            return frame(first.copy(segment = 0), position, 0.0, null, 0.0, 0.0, 0)
         }
         // Keep a trailing isolated fix as the endpoint, without drawing/animating a
         // connection to it. Its timestamp and altitude are genuine, speed is unknown.
@@ -148,8 +148,8 @@ class RunReplay(val session: RunSession) {
             val last = segments.last().last()
             val edge = edges.last()
             val speed = if (last == edge.b) speedAt(position, edge) else null
-            return frame(last, position, summary.distanceMeters, speed,
-                summary.elevationGainMeters ?: 0.0, summary.elevationLossMeters ?: 0.0, last.segment)
+            return frame(last.copy(segment = segments.lastIndex), position, summary.distanceMeters, speed,
+                summary.elevationGainMeters ?: 0.0, summary.elevationLossMeters ?: 0.0, segments.lastIndex)
         }
         val edge = edgeAt(position)
         val fraction = (position - edge.startMs).toDouble() / (edge.endMs - edge.startMs)

@@ -1,6 +1,6 @@
 # Activity file exports and sharing
 
-Runline 0.6 saves or shares local GPX, CSV and ZIP files. Strava remains removed. Runline connects no external account and does not automatically sync recordings; a destination chosen through Android handles its own account, network and upload.
+Runline 0.7 saves or shares local GPX, CSV and ZIP files. Strava remains removed. File export connects no external account and does not automatically sync recordings; a destination chosen through Android handles its own account, network and upload.
 
 ## One activity
 
@@ -8,11 +8,11 @@ Open a saved activity and use its download control to choose **Downloads**, **Sa
 
 Share file opens Android’s chooser with a read-only content URI, matching MIME type and stream grant. Google Drive can appear when an installed/configured Drive app exposes a compatible share target. Save to… can expose Drive through Android’s document-provider UI. Availability is provider/device-specific; an entry in a chooser is not evidence that the recipient completed an upload or can import a workout. The user selects the destination. No real Drive account upload has been verified for this release.
 
-Names use localized activity, recorded kilometres and local start time, such as `Caminata 8,42 km - 2026-11-01 10-30.gpx` or `Walk 8.42 km - 2026-11-01 10-30.gpx`. These are examples. Invalid filename characters are removed; streets are not geocoded or guessed. Downloads allocates collision suffixes before the extension, such as `(2).gpx`, and checks the provider’s actual name. Other document providers control their own naming.
+Names use an edited title when present, otherwise localized activity, followed by recorded kilometres and local start time, such as `Caminata 8,42 km - 2026-11-01 10-30.gpx` or `Walk 8.42 km - 2026-11-01 10-30.gpx`. These are examples. Invalid filename characters are removed; streets are not geocoded or guessed. Downloads allocates collision suffixes before the extension, such as `(2).gpx`, and checks the provider’s actual name. Other document providers control their own naming.
 
 ## All saved activities
 
-**Share all** and **Export all** in Activities offer two formats. Both include every saved activity, independent of the chart type filter or four-week window. An unfinished recording is excluded.
+**Share** and **Export** below the Activities heading offer two formats. Both include every saved activity, independent of the chart type filter or four-week window. An unfinished recording is excluded.
 
 | Format | Contents | Intended use |
 | --- | --- | --- |
@@ -21,13 +21,13 @@ Names use localized activity, recorded kilometres and local start time, such as 
 
 ZIP filenames combine the localized collection name and export time. Each internal GPX has a readable activity/distance/start-time name; collisions remain unique. `gpx_file` in the CSV points to the corresponding ZIP entry. A standalone CSV does not include those GPX files.
 
-The CSV uses stable English headers, decimal points, ISO UTC timestamps and additional local start/time-zone columns. Fields include activity identity/type, active/elapsed/GPS-observed seconds, distance in kilometres, average pace in seconds per kilometre, average speed in kilometres per hour, ascent/descent in metres, sample count and exported-segment count. Blank cells mean unavailable measurements, not zero. Quoted fields preserve commas, quotes and newlines.
+The CSV uses stable English headers, decimal points, ISO UTC timestamps and additional local start/time-zone columns. Fields include activity identity/type, active/elapsed/GPS-observed seconds, distance in kilometres, average pace in seconds per kilometre, average speed in kilometres per hour, ascent/descent in metres, sample count, exported-segment count, title, description, effort and routine. Formula-like user text is prefixed with an apostrophe in CSV to avoid spreadsheet execution; GPX preserves escaped title/notes without that prefix. Names are bounded and strip unsafe filename/bidi/control characters. Blank cells mean unavailable measurements, not zero. Quoted fields preserve commas, quotes and newlines.
 
 ## Meaning and privacy
 
 GPX preserves accepted coordinates, UTC sample timestamps, available GPS altitude and recording segments. Display smoothing never adds exported points. Legacy sessions without a stored type remain Run. Average pace/speed use active time, including standing still and GPS wait but excluding explicit pauses. Observed GPS time skips interruptions and may be shorter. Elevation is a GPS estimate with a 3-metre noise threshold, not terrain-corrected height or slope. Other apps may calculate different totals.
 
-CSV avoids raw routes, but still contains precise activity times and statistics. The ZIP includes precise routes and sample timestamps. Neither format is a complete restorable backup of the private recording journal. Uninstalling or clearing Runline still removes internal recordings/recovery copies; keep important exports outside the app.
+CSV avoids raw routes, but still contains precise activity times and statistics. The ZIP includes precise routes and sample timestamps. Annotations are included; photos remain private and are excluded. Unreadable optional annotations fall back to route-only data without replacing their source files. Neither format is a complete restorable backup of the private recording journal. Uninstalling or clearing Runline still removes internal recordings/recovery copies; keep important exports outside the app.
 
 ## Preparation and lifecycle
 

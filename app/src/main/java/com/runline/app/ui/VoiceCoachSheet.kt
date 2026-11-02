@@ -35,6 +35,10 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
     private val speech = CoachSpeech(activity)
     private val enabled = MaterialSwitch(activity)
     private val kilometres = MaterialSwitch(activity)
+    private val paceFeedback = MaterialSwitch(activity)
+    private val encouragement = MaterialSwitch(activity)
+    private val terrain = MaterialSwitch(activity)
+    private val laps = MaterialSwitch(activity)
     private val status = text("", 14)
     private val distance = field(R.string.coach_ui_distance, InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
     private val pace = field(R.string.coach_ui_pace, InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME)
@@ -80,7 +84,18 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
         kilometres.isChecked = state?.getBoolean("kilometres") ?: config.kilometreAnnouncements
         kilometres.minHeight = dp(56)
         column.addView(kilometres, row())
-        val voiceActions = LinearLayout(activity)
+        column.addView(text(activity.getString(R.string.coach_ui_feedback), 18, true), row(20, 8))
+        fun feedback(switch: MaterialSwitch, label: Int, key: String, fallback: Boolean) {
+            switch.text = activity.getString(label); switch.minHeight = dp(56)
+            switch.isChecked = state?.getBoolean(key) ?: fallback
+            column.addView(switch, row())
+        }
+        feedback(paceFeedback, R.string.coach_ui_pace_feedback, "paceFeedback", config.paceFeedback)
+        feedback(encouragement, R.string.coach_ui_encouragement, "encouragement", config.encouragement)
+        feedback(terrain, R.string.coach_ui_terrain, "terrain", config.terrainFeedback)
+        feedback(laps, R.string.coach_ui_laps, "laps", config.lapFeedback)
+        column.addView(text(activity.getString(R.string.coach_ui_estimates), 13), row(4, 8))
+        val voiceActions = LinearLayout(activity).apply { isBaselineAligned = false }
         voiceActions.addView(button(activity.getString(R.string.coach_ui_test), R.drawable.ic_speaker).apply {
             setOnClickListener {
                 status.setText(R.string.coach_ui_preparing)
@@ -93,14 +108,14 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
                     })
                 } }
             }
-        }, LinearLayout.LayoutParams(0, -2, 1f))
+        }, LinearLayout.LayoutParams(0, -1, 1f))
         voiceActions.addView(button(activity.getString(R.string.coach_ui_settings), R.drawable.ic_settings).apply {
             setOnClickListener {
                 speech.stop()
                 runCatching { activity.startActivity(Intent("com.android.settings.TTS_SETTINGS")) }
                     .onFailure { status.setText(R.string.coach_ui_unavailable) }
             }
-        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
+        }, LinearLayout.LayoutParams(0, -1, 1f).apply { marginStart = dp(8) })
         column.addView(voiceActions, row(16))
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         column.addView(status, row(8, 12))
@@ -124,6 +139,8 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
     fun close() { speech.close(); closed = true; dialog.dismiss() }
     fun saveState() = Bundle().apply {
         putString("goal", goal.name); putBoolean("enabled", enabled.isChecked); putBoolean("kilometres", kilometres.isChecked)
+        putBoolean("paceFeedback", paceFeedback.isChecked); putBoolean("encouragement", encouragement.isChecked)
+        putBoolean("terrain", terrain.isChecked); putBoolean("laps", laps.isChecked)
         putString("distance", distance.second.text.toString()); putString("pace", pace.second.text.toString()); putString("time", time.second.text.toString())
     }
 
@@ -149,8 +166,10 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
             time.first.error = activity.getString(R.string.coach_ui_combination_error); valid = false
         }
         if (!valid && enabled.isChecked) return
-        val chosen = if (valid) CoachConfig(enabled.isChecked, goal, km ?: config.distanceKm, seconds ?: config.paceSecondsPerKm, minutes ?: config.targetMinutes, kilometres.isChecked)
-            else config.copy(enabled = false, kilometreAnnouncements = kilometres.isChecked)
+        val chosen = (if (valid) CoachConfig(enabled.isChecked, goal, km ?: config.distanceKm, seconds ?: config.paceSecondsPerKm, minutes ?: config.targetMinutes, kilometres.isChecked)
+            else config.copy(enabled = false, kilometreAnnouncements = kilometres.isChecked)).copy(
+                paceFeedback = paceFeedback.isChecked, encouragement = encouragement.isChecked,
+                terrainFeedback = terrain.isChecked, lapFeedback = laps.isChecked)
         if (!VoiceCoachSettings.save(activity, chosen)) { status.setText(R.string.coach_ui_invalid); return }
         onSaved(); close()
     }

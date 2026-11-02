@@ -22,6 +22,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.snackbar.Snackbar
 import com.runline.app.R
+import com.runline.app.data.RunStore
+import com.runline.app.core.ActivityDetails
 import com.runline.app.core.ActivityArchive
 import com.runline.app.core.ActivityExportFileName
 import com.runline.app.core.GpxExporter
@@ -205,7 +207,9 @@ class ActivityExportViewModel : ViewModel() {
         worker.execute {
             var directory: File? = null
             val prepared = try {
-                val entries = ActivityArchive.entries(runs, locale, zone) { names.getValue(it) }
+                val detailsStore = RunStore(context)
+                val details = runs.associate { it.id to runCatching { detailsStore.details(it.id) }.getOrDefault(ActivityDetails()) }
+                val entries = ActivityArchive.entries(runs, locale, zone, details) { names.getValue(it) }
                 val stamp = Instant.now().atZone(zone).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm", Locale.ROOT))
                 val filename = if (kind == ExportKind.GPX) entries.single().filename.substringAfterLast('/')
                     else "$base - $stamp.${kind.extension}"
@@ -213,7 +217,7 @@ class ActivityExportViewModel : ViewModel() {
                 check(directory.mkdirs()) { "Could not prepare an export directory." }
                 val file = File(directory, filename)
                 when (kind) {
-                    ExportKind.GPX -> file.bufferedWriter(Charsets.UTF_8).use { it.write(GpxExporter.export(runs.single())) }
+                    ExportKind.GPX -> file.bufferedWriter(Charsets.UTF_8).use { it.write(GpxExporter.export(entries.single().run, entries.single().details)) }
                     ExportKind.ARCHIVE -> file.outputStream().buffered().use { ActivityArchive.writeZip(entries, zone, it) }
                     ExportKind.SUMMARY -> file.bufferedWriter(Charsets.UTF_8).use { it.write(ActivityArchive.summaryCsv(entries, zone)) }
                 }

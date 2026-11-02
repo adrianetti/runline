@@ -11,6 +11,9 @@ import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import com.runline.app.R
+import com.runline.app.core.CoachTerrain
+import com.runline.app.core.EncouragementKind
+import com.runline.app.core.PhraseRotation
 import com.runline.app.core.CoachCue
 import com.runline.app.core.PendingCoachGoal
 import com.runline.app.core.SpeechLease
@@ -37,6 +40,8 @@ class CoachSpeech(context: Context) {
     private var initializationTimeout: Runnable? = null
     private var closed = false
     private var serial = 0L
+    private var lastStartedAtMs = Long.MIN_VALUE
+    private val phrases = PhraseRotation()
     private var language: String? = null
     private var pendingPreview: ((SpeechResult) -> Unit)? = null
     private var utterancePreview: ((SpeechResult) -> Unit)? = null
@@ -81,9 +86,17 @@ class CoachSpeech(context: Context) {
             return@onMain
         }
         if (pendingGoal.hasPending(SystemClock.elapsedRealtime())) { drainPendingGoal(); return@onMain }
-        if (!initialized || lease.isBusy) return@onMain
+        if (!initialized || lease.isBusy || tooSoon()) return@onMain
         speakInternal(cueText(cue), null)
     }
+    /** Fresh optional AI advice never queues behind local cues or delays goal completion. */
+    fun speakAdvice(text: String) = onMain {
+        val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
+        if (closed || !initialized || clean.isEmpty() || clean.length > 220 || lease.isBusy ||
+            pendingGoal.hasPending(SystemClock.elapsedRealtime()) || tooSoon()) return@onMain
+        speakInternal(clean, null)
+    }
+    private fun tooSoon() = lastStartedAtMs != Long.MIN_VALUE && SystemClock.elapsedRealtime() - lastStartedAtMs < 35_000
     fun stop() = onMain { stopInternal() }
     fun close() = onMain {
         if (closed) return@onMain
@@ -175,6 +188,7 @@ class CoachSpeech(context: Context) {
             return
         }
         speakingInstance = this
+        lastStartedAtMs = SystemClock.elapsedRealtime()
         val guard = Runnable {
             if (currentId == id) {
                 completePreview(SpeechResult.ERROR)
@@ -233,9 +247,35 @@ class CoachSpeech(context: Context) {
             false -> R.string.coach_voice_goal_over_time
             null -> R.string.coach_voice_goal_reached
         })
-        CoachCue.SlowerThanTarget -> tr(R.string.coach_voice_slower)
-        CoachCue.FasterThanTarget -> tr(R.string.coach_voice_faster)
-        CoachCue.BackOnPace -> tr(R.string.coach_voice_on_pace)
+        CoachCue.SlowerThanTarget -> phrase(R.array.coach_phrase_slower)
+        CoachCue.FasterThanTarget -> phrase(R.array.coach_phrase_faster)
+        CoachCue.BackOnPace -> phrase(R.array.coach_phrase_on_pace)
+        is CoachCue.Encouragement -> phrase(when (cue.kind) {
+            EncouragementKind.SETTLING_IN -> R.array.coach_phrase_settling
+            EncouragementKind.STEADY -> R.array.coach_phrase_steady
+            EncouragementKind.HALFWAY -> R.array.coach_phrase_halfway
+            EncouragementKind.FINAL_STRETCH -> R.array.coach_phrase_final
+            EncouragementKind.ENDURANCE -> R.array.coach_phrase_endurance
+        })
+        is CoachCue.Terrain -> phrase(if (cue.kind == CoachTerrain.UPHILL) R.array.coach_phrase_uphill else R.array.coach_phrase_downhill)
+        is CoachCue.LapCompleted -> buildString {
+            append(tr(R.string.coach_lap_complete, cue.number))
+            val comparison = cue.comparison
+            val sector = comparison?.slowerSector
+            if (sector != null) {
+                append(" ").append(tr(R.string.coach_lap_sector, sector.number))
+                if ((sector.elevationChangeMeters ?: 0.0) >= 4) append(" ").append(tr(R.string.coach_lap_sector_climb))
+            } else if (comparison != null) append(" ").append(tr(when {
+                comparison.paceChangePercent >= 5 -> R.string.coach_lap_slower
+                comparison.paceChangePercent <= -5 -> R.string.coach_lap_faster
+                else -> R.string.coach_lap_even
+            }))
+        }
+    }
+
+    private fun phrase(id: Int): String {
+        val resources = AppLanguage.localizedContext(context).resources
+        return phrases.choose("${resources.configuration.locales[0].language}:$id", resources.getStringArray(id).toList())
     }
 
     companion object {

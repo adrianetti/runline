@@ -1,6 +1,6 @@
-# Version 0.6 test checklist
+# Version 0.7 test checklist
 
-The checklist is not a blanket pass report. Current v0.6 checks and remaining release checks are recorded below; historical v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.7 evidence and unperformed checks are recorded below; historical v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -21,7 +21,7 @@ Replay tests should cover time/distance interpolation, explicit segments, gaps o
 
 ## Installation and signing
 
-- Verify the packaged `dist/Runline-0.6.0.apk` signature and version name/code (0.6.0 / 6); install that exact artifact. Update an existing signed v0.5 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
+- Verify the packaged `dist/Runline-0.7.0.apk` signature and version name/code (0.7.0 / 7); install that exact artifact. Update an existing signed v0.6 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
 - Do not treat the old v0.1 debug signature as compatible. If migration requires uninstalling v0.1, export recordings first and verify the exports before uninstalling.
 - Main-branch CI may receive signing secrets; pull-request builds must not. Never log key/password contents or put signing material in test artifacts.
 
@@ -117,12 +117,12 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 - Use a two-hour fixture with thousands of samples. Replay should occupy nearly the full content area, with a compact reachable island. Tap statistics/Details: playback pauses and a sheet exposes totals, prominent climb/descent, relative elevation profile, secondary raw altitude/range and splits. Close it and continue without losing position/speed. Check landscape and larger Spanish text.
 
-- Open a saved run and verify the initial paused frame and default **1×** speed, including opening a different run after using a faster multiplier. Play at every multiplier (1×, 5×, 10×, 30×, 60×), change speed during playback, seek in both directions, reach the end and restart. Confirm the recorded run itself never changes.
+- Open a saved run and verify the initial paused frame and the available multiplier whose playback duration is nearest **30 seconds**, computed from observed GPS time. Opening a different run must calculate its own default; rotating the current run must preserve a manual choice. Play at every multiplier (1×, 5×, 10×, 30×, 60×, 120×, 240×, 480×), change speed during playback, seek in both directions, reach the end and restart. Confirm the recorded run itself never changes.
 - Background or leave the screen during playback. Playback must pause; returning must not accumulate background playback time. Rotate and verify saved position/speed restore without automatic playback.
 - Use synthetic runs with explicit pauses, interruptions, isolated fixes and a GPS gap longer than 15 seconds. Replay time must include only observed intervals and cut across gaps without a fabricated line or animated transit. Average pace/speed still use active time.
 - Compare speed/pace with known GPS intervals and the trailing five-second window. Reject implausible running speed, keep stationary/missing speed meaningful and avoid using the active timer as the replay clock.
 - Test valid, absent, intermittent, flat and non-finite GPS altitude. Profile gaps must remain visible; missing altitude and segment breaks reset ascent/descent accumulation. Check the 3-metre deadband, first-available-height baseline, accumulated climb/descent, secondary raw altitude range and unavailable-value dashes. Do not label raw GPS estimates as terrain-corrected or display an unsupported grade percentage.
-- Check totals and kilometre/final partial splits against known samples. Replay metrics and the elevation-profile cursor should track seeking without persistent UI stalls. Route/profile geometry must not be rebuilt every frame on a long recording; playback has a 20-update-per-second target, not a hardware performance guarantee.
+- Check totals and kilometre/final partial splits against known samples. Replay metrics and the elevation-profile cursor should track seeking without persistent UI stalls. Route/profile geometry must not be rebuilt every frame on a long recording; playback has a 30-update-per-second target, not a hardware performance guarantee.
 - A no-route/one-point run keeps its saved time; unavailable playback controls must be disabled. Do not claim a video export: no MP4 is produced.
 
 ## GPX file export
@@ -160,11 +160,37 @@ GPX contains exact route coordinates and timestamps and is not a complete backup
 - Use a real music player and headphones: confirm temporary lowering or player-appropriate pause, restore after completion, and no global volume change. Repeat across foreground/background/screen lock, wired/Bluetooth, another voice prompt, calls, denied focus and engine error/watchdog timeout. Log Android/player/TTS/route versions. An emulator/fake TTS pass is not Spotify or Samsung evidence.
 - Pause/resume/finish and close/reopen the Activity while coaching. Only recording sessions can produce live cues; speech failure must not block point persistence, timer checkpoints or notification controls.
 
+## Version 0.7 checks
+
+- Replay: select the available speed nearest a 30-second playback, including 240× for a two-hour observed timeline. Preserve manual speed/position through rotation. Follow an arrow at close zoom, pan/fit/recenter, and inspect movement between frames. The position feature and camera must update together. Pause/gap boundaries and isolated endpoints must never create a connecting trace or heading. Inspect portrait/landscape and English/Spanish.
+- Details: Finish must commit the route before showing its optional editor; reopen older recordings to edit title/notes/effort/activity/routine. Save, cancel, rotate and return from the photo picker. Import/view/remove private photos, exercise a failed import, and compare original GPS-file checksums before/after. Include nullable effort and missing/corrupt annotation copies. Export title/notes/type and 21-column CSV; verify photo exclusion and safe filenames/formula-like text.
+- Coach: new subfeatures default on only inside enabled voice guidance. Test their independent toggles, sustained pace/hysteresis, terrain suppression, repeated-loop confidence and nonrepeating phrases in both languages. Lifecycle/priority rules remain necessary with AI enabled or unavailable.
+- AI: all options begin off. Empty-key setup must be actionable. Save a disposable dummy key locally, inspect ciphertext/no plaintext preferences, rotate and remove it; never send a real key to logs or test artifacts. Fake transports cover auth/model/rate/network/malformed responses. Check disabled/settings-changed/deleted-activity results are rejected, network work never blocks persistence, and live attempts remain capped across coordinator recovery. Actual paid provider requests require a user-configured key and separate evidence.
+- Plans: create an explicit local distance/date/frequency/baseline schedule, persist/reopen it and mark sessions. Completed/missed reconciliation must not stack catch-up work or match one activity twice. Reject invalid/malformed AI changes, preserve manual changes that race a response, enforce bounds in code and retain the last valid plan on failure. Automatic adaptation is separately opted in and capped per day.
+- Layout: verify Spanish Share/Export stay aligned at ordinary and 1.3× font size; larger text may stack both actions equally. Inspect new forms, model picker, photos, review and schedule in light/dark and landscape. Secret text must not be restored in a Bundle.
+
+V0.7 evidence recorded on 2 November 2026 on the API 34 emulator, using disposable synthetic data:
+
+- **137 JVM tests passed**. Lint reported **zero errors and 54 warnings**. The **27 pinned icons** matched their sources, and **401 English/Spanish string, plural and array resources** passed parity checks.
+- The two-hour fixture’s editable title **Park laps**, notes, **effort 6/10**, **Easy** routine and **one private photo** persisted. The photo-picker flow survived rotation, and a later debug update retained those details and the photo. The original recording file’s hash was unchanged after editing metadata.
+- Parsed GPX retained **7,201 points and two segments**; title and notes matched the saved annotations. This is evidence for the inspected fixture, not every export/provider failure path.
+- Creating a local **21.1 km** plan for **1 March 2027** produced **51 sessions**. Reopening retained the plan and a manually marked **Skipped** session. No AI-generated plan or live adaptation is claimed from this local check.
+- A disposable dummy API key was stored encrypted, settings reopened/rotated, and the key removed. Empty-key validation was exercised locally. **No HTTP request or paid Anthropic call was made**. These checks cover local key handling and form behavior, not real credentials, model availability or generated advice.
+
+- Finishing a brief synthetic Walk saved the route before automatically opening the optional editor. Closing without edits kept it, and portrait/landscape recreation did not reopen the editor or duplicate the run.
+- Bounded English/Spanish review covered activity details, private photos, coaching, AI settings, the training plan and history actions, including 1.3× text, dark mode and landscape. Spanish Share/Export actions remained equal-sized, stacking at larger text. No material clipping was found in the inspected views.
+- The two-hour fixture automatically selected **240×**. Accelerated replay kept its arrow centered on the route through sampled turns; pan and recenter worked. A native follow marker avoids asynchronous map-symbol lag. These are bounded visual checks, not a frame-rate benchmark.
+
+- The exact **0.7.0 / version code 7** packaged release installed in place. A new **21-column CSV** contained all **19 saved activity IDs**, including the new finish-flow test and edited metadata. The saved photo and local plan, including its Skipped status, remained visible after updating.
+- APK SHA-256: `41b138be24f517529e8c7ff099766db082cfd714ae0702758bc01deb43d81798`. The signing certificate matched the stable app key: `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`.
+
+The checklist above remains a list of test cases, not a blanket pass report. Real Anthropic requests, physical v0.7 Samsung/Spotify/headphone behavior and field/battery performance remain unverified. Historical results below retain their original scope.
+
 ## Data retention and results
 
 Export any test recording that must survive uninstalling or clearing app storage. All internal mirrors/recovery copies reside on the same phone; they do not protect against device loss or a wiped app.
 
-Current v0.6 checks on the API 34 emulator, using disposable synthetic data:
+Historical v0.6 checks on the API 34 emulator, using disposable synthetic data:
 
 - Final integrated debug/release builds succeeded. All **96 JVM tests passed**, with zero failures or errors; lint reported **zero errors and 37 warnings**. All **24 pinned icons** matched their sources. English/Spanish checks confirmed parity for **270 string/plural resources** and their format placeholders.
 - The signed debug update retained v0.5 history, reset its forced locale override to follow the English phone setting and showed Voice coach Off. Bounded review of **11 screenshots**, including the current Spanish UI, larger text and landscape layouts, found no material issues in the inspected views.

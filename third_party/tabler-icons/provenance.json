@@ -95,6 +95,18 @@
       "sha256": "1c2d4ffadf15616b7d27fcc66d28df9d5a43f34537ffc4da35c9d4c84c406450",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/volume.svg"
     },
+    "icons/outline/pencil.svg": {
+      "sha256": "422796681dab2177b958836952b0a581025013a78d8a8c9df9c1af43f62d0e97",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/pencil.svg"
+    },
+    "icons/outline/photo.svg": {
+      "sha256": "67d9b3ec02867e98ad17739380919a2d82287d15d3463161f450e17047ed319b",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/photo.svg"
+    },
+    "icons/outline/calendar-event.svg": {
+      "sha256": "380f9ad3022a78c9ca76a33d4dc909bc7ab646c7e5b43ac182367fbc85742d1f",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/calendar-event.svg"
+    },
     "LICENSE": {
       "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/LICENSE"

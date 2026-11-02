@@ -10,16 +10,18 @@ import java.util.zip.ZipOutputStream
 
 /** Portable analysis files; summary CSV deliberately contains no route coordinates. */
 object ActivityArchive {
-    data class Entry(val run: RunSession, val filename: String)
+    data class Entry(val run: RunSession, val filename: String, val details: ActivityDetails = ActivityDetails())
 
-    fun entries(runs: List<RunSession>, locale: Locale, zone: ZoneId,
+    fun entries(runs: List<RunSession>, locale: Locale, zone: ZoneId, details: Map<String, ActivityDetails> = emptyMap(),
                 activityName: (ActivityType) -> String): List<Entry> {
         val used = mutableSetOf<String>()
         return runs.sortedWith(compareByDescending<RunSession> { it.startedAtMs }.thenBy { it.id }).map { run ->
-            val requested = ActivityExportFileName.format(activityName(run.activityType), run, locale, zone)
+            val annotations = details[run.id] ?: ActivityDetails()
+            val session = if (annotations.activityType != null) run.copy(activityType = annotations.activityType) else run
+            val requested = ActivityExportFileName.format(activityName(session.activityType), session, locale, zone, annotations.title)
             val name = ActivityExportFileName.availableName(requested, used)
             used += name
-            Entry(run, "activities/$name")
+            Entry(session, "activities/$name", annotations)
         }
     }
 
@@ -32,14 +34,14 @@ object ActivityArchive {
             }
             put("README.txt", README)
             put("summary.csv", summaryCsv(entries, zone))
-            entries.forEach { put(it.filename, GpxExporter.export(it.run)) }
+            entries.forEach { put(it.filename, GpxExporter.export(it.run, it.details)) }
         }
     }
 
     /** Locale-independent headers, decimal points, ISO timestamps and RFC 4180 quoting. */
     fun summaryCsv(entries: List<Entry>, zone: ZoneId): String = buildString {
-        append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file\r\n")
-        for ((run, filename) in entries) {
+        append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file,title,description,effort,routine\r\n")
+        for ((run, filename, details) in entries) {
             val analysis = RunReplay(run).summary
             val distance = RunMetrics.distanceMeters(run.points)
             val pace = RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)
@@ -52,6 +54,8 @@ object ActivityArchive {
                 number(analysis.observedDurationMs / 1000.0), number(distance / 1_000), number(pace), number(speed),
                 number(analysis.elevationGainMeters), number(analysis.elevationLossMeters),
                 run.points.size.toString(), continuousSegments(run.points).size.toString(), filename,
+                safeSpreadsheetText(details.title), safeSpreadsheetText(details.description),
+                details.effort?.toString() ?: "", details.routine.storageValue.takeUnless { details.routine == RoutineType.NONE } ?: "",
             )
             append(fields.joinToString(",", transform = ::csvCell)).append("\r\n")
         }
@@ -60,6 +64,10 @@ object ActivityArchive {
     private fun number(value: Double?): String = value?.takeIf(Double::isFinite)?.let {
         String.format(Locale.ROOT, "%.3f", it)
     } ?: ""
+
+    /** Prefix user text that spreadsheets could interpret as a formula. GPX keeps the original. */
+    internal fun safeSpreadsheetText(value: String): String =
+        if (value.trimStart().firstOrNull() in setOf('=', '+', '-', '@') || value.firstOrNull() in setOf('\t', '\r', '\n')) "'" + value else value
 
     internal fun csvCell(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' })
         "\"${value.replace("\"", "\"\"")}\"" else value
@@ -71,6 +79,11 @@ object ActivityArchive {
         UTC ISO 8601 timestamps and an additional local start/time-zone column. Empty cells
         mean unavailable data, not zero. Each gpx_file refers to a GPX in activities/ when this
         summary is inside the ZIP. A standalone CSV does not include those route files.
+        Title, description, effort (self-rated 1 to 10) and routine include saved edits. Blank
+        effort/routine means not set. User text that could be treated as a spreadsheet formula
+        starts with an added apostrophe in CSV only; GPX preserves the original title/notes.
+        Photos are private on the phone and are not included in CSV, GPX or this ZIP. If optional
+        details cannot be read, route exports remain available and those detail fields are empty.
 
         Distance is horizontal GPS distance in kilometres. Pace is seconds per kilometre;
         lower pace means faster. Average speed is kilometres per hour. Average pace and speed

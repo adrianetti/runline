@@ -5,15 +5,18 @@ import java.time.Instant
 
 /** Standard GPX 1.1 for a portable copy of the recorded activity route. */
 object GpxExporter {
-    fun export(run: RunSession): String = buildString {
+    fun export(run: RunSession, details: ActivityDetails = ActivityDetails()): String = buildString {
+        val type = details.activityType ?: run.activityType
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         append("<gpx version=\"1.1\" creator=\"Runline\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
         append("  <metadata><time>")
         append(Instant.ofEpochMilli(run.startedAtMs))
         append("</time></metadata>\n")
         append("  <trk><name>")
-        append(escapeXml("${run.activityType.gpxName} ${run.id}"))
-        append("</name><type>").append(run.activityType.gpxType).append("</type>\n")
+        append(escapeXml(details.title.takeIf { it.isNotBlank() } ?: "${type.gpxName} ${run.id}"))
+        append("</name>")
+        if (details.description.isNotBlank()) append("<desc>").append(escapeXml(details.description)).append("</desc>")
+        append("<type>").append(type.gpxType).append("</type>\n")
         for (segment in continuousSegments(run.points)) {
             append("    <trkseg>\n")
             for (point in segment) {

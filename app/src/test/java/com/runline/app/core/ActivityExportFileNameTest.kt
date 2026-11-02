@@ -5,6 +5,7 @@ import java.time.ZoneId
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ActivityExportFileNameTest {
@@ -44,6 +45,25 @@ class ActivityExportFileNameTest {
             "Walk 2.22 km - 2026-11-01 15-30 (2).GPX", "$original (1)")
         assertEquals("Walk 2.22 km - 2026-11-01 15-30 (3).gpx",
             ActivityExportFileName.availableName(original, existing))
+    }
+
+    @Test fun userTitleReplacesGenericTypeAndPreservesDistanceAndTime() {
+        val name = ActivityExportFileName.format("Walk", run, Locale.ENGLISH, ZoneId.of("UTC"), "Park / three laps")
+        assertEquals("Park - three laps 2.22 km - 2026-11-01 15-30.gpx", name)
+        assertEquals(ActivityExportFileName.format("Walk", run, Locale.ENGLISH, ZoneId.of("UTC")),
+            ActivityExportFileName.format("Walk", run, Locale.ENGLISH, ZoneId.of("UTC"), "  "))
+    }
+
+    @Test fun unicodeNamesAndCollisionsStayWithinPortableByteLimitsWithoutSplittingEmoji() {
+        val name = ActivityExportFileName.format("Run", run, Locale.ENGLISH, ZoneId.of("UTC"), "🏃".repeat(120))
+        assertTrue(name.toByteArray(Charsets.UTF_8).size <= 240)
+        assertFalse(name.contains('�')); assertFalse(name.contains('?'))
+        assertTrue(name.endsWith("2.22 km - 2026-11-01 15-30.gpx"))
+        val duplicate = ActivityExportFileName.availableName(name, listOf(name))
+        assertTrue(duplicate.endsWith(" (2).gpx")); assertTrue(duplicate.toByteArray(Charsets.UTF_8).size <= 240)
+        val huge = ActivityExportFileName.availableName("路".repeat(200) + ".gpx", emptyList())
+        assertTrue(huge.toByteArray(Charsets.UTF_8).size <= 240)
+        assertTrue(ActivityExportFileName.availableName(huge, listOf(huge)).toByteArray(Charsets.UTF_8).size <= 240)
     }
 
 }

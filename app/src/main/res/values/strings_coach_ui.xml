@@ -28,4 +28,11 @@
     <string name="coach_ui_invalid">Check your goal values.</string>
     <string name="coach_ui_combination_error">Choose a time that gives a pace between 1:00 and 60:00 /km.</string>
     <string name="coach_ui_active_time">Active time · pauses excluded</string>
+
+    <string name="coach_ui_feedback">Feedback</string>
+    <string name="coach_ui_pace_feedback">Pace guidance</string>
+    <string name="coach_ui_encouragement">Encouragement</string>
+    <string name="coach_ui_terrain">Climbs and descents</string>
+    <string name="coach_ui_laps">Laps and comparisons</string>
+    <string name="coach_ui_estimates">Terrain and laps are cautious GPS estimates. Prompts stay brief and spaced out.</string>
 </resources>

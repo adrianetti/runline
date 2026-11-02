@@ -28,4 +28,11 @@
     <string name="coach_ui_invalid">Revisa los valores del objetivo.</string>
     <string name="coach_ui_combination_error">Elige un tiempo que dé un ritmo entre 1:00 y 60:00 /km.</string>
     <string name="coach_ui_active_time">Tiempo activo · sin contar las pausas</string>
+
+    <string name="coach_ui_feedback">Avisos</string>
+    <string name="coach_ui_pace_feedback">Indicaciones de ritmo</string>
+    <string name="coach_ui_encouragement">Ánimos</string>
+    <string name="coach_ui_terrain">Subidas y bajadas</string>
+    <string name="coach_ui_laps">Vueltas y comparaciones</string>
+    <string name="coach_ui_estimates">El terreno y las vueltas se estiman con el GPS. Los avisos son breves y espaciados.</string>
 </resources>

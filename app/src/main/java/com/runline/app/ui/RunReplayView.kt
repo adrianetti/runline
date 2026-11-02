@@ -26,6 +26,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.RunReplay
+import com.runline.app.core.ReplayPresentation
+import com.runline.app.core.LapAnalysis
+import com.runline.app.core.RoutineType
+import com.runline.app.data.RunStore
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -40,11 +44,13 @@ class RunReplayView(
     onBack: () -> Unit = {},
     onExport: () -> Unit = {},
     onMore: (View) -> Unit = {},
+    private val onEdit: () -> Unit = {},
+    private val onReview: () -> Unit = {},
 ) : FrameLayout(context) {
     val map = SatelliteMapView(context)
     var positionMs: Long = 0L
         private set
-    var playbackSpeed: Int = 1
+    var playbackSpeed: Int = ReplayPresentation.defaultSpeed(replay.durationMs)
         private set
     private var playing = false
     private var lastTick = 0L
@@ -79,12 +85,14 @@ class RunReplayView(
             val delta = (now - lastTick).coerceAtLeast(0L)
             lastTick = now
             setPosition((positionMs + delta * playbackSpeed).coerceAtMost(replay.durationMs))
-            if (positionMs >= replay.durationMs) pausePlayback() else handler.postDelayed(this, 50L)
+            if (positionMs >= replay.durationMs) pausePlayback() else handler.postDelayed(this, 33L)
         }
     }
 
     init {
-        map.setRoute(replay.segments.flatten())
+        map.setReplayMode()
+        map.setRoute(replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } })
+        replay.at(0)?.point?.let { map.setCenter(it.latitude, it.longitude) }
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         top.addView(floating(context.getString(R.string.replay_back), R.drawable.ic_back).apply {
@@ -169,7 +177,7 @@ class RunReplayView(
             val wasPlaying = playing
             val generation = playbackGeneration
             pausePlayback()
-            val values = intArrayOf(1, 5, 10, 30, 60)
+            val values = ReplayPresentation.speeds
             val dialog = MaterialAlertDialogBuilder(context).setTitle(R.string.replay_playback_speed)
                 .setSingleChoiceItems(values.map { context.getString(R.string.replay_multiplier, it) }.toTypedArray(), values.indexOf(playbackSpeed)) { dialog, index ->
                     setPlaybackSpeed(values[index]); dialog.dismiss()
@@ -183,13 +191,13 @@ class RunReplayView(
         }
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                if (fromUser) setPosition((progress.toDouble() / bar.max * replay.durationMs).toLong())
+                if (fromUser) setPosition((progress.toDouble() / bar.max * replay.durationMs).toLong(), smoothHeading = false)
             }
             override fun onStartTrackingTouch(bar: SeekBar) { pausePlayback() }
             override fun onStopTrackingTouch(bar: SeekBar) = Unit
         })
-        setPlaybackSpeed(1)
-        setPosition(0L)
+        setPlaybackSpeed(playbackSpeed)
+        setPosition(0L, smoothHeading = false)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -206,12 +214,12 @@ class RunReplayView(
         if (disposed || panel.height <= 0) return
         if (compact) map.setOverlayInsets(panel.width + dp(32), dp(72), 0, 0)
         else map.setOverlayInsets(0, dp(72), 0, panel.height + dp(16))
-        if (!fitted) { fitted = true; map.fitRoute() }
+        if (!fitted) { fitted = true; map.setFollowing(true) }
     }
 
     fun restore(position: Long, multiplier: Int) {
-        setPlaybackSpeed(multiplier)
-        setPosition(position.coerceIn(0L, replay.durationMs))
+        setPlaybackSpeed(multiplier.takeIf { it in ReplayPresentation.speeds } ?: ReplayPresentation.defaultSpeed(replay.durationMs))
+        setPosition(position.coerceIn(0L, replay.durationMs), smoothHeading = false)
     }
     fun onHostResume() { resumed = true; map.onHostResume() }
     fun onHostPause() { resumed = false; playbackGeneration++; pausePlayback(); map.onHostPause() }
@@ -231,14 +239,14 @@ class RunReplayView(
         play.setIconResource(R.drawable.ic_play)
     }
     private fun setPlaybackSpeed(value: Int) {
-        playbackSpeed = value.takeIf { it in listOf(1, 5, 10, 30, 60) } ?: 1
+        playbackSpeed = value.takeIf { it in ReplayPresentation.speeds } ?: ReplayPresentation.defaultSpeed(replay.durationMs)
         speed.text = context.getString(R.string.replay_multiplier, playbackSpeed)
         speed.contentDescription = context.getString(R.string.replay_speed_description, playbackSpeed)
     }
-    private fun setPosition(value: Long) {
+    private fun setPosition(value: Long, smoothHeading: Boolean = true) {
         positionMs = value.coerceIn(0L, replay.durationMs)
         val frame = replay.at(positionMs)
-        map.setMarker(frame?.point)
+        map.setReplayMarker(frame?.point, ReplayPresentation.bearing(replay, positionMs), smoothHeading)
         setText(distanceValue, context.getString(R.string.replay_kilometres, number(frame?.distanceMeters?.div(1000), 2)))
         setText(speedValue, number(frame?.speedMetersPerSecond?.times(3.6), 1))
         setText(ascentValue, number(frame?.elevationGainMeters, 0))
@@ -272,6 +280,27 @@ class RunReplayView(
         val date = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
             .withLocale(locale()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(run.startedAtMs))
         content.addView(label(date, 13, muted = true), row(top = 4, bottom = 20))
+        val notes = runCatching { RunStore(context).details(run.id) }.getOrNull()
+        notes?.title?.takeIf { it.isNotBlank() }?.let { content.addView(label(it, 22, bold = true), row(bottom = 12)) }
+        notes?.description?.takeIf { it.isNotBlank() }?.let { content.addView(label(it, 16), row(bottom = 12)) }
+        notes?.effort?.let { addDetail(content, R.string.details_effort, context.getString(R.string.details_effort_value, it)) }
+        notes?.routine?.takeIf { it != RoutineType.NONE }?.let { routine ->
+            addDetail(content, R.string.details_routine, context.getString(when(routine) {
+                RoutineType.EASY -> R.string.details_routine_easy; RoutineType.LONG -> R.string.details_routine_long
+                RoutineType.TEMPO -> R.string.details_routine_tempo; RoutineType.INTERVALS -> R.string.details_routine_intervals
+                RoutineType.RECOVERY -> R.string.details_routine_recovery; RoutineType.RACE -> R.string.details_routine_race
+                RoutineType.OTHER -> R.string.details_routine_other; RoutineType.NONE -> R.string.details_routine_none
+            }))
+        }
+        notes?.photoIds?.takeIf { it.isNotEmpty() }?.let {
+            content.addView(ActivityPhotosView(context, run.id, it), row(top = 8, bottom = 16))
+        }
+        content.addView(control(context.getString(R.string.v7_edit_activity), R.drawable.ic_edit).apply {
+            setOnClickListener { details?.dismiss(); onEdit() }
+        }, row(bottom = 8))
+        content.addView(control(context.getString(R.string.v7_run_review), R.drawable.ic_info).apply {
+            setOnClickListener { details?.dismiss(); onReview() }
+        }, row(bottom = 20))
         addDetail(content, R.string.replay_total_distance, context.getString(R.string.replay_kilometres, number(summary.distanceMeters / 1000, 2)))
         addDetail(content, R.string.replay_active_time, duration(run.activeDurationMs))
         addDetail(content, R.string.replay_average_pace, context.getString(R.string.replay_per_km, pace(RunMetrics.paceSecondsPerKm(summary.distanceMeters, run.activeDurationMs))))
@@ -305,6 +334,20 @@ class RunReplayView(
             val name = if (split.distanceMeters >= 999.5) context.getString(R.string.replay_km_split, split.index)
                 else context.getString(R.string.replay_last_split, number(split.distanceMeters / 1000, 2))
             addDetail(content, name, context.getString(R.string.replay_per_km, pace(RunMetrics.paceSecondsPerKm(split.distanceMeters, split.durationMs))))
+        }
+        val laps = LapAnalysis.analyze(run.points)
+        if (laps.laps.isNotEmpty()) {
+            content.addView(label(context.getString(R.string.v7_detected_laps), 22, bold = true), row(top = 24, bottom = 8))
+            laps.laps.forEach { lap ->
+                addDetail(content, context.getString(R.string.v7_lap_number, lap.number),
+                    context.getString(R.string.v7_lap_stats, number(lap.distanceMeters / 1000, 2), duration(lap.durationMs),
+                        pace(RunMetrics.paceSecondsPerKm(lap.distanceMeters, lap.durationMs))))
+            }
+            laps.latestComparison?.slowerSector?.let { sector ->
+                content.addView(label(context.getString(R.string.v7_lap_sector_comparison, sector.number,
+                    number(sector.paceChangePercent, 0)), 14, muted = true), row(top = 8))
+            }
+            content.addView(label(context.getString(R.string.v7_lap_note), 13, muted = true), row(top = 8))
         }
         content.addView(label(context.getString(R.string.replay_timing_note), 13, muted = true), row(top = 16))
         val scroll = ScrollView(context).apply { addView(content) }

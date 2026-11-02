@@ -45,7 +45,7 @@ class CoachEngineTest {
     }
 
     @Test fun `pace must settle and is rate limited while repeated reminders remain possible`() {
-        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300, kilometreAnnouncements = false))
+        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300, kilometreAnnouncements = false, encouragement = false))
         val events = mutableListOf<Pair<Long, CoachCue>>()
         repeat(70) { advance(engine, 2.5)?.let { events += elapsed to it } }
         assertTrue(events.isNotEmpty())
@@ -55,7 +55,7 @@ class CoachEngineTest {
     }
 
     @Test fun `GPS loss and pause discard stale pace windows`() {
-        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300, kilometreAnnouncements = false))
+        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300, kilometreAnnouncements = false, encouragement = false))
         repeat(14) { advance(engine, 2.0) }
         repeat(20) { assertNull(advance(engine, 2.0, fresh = false)) }
         engine.pause(); segment++

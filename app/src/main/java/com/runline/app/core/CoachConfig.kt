@@ -10,6 +10,10 @@ data class CoachConfig(
     val paceSecondsPerKm: Int = 360,
     val targetMinutes: Double = 30.0,
     val kilometreAnnouncements: Boolean = true,
+    val paceFeedback: Boolean = true,
+    val encouragement: Boolean = true,
+    val terrainFeedback: Boolean = true,
+    val lapFeedback: Boolean = true,
 ) {
     fun isValid(): Boolean = when (goal) {
         CoachGoal.NONE -> true

@@ -46,6 +46,11 @@ import com.runline.app.ui.RunReplayView
 import com.runline.app.ui.ActiveRunView
 import com.runline.app.ui.VoiceCoachSheet
 import com.runline.app.ui.HistoryInsightsView
+import com.runline.app.ui.ActivityDetailsEditor
+import com.runline.app.ui.AiSettingsSheet
+import com.runline.app.ui.TrainingPlanSheet
+import com.runline.app.ui.RunReviewSheet
+import com.runline.app.ai.AiActivityCompletion
 import com.runline.app.coaching.VoiceCoachSettings
 import androidx.appcompat.widget.PopupMenu
 import com.runline.app.core.RunReplay
@@ -71,11 +76,15 @@ class MainActivity : AppCompatActivity() {
     private var route: SatelliteMapView? = null
     private var replayView: RunReplayView? = null
     private var restoredReplayPosition = 0L
-    private var restoredReplaySpeed = 1
+    private var restoredReplaySpeed = 0
     private var activeRunView: ActiveRunView? = null
     private var selectedActivity = ActivityType.RUN
     private var coachSheet: VoiceCoachSheet? = null
     private var historyType: ActivityType? = null
+    private var detailsEditor: ActivityDetailsEditor? = null
+    private var aiSettings: AiSettingsSheet? = null
+    private var trainingPlan: TrainingPlanSheet? = null
+    private var runReview: RunReviewSheet? = null
     private val ticker = object : Runnable {
         override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
     }
@@ -112,12 +121,12 @@ class MainActivity : AppCompatActivity() {
         })
         exporter = ActivityExporter(this, { id -> runCatching { store.get(id) }.getOrNull() }, ::notice)
         exporter.restoreState(savedInstanceState)
-        lastSavedId = TrackingService.state(this).savedRunId
+        lastSavedId = getSharedPreferences("activity_completion", MODE_PRIVATE).getString("seen_id", null)
         screen = savedInstanceState?.getString("screen") ?: "record"
         val selectedRunId = savedInstanceState?.getString("runId")
         if (selectedRunId != null) currentRun = runCatching { store.get(selectedRunId) }.getOrNull()
         restoredReplayPosition = savedInstanceState?.getLong("replayPosition") ?: 0L
-        restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 1
+        restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 0
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
             intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING); screen = "record"
         }
@@ -125,6 +134,13 @@ class MainActivity : AppCompatActivity() {
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
         savedInstanceState?.getBundle("coachSheet")?.let(::showCoach)
+        savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it).also { sheet -> sheet.show() } }
+        savedInstanceState?.getBundle("trainingPlan")?.let { trainingPlan = TrainingPlanSheet(this, it).also { sheet -> sheet.show() } }
+        savedInstanceState?.getBundle("runReview")?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
+        AiActivityCompletion.onAppOpen(this)
+        savedInstanceState?.getBundle("detailsEditor")?.let { draft ->
+            draft.getString("runId")?.let { id -> runCatching { store.get(id) }.getOrNull()?.let { showActivityEditor(it, draft) } }
+        }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent)
@@ -135,7 +151,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { detailsEditor?.close(); aiSettings?.close(); trainingPlan?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
@@ -146,6 +162,10 @@ class MainActivity : AppCompatActivity() {
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
         exporter.saveState(outState); super.onSaveInstanceState(outState)
         coachSheet?.takeIf { it.isShowing }?.let { outState.putBundle("coachSheet", it.saveState()) }
+        detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
+        aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
+        trainingPlan?.takeIf { it.isShowing }?.let { outState.putBundle("trainingPlan", it.saveState()) }
+        runReview?.takeIf { it.isShowing }?.let { outState.putBundle("runReview", it.saveState()) }
     }
     @Deprecated("Uses platform Back for this single-activity prototype")
     override fun onBackPressed() {
@@ -224,6 +244,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(field, margin(bottom = 16))
         content.addView(text(getString(R.string.main_start_hint), 15, muted = true))
         content.addView(button(getString(if (VoiceCoachSettings.load(this).enabled) R.string.coach_ui_on else R.string.coach_ui_off), outlined = true, iconId = R.drawable.ic_speaker) { showCoach() }, margin(top = 24))
+        content.addView(button(getString(R.string.v7_training_plan), outlined = true, iconId = R.drawable.ic_calendar) { showTrainingPlan() }, margin(top = 12))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
@@ -235,9 +256,17 @@ class MainActivity : AppCompatActivity() {
     })
     private fun refreshRecording() {
         val state = TrackingService.state(this)
-        if (state.savedRunId != null && state.savedRunId != lastSavedId) {
-            lastSavedId = state.savedRunId
-            runCatching { store.get(state.savedRunId) }.getOrNull()?.let { openRun(it); return }
+        val completion = getSharedPreferences("activity_completion", MODE_PRIVATE)
+        val finishedId = state.savedRunId ?: completion.getString("pending_id", null)
+        if (finishedId != null && finishedId != lastSavedId) {
+            runCatching { store.get(finishedId) }.getOrNull()?.let {
+                lastSavedId = finishedId
+                completion.edit().putString("seen_id", finishedId).apply()
+                openRun(it)
+                showActivityEditor(it)
+                AiActivityCompletion.onSaved(this, it)
+                return
+            }
         }
         if (screen != "record") return
         if (state.status.name != renderedStatus) render() else updateMetrics()
@@ -248,11 +277,19 @@ class MainActivity : AppCompatActivity() {
         val runs = try { store.list() } catch (e: Exception) { notice(getString(R.string.main_history_failed)); emptyList() }
         if (runs.isNotEmpty()) {
             content.addView(HistoryInsightsView(this, runs, historyType) { historyType = it })
-            val transfers = LinearLayout(this)
-            transfers.addView(button(getString(R.string.main_share_all), outlined = true, iconId = R.drawable.ic_share) { showHistoryTransfer(runs, share = true) }, LinearLayout.LayoutParams(0, -2, 1f))
-            transfers.addView(button(getString(R.string.main_export_all), outlined = true, iconId = R.drawable.ic_download) { showHistoryTransfer(runs, share = false) }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
-            content.addView(transfers, margin(top = 16, bottom = 28))
-            content.addView(text(getString(R.string.main_activities), 24, bold = true))
+            content.addView(text(getString(R.string.main_activities), 24, bold = true), margin(top = 24, bottom = 12))
+            val stacked = resources.configuration.screenWidthDp < 360 || resources.configuration.fontScale > 1.15f
+            val transfers = LinearLayout(this).apply { orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL }
+            listOf(true, false).forEachIndexed { index, share ->
+                val action = button(getString(if (share) R.string.v7_share_short else R.string.v7_export_short), outlined = true,
+                    iconId = if (share) R.drawable.ic_share else R.drawable.ic_download) { showHistoryTransfer(runs, share) }.apply {
+                    contentDescription = getString(if (share) R.string.main_share_all else R.string.main_export_all)
+                    maxLines = 1
+                }
+                transfers.addView(action, if (stacked) LinearLayout.LayoutParams(-1, dp(64)).apply { if (index > 0) topMargin = dp(12) }
+                    else LinearLayout.LayoutParams(0, dp(64), 1f).apply { if (index > 0) marginStart = dp(12) })
+            }
+            content.addView(transfers, margin(bottom = 12))
         }
         if (runs.isEmpty()) {
             content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
@@ -267,6 +304,11 @@ class MainActivity : AppCompatActivity() {
                     setOnClickListener { openRun(run) }
                     contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(run.activeDurationMs))
                 }
+                val details = runCatching { store.details(run.id) }.getOrNull()
+                details?.title?.takeIf { it.isNotBlank() }?.let { title ->
+                    row.addView(text(title, 20, bold = true).apply { maxLines = 2 }, margin(bottom = 6))
+                    row.contentDescription = "$title. ${row.contentDescription}"
+                }
                 row.addView(text(getString(R.string.main_activity_date, activityName(run.activityType), date(run.startedAtMs)), 14, muted = true))
                 row.addView(text(getString(R.string.main_distance_km, number(distance / 1000, 2)), 26, bold = true), margin(top = 6))
                 row.addView(text(getString(R.string.main_history_stats, duration(run.activeDurationMs), pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs))), 14, muted = true), margin(top = 4))
@@ -275,11 +317,12 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(text(getString(R.string.main_saved_local), 14, muted = true), margin(top = 24))
     }
-    private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 1; screen = "detail"; render() }
+    private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 0; screen = "detail"; render() }
     private fun renderDetail(run: RunSession) {
         replayView = RunReplayView(this, RunReplay(run),
             onBack = { screen = "history"; tabs.getTabAt(1)?.select(); render() },
             onExport = { showActivityTransfer(run) }, onMore = ::showDetailOptions,
+            onEdit = { showActivityEditor(run) }, onReview = { showRunReview(run) },
         ).also { view ->
             view.restore(restoredReplayPosition, restoredReplaySpeed)
             body.addView(view, LinearLayout.LayoutParams(-1, -1))
@@ -292,17 +335,21 @@ class MainActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_shield_check); icon?.setTint(getColor(R.color.on_surface))
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 9, 1, R.string.main_language)
+        toolbar.menu.add(0, 11, 1, R.string.v7_training_plan)
+        toolbar.menu.add(0, 12, 2, R.string.v7_ai_settings)
+        toolbar.menu.add(0, 9, 3, R.string.main_language)
         toolbar.menu.add(0, 7, 2, R.string.main_about)
         if (screen == "record") toolbar.menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
         toolbar.overflowIcon = AppCompatResources.getDrawable(this, R.drawable.ic_more)?.apply { setTint(getColor(R.color.on_surface)) }
         toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) { 5 -> showProtection(); 9 -> showLanguage(); 7 -> showAbout(); 10 -> showCoach() }; true
+            when (item.itemId) { 5 -> showProtection(); 9 -> showLanguage(); 7 -> showAbout(); 10 -> showCoach(); 11 -> showTrainingPlan(); 12 -> showAiSettings() }; true
         }
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
-            menu.add(0, 1, 0, R.string.main_export)
+            menu.add(0, 13, 0, R.string.v7_edit_activity)
+            menu.add(0, 14, 1, R.string.v7_run_review)
+            menu.add(0, 1, 2, R.string.main_export)
             menu.add(0, 2, 1, R.string.main_share_file)
             menu.add(0, 6, 2, R.string.main_save_to)
             menu.add(0, 3, 2, R.string.main_run_info)
@@ -310,6 +357,8 @@ class MainActivity : AppCompatActivity() {
             menu.add(0, 4, 4, R.string.main_delete_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    13 -> currentRun?.let { showActivityEditor(it) }
+                    14 -> currentRun?.let { showRunReview(it) }
                     1 -> currentRun?.let(::saveGpx)
                     2 -> currentRun?.let(::shareGpx)
                     6 -> currentRun?.let { exporter.saveAs(it) }
@@ -319,7 +368,7 @@ class MainActivity : AppCompatActivity() {
                     4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this@MainActivity)
                         .setTitle(R.string.main_delete_title).setMessage(R.string.main_delete_body)
                         .setNegativeButton(R.string.main_keep, null).setPositiveButton(R.string.main_delete) { _, _ ->
-                            try { store.delete(run.id); screen = "history"; tabs.getTabAt(1)?.select(); render() }
+                            try { store.delete(run.id); AiActivityCompletion.onDeleted(this@MainActivity, run.id); screen = "history"; tabs.getTabAt(1)?.select(); render() }
                             catch (_: Exception) { notice(getString(R.string.main_delete_failed)) }
                         }.show() }
                 }; true
@@ -330,13 +379,15 @@ class MainActivity : AppCompatActivity() {
         PopupMenu(this, anchor).apply {
             menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
             setForceShowIcon(true)
-            menu.add(0, 1, 0, R.string.main_protection)
+            menu.add(0, 12, 1, R.string.v7_ai_settings)
+            menu.add(0, 1, 2, R.string.main_protection)
             menu.add(0, 2, 1, R.string.main_direction)
             menu.add(0, 9, 2, R.string.main_language)
             if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 3, R.string.main_discard_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     10 -> showCoach()
+                    12 -> showAiSettings()
                     1 -> showProtection()
                     2 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_direction)
                         .setMessage(R.string.main_direction_body).setPositiveButton(R.string.main_done, null).show()
@@ -355,7 +406,7 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.6")
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.7")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
@@ -427,6 +478,18 @@ class MainActivity : AppCompatActivity() {
                     }.show()
             }.show()
     }
+    private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this).also { it.show() } }
+    private fun showTrainingPlan() { trainingPlan?.close(); trainingPlan = TrainingPlanSheet(this).also { it.show() } }
+    private fun showRunReview(run: RunSession) { runReview?.close(); runReview = RunReviewSheet(this, run).also { it.show() } }
+    private fun showActivityEditor(run: RunSession, state: Bundle? = null) {
+        detailsEditor?.close()
+        detailsEditor = ActivityDetailsEditor(this, run, state) {
+            currentRun = store.get(run.id) ?: run
+            restoredReplayPosition = replayView?.positionMs ?: restoredReplayPosition
+            restoredReplaySpeed = replayView?.playbackSpeed ?: restoredReplaySpeed
+            render()
+        }.also { it.show() }
+    }
     private fun showCoach(state: Bundle? = null) {
         coachSheet?.close()
         coachSheet = VoiceCoachSheet(this, state) {
@@ -437,6 +500,7 @@ class MainActivity : AppCompatActivity() {
     @Deprecated("Platform document result is supported on the minimum SDK")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (detailsEditor?.handleActivityResult(requestCode, resultCode, data) == true) return
         exporter.handleActivityResult(requestCode, resultCode, data)
     }
     private fun shareGpx(run: RunSession) = exporter.share(run)

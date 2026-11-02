@@ -28,6 +28,8 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import com.runline.app.R
+import com.runline.app.ai.AiRunCoach
+import com.runline.app.ai.AiActivityCompletion
 import com.runline.app.coaching.CoachSpeech
 import com.runline.app.coaching.VoiceCoachSettings
 import com.runline.app.core.CoachConfig
@@ -84,6 +86,7 @@ class TrackingService : Service(), LocationListener {
     private var coachConfig = CoachConfig()
     private var coachEngine: CoachEngine? = null
     private var coachSpeech: CoachSpeech? = null
+    private var aiCoach: AiRunCoach? = null
     @Volatile private var foreground = false
     @Volatile private var published = TrackingState()
 
@@ -255,6 +258,9 @@ class TrackingService : Service(), LocationListener {
         pauseRun()
         val finished = current!!.copy(endedAtMs = System.currentTimeMillis())
         if (!safely { store.complete(finished) }) return
+        // The route is durable before optional editing or online analysis is scheduled.
+        runCatching { getSharedPreferences("activity_completion", MODE_PRIVATE).edit().putString("pending_id", finished.id).apply() }
+        runCatching { AiActivityCompletion.onSaved(this, finished) }
         current = null; mode = RecordingStatus.IDLE
         published = TrackingState(savedRunId = finished.id, lastSavedAtMs = System.currentTimeMillis()); cached = published
         stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
@@ -339,7 +345,7 @@ class TrackingService : Service(), LocationListener {
         if (current == null) { stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf() }
     }
     private fun releaseRecordingResources() {
-        coachEngine?.pause(); coachSpeech?.stop()
+        coachEngine?.pause(); coachSpeech?.stop(); aiCoach?.pause()
         worker.removeCallbacks(ticker); runCatching { locations.removeUpdates(this) }
         wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
     }
@@ -347,6 +353,11 @@ class TrackingService : Service(), LocationListener {
     private fun reloadCoaching() {
         runCatching {
             val next = VoiceCoachSettings.load(this)
+            if (aiCoach == null) aiCoach = AiRunCoach(this) { advice ->
+                // AI callbacks arrive on main; published is the recorder's volatile snapshot.
+                if (published.status == RecordingStatus.RECORDING && VoiceCoachSettings.load(this).enabled) coachSpeech?.speakAdvice(advice)
+            }
+            aiCoach?.refresh()
             if (next != coachConfig || coachEngine == null) {
                 coachConfig = next
                 coachEngine = CoachEngine(next, snapshotRun())
@@ -356,15 +367,16 @@ class TrackingService : Service(), LocationListener {
                 if (coachSpeech == null) coachSpeech = CoachSpeech(this)
                 coachSpeech?.prepare()
             } else {
-                coachSpeech?.close(); coachSpeech = null
+                coachSpeech?.close(); coachSpeech = null; aiCoach?.pause()
             }
         }
     }
     private fun updateCoaching() {
         runCatching {
             val run = snapshotRun() ?: return
-            coachEngine?.update(run, mode == RecordingStatus.RECORDING,
-                accuracy != null && lastLocationElapsed > 0 && !isGpsStale())?.let { coachSpeech?.speak(it) }
+            val fresh = accuracy != null && lastLocationElapsed > 0 && !isGpsStale()
+            coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh)?.let { coachSpeech?.speak(it) }
+            if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh)
         }
     }
     private fun notification(): Notification {
@@ -444,6 +456,7 @@ class TrackingService : Service(), LocationListener {
         worker.post {
             freezeTimer(); releaseRecordingResources()
             coachSpeech?.close(); coachSpeech = null
+            aiCoach?.close(); aiCoach = null
             if (current != null) {
                 mode = RecordingStatus.INTERRUPTED; runCatching { persistCheckpoint() }
                 messageRes = R.string.tracking_recovered_hint; publish()
