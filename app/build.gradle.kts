@@ -33,7 +33,7 @@ android {
 }
 dependencies {
     implementation("org.maplibre.gl:android-sdk:11.13.5")
-    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     testImplementation("junit:junit:4.13.2")
