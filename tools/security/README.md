@@ -31,7 +31,25 @@ SEMGREP_SEND_METRICS=off SEMGREP_ENABLE_VERSION_CHECK=0 semgrep test tools/secur
 semgrep scan --config tools/security/rules --metrics=off --disable-version-check --strict --error --jobs 2 app/src/main/java
 ```
 
-The pinned tool versions and local rules require deliberate updates. Weekly runs recheck the current repository but do not silently download newer rules. Dependency alerts, Gradle dependency submission and Android lint are managed by the repository's separate workflows.
+The pinned tool versions and local rules require deliberate updates. Weekly runs recheck the current repository but do not silently download newer rules. Dependency alerts, the advisory audit, Gradle dependency submission and Android lint are managed by the repository's separate workflows.
+
+## Dependency advisories and toolchain limits
+
+`Dependency advisory audit` runs on PRs, main pushes, manual dispatch and Mondays at 07:23 UTC. It has read-only permissions and no signing secrets. `export_dependencies.init.gradle` exports the selected Maven versions from every resolvable project and buildscript configuration, including the build plugins, lint tools, debug/release and test dependencies. Unresolved dependencies or an empty inventory fail the export. The checker queries the public [OSV batch API](https://google.github.io/osv.dev/post-v1-querybatch/) using the current project's public Maven `group:name` and version; source, repository identity, keys and recordings are not uploaded.
+
+Every returned advisory fails the check, regardless of severity. Malformed inventories, missing responses, failed requests or unfinished pagination also fail; they are not treated as a clean result. Seventeen offline tests cover matching, distinct versions, batching, pagination, malformed responses and request failures. CI retains the inventory and advisory JSON reports for 14 days, including failed audits. Only after a successful audit may the separate trusted-main job submit the dependency graph to GitHub with `contents: write`; PRs never run that job.
+
+```sh
+python3 tools/security/test_dependency_advisories.py
+./gradlew --no-daemon --no-configuration-cache --init-script tools/security/export_dependencies.init.gradle exportDependencyAudit
+python3 tools/security/check_dependency_advisories.py --input build/reports/dependency-audit.json --output build/reports/dependency-advisories.json
+```
+
+The patched project toolchain is AGP **9.5.0**, AGP built-in Kotlin with a **2.4.21** classpath override, Gradle **9.8.2** and JDK **17**, with compile/target SDK **34** and Build Tools **36.0.0**. Narrow root-buildscript constraints select Guava **33.7.2-jre**, jose4j **0.9.6**, JDOM **2.0.6.1** and Commons Lang **3.18.0**; the Bouncy Castle **1.86** BOM aligns its modules. The separate `androidLintTool` configuration receives constraints for Guava, Commons Lang, HttpClient **4.5.14** and the three Bouncy Castle modules, preserving AGP's default lint dependency. These do not globally force application dependencies or replace Gradle's own libraries. Gradle Actions uses the [free basic cache provider](https://github.com/gradle/actions/blob/v6.4.1/README.md), avoiding the Enhanced Caching preview for private repositories.
+
+**Known limitation:** the official [Gradle 9.8.2 distribution catalog](https://github.com/gradle/gradle/blob/v9.8.2/gradle/dependency-management/distribution.versions.toml) still selects Guava **33.4.6-jre**, within the affected range for [GHSA-xxph-c9ww-hj94](https://github.com/advisories/GHSA-xxph-c9ww-hj94). Project constraints cannot patch that bundled JAR; there is no supported project-level override for the distribution library. Runline retains the official checksum-verified distribution and must track an upstream distribution fix. The advisory concerns native Java deserialization; its presence does not establish an exploitable path in Runline, but it remains an unresolved toolchain finding.
+
+This Maven check does not audit the Gradle distribution, JDK, Android SDK, scanner containers, or plugins injected separately by GitHub Actions. It covers the exported project graph against OSV's current data, so a green result is not a vulnerability-free claim. Because free private-repository branch protection is unavailable, the human or agent reviewer must require green applicable checks for the PR's current head before merging, as described in [repository checks](../../docs/CHECKS.md).
 
 ## Initial validation
 

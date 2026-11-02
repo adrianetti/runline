@@ -16,3 +16,5 @@ dist/
 # Local Python check tooling
 __pycache__/
 *.py[cod]
+
+.kotlin/
