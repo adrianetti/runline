@@ -1,0 +1,63 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '41 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-pinned Gitleaks
+        run: python3 tools/security/install_gitleaks.py "$RUNNER_TEMP/gitleaks"
+      - name: Scan all Git history without exposing matches
+        run: '"$RUNNER_TEMP/gitleaks" git . --log-opts="--all" --redact=100 --no-banner --config tools/security/gitleaks.toml'
+
+  source:
+    name: Android source security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Immutable multi-architecture index pins the CLI and all image dependencies.
+      SEMGREP_IMAGE: semgrep/semgrep:1.183.0@sha256:2e45517a85e13a9cca14a2a00df6bb48affd66b8ebfae1b0991cd57578362fb0
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Verify Android exposure boundaries
+        run: |
+          python3 tools/security/test_android_surface.py
+          python3 tools/security/check_android_surface.py
+      - name: Pull pinned Semgrep Community Edition
+        run: docker pull "$SEMGREP_IMAGE"
+      - name: Test local rules against positive and negative fixtures
+        run: |
+          docker run --rm --network none --volume "$PWD:/src:ro" --workdir /src \
+            --env SEMGREP_SEND_METRICS=off --env SEMGREP_ENABLE_VERSION_CHECK=0 \
+            "$SEMGREP_IMAGE" semgrep test tools/security/rules
+      - name: Scan production Kotlin with local rules
+        run: |
+          docker run --rm --network none --volume "$PWD:/src:ro" --workdir /src \
+            --env SEMGREP_SEND_METRICS=off --env SEMGREP_ENABLE_VERSION_CHECK=0 \
+            "$SEMGREP_IMAGE" semgrep scan --config tools/security/rules \
+            --metrics=off --disable-version-check --strict --error --jobs 2 app/src/main/java

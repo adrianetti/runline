@@ -1,0 +1,58 @@
+rules:
+  - id: android-insecure-cipher
+    languages: [kotlin]
+    severity: ERROR
+    message: Use authenticated encryption such as AES/GCM; implicit AES, ECB, DES and RC4 are forbidden.
+    patterns:
+      - pattern: Cipher.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: '^"(?:AES|AES/ECB(?:/[^\"]*)?|DES(?:/[^\"]*)?|DESede(?:/[^\"]*)?|RC4)"$'
+  - id: android-world-readable-storage
+    languages: [kotlin]
+    severity: ERROR
+    message: Keep activity files and credentials private; world-readable/writable modes expose them to other apps.
+    pattern-either:
+      - pattern: Context.MODE_WORLD_READABLE
+      - pattern: Context.MODE_WORLD_WRITEABLE
+  - id: android-permissive-hostname-verifier
+    languages: [kotlin]
+    severity: ERROR
+    message: Do not bypass HTTPS hostname verification.
+    pattern-either:
+      - pattern: 'HostnameVerifier { $HOST, $SESSION -> true }'
+      - pattern: '$CONNECTION.setHostnameVerifier { $HOST, $SESSION -> true }'
+  - id: android-empty-certificate-validation
+    languages: [kotlin]
+    severity: ERROR
+    message: Empty server certificate validation accepts untrusted TLS peers. Use the platform trust manager.
+    pattern-either:
+      - pattern: 'override fun checkServerTrusted(...) { }'
+      - pattern: 'override fun checkServerTrusted(...) = Unit'
+  - id: android-webview-ignore-ssl-error
+    languages: [kotlin]
+    severity: ERROR
+    message: Cancel WebView SSL errors; never proceed past an invalid certificate.
+    patterns:
+      - pattern-inside: 'override fun onReceivedSslError(...) { ... }'
+      - pattern: '$HANDLER.proceed()'
+  - id: android-webview-universal-file-access
+    languages: [kotlin]
+    severity: ERROR
+    message: File-origin WebView pages must not receive universal network or local-file access.
+    pattern-either:
+      - pattern: '$SETTINGS.allowUniversalAccessFromFileURLs = true'
+      - pattern: '$SETTINGS.allowFileAccessFromFileURLs = true'
+      - pattern: '$SETTINGS.setAllowUniversalAccessFromFileURLs(true)'
+      - pattern: '$SETTINGS.setAllowFileAccessFromFileURLs(true)'
+  - id: android-log-credential-variable
+    languages: [kotlin]
+    severity: ERROR
+    message: Do not log credentials. Log a fixed status without the secret value.
+    patterns:
+      - pattern-either:
+          - pattern: 'Log.$LEVEL($TAG, $SECRET, ...)'
+          - pattern: 'println($SECRET)'
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: '^(?i:apiKey|api_key|accessToken|access_token|clientSecret|client_secret|password|secretKey|secret_key)$'
