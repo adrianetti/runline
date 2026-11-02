@@ -116,6 +116,26 @@ class AiSettingsSheet(
         sheet.column.addView(status, sheet.row(4, 12))
 
         section(R.string.ai_v8_features)
+        val allFeatures = toggle(R.string.ai_v9_all_features, live.isChecked && reviews.isChecked && adapt.isChecked)
+        var synchronizingFeatures = false
+        allFeatures.setOnCheckedChangeListener { _, checked ->
+            if (!synchronizingFeatures) {
+                synchronizingFeatures = true
+                live.isChecked = checked; reviews.isChecked = checked; adapt.isChecked = checked
+                if (checked) enabled.isChecked = true
+                synchronizingFeatures = false
+            }
+        }
+        listOf(live, reviews, adapt).forEach { feature ->
+            feature.setOnCheckedChangeListener { _, _ ->
+                if (!synchronizingFeatures) {
+                    synchronizingFeatures = true
+                    allFeatures.isChecked = live.isChecked && reviews.isChecked && adapt.isChecked
+                    synchronizingFeatures = false
+                }
+            }
+        }
+        sheet.column.addView(allFeatures, sheet.row(0, 12))
         sheet.column.addView(live, sheet.row(0, 4))
         sheet.column.addView(sheet.text(activity.getString(R.string.ai_v8_live_hint), 14), sheet.row(0, 12))
         dropdown(R.string.ai_v8_interval, (3..10).map { activity.getString(R.string.ai_v8_minutes, it) }, intervalMinutes - 3) { index ->

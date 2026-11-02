@@ -8,6 +8,7 @@ import com.runline.app.i18n.AppLanguage
 /** Global preferences have one home; recording menus contain session actions only. */
 class AppSettingsSheet(
     activity: AppCompatActivity,
+    onProfile: () -> Unit,
     onAi: () -> Unit,
     onLanguage: () -> Unit,
     onProtection: () -> Unit,
@@ -22,6 +23,7 @@ class AppSettingsSheet(
                 setOnClickListener { close(); action() }
             }, sheet.row(0, 8))
         }
+        item(activity.getString(R.string.profile_v9_title), R.drawable.ic_user, onProfile)
         item(activity.getString(R.string.v8_ai), R.drawable.ic_ai, onAi)
         val language = when (AppLanguage.selectedTag(activity).substringBefore(',')) {
             "es" -> "Español"

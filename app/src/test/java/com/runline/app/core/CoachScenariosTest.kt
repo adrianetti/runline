@@ -7,11 +7,12 @@ class CoachScenariosTest {
     private class Track(config: CoachConfig) {
         val points = mutableListOf(RunPoint(0.0, 0.0, 1000, 4f, 700.0))
         var active = 0L; var metres = 0.0
+        private var height = 700.0
         val engine = CoachEngine(config, session())
         fun session() = RunSession("scenario", 1000, 1000 + active, active, points.toList())
         fun step(speed: Double, climb: Double = 0.0, fresh: Boolean = true): CoachCue? {
-            active += 5000; metres += speed * 5
-            points += RunPoint(0.0, metres / 111195.0802335329, 1000 + active, 4f, 700 + active / 1000.0 * climb)
+            active += 5000; metres += speed * 5; height += climb * 5
+            points += RunPoint(0.0, metres / 111195.0802335329, 1000 + active, 4f, height)
             return engine.update(session(), true, fresh)
         }
     }
@@ -55,5 +56,41 @@ class CoachScenariosTest {
         val cues = (1..45).mapNotNull { t.step(2.0) }
         assertEquals(1, cues.filterIsInstance<CoachCue.GoalReached>().size)
         assertTrue(cues.all { it is CoachCue.GoalReached })
+    }
+    @Test fun `pace targets stay quiet after a hill even with terrain announcements off`() {
+        val t = Track(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300,
+            kilometreAnnouncements = false, encouragement = false, terrainFeedback = false))
+        repeat(36) { assertNull(t.step(2.0, climb = .2)) }
+        // The measured window still includes the hill initially; its last hill sample starts recovery.
+        repeat(24) { assertNull(t.step(2.0)) }
+        assertTrue((1..40).mapNotNull { t.step(2.0) }.contains(CoachCue.SlowerThanTarget))
+    }
+    @Test fun `leveling after a measured hill gets one gentle transition rather than a speed command`() {
+        val t = Track(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300,
+            kilometreAnnouncements = false, encouragement = false))
+        repeat(36) { t.step(2.0, climb = .2) }
+        val cues = (1..24).mapNotNull { t.step(2.0) }
+        assertEquals(1, cues.count { it == CoachCue.EasingAfterHill })
+        assertFalse(cues.contains(CoachCue.SlowerThanTarget))
+    }
+    @Test fun `unchanged off target pace reminders leave at least five minutes between decisions`() {
+        val t = Track(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300,
+            kilometreAnnouncements = false, encouragement = false, terrainFeedback = false))
+        val times = mutableListOf<Long>()
+        repeat(160) { if (t.step(2.5) == CoachCue.SlowerThanTarget) times += t.active }
+        assertTrue(times.size >= 2)
+        assertTrue(times.zipWithNext().all { (a, b) -> b - a >= 300_000 })
+    }
+    @Test fun `delivery facts reject stale milestones hill pace and all GPS stale cues`() {
+        val good = CoachSituation(true, distanceMeters = 1100.0, distanceGoalMeters = 2000.0,
+            paceSeconds = 400.0, targetPaceSeconds = 330.0, terrain = CoachTerrain.LEVEL)
+        assertTrue(good.allows(CoachCue.Kilometre(1, 330.0)))
+        assertFalse(good.copy(distanceMeters = 2100.0).allows(CoachCue.Kilometre(1, 330.0)))
+        assertTrue(good.allows(CoachCue.SlowerThanTarget))
+        assertFalse(good.copy(hillRecovery = true).allows(CoachCue.SlowerThanTarget))
+        assertFalse(good.copy(terrain = CoachTerrain.DOWNHILL).allows(CoachCue.SlowerThanTarget))
+        val cues = listOf(CoachCue.Kilometre(1, 330.0), CoachCue.OneKilometreRemaining,
+            CoachCue.GoalReached(null), CoachCue.SlowerThanTarget, CoachCue.Terrain(CoachTerrain.UPHILL))
+        assertTrue(cues.none { good.copy(eligible = false).allows(it) })
     }
 }

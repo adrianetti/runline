@@ -15,6 +15,9 @@ import com.google.android.material.button.MaterialButton
 import com.runline.app.R
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.ElevationProgress
+import com.runline.app.core.RunPoint
+import com.runline.app.core.TerrainEstimate
+import com.runline.app.core.TerrainTrend
 import com.runline.app.tracking.RecordingStatus
 import com.runline.app.tracking.TrackingState
 import kotlin.math.roundToInt
@@ -37,6 +40,11 @@ class ActiveRunView(
     private val pace = value()
     private val gps = label(context.getString(R.string.active_loading), 12, muted = true)
     private val extra = label("", 12, muted = true)
+    private val terrain = TerrainLabel(context)
+    private val terrainTrend = TerrainTrend()
+    private var terrainCount = 0
+    private var terrainLast: RunPoint? = null
+    private var terrainEstimate = TerrainEstimate()
     private val elevation = ElevationProgress()
     private val heading = label(context.getString(when (initial.status) {
         RecordingStatus.PAUSED -> R.string.active_paused
@@ -77,6 +85,7 @@ class ActiveRunView(
             metrics.addView(column, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(8) })
         }
         information.addView(metrics)
+        information.addView(terrain, row(top = 4))
         if (!compact) information.addView(extra, row(top = 4))
         val scroll = ScrollView(context).apply {
             isFillViewport = false; clipToPadding = false
@@ -99,13 +108,17 @@ class ActiveRunView(
         update(initial)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val w = MeasureSpec.getSize(widthMeasureSpec)
+        val h = MeasureSpec.getSize(heightMeasureSpec)
         panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else (h * 0.55f).roundToInt().coerceAtLeast(dp(180))
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
-        panel.layoutParams = params
-        panel.requestLayout()
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
         post { updateInsets() }
     }
 
@@ -119,6 +132,13 @@ class ActiveRunView(
         val run = state.run ?: return
         val points = run.points
         panel.setPoints(points)
+        if (points.size < terrainCount || (terrainCount > 0 && points.getOrNull(terrainCount - 1) != terrainLast)) {
+            terrainTrend.reset(); terrainCount = 0; terrainEstimate = TerrainEstimate()
+        }
+        for (index in terrainCount until points.size) terrainEstimate = terrainTrend.update(points[index])
+        terrainCount = points.size; terrainLast = points.lastOrNull()
+        val fresh = terrainLast?.let { System.currentTimeMillis() - it.timestampMs in 0L..15_000L } == true
+        terrain.update(if (state.status == RecordingStatus.RECORDING && fresh) terrainEstimate else TerrainEstimate())
         map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
         map.setLocationWaitingMessage(if (state.status == RecordingStatus.RECORDING) state.message else context.getString(if (state.status == RecordingStatus.PAUSED) R.string.active_paused_hint else R.string.active_recovered_hint))
         map.setRoute(points)

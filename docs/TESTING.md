@@ -1,6 +1,6 @@
-# Version 0.8 test checklist
+# Version 0.9 test checklist
 
-The checklist is not a blanket pass report. Current v0.8 evidence and unperformed checks are recorded below; historical v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.9 evidence and pending checks are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -30,6 +30,32 @@ Notification-action unit tests should reject wrong/missing run IDs, stale Pause/
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
 
+## Version 0.9 recorded checks
+
+Recorded on 2 November 2026. The final builds used JDK 17; native checks used the API 34 emulator and disposable synthetic fixtures.
+
+- Final debug and release builds passed **197 JVM tests with zero failures**. Lint reported **zero errors and 117 warnings**. Checks passed for **494 bilingual resources** and **34 pinned icons**.
+- The **five Android boundary tests** and **17 offline OSV checker tests** passed. The project inventory resolved **242 Maven versions across 39 configurations**, with **zero OSV findings**. Strict Semgrep checked **65 production Kotlin files against seven local rules**, with **zero findings**. Actionlint passed. These project checks do not resolve the separately documented [bundled-Gradle limitation](../tools/security/README.md#dependency-advisories-and-toolchain-limits).
+- The first candidate installed over the existing app without uninstalling. All **47 inspected files were byte-identical** immediately afterward, including **21 activities**, the private photo and plan. This comparison precedes the intentional profile/effort fixture edits below. The exact final release APK was subsequently installed in place as well.
+- Native AI settings: **All AI features** enabled live advice, automatic reviews and automatic adaptation plus the module. Turning an individual feature off updated the aggregate switch; choices survived rotation. Activity-note sharing remained off, and missing-key Save was rejected. No real Anthropic request was made.
+- Native profile: the unsaved draft survived rotation without storing sensitive fields in a Bundle; saving retained **Include profile in AI = false**, and explicit **Clear profile** removed it. Profile/context and response behavior are additionally covered by pure and fake-transport tests, not paid generation.
+- Native activity editor: **effort 8/10** survived rotation and saving. Slider zero saved as **Unrated**, and the fixture's prior **6/10** was restored afterward.
+- Native two-hour replay opened at **240×**, with a free-camera arrow, estimated terrain label and observed-time elevation cursor rendered. No frame-rate or physical GPS/elevation accuracy claim follows from these captures.
+- Background GPS capture, force-stop recovery, resume and notification Pause/Finish saved one additional activity with **52 points in three segments**, leaving **22 saved activities** and no active draft. All **45 unedited original files** remained byte-identical; only the two deliberately edited effort metadata copies changed.
+- The installed system voice reported ready; audio diagnostics recorded transient navigation-speech focus requests and matching releases for both preview and a live cue. No actual music player or headphones were used.
+- English/Spanish, dark mode, 1.3× text and landscape captures exposed a replay-header overlap; applying island limits before child measurement fixed it. The final landscape capture keeps Back/options clear, with the information area scrollable and playback controls fixed.
+- Exact artifact: **`dist/Runline-0.9.0.apk`**, version **0.9.0 / code 9**, SHA-256 **`97eaed4ae16c43d8d61a94b21cfed742ac2affac4037c26d7e4d73dba2369a77`**. Signing-certificate SHA-256 **`fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`** matches the stable per-app key.
+
+CI and release results are tracked in the private repository; require every applicable check to pass for the exact PR head before merging. No real-provider generation, controlled Samsung field/battery test or actual Spotify/headphone ducking has been performed in this round. Unlisted checklist cases remain unverified.
+
+## Version 0.9 feature checks
+
+- Profile: start blank with sharing off; edit experience/preferences/health notes, rotate, save, reopen, clear and dismiss. Sensitive drafts may survive rotation in memory but must not enter saved-state Bundles, autofill, logs, backups or activity exports. Test no profile fields in live/review/plan requests while sharing is off, bounded fields when explicitly on, and revocation while a request or speech item is pending. Clearing/changing privacy settings must remove earlier profile-derived speech history from future context.
+- AI features: bulk selection controls the three feature switches and module, individual changes update the aggregate, and neither bulk operation opts into notes or profile sharing. Restore choices after rotation. Missing-key setup must fail clearly; disabling remains possible with invalid drafts. Use fake transport for context, silence (`NONE`), malformed response and revocation cases; a fake pass does not validate a real provider.
+- Context: retain exact-day versus approximate-month versus rolling-goal meaning, today's intended session, recent adherence, similar activities and optional self-reported effort. Omit raw coordinates/photos and avoid invented health/heart-rate/effort. Only matching TTS start callbacks count as actually spoken feedback; generated, rejected or expired speech must not enter that history.
+- Effort: exercise native slider zero/unset and every rating from 1–10 with touch, keyboard and TalkBack; rotate and save. Keep Save reachable with the IME and large text. Error text must become visible after an idle state, including a missing photo picker or failed save.
+- Map: compare current elevation cursor with the replay's observed clock across pauses, GPS gaps, missing/poor heights and isolated endpoints. Terrain stays unknown for insufficient/noisy/stopped data; switching between live/replay must not invent a grade. Pan, pinch, fit, recenter and replay/seek with the projected arrow; an offscreen fix must disappear instead of clamping to the edge. Background/dispose must stop pending display work; a stationary map must not keep an idle marker-polling loop running.
+
 ## Version 0.8 recorded checks
 
 Recorded on 2 November 2026. Builds and the following runtime checks used the integrated v0.8 source and the API 34 emulator; recordings were disposable synthetic fixtures.
@@ -48,7 +74,7 @@ Independent review of the inspected dark-mode, 1.3× text and landscape captures
 
 ## Installation and signing
 
-- Once prepared, verify the packaged `dist/Runline-0.8.0.apk` signature and version name/code (0.8.0 / 8); install that exact artifact. Update an existing signed v0.7 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
+- Verify the packaged `dist/Runline-0.9.0.apk` signature and version name/code (0.9.0 / 9); install that exact artifact. Update an existing signed v0.8 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
 - Do not treat the old v0.1 debug signature as compatible. If migration requires uninstalling v0.1, export recordings first and verify the exports before uninstalling.
 - Main-branch CI may receive signing secrets; pull-request builds must not. Never log key/password contents or put signing material in test artifacts.
 
@@ -183,7 +209,7 @@ GPX contains exact route coordinates and timestamps and is not a complete backup
 - Preview English and Spanish with installed offline voices. Exercise missing voice data, absent/broken engine, initialization timeout, repeated preview taps, settings navigation and cancellation/backgrounding. Source recordings and the service must remain intact.
 - Simulate none/distance/pace/distance-with-active-time goals. Cover exact boundaries, within/over time completion, every-kilometre enabled/disabled and one kilometre remaining. Explicit pauses must not consume goal time.
 - Feed sufficient fresh movement to exercise warmup, rolling pace, stable-band confirmation, tolerance and cooldown. Test poor accuracy, stale GPS, stops, invalid coordinates, timestamp regressions and new segments; no stale reminder should fire when data becomes unreliable.
-- Enable/change coaching mid-activity or recover a draft. Do not speak previous kilometre/goal catch-up. If speech is busy, do not queue old pace/km cues; any pending completion must be short-lived and cancelled on pause/error/focus loss.
+- Enable/change coaching mid-activity or recover a draft. Do not speak previous kilometre/goal catch-up. Busy speech may retain at most three replaceable slots: goal, newest milestone and one routine cue, never a FIFO backlog. Verify priority, validity and expiry: goal 90 seconds, milestone/terrain/morale 60, AI 75 and pace 25. Pause/error/focus loss must invalidate pending work. Routine feedback waits 85 seconds after speech finishes; waiting holds no audio focus.
 - Use a real music player and headphones: confirm temporary lowering or player-appropriate pause, restore after completion, and no global volume change. Repeat across foreground/background/screen lock, wired/Bluetooth, another voice prompt, calls, denied focus and engine error/watchdog timeout. Log Android/player/TTS/route versions. An emulator/fake TTS pass is not Spotify or Samsung evidence.
 - Pause/resume/finish and close/reopen the Activity while coaching. Only recording sessions can produce live cues; speech failure must not block point persistence, timer checkpoints or notification controls.
 

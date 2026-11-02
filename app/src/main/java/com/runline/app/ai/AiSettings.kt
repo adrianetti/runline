@@ -31,6 +31,7 @@ data class AiConfig(
 object AiSettings {
     private val changes = java.util.concurrent.atomic.AtomicLong()
     fun revision(): Long = changes.get()
+    private fun changed() { changes.incrementAndGet(); AiSpokenHistory.clearAll() }
     private const val ALIAS = "runline-anthropic-v1"
     private fun prefs(context: Context) = context.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
     fun load(context: Context): AiConfig = prefs(context).let { p -> AiConfig(
@@ -43,7 +44,7 @@ object AiSettings {
     fun isReady(context: Context): Boolean = load(context).isReady(hasKey(context))
     fun save(context: Context, config: AiConfig) {
         require(config.valid())
-        changes.incrementAndGet()
+        changed()
         check(prefs(context).edit().putBoolean("enabled", config.enabled).putBoolean("live", config.liveEnabled)
             .putBoolean("reviews", config.automaticReviews).putBoolean("adapt", config.automaticPlanUpdates)
             .putString("liveModel", config.liveModel).putString("reviewModel", config.reviewModel).putInt("interval", config.intervalMinutes)
@@ -53,7 +54,7 @@ object AiSettings {
     fun validKey(value: String) = value.length in 20..512 && value.all { it.code in 33..126 }
     fun saveKey(context: Context, value: String) {
         require(validKey(value))
-        changes.incrementAndGet()
+        changed()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
         val atomic = android.util.AtomicFile(keyFile(context))
@@ -71,7 +72,7 @@ object AiSettings {
         }.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)).toString(Charsets.UTF_8)
     }.getOrNull()
     fun clearKey(context: Context) {
-        changes.incrementAndGet()
+        changed()
         android.util.AtomicFile(keyFile(context)).delete()
         runCatching { KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(ALIAS) }
         save(context, load(context).copy(enabled = false, liveEnabled = false, automaticReviews = false, automaticPlanUpdates = false))

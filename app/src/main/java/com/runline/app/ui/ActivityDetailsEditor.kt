@@ -18,11 +18,13 @@ import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -51,6 +53,8 @@ class ActivityDetailsEditor(
     private val photoContainer = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
     private val save = button(R.string.details_save, R.drawable.ic_check, true)
     private val addPhotos = button(R.string.details_add_photos, R.drawable.ic_photo)
+    private val effortSlider = Slider(activity)
+    private val effortValue = text("", 15)
     private var selectedActivity = run.activityType
     private var selectedRoutine = RoutineType.NONE
     private var selectedEffort: Int? = null
@@ -84,21 +88,50 @@ class ActivityDetailsEditor(
         column.addView(choice(R.string.details_routine, RoutineType.entries.map(::routineName), RoutineType.entries.indexOf(selectedRoutine)) {
             selectedRoutine = RoutineType.entries[it]
         }, row(0, 16))
-        column.addView(choice(R.string.details_effort,
-            listOf(activity.getString(R.string.details_effort_none)) + (1..10).map { activity.getString(R.string.details_effort_value, it) }, selectedEffort ?: 0) {
-            selectedEffort = it.takeIf { index -> index > 0 }
-        }, row())
-        column.addView(text(activity.getString(R.string.details_effort_hint), 13), row(8, 24))
+        val effortHeading = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
+        effortHeading.addView(text(activity.getString(R.string.details_effort), 16, true).apply {
+            val icon = AppCompatResources.getDrawable(activity, R.drawable.ic_effort)?.mutate()?.apply { setTint(activity.getColor(R.color.on_surface)) }
+            setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null)
+            compoundDrawablePadding = dp(8)
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        effortHeading.addView(effortValue, LinearLayout.LayoutParams(-2, -2))
+        column.addView(effortHeading, row(4, 4))
+        fun updateEffort() {
+            val effort = selectedEffort
+            effortValue.text = if (effort == null) activity.getString(R.string.details_effort_none)
+                else activity.getString(R.string.effort_v9_value, effort, activity.getString(when (effort) {
+                    in 1..2 -> R.string.effort_v9_very_easy
+                    in 3..4 -> R.string.effort_v9_easy
+                    in 5..6 -> R.string.effort_v9_moderate
+                    in 7..8 -> R.string.effort_v9_hard
+                    else -> R.string.effort_v9_maximum
+                }))
+        }
+        effortSlider.apply {
+            valueFrom = 0f; valueTo = 10f; stepSize = 1f; value = (selectedEffort ?: 0).toFloat()
+            contentDescription = activity.getString(R.string.details_effort)
+            minimumHeight = dp(48)
+            setLabelFormatter { if (it < 1f) activity.getString(R.string.details_effort_none) else activity.getString(R.string.details_effort_value, it.roundToInt()) }
+            addOnChangeListener { _, value, fromUser ->
+                if (fromUser) { selectedEffort = value.roundToInt().takeIf { it > 0 }; updateEffort() }
+            }
+        }
+        updateEffort()
+        column.addView(effortSlider, row())
+        column.addView(text(activity.getString(R.string.effort_v9_scale), 13), row(0, 24))
         column.addView(text(activity.getString(R.string.details_photos), 20, true), row(0, 12))
         column.addView(photoContainer, row())
         column.addView(addPhotos.apply { setOnClickListener { choosePhotos() } }, row(4, 8))
         column.addView(text(activity.getString(R.string.details_photo_limit), 13), row(0, 12))
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        column.addView(status, row(4, 12))
-        column.addView(save.apply { setOnClickListener { saveDetails() } }, row())
         val shell = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         shell.addView(header, LinearLayout.LayoutParams(-1, -2))
         shell.addView(androidx.core.widget.NestedScrollView(activity).apply { addView(column, ViewGroup.LayoutParams(-1, -2)) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        shell.addView(LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16))
+            addView(status, row(0, 8))
+            addView(save.apply { setOnClickListener { saveDetails() } }, row())
+        }, LinearLayout.LayoutParams(-1, -2))
         dialog.setContentView(shell, ViewGroup.LayoutParams(-1, -1))
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         dialog.setCanceledOnTouchOutside(false)
@@ -143,30 +176,32 @@ class ActivityDetailsEditor(
         try {
             model.pickerRequested = true
             @Suppress("DEPRECATION") activity.startActivityForResult(intent, REQUEST_PHOTOS)
-        } catch (_: Exception) { model.pickerRequested = false; status.setText(R.string.details_no_picker) }
+        } catch (_: Exception) { model.pickerRequested = false; showStatus(R.string.details_no_picker) }
     }
     private fun snapshot() = ActivityDetails(title.second.text.toString(), description.second.text.toString(), selectedEffort,
         selectedActivity, selectedRoutine, model.photos.toList())
     private fun saveDetails() {
-        if (model.busy) { status.setText(R.string.details_finish_import); return }
+        if (model.busy) { showStatus(R.string.details_finish_import); return }
         val details = runCatching { snapshot().validated() }.getOrNull()
-        if (details == null) { status.setText(R.string.details_invalid); return }
+        if (details == null) { showStatus(R.string.details_invalid); return }
         model.save(details)
     }
     private fun requestDismiss() {
-        if (model.saving) { status.setText(R.string.details_saving); return }
+        if (model.saving) { showStatus(R.string.details_saving); return }
         val changed = model.busy || snapshot().copy(activityType = selectedActivity) != model.initial.copy(activityType = model.initial.activityType ?: run.activityType)
         if (!changed) { dialog.dismiss(); return }
         MaterialAlertDialogBuilder(activity).setTitle(R.string.details_discard_title).setMessage(R.string.details_discard_body)
             .setPositiveButton(R.string.details_discard) { _, _ -> dialog.dismiss() }
             .setNegativeButton(R.string.details_keep_editing, null).show()
     }
+    private fun showStatus(message: Int) { status.setText(message); status.visibility = View.VISIBLE }
     private fun updateState() {
         if (closed) return
         if (model.saved && dialog.isShowing) {
             model.saved = false; retainDraft = true; model.finish(); onSaved(); close(); return
         }
         save.isEnabled = !model.busy && !model.loadFailed
+        effortSlider.isEnabled = !model.busy && !model.loadFailed
         addPhotos.isEnabled = !model.busy && !model.loadFailed && model.photos.size < ActivityDetails.MAX_PHOTOS
         val message = when {
             model.loadFailed -> R.string.details_load_failed
@@ -174,6 +209,7 @@ class ActivityDetailsEditor(
             else -> model.errorRes
         }
         status.text = if (message == 0) "" else activity.getString(message)
+        status.visibility = if (message == 0) View.GONE else View.VISIBLE
         if (photosVersion != model.photosVersion) {
             photosVersion = model.photosVersion
             photoContainer.removeAllViews()

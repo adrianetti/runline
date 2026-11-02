@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -27,6 +26,7 @@ import com.runline.app.R
 import com.runline.app.core.GpsCourse
 import com.runline.app.core.FollowCamera
 import com.runline.app.core.MarkerMotion
+import com.runline.app.core.MarkerViewport
 import com.runline.app.core.RunPoint
 import com.runline.app.core.continuousSegments
 import com.runline.app.core.hasValidCoordinates
@@ -43,7 +43,6 @@ import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
-import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.tile.TileOperation
 import org.maplibre.geojson.Feature
@@ -84,7 +83,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private val course = GpsCourse()
     private val followCamera = FollowCamera()
     private var cameraCut = true
-    private var markerLayerMode = -1
     private var overlayInsets = intArrayOf(0, 0, 0, 0)
     private var pnoaVisible = false
     private var pnoaUnavailable = false
@@ -114,12 +112,18 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
     private val credits = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
     private val fallback = RouteView(context).apply { visibility = GONE }
-    // Native symbols can lag the camera. Both follow modes share its exact padded
-    // anchor; the geographic symbol is used when the user pans away from that target.
+    // Follow uses the exact padded anchor; free camera projects this same native
+    // overlay on motion frames. GeoJSON symbol uploads never delay the moving marker.
     private val followMarkerView = FollowMarkerView(context).apply {
         visibility = GONE
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         isClickable = false; isFocusable = false
+    }
+    private val markerFrame = object : Runnable {
+        override fun run() {
+            if (disposed || !resumed) return
+            updateMarkerPresentation()
+        }
     }
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val waitingSpinner = ProgressBar(context).apply {
@@ -224,7 +228,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             map = loaded
             loaded.setPrefetchZoomDelta(0)
             loaded.addOnCameraIdleListener { updateImageryCoverage() }
-            loaded.addOnCameraMoveListener { updateMarkerPresentation() }
+            loaded.addOnCameraMoveListener { updateMarkerPresentation(); requestMarkerFrame() }
             loaded.setStyle(Style.Builder().fromJson(BASE_STYLE)) { ready ->
                 if (disposed) return@setStyle
                 style = ready
@@ -236,14 +240,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                 ready.addSource(GeoJsonSource("start"))
                 ready.addLayer(CircleLayer("start-dot", "start").withProperties(
                     circleColor(Color.WHITE), circleRadius(5f), circleStrokeColor(Color.BLACK), circleStrokeWidth(2f)))
-                ready.addSource(GeoJsonSource("position"))
-                ready.addLayer(CircleLayer("position-dot", "position").withProperties(
-                    circleColor(Color.WHITE), circleRadius(8f), circleStrokeColor(Color.BLACK), circleStrokeWidth(3f)))
-                ready.addImage("navigation-arrow", navigationImage())
-                ready.addLayer(SymbolLayer("position-arrow", "position").withProperties(
-                    iconImage("navigation-arrow"), iconAllowOverlap(true), iconIgnorePlacement(true),
-                    iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP), iconSize(.875f), iconRotate(0f),
-                    visibility(Property.NONE)))
                 updateRoute()
                 updateMarker()
                 applyCameraInsets()
@@ -495,6 +491,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (!started) { mapView.onStart(); started = true }
         mapView.onResume()
         resumed = true
+        requestMarkerFrame()
         followCamera.reset(); cameraCut = true
         // Return directly to the last observed fix; never animate unseen background time.
         displayedMarker = marker
@@ -506,6 +503,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     fun onHostPause() {
         if (disposed) return
         cancelMotion()
+        removeCallbacks(markerFrame)
         if (resumed) { mapView.onPause(); resumed = false }
         if (started) { mapView.onStop(); started = false }
         updateMarkerPresentation()
@@ -552,40 +550,36 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         ready.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointCollection(start))
     }
 
-    private fun anchoredFollowMarker(): Boolean = (navigationMode || replayMode) && following && !disposed && resumed &&
-        !mapFailed && style != null && displayedMarker != null && width >= dp(48) && height >= dp(48)
+    private fun updateMarker() { updateMarkerPresentation(); requestMarkerFrame() }
 
-    private fun updateMarker() {
-        val ready = style
-        if (ready != null && !anchoredFollowMarker()) {
-            // The geographic source remains authoritative when panning or fitting a route.
-            val source = ready.getSourceAs<GeoJsonSource>("position")
-            if (replayMode) source?.setGeoJsonSync(pointCollection(displayedMarker))
-            else source?.setGeoJson(pointCollection(displayedMarker))
-        }
-        updateMarkerPresentation()
+    /** Coalesce to the next display frame after movement; paused maps never poll. */
+    private fun requestMarkerFrame() {
+        removeCallbacks(markerFrame)
+        if (!disposed && resumed) postOnAnimation(markerFrame)
     }
 
     private fun updateMarkerPresentation() {
-        val anchored = anchoredFollowMarker()
-        followMarkerView.visibility = if (anchored) VISIBLE else GONE
-        if (anchored) {
+        val point = displayedMarker
+        val loaded = map
+        if (disposed || !resumed || mapFailed || style == null || point == null || loaded == null ||
+            width < dp(48) || height < dp(48)) {
+            followMarkerView.visibility = GONE
+            return
+        }
+        val position = if ((navigationMode || replayMode) && following) {
             val padding = cameraInsets()
-            val half = dp(42) / 2f
-            val centerX = ((width + padding[0] - padding[2]) / 2).toFloat().coerceIn(half, width - half)
-            val centerY = ((height + padding[1] - padding[3]) / 2).toFloat().coerceIn(half, height - half)
-            followMarkerView.translationX = centerX - half
-            followMarkerView.translationY = centerY - half
-            followMarkerView.showBearing(FollowCamera.relativeBearing(displayedBearing, map?.cameraPosition?.bearing ?: 0.0))
+            MarkerViewport.place(((width + padding[0] - padding[2]) / 2).toFloat(),
+                ((height + padding[1] - padding[3]) / 2).toFloat(), width, height, dp(42))
+        } else {
+            runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()?.let {
+                MarkerViewport.place(it.x, it.y, width, height, dp(42))
+            }
         }
-        val arrow = navigationBearingAvailable
-        val mode = if (anchored) 0 else if (arrow) 2 else 1
-        if (style != null && markerLayerMode != mode) {
-            markerLayerMode = mode
-            style?.getLayer("position-dot")?.setProperties(visibility(if (mode == 1) Property.VISIBLE else Property.NONE))
-            style?.getLayer("position-arrow")?.setProperties(visibility(if (mode == 2) Property.VISIBLE else Property.NONE))
-        }
-        if (mode == 2) style?.getLayer("position-arrow")?.setProperties(iconRotate((displayedBearing ?: 0.0).toFloat()))
+        followMarkerView.visibility = if (position != null) VISIBLE else GONE
+        if (position == null) return
+        followMarkerView.translationX = position.left
+        followMarkerView.translationY = position.top
+        followMarkerView.showBearing(FollowCamera.relativeBearing(displayedBearing, loaded.cameraPosition.bearing))
     }
 
     private fun followMarker() {
@@ -648,18 +642,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             CameraPosition.Builder(loaded.cameraPosition).padding(cameraInsets()).build()))
     }
 
-    private fun navigationImage(): Bitmap {
-        val size = dp(48)
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        // MapLibre derives the icon's logical size from Bitmap.density.
-        bitmap.density = resources.displayMetrics.densityDpi
-        context.getDrawable(R.drawable.ic_navigation)!!.mutate().apply {
-            setBounds(0, 0, size, size)
-            draw(Canvas(bitmap))
-        }
-        return bitmap
-    }
-
     private fun updateImageryCoverage() {
         if (disposed) return
         val loaded = map ?: return
@@ -714,7 +696,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
 }
 
-/** One display marker, using the same pinned Tabler arrow as the geographic layer. */
+/** One display marker, using the pinned Tabler arrow in follow and free-camera modes. */
 private class FollowMarkerView(context: Context) : View(context) {
     private val arrow = context.getDrawable(R.drawable.ic_navigation)!!.mutate()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)

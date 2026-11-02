@@ -30,6 +30,8 @@ import com.runline.app.core.RunReplay
 import com.runline.app.core.ReplayPresentation
 import com.runline.app.core.LapAnalysis
 import com.runline.app.core.RoutineType
+import com.runline.app.core.ReplayTerrain
+import com.runline.app.core.TerrainEstimate
 import com.runline.app.data.RunStore
 import java.time.Instant
 import java.time.ZoneId
@@ -65,6 +67,8 @@ class RunReplayView(
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val handler = Handler(Looper.getMainLooper())
     private val panel = ElevationIsland(context)
+    private val terrain = TerrainLabel(context)
+    private val replayTerrain = ReplayTerrain(replay)
     private val play = control(context.getString(R.string.replay_play), R.drawable.ic_play)
     private val speed = control(context.getString(R.string.replay_multiplier, 1), R.drawable.ic_clock)
     private val seek = SeekBar(context).apply {
@@ -95,7 +99,7 @@ class RunReplayView(
         map.setReplayMode()
         val displayPoints = replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } }
         map.setRoute(displayPoints)
-        panel.setPoints(displayPoints)
+        panel.setReplay(replay)
         replay.at(0)?.point?.let { map.setCenter(it.latitude, it.longitude) }
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -153,6 +157,7 @@ class RunReplayView(
             metrics.addView(column, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(8) })
         }
         information.addView(metrics)
+        information.addView(terrain, row(top = 4))
         val scroll = ScrollView(context).apply {
             isFillViewport = false
             addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
@@ -202,13 +207,19 @@ class RunReplayView(
         setPosition(0L, smoothHeading = false)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val w = MeasureSpec.getSize(widthMeasureSpec)
+        val h = MeasureSpec.getSize(heightMeasureSpec)
+        // Apply the cap before measuring children. A requestLayout from onSizeChanged
+        // can be swallowed by the current layout pass, leaving the header covered.
         panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(180)) else (h * 0.55f).roundToInt().coerceAtLeast(dp(200))
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
-        panel.layoutParams = params
-        panel.requestLayout()
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
         post { updateInsets() }
     }
 
@@ -248,6 +259,8 @@ class RunReplayView(
     private fun setPosition(value: Long, smoothHeading: Boolean = true) {
         positionMs = value.coerceIn(0L, replay.durationMs)
         val frame = replay.at(positionMs)
+        panel.setPosition(positionMs, frame?.segmentIndex)
+        terrain.update(frame?.let { replayTerrain.at(positionMs, it.segmentIndex) } ?: TerrainEstimate())
         map.setReplayMarker(frame?.point, ReplayPresentation.bearing(replay, positionMs), smoothHeading)
         setText(distanceValue, context.getString(R.string.replay_kilometres, number(frame?.distanceMeters?.div(1000), 2)))
         setText(speedValue, number(frame?.speedMetersPerSecond?.times(3.6), 1))
