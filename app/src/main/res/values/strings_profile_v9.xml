@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_v9_title">Runner profile</string>
+    <string name="profile_v9_optional">Optional context for your coaching.</string>
+    <string name="profile_v9_experience">Running experience</string>
+    <string name="profile_v9_unspecified">Not set</string>
+    <string name="profile_v9_starting">Starting out</string>
+    <string name="profile_v9_returning">Returning to running</string>
+    <string name="profile_v9_regular">I run regularly</string>
+    <string name="profile_v9_experienced">Experienced runner</string>
+    <string name="profile_v9_preferences">Training preferences</string>
+    <string name="profile_v9_health">Health notes · optional</string>
+    <string name="profile_v9_include">Include profile in AI</string>
+    <string name="profile_v9_disclosure">When enabled, AI requests also send this profile, including health notes, to Anthropic. This does not turn AI on.</string>
+    <string name="profile_v9_clear">Clear profile</string>
+</resources>

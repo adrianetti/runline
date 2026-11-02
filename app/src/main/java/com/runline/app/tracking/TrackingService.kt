@@ -355,16 +355,24 @@ class TrackingService : Service(), LocationListener {
             val next = VoiceCoachSettings.load(this)
             if (aiCoach == null) aiCoach = AiRunCoach(this) { advice ->
                 // AI callbacks arrive on main; published is the recorder's volatile snapshot.
-                if (published.status == RecordingStatus.RECORDING && VoiceCoachSettings.load(this).enabled) coachSpeech?.speakAdvice(advice)
+                if (published.status == RecordingStatus.RECORDING && VoiceCoachSettings.load(this).enabled) {
+                    coachSpeech?.speakAdvice(advice.text) {
+                        published.status == RecordingStatus.RECORDING && !published.gpsStale &&
+                            published.accuracyMeters != null && VoiceCoachSettings.load(this).enabled && advice.isValid()
+                    }
+                }
             }
             aiCoach?.refresh()
+            coachSpeech?.invalidatePending()
             if (next != coachConfig || coachEngine == null) {
                 coachConfig = next
                 coachEngine = CoachEngine(next, snapshotRun())
-                coachSpeech?.stop()
+                coachSpeech?.reset()
             }
             if (next.enabled && mode == RecordingStatus.RECORDING) {
-                if (coachSpeech == null) coachSpeech = CoachSpeech(this)
+                if (coachSpeech == null) coachSpeech = CoachSpeech(this) { spoken ->
+                    aiCoach?.onSpoken(spoken.text, spoken.source.name, spoken.elapsedRealtimeMs)
+                }
                 coachSpeech?.prepare()
             } else {
                 coachSpeech?.close(); coachSpeech = null; aiCoach?.pause()
@@ -375,7 +383,9 @@ class TrackingService : Service(), LocationListener {
         runCatching {
             val run = snapshotRun() ?: return
             val fresh = accuracy != null && lastLocationElapsed > 0 && !isGpsStale()
-            coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh)?.let { coachSpeech?.speak(it) }
+            val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh)
+            coachEngine?.situation?.let { coachSpeech?.updateSituation(it) }
+            cue?.let { coachSpeech?.speak(it) }
             if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh)
         }
     }

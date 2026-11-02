@@ -15,7 +15,13 @@ import com.runline.app.core.CoachTerrain
 import com.runline.app.core.EncouragementKind
 import com.runline.app.core.PhraseRotation
 import com.runline.app.core.CoachCue
-import com.runline.app.core.PendingCoachGoal
+import com.runline.app.core.CoachSituation
+import com.runline.app.core.CoachSpeechPriority
+import com.runline.app.core.CoachSpeechRequest
+import com.runline.app.core.CoachSpeechSchedule
+import com.runline.app.core.CoachSpeechSource
+import com.runline.app.core.SpokenCoachAdvice
+import com.runline.app.core.SpokenCoachGate
 import com.runline.app.core.SpeechLease
 import com.runline.app.core.SpeechOutput
 import com.runline.app.i18n.AppLanguage
@@ -27,7 +33,7 @@ enum class SpeechResult { READY, UNAVAILABLE, AUDIO_BUSY, ERROR }
  * Short, optional speech using an installed offline system voice. All engine/focus
  * operations are serialized on main; recording persistence never waits for speech.
  */
-class CoachSpeech(context: Context) {
+class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) -> Unit = {}) {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private val audio = context.getSystemService(AudioManager::class.java)
@@ -40,15 +46,17 @@ class CoachSpeech(context: Context) {
     private var initializationTimeout: Runnable? = null
     private var closed = false
     private var serial = 0L
-    private var lastStartedAtMs = Long.MIN_VALUE
     private val phrases = PhraseRotation()
     private var language: String? = null
     private var pendingPreview: ((SpeechResult) -> Unit)? = null
     private var utterancePreview: ((SpeechResult) -> Unit)? = null
     private var currentId: String? = null
+    private var utteranceValid: (() -> Boolean)? = null
     private var timeout: Runnable? = null
-    private val pendingGoal = PendingCoachGoal()
-    private val retryGoal = Runnable { drainPendingGoal() }
+    private val schedule = CoachSpeechSchedule()
+    private val spokenGate = SpokenCoachGate()
+    private var situation = CoachSituation()
+    private val retrySpeech = Runnable { drainPendingSpeech() }
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         .setAudioAttributes(attributes).setAcceptsDelayedFocusGain(false)
         .setOnAudioFocusChangeListener({ change ->
@@ -69,7 +77,7 @@ class CoachSpeech(context: Context) {
     fun prepare() = onMain { prepareInternal() }
     fun speakPreview(onResult: (SpeechResult) -> Unit) = onMain {
         if (closed) { onResult(SpeechResult.ERROR); return@onMain }
-        if (lease.isBusy || pendingPreview != null || pendingGoal.hasPending(SystemClock.elapsedRealtime())) {
+        if (lease.isBusy || pendingPreview != null || schedule.pendingCount > 0) {
             onResult(SpeechResult.AUDIO_BUSY); return@onMain
         }
         if (!initialized) {
@@ -78,25 +86,35 @@ class CoachSpeech(context: Context) {
             if (!initializing && !initialized) { pendingPreview = null; onResult(SpeechResult.UNAVAILABLE) }
         } else speakInternal(tr(R.string.coach_voice_preview), onResult)
     }
+    fun updateSituation(value: CoachSituation) = onMain {
+        situation = value
+        if (!value.eligible) invalidatePendingInternal()
+    }
+    fun reset() = onMain { stopInternal(); schedule.reset() }
+    fun invalidatePending() = onMain { invalidatePendingInternal() }
     fun speak(cue: CoachCue) = onMain {
         if (closed) return@onMain
-        if (cue is CoachCue.GoalReached) {
-            pendingGoal.offer(cue, SystemClock.elapsedRealtime())
-            drainPendingGoal()
-            return@onMain
+        val priority = when (cue) {
+            is CoachCue.GoalReached -> CoachSpeechPriority.GOAL
+            is CoachCue.Kilometre, CoachCue.OneKilometreRemaining, is CoachCue.LapCompleted -> CoachSpeechPriority.MILESTONE
+            is CoachCue.Terrain, CoachCue.EasingAfterHill -> CoachSpeechPriority.TERRAIN
+            is CoachCue.Encouragement -> CoachSpeechPriority.MORALE
+            else -> CoachSpeechPriority.PACE
         }
-        if (pendingGoal.hasPending(SystemClock.elapsedRealtime())) { drainPendingGoal(); return@onMain }
-        if (!initialized || lease.isBusy || tooSoon()) return@onMain
-        speakInternal(cueText(cue), null)
+        schedule.offer(CoachSpeechRequest(cue.toString(), priority, cue = cue,
+            isValid = { situation.allows(cue) }), SystemClock.elapsedRealtime())
+        prepareInternal()
+        drainPendingSpeech()
     }
-    /** Fresh optional AI advice never queues behind local cues or delays goal completion. */
-    fun speakAdvice(text: String) = onMain {
+    /** One fresh AI slot shares local speech timing. It never reserves audio focus while waiting. */
+    fun speakAdvice(text: String, isValid: () -> Boolean = { true }) = onMain {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
-        if (closed || !initialized || clean.isEmpty() || clean.length > 220 || lease.isBusy ||
-            pendingGoal.hasPending(SystemClock.elapsedRealtime()) || tooSoon()) return@onMain
-        speakInternal(clean, null)
+        if (closed || clean.isEmpty() || clean.length > 220 || clean.split(' ').size > 30) return@onMain
+        schedule.offer(CoachSpeechRequest("ai", CoachSpeechPriority.AI, advice = clean,
+            isValid = { situation.eligible && isValid() }), SystemClock.elapsedRealtime())
+        prepareInternal()
+        drainPendingSpeech()
     }
-    private fun tooSoon() = lastStartedAtMs != Long.MIN_VALUE && SystemClock.elapsedRealtime() - lastStartedAtMs < 35_000
     fun stop() = onMain { stopInternal() }
     fun close() = onMain {
         if (closed) return@onMain
@@ -125,7 +143,15 @@ class CoachSpeech(context: Context) {
                         engine?.setAudioAttributes(attributes)
                         engine?.setSpeechRate(1.0f)
                         engine?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                            override fun onStart(id: String?) { main.post { if (id == currentId) completePreview(SpeechResult.READY) } }
+                            override fun onStart(id: String?) { main.post {
+                                if (id == currentId) {
+                                    if (utteranceValid?.let { !runCatching(it).getOrDefault(false) } == true) {
+                                        stopInternal(); return@post
+                                    }
+                                    completePreview(SpeechResult.READY)
+                                    spokenGate.started(id, SystemClock.elapsedRealtime())?.let { runCatching { onSpoken(it) } }
+                                }
+                            } }
                             override fun onDone(id: String?) { main.post { finish(id, null) } }
                             @Deprecated("Required legacy callback")
                             override fun onError(id: String?) { main.post { finish(id, SpeechResult.ERROR) } }
@@ -139,11 +165,11 @@ class CoachSpeech(context: Context) {
                     if (initialized) speakInternal(tr(R.string.coach_voice_preview), preview)
                     else preview(SpeechResult.UNAVAILABLE)
                 }
-                if (initialized) drainPendingGoal() else clearPendingGoal()
+                if (initialized) drainPendingSpeech() else invalidatePendingInternal()
             } }
         } catch (_: Exception) {
             initializing = false; initialized = false
-            clearPendingGoal()
+            invalidatePendingInternal()
         }
         // A broken TTS engine must never keep a preview request hanging indefinitely.
         val initGuard = Runnable {
@@ -153,7 +179,7 @@ class CoachSpeech(context: Context) {
                 runCatching { engine?.shutdown() }; engine = null
                 val preview = pendingPreview; pendingPreview = null
                 preview?.invoke(SpeechResult.UNAVAILABLE)
-                clearPendingGoal()
+                invalidatePendingInternal()
             }
         }
         initializationTimeout = initGuard
@@ -174,27 +200,31 @@ class CoachSpeech(context: Context) {
         return true
     }
 
-    private fun speakInternal(text: String, preview: ((SpeechResult) -> Unit)?) {
+    private fun speakInternal(text: String, preview: ((SpeechResult) -> Unit)?, source: CoachSpeechSource? = null,
+                              isValid: (() -> Boolean)? = null) {
         if (closed || !initialized) { preview?.invoke(SpeechResult.UNAVAILABLE); return }
         if (lease.isBusy || (speakingInstance != null && speakingInstance !== this)) {
             preview?.invoke(SpeechResult.AUDIO_BUSY); return
         }
         if (!runCatching { ensureVoice() }.getOrDefault(false)) { preview?.invoke(SpeechResult.UNAVAILABLE); return }
+        if (isValid?.let { !runCatching(it).getOrDefault(false) } == true) return
         val id = "runline-coach-${++serial}"
-        currentId = id; utterancePreview = preview
+        currentId = id; utterancePreview = preview; utteranceValid = isValid
+        source?.let { spokenGate.expect(id, text, it, isValid ?: { true }) }
         if (!lease.begin(text, id)) {
-            currentId = null
+            currentId = null; utteranceValid = null; spokenGate.clear()
+            schedule.finished(SystemClock.elapsedRealtime())
             completePreview(SpeechResult.AUDIO_BUSY)
             return
         }
         speakingInstance = this
-        lastStartedAtMs = SystemClock.elapsedRealtime()
         val guard = Runnable {
             if (currentId == id) {
                 completePreview(SpeechResult.ERROR)
-                lease.timeout(id); currentId = null; timeout = null
+                lease.timeout(id); currentId = null; utteranceValid = null; timeout = null; spokenGate.clear()
+                schedule.finished(SystemClock.elapsedRealtime())
                 if (speakingInstance === this) speakingInstance = null
-                clearPendingGoal()
+                invalidatePendingInternal()
             }
         }
         timeout = guard
@@ -205,33 +235,34 @@ class CoachSpeech(context: Context) {
     private fun finish(id: String?, error: SpeechResult?) {
         if (id == null || id != currentId) return
         timeout?.let(main::removeCallbacks); timeout = null
-        lease.finish(id); currentId = null
+        lease.finish(id); currentId = null; utteranceValid = null; spokenGate.clear()
+        schedule.finished(SystemClock.elapsedRealtime())
         if (speakingInstance === this) speakingInstance = null
         completePreview(error ?: SpeechResult.READY)
-        if (error == null) drainPendingGoal() else clearPendingGoal()
+        if (error == null) drainPendingSpeech() else invalidatePendingInternal()
     }
     private fun completePreview(result: SpeechResult) { val callback = utterancePreview; utterancePreview = null; callback?.invoke(result) }
     private fun stopInternal() {
-        clearPendingGoal()
-        pendingPreview = null; utterancePreview = null; currentId = null
+        invalidatePendingInternal()
+        situation = CoachSituation()
+        pendingPreview = null; utterancePreview = null; currentId = null; utteranceValid = null; spokenGate.clear()
+        if (lease.isBusy) schedule.finished(SystemClock.elapsedRealtime())
         timeout?.let(main::removeCallbacks); timeout = null
         lease.stop()
         if (speakingInstance === this) speakingInstance = null
     }
-    private fun drainPendingGoal() {
-        main.removeCallbacks(retryGoal)
-        val now = SystemClock.elapsedRealtime()
-        if (closed || (!initialized && !initializing)) { clearPendingGoal(); return }
-        if (!pendingGoal.hasPending(now)) return
-        val available = initialized && !lease.isBusy && speakingInstance == null
-        val goal = pendingGoal.takeWhenReady(now, available)
-        if (goal != null) {
-            // Focus/voice failures deliberately drop this one attempt; do not fight calls
-            // or replay a goal later when the run has already moved on.
-            speakInternal(cueText(goal), null)
-        } else main.postDelayed(retryGoal, 250)
+    private fun drainPendingSpeech() {
+        main.removeCallbacks(retrySpeech)
+        if (closed || (!initialized && !initializing)) { invalidatePendingInternal(); return }
+        val next = schedule.takeReady(SystemClock.elapsedRealtime(), initialized && !lease.isBusy && speakingInstance == null)
+        if (next != null && runCatching(next.isValid).getOrDefault(false)) {
+            val text = next.cue?.let(::cueText) ?: next.advice.orEmpty()
+            speakInternal(text, null, if (next.cue == null) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
+        }
+        // At most three bounded slots; no polling or held focus after they expire.
+        if (schedule.pendingCount > 0) main.postDelayed(retrySpeech, 1_000)
     }
-    private fun clearPendingGoal() { pendingGoal.clear(); main.removeCallbacks(retryGoal) }
+    private fun invalidatePendingInternal() { schedule.invalidate(); main.removeCallbacks(retrySpeech) }
     private fun onMain(block: () -> Unit) { if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block) }
     private fun tr(id: Int, vararg args: Any): String = AppLanguage.localizedContext(context).getString(id, *args)
     private fun cueText(cue: CoachCue): String = when (cue) {
@@ -258,6 +289,7 @@ class CoachSpeech(context: Context) {
             EncouragementKind.ENDURANCE -> R.array.coach_phrase_endurance
         })
         is CoachCue.Terrain -> phrase(if (cue.kind == CoachTerrain.UPHILL) R.array.coach_phrase_uphill else R.array.coach_phrase_downhill)
+        CoachCue.EasingAfterHill -> phrase(R.array.coach_phrase_after_hill)
         is CoachCue.LapCompleted -> buildString {
             append(tr(R.string.coach_lap_complete, cue.number))
             val comparison = cue.comparison

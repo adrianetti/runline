@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_v9_title">Perfil de corredor</string>
+    <string name="profile_v9_optional">Contexto opcional para tu entrenamiento.</string>
+    <string name="profile_v9_experience">Experiencia corriendo</string>
+    <string name="profile_v9_unspecified">Sin indicar</string>
+    <string name="profile_v9_starting">Estoy empezando</string>
+    <string name="profile_v9_returning">Estoy retomando</string>
+    <string name="profile_v9_regular">Corro habitualmente</string>
+    <string name="profile_v9_experienced">Tengo experiencia</string>
+    <string name="profile_v9_preferences">Preferencias de entrenamiento</string>
+    <string name="profile_v9_health">Notas de salud · opcional</string>
+    <string name="profile_v9_include">Incluir perfil en la IA</string>
+    <string name="profile_v9_disclosure">Al activarlo, las consultas de IA también envían este perfil, incluidas las notas de salud, a Anthropic. Esto no activa la IA.</string>
+    <string name="profile_v9_clear">Borrar perfil</string>
+</resources>

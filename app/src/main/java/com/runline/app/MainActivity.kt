@@ -46,6 +46,7 @@ import com.runline.app.ui.ActiveRunView
 import com.runline.app.ui.VoiceCoachSheet
 import com.runline.app.ui.HistoryInsightsView
 import com.runline.app.ui.ActivityDetailsEditor
+import com.runline.app.ui.RunnerProfileSheet
 import com.runline.app.ui.AppSettingsSheet
 import com.runline.app.ai.AiSettings
 import com.runline.app.ui.AiSettingsSheet
@@ -85,6 +86,7 @@ class MainActivity : AppCompatActivity() {
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
     private var appSettings: AppSettingsSheet? = null
+    private var runnerProfile: RunnerProfileSheet? = null
     private var trainingPlan: TrainingPlanSheet? = null
     private var runReview: RunReviewSheet? = null
     private val ticker = object : Runnable {
@@ -138,6 +140,7 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         savedInstanceState?.getBundle("coachSheet")?.let(::showCoach)
         savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it).also { sheet -> sheet.show() } }
+        savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("trainingPlan")?.let { trainingPlan = TrainingPlanSheet(this, it).also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
         AiActivityCompletion.onAppOpen(this)
@@ -154,7 +157,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); trainingPlan?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); trainingPlan?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
@@ -168,6 +171,7 @@ class MainActivity : AppCompatActivity() {
         coachSheet?.takeIf { it.isShowing }?.let { outState.putBundle("coachSheet", it.saveState()) }
         detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
         aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
+        runnerProfile?.takeIf { it.isShowing }?.let { outState.putBundle("runnerProfile", it.saveState()) }
         trainingPlan?.takeIf { it.isShowing }?.let { outState.putBundle("trainingPlan", it.saveState()) }
         runReview?.takeIf { it.isShowing }?.let { outState.putBundle("runReview", it.saveState()) }
     }
@@ -340,7 +344,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showSettings() {
         appSettings?.close()
-        appSettings = AppSettingsSheet(this, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout).also { it.show() }
+        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout).also { it.show() }
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
@@ -385,7 +389,7 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.8")
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.9")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
@@ -456,6 +460,7 @@ class MainActivity : AppCompatActivity() {
                     }.show()
             }.show()
     }
+    private fun showRunnerProfile() { runnerProfile?.close(); runnerProfile = RunnerProfileSheet(this).also { it.show() } }
     private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this).also { it.show() } }
     private fun showTrainingPlan() { trainingPlan?.close(); trainingPlan = TrainingPlanSheet(this).also { it.show() } }
     private fun showRunReview(run: RunSession) {

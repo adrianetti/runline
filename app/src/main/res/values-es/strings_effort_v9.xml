@@ -1,0 +1,9 @@
+<resources>
+    <string name="effort_v9_value">%1$d/10 · %2$s</string>
+    <string name="effort_v9_very_easy">Muy suave</string>
+    <string name="effort_v9_easy">Suave</string>
+    <string name="effort_v9_moderate">Moderado</string>
+    <string name="effort_v9_hard">Intenso</string>
+    <string name="effort_v9_maximum">Máximo</string>
+    <string name="effort_v9_scale">Sin valorar · 1 Suave → 10 Máximo</string>
+</resources>
