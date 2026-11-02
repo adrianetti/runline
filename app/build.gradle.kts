@@ -35,7 +35,7 @@ dependencies {
     implementation("org.maplibre.gl:android-sdk:11.13.5")
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("com.google.android.material:material:1.11.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.appcompat:appcompat:1.8.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }
