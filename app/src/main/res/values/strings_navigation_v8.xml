@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v8_settings">Settings</string>
+    <string name="v8_ai">AI</string>
+    <string name="v8_language_value">Language · %1$s</string>
+    <string name="v8_review_cost">Uses your Anthropic API credit.</string>
+</resources>

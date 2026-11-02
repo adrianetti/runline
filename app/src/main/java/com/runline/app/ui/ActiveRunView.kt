@@ -3,7 +3,6 @@ package com.runline.app.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -32,7 +31,7 @@ class ActiveRunView(
 ) : FrameLayout(context) {
     val map = SatelliteMapView(context)
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
-    private val panel = CappedColumn(context)
+    private val panel = ElevationIsland(context)
     private val distance = value()
     private val time = value()
     private val pace = value()
@@ -64,11 +63,6 @@ class ActiveRunView(
             topMargin = dp(16); marginStart = dp(16)
         })
 
-        panel.orientation = LinearLayout.VERTICAL
-        panel.background = GradientDrawable().apply {
-            setColor(context.getColor(R.color.surface)); cornerRadius = dp(24).toFloat()
-        }
-        panel.elevation = dp(3).toFloat()
         panel.setPadding(dp(16), dp(16), dp(16), dp(12))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         information.addView(heading, row(bottom = 4))
@@ -124,6 +118,7 @@ class ActiveRunView(
     fun update(state: TrackingState) {
         val run = state.run ?: return
         val points = run.points
+        panel.setPoints(points)
         map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
         map.setLocationWaitingMessage(if (state.status == RecordingStatus.RECORDING) state.message else context.getString(if (state.status == RecordingStatus.PAUSED) R.string.active_paused_hint else R.string.active_recovered_hint))
         map.setRoute(points)
@@ -176,11 +171,4 @@ class ActiveRunView(
     private fun pace(value: Double?): String = if (value == null || !value.isFinite() || value < 0) "—" else value.roundToInt().let { String.format(resources.configuration.locales[0], "%d:%02d", it / 60, it % 60) }
     private fun duration(ms: Long): String { val s = ms / 1000; return if (s >= 3600) String.format(resources.configuration.locales[0], "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(resources.configuration.locales[0], "%02d:%02d", s / 60, s % 60) }
 
-    private class CappedColumn(context: Context) : LinearLayout(context) {
-        var maxHeight = Int.MAX_VALUE
-        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            val size = minOf(MeasureSpec.getSize(heightMeasureSpec), maxHeight)
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(size, MeasureSpec.AT_MOST))
-        }
-    }
 }

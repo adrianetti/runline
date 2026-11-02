@@ -16,12 +16,10 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -77,7 +75,7 @@ class ActivityDetailsEditor(
             text = ""; contentDescription = activity.getString(R.string.main_close); iconPadding = 0
             setOnClickListener { requestDismiss() }
         }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        column.addView(header)
+        header.setPadding(dp(24), dp(12), dp(24), dp(8))
         column.addView(text(activity.getString(R.string.details_saved_hint), 14), row(8, 20))
         column.addView(title.first, row(0, 16)); column.addView(description.first, row(0, 16))
         column.addView(choice(R.string.details_activity, ActivityType.entries.map(::activityName), ActivityType.entries.indexOf(selectedActivity)) {
@@ -98,19 +96,16 @@ class ActivityDetailsEditor(
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         column.addView(status, row(4, 12))
         column.addView(save.apply { setOnClickListener { saveDetails() } }, row())
-        val scroll = ScrollView(activity).apply { addView(column, ViewGroup.LayoutParams(-1, -2)) }
-        dialog.setContentView(scroll)
+        val shell = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        shell.addView(header, LinearLayout.LayoutParams(-1, -2))
+        shell.addView(androidx.core.widget.NestedScrollView(activity).apply { addView(column, ViewGroup.LayoutParams(-1, -2)) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        dialog.setContentView(shell, ViewGroup.LayoutParams(-1, -1))
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         dialog.setCanceledOnTouchOutside(false)
         dialog.setOnKeyListener { _, key, event ->
             if (key == android.view.KeyEvent.KEYCODE_BACK && event.action == android.view.KeyEvent.ACTION_UP) { requestDismiss(); true } else false
         }
-        dialog.setOnShowListener {
-            dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let {
-                it.layoutParams.height = (activity.resources.displayMetrics.heightPixels * .92f).roundToInt()
-                BottomSheetBehavior.from(it).apply { this.state = BottomSheetBehavior.STATE_EXPANDED; isDraggable = false; skipCollapsed = true }
-            }
-        }
+        StableSheet.configure(dialog, activity)
         dialog.setOnDismissListener {
             closed = true
             if (model.listener === listener) model.listener = null

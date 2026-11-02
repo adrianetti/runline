@@ -1,7 +1,12 @@
 package com.runline.app.ui
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.runline.app.R
 import com.runline.app.ai.*
 import com.runline.app.core.RunSession
@@ -12,26 +17,87 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
     private val sheet = AiSheet(activity, R.string.ai_review_title)
     private val body = sheet.text("")
     private val status = sheet.text("")
-    private var settings: AiSettingsSheet? = null
+    private val store = AiReviewStore(activity)
+    private val handler = Handler(Looper.getMainLooper())
+    private val generate = sheet.button(activity.getString(R.string.ai_review_generate), R.drawable.ic_speaker, true)
+    private var waitingForReview = state?.getBoolean("pendingReview") ?: false
+    private var previousReviewTime = state?.getLong("previousReviewTime", -1L) ?: -1L
+    private val poll = object : Runnable {
+        override fun run() { observeReview() }
+    }
+    private val lifecycleObserver = LifecycleEventObserver { _, event ->
+        when (event) {
+            Lifecycle.Event.ON_START -> observeReview()
+            Lifecycle.Event.ON_STOP -> handler.removeCallbacks(poll)
+            else -> Unit
+        }
+    }
     val isShowing get() = sheet.isShowing
     init {
-        sheet.column.addView(sheet.text(activity.getString(R.string.ai_review_disclosure)), sheet.row(0, 16))
+        sheet.column.addView(sheet.text(activity.getString(R.string.v8_review_cost)), sheet.row(0, 16))
         sheet.column.addView(body, sheet.row(0, 16))
-        AiReviewStore(activity).get(run.id)?.let { body.text = it.text + "\n\n" + it.model + " · " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it.createdAtMs)) }
-            ?: run { body.setText(R.string.ai_review_empty) }
-        sheet.column.addView(sheet.button(activity.getString(R.string.ai_review_generate), R.drawable.ic_speaker, true).apply { setOnClickListener {
-            if (!AiSettings.load(activity).enabled || !AiSettings.hasKey(activity)) { status.setText(R.string.ai_need_setup); return@setOnClickListener }
+        renderReview(store.get(run.id))
+        sheet.column.addView(generate.apply { setOnClickListener {
+            if (!AiSettings.isReady(activity)) { status.setText(R.string.ai_need_setup); return@setOnClickListener }
+            if (AiWork.isReviewRunning(run.id)) { observeReview(); return@setOnClickListener }
+            previousReviewTime = store.get(run.id)?.createdAtMs ?: -1L
+            waitingForReview = true
             isEnabled = false; status.setText(R.string.ai_working)
             AiWork.review(activity, run) { result -> if (!sheet.closed) {
-                isEnabled = true
-                result.onSuccess { body.text = it.text + "\n\n" + it.model; status.setText(R.string.ai_review_saved) }
+                waitingForReview = false
+                handler.removeCallbacks(poll)
+                updateAction()
+                result.onSuccess { renderReview(it); status.setText(R.string.ai_review_saved) }
                     .onFailure { status.text = sheet.error(it) }
             } }
+            observeReview()
         } }, sheet.row())
-        sheet.column.addView(sheet.button(activity.getString(R.string.ai_title), R.drawable.ic_settings).apply { setOnClickListener { settings?.close(); settings = AiSettingsSheet(activity).also { it.show() } } }, sheet.row())
+        status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         sheet.column.addView(status, sheet.row(8))
+        sheet.dialog.setOnDismissListener { sheet.closed = true; stopObserving() }
+        activity.lifecycle.addObserver(lifecycleObserver)
     }
-    fun show() = sheet.show()
-    fun close() { settings?.close(); sheet.close() }
-    fun saveState() = Bundle()
+    fun show() { sheet.show(); observeReview() }
+    fun close() { stopObserving(); sheet.close() }
+    fun saveState() = Bundle().apply {
+        putBoolean("pendingReview", waitingForReview)
+        putLong("previousReviewTime", previousReviewTime)
+    }
+
+    private fun observeReview() {
+        handler.removeCallbacks(poll)
+        if (sheet.closed || !isShowing || !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
+        if (AiWork.isReviewRunning(run.id)) {
+            if (!waitingForReview) previousReviewTime = store.get(run.id)?.createdAtMs ?: -1L
+            waitingForReview = true
+            generate.isEnabled = false
+            status.setText(R.string.ai_working)
+            handler.postDelayed(poll, 750)
+            return
+        }
+        updateAction()
+        if (waitingForReview) {
+            waitingForReview = false
+            val saved = store.get(run.id)
+            renderReview(saved)
+            status.setText(if (saved != null && saved.createdAtMs != previousReviewTime) R.string.ai_review_saved else R.string.ai_error_response)
+        }
+    }
+
+    private fun updateAction() {
+        val ready = AiSettings.isReady(activity)
+        generate.visibility = if (ready) View.VISIBLE else View.GONE
+        generate.isEnabled = ready
+    }
+
+    private fun stopObserving() {
+        handler.removeCallbacks(poll)
+        activity.lifecycle.removeObserver(lifecycleObserver)
+    }
+
+    private fun renderReview(review: RunAiReview?) {
+        if (review == null) body.setText(R.string.ai_review_empty)
+        else body.text = review.text + "\n\n" + review.model + " · " +
+            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(review.createdAtMs))
+    }
 }

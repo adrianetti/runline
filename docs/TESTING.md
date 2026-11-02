@@ -1,6 +1,6 @@
-# Version 0.7 test checklist
+# Version 0.8 test checklist
 
-The checklist is not a blanket pass report. Current v0.7 evidence and unperformed checks are recorded below; historical v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.8 evidence and unperformed checks are recorded below; historical v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -22,7 +22,7 @@ Toolchain upgrade validation on 2 November 2026 (AGP 9.5.0 / Kotlin 2.4.21 / Gra
 - On the API 34 emulator, the signed candidate updated the installed v0.7 release without uninstalling. All **47 recording, draft, annotation, photo and plan files** were initially byte-for-byte unchanged, including **19 saved activities**. The paused draft reopened as recovered with its original time and distance. Resume, background GPS capture, and notification Pause/Resume/Finish saved exactly one additional activity with **19 points in three segments**, removed the draft and retained all prior saved data. Native satellite rendering also worked in this bounded check.
 - A fresh ZIP export contained **20 GPX files** and a **21-column CSV with 20 activities**. The annotated two-hour fixture retained **7,201 points in two segments**. These runtime checks use Kotlin's upgraded 2.4.21 standard library as well as the new compiler.
 
-These toolchain checks do not repeat the entire field checklist or certify physical Samsung, battery, real-provider AI or headphone behavior. The published v0.7 release remains unchanged; this maintenance change does not publish a new app release.
+These toolchain checks do not repeat the entire field checklist or certify physical Samsung, battery, real-provider AI or headphone behavior. That maintenance check retained the published v0.7 release and did not publish a new app release.
 
 Activity-type/persistence tests should cover all three types, legacy fallback to Run, recovery/finalization and GPX typing. Filename tests should cover locale formatting, distance/date/time and forbidden characters. Elevation-progress tests should cover incremental updates, reset/shrink, missing height and segment/gap breaks. Marker-motion tests should cover valid interpolation, invalid/implausible samples, accuracy, gaps, segments, shortest longitude/bearing and endpoints.
 
@@ -30,9 +30,25 @@ Notification-action unit tests should reject wrong/missing run IDs, stale Pause/
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
 
+## Version 0.8 recorded checks
+
+Recorded on 2 November 2026. Builds and the following runtime checks used the integrated v0.8 source and the API 34 emulator; recordings were disposable synthetic fixtures.
+
+- Debug/release builds completed with **158 JVM tests**, **zero failures**, and **zero lint errors / 117 warnings**. The **466 bilingual resources** and **29 pinned icons** passed their checks. Five Android surface-boundary tests and 17 offline OSV checker tests passed. The complete project inventory resolved 242 Maven versions across 39 configurations; OSV returned zero findings. The final source-security scan checked 55 Kotlin files against seven local rules with zero findings. This inventory does not cover the known bundled-Gradle finding described in [security checks](../tools/security/README.md#dependency-advisories-and-toolchain-limits).
+- An in-place update preserved all **45 inspected saved files byte-for-byte**, including **20 activities**, metadata, the private photo and the existing version 1 plan. This is update-retention evidence; it does not establish every storage or recovery failure path.
+- With AI off, model choices saved locally. A malformed unsaved draft key did not prevent disabling AI; the dummy credential was removed without making requests. Repeated fast swipes within settings/forms kept sheets open; the fixed Close action remained available. The latest Save layout remained visible above the IME. No real Anthropic generation was performed.
+- The training month picker and its selection survived rotation. Switching from an exact March 1 date to month precision preserved March. Selecting Personal progress hid date controls. Existing version 1 plan data survived the update; this check does not claim a generated AI plan or paid adaptation.
+- Background synthetic GPS recording and force-stop recovery completed one additional saved recording, bringing the history to **21 activities**. This bounded case does not establish every shutdown, battery or storage failure path.
+- The two-hour replay fixture opened at **240×**. Native views showed the label-free imagery, heading-follow camera and elevation island. Spanish replay details/options hid unavailable AI actions. Downloads, Share file and Save to… remained available from the GPX export control; this round does not establish a new recipient upload or full export-content comparison.
+
+- A fresh **Personal progress** plan used recorded **7.4 km/week** and three days/week automatically, with an eight-week rolling window and no race date. The previous test plan was restored afterward.
+- The exact signed **0.8.0 / version code 8** package installed in place and retained **21 saved activities** and the previous plan, including its Skipped state. APK SHA-256: `be0eaa63018f1d29aa4598d57b63ae3d5529e9559b384eba5cb7e7a769c8b48c`; stable signing-certificate SHA-256: `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`.
+
+Independent review of the inspected dark-mode, 1.3× text and landscape captures confirmed the fixes and found no additional control or layout issues. No physical Samsung field/battery, actual music/headphone ducking or real-provider generation is claimed. Unlisted checklist cases remain unverified for v0.8.
+
 ## Installation and signing
 
-- Verify the packaged `dist/Runline-0.7.0.apk` signature and version name/code (0.7.0 / 7); install that exact artifact. Update an existing signed v0.6 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
+- Once prepared, verify the packaged `dist/Runline-0.8.0.apk` signature and version name/code (0.8.0 / 8); install that exact artifact. Update an existing signed v0.7 build with saved runs and an unfinished draft, using the same per-app key. Confirm recordings survive and no uninstall is needed.
 - Do not treat the old v0.1 debug signature as compatible. If migration requires uninstalling v0.1, export recordings first and verify the exports before uninstalling.
 - Main-branch CI may receive signing secrets; pull-request builds must not. Never log key/password contents or put signing material in test artifacts.
 

@@ -4,17 +4,12 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -31,7 +26,8 @@ import kotlin.math.roundToInt
 /** Optional settings; drafts survive rotation and never modify the recording itself. */
 class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, private val onSaved: () -> Unit) {
     private val config = VoiceCoachSettings.load(activity)
-    private val dialog = BottomSheetDialog(activity)
+    private val sheet = AiSheet(activity, R.string.coach_ui_title)
+    private val dialog = sheet.dialog
     private val speech = CoachSpeech(activity)
     private val enabled = MaterialSwitch(activity)
     private val kilometres = MaterialSwitch(activity)
@@ -48,15 +44,7 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
     val isShowing get() = dialog.isShowing
 
     init {
-        val column = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(12), dp(24), dp(20)) }
-        val header = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text(activity.getString(R.string.coach_ui_title), 24, true), LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(button("", R.drawable.ic_close).apply {
-            contentDescription = activity.getString(R.string.main_close); iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
-            setOnClickListener { close() }
-        }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        column.addView(header)
-        column.addView(text(activity.getString(R.string.coach_ui_hint), 14), row(12, 16))
+        val column = sheet.column
         enabled.text = activity.getString(R.string.coach_ui_enabled)
         enabled.isChecked = state?.getBoolean("enabled") ?: config.enabled
         enabled.minHeight = dp(56)
@@ -94,7 +82,6 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
         feedback(encouragement, R.string.coach_ui_encouragement, "encouragement", config.encouragement)
         feedback(terrain, R.string.coach_ui_terrain, "terrain", config.terrainFeedback)
         feedback(laps, R.string.coach_ui_laps, "laps", config.lapFeedback)
-        column.addView(text(activity.getString(R.string.coach_ui_estimates), 13), row(4, 8))
         val voiceActions = LinearLayout(activity).apply { isBaselineAligned = false }
         voiceActions.addView(button(activity.getString(R.string.coach_ui_test), R.drawable.ic_speaker).apply {
             setOnClickListener {
@@ -118,19 +105,8 @@ class VoiceCoachSheet(private val activity: AppCompatActivity, state: Bundle?, p
         }, LinearLayout.LayoutParams(0, -1, 1f).apply { marginStart = dp(8) })
         column.addView(voiceActions, row(16))
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        column.addView(status, row(8, 12))
-        column.addView(button(activity.getString(R.string.coach_ui_save), R.drawable.ic_check, filled = true).apply { setOnClickListener { save() } }, row())
-        val scroll = ScrollView(activity).apply { isFillViewport = false; addView(column, ViewGroup.LayoutParams(-1, -2)) }
-        dialog.setContentView(scroll)
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        dialog.setOnDismissListener { closed = true; speech.close() }
-        dialog.setOnShowListener {
-            val sheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-            sheet?.let {
-                it.layoutParams.height = (activity.resources.displayMetrics.heightPixels * .88f).roundToInt()
-                BottomSheetBehavior.from(it).apply { this.state = BottomSheetBehavior.STATE_EXPANDED; skipCollapsed = true }
-            }
-        }
+        sheet.primaryAction(button(activity.getString(R.string.coach_ui_save), R.drawable.ic_check, filled = true).apply { setOnClickListener { save() } }, status)
+        dialog.setOnDismissListener { closed = true; sheet.closed = true; speech.close() }
         updateFields()
     }
 
