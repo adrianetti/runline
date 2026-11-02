@@ -120,7 +120,7 @@ All recording copies are on the same phone. Android backup is disabled. Uninstal
 
 ## Build and install
 
-Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP 9.5.0, Kotlin 2.4.21 (through AGP's built-in Kotlin support) and Gradle 9.8.2. Set `ANDROID_HOME`, or create an untracked `local.properties` containing `sdk.dir=/absolute/path/to/Android/sdk`. Build-tool security overrides and the remaining upstream Gradle limitation are recorded in [repository checks](docs/CHECKS.md); the app's SDK target and runtime dependencies are unchanged by this upgrade.
+Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP 9.5.0, Kotlin 2.4.21 (through AGP's built-in Kotlin support) and Gradle 9.8.2. Set `ANDROID_HOME`, or create an untracked `local.properties` containing `sdk.dir=/absolute/path/to/Android/sdk`. Build-tool security overrides and the remaining upstream Gradle limitation are recorded in [repository checks](docs/CHECKS.md). The app's SDK target and declared map/UI library versions are unchanged; Kotlin's packaged standard library advances to 2.4.21 with the compiler.
 
 ```sh
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
