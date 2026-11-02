@@ -2,7 +2,7 @@
 
 A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Version 0.7.0 (version code 7) is a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Signed release builds and bounded API 34 emulator checks are recorded below. A controlled physical-phone field and battery test remains outstanding.
+Current source targets version 0.8.0 (version code 8), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Completed build and bounded API 34 checks are recorded below. The published APK remains v0.7.0 until the new release is prepared and published. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -10,13 +10,13 @@ Version 0.7.0 (version code 7) is a sideloaded prototype for Android 8.0 and lat
 2. A loading state stays over the map until a usable GPS fix arrives. Wait outdoors; the status explains disabled location or missing permission. You can lock the screen or switch apps while the independent foreground service records.
 3. Tap **Pause**, then **Resume** or **Finish**. The route is saved immediately, then an optional editor offers title, notes, effort, routine type and photos. Close the editor to keep the recording without extra details; edit it later from the saved activity’s **…** menu.
 
-The idle Record tab has an activity picker, a Start button, optional Voice coach settings and a Training plan entry. Your choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
+The idle Record tab has an activity picker, a Start button, optional Voice coach settings and a Training plan entry. Record and Activities remain the two tabs. The single **Settings** icon opens **AI**, **Language**, **Recording protection** and **About**. The activity choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
 
 During recording, the satellite map fills the app content area. A bottom island keeps distance, active time, average pace and Pause within reach; portrait also shows climbed and descended elevation. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
 
 The app follows the **phone’s language** by default, with English fallback and Spanish support. **Language / Idioma** offers Phone language, English and Español. Updating from v0.5 clears its forced-Spanish setting once; later explicit language choices are retained. Controls, messages, recording notifications and exported activity names follow the selected app language. Android permission dialogs and third-party document providers follow their own language settings.
 
-The shield control, or **Recording protection** in the active-run menu, shows notification and battery-optimization status with shortcuts to Android settings. These checks help identify restrictive settings; they do not certify future GPS continuity on a particular phone.
+**Settings → Recording protection**, or the same action in the active-run menu, shows notification and battery-optimization status with shortcuts to Android settings. These checks help identify restrictive settings; they do not certify future GPS continuity on a particular phone.
 
 The ongoing notification shows distance, average pace and a live active-time chronometer, with GPS status when expanded. Tap **Pause**, then **Resume** or **Finish**; the timer freezes while paused. Tapping the notification opens the current recording. Allow lock-screen notifications, including silent notifications where the phone has a separate setting, to use the controls there. Samsung may show icons until expanded, and its Now bar supports selected apps; Runline does not claim Now bar integration or pose as a music player. See [Android notification visibility](https://developer.android.com/develop/ui/compose/notifications/create-notification) and [Samsung Now bar guidance](https://www.samsung.com/my/support/mobile-devices/how-to-use-the-now-bar-on-the-lock-screen-of-your-samsung-galaxy-device/).
 
@@ -36,13 +36,15 @@ Finished and older recordings support a title, notes, optional effort from 1–1
 
 ## Optional Anthropic and training plans
 
-**… → AI connections** accepts your own Anthropic key, encrypted with an Android Keystore key on the phone. No key ships in the APK, enters exported files or needs to be sent to the developer. All AI features start off. Enable only the features you want: live advice, automatic post-run review and automatic plan updates. Live speech also requires Voice coach enabled. Model IDs are editable; current defaults are Haiku for live advice and Sonnet for deeper reviews/plans. **Test connection** checks model access, not the quality of a generated review.
+**Settings → AI** accepts your own Anthropic key, encrypted with an Android Keystore key on the phone. No key ships in the APK, enters exported files or needs to be sent to the developer. All AI features start off. Enable only the features you want: live advice, automatic post-run review and automatic plan updates. Live speech also requires Voice coach enabled. Provider/model dropdowns offer Anthropic, Haiku for live advice and Sonnet for reviews/plans, plus a Custom model option. Opening setup is local. Review and personalization actions stay hidden until AI is enabled and a key is configured. **Test connection** checks access to both selected models without generating coaching.
 
 Live requests use a configurable 3–10 minute active-time interval and a 24-attempt cap per activity. They receive activity summaries, splits, estimated laps and self-reported effort/routine. Titles and notes require an additional sharing switch. Raw coordinates and photos are never sent. Requests spend the user’s Anthropic API credits; offline recording and coaching remain independent of network/model failures. Late live responses are dropped after pause/stop/disable. See [AI setup, data flow and limits](docs/AI.md).
 
-**Training plan** starts with an explicit distance goal (21.1 km is prefilled), target date, days per week and usual weekly distance. A conservative local schedule works without a key. Claude can personalize and adapt future sessions inside validated limits; it cannot rewrite completed sessions, add missed distance to tomorrow or guarantee readiness. Session states can be changed manually. Optional automatic adaptation reconciles completed/missed sessions when the app opens or an activity finishes, with a daily attempt cap. A review/error leaves the prior plan available. The displayed explanation records what changed; use the goal editor to change the target rather than expecting a model to silently change it.
+**Training plan** offers 5K, 10K, Half marathon (21.1 km), Personal progress or a custom distance. Choose an exact day with the native date picker or just a target month; Personal progress uses eight weeks without a race target. Recent Run history supplies a visible 7/28-day average and suggested starting load, with optional adjustment. Sparse history is labelled separately from the gentle planning suggestion. A local schedule works without a key. Claude can personalize and adapt future sessions inside validated limits; it cannot rewrite completed sessions, add missed distance to tomorrow or guarantee readiness. Session states can be changed manually. Optional automatic adaptation reconciles completed/missed sessions when the app opens or an activity finishes, with a daily attempt cap. A review/error leaves the prior plan available. AI plan explanations and session notes are available under **Plan notes**; use the goal editor to change the target rather than expecting a model to silently change it.
 
 The modules are separate: recording/persistence, editable annotations/photos, pure replay/lap/coach calculations, speech/audio focus, vendor-independent `CoachAiProvider`, Anthropic transport/credentials, and training-plan storage/validation. OpenAI support can be added at the provider boundary; it is not exposed as a working integration yet.
+
+Settings, coaching, training, activity-edit and replay-detail sheets keep Close above scrolling content. Scrolling or tapping outside does not dismiss them; use Back or Close.
 
 ## History charts
 
@@ -63,15 +65,15 @@ Distance is an estimate from accepted GPS fixes. Active time includes standing s
 
 ## Maps, replay and run details
 
-The active-run map fills the content area, with its camera centered in the visible space around the island and controls. Follow uses close zoom 18 and keeps the map north-up. A Tabler arrow points in the direction of accepted GPS movement; a neutral marker remains until movement establishes a reliable heading. It is not a phone compass. The last known heading is retained while stopped, and gaps or new recording segments require a fresh heading.
+The active-run map fills the content area, with its camera centered in the visible space around the island and controls. Follow uses close zoom 18 and a gently turning 46° camera tilt when movement establishes a heading. A screen-anchored Tabler arrow indicates travel direction relative to the camera; a neutral marker remains until movement establishes a reliable heading. It is not a phone compass. The last known heading is retained while stopped, and gaps or new recording segments require a fresh heading.
 
-Drag or pinch to explore, tap the route icon to fit the activity, or the location icon to return to close following. If there is no usable position yet, recenter explains the waiting state. The initial loading overlay hides the zoomed-out map until the first fix; it does not delay saving accepted GPS points.
+Drag or pinch to explore, tap the route icon for a flat north-up overview, or the location icon to return to close following. Android Remove animations keeps follow flat/north-up and disables extra live interpolation. If there is no usable position yet, recenter explains the waiting state. The initial loading overlay hides the zoomed-out map until the first fix; it does not delay saving accepted GPS points.
 
 Live movement is visually interpolated between consecutive safe fixes, with the arrow and following camera moving together. This adds a short display delay rather than predicting future positions. Invalid fixes, segment changes, long gaps and implausible jumps snap to the new safe position instead of inventing a connection. Pause/backgrounding stops the animation. Original samples, distance, timing and exports are unchanged by display smoothing.
 
-The route and marker are drawn locally, preserving segment breaks. Active recording and saved replay both fill the content area; the idle activity picker has no map. Map credits remain visible above or beside the information island.
+The full route and marker are drawn locally, preserving segment breaks. Road/place labels are omitted for a clearer map. A subdued trace of actual GPS heights sits behind live/replay island statistics, with gaps or no trace when samples are unsuitable. Active recording and saved replay both fill the content area; the idle activity picker has no map. Map credits remain visible above or beside the information island.
 
-MapLibre Android 11.13.5 displays worldwide EOX imagery at approximately 10-metre resolution, detailed IGN/PNOA imagery in Spain, and road/place labels. Global imagery is less detailed when enlarged; local coverage and capture dates vary. EOX imagery is licensed for noncommercial use. This personal build requires no map account or API key. Credits and source information are accessible on the map; see [map coverage, licensing and privacy](docs/MAPS.md).
+MapLibre Android 11.13.5 displays worldwide EOX imagery at approximately 10-metre resolution, detailed IGN/PNOA imagery in Spain, without a road/place-label overlay. Global imagery is less detailed when enlarged; local coverage and capture dates vary. EOX imagery is licensed for noncommercial use. This personal build requires no map account or API key. Credits and source information are accessible on the map; see [map coverage, licensing and privacy](docs/MAPS.md).
 
 Map providers receive requests for visible tile areas and the phone's network address. Runline does not send them the raw run file, timestamps or session statistics. Maps can reveal the area being viewed. Tile failures do not stop recording or calculation, and a native map-load failure falls back to the geometric route. Recently viewed tiles may be cached; downloaded offline regions are not implemented.
 
@@ -126,15 +128,15 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-The signed APK is available on the private [v0.7.0 release page](https://github.com/adrianetti/runline/releases/tag/v0.7.0). Its packaged local path is `dist/Runline-0.7.0.apk`. Install it with USB debugging enabled:
+Download the signed APK from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.8 package is `dist/Runline-0.8.0.apk`. Install it with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.7.0.apk
+adb install -r dist/Runline-0.8.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.
 
-Version 0.7 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
+Version 0.8 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
 
 GitHub Actions checks pushes and pull requests to `main`. Build/test/lint, resource and workflow checks, security scans and Dependabot maintenance are described in [repository checks](docs/CHECKS.md). Main-branch builds use repository signing secrets and publish a signed release APK plus check reports as private workflow artifacts. Pull requests do not receive signing secrets. The private key and its local configuration stay outside Git; a fresh clone can build a development APK but does not receive the private release key.
 
@@ -145,6 +147,29 @@ To verify the pinned icon resources without network access:
 ```sh
 python3 tools/import_icons.py --check
 ```
+
+## Version 0.8 source changes
+
+- One Settings home; optional AI setup uses provider/model choices, while unconfigured AI actions stay hidden.
+- Goal presets, native day/month choices and a history-based training suggestion replace raw date and required baseline entry.
+- Fixed sheet headers keep Close reachable while scrolling; local plans omit repeated explanations.
+- Tilted heading-follow, clear satellite imagery and GPS elevation traces refine recording/replay islands.
+
+## Version 0.8 verification
+
+Recorded on 2 November 2026 using the API 34 emulator and disposable synthetic activities:
+
+- Integrated debug/release builds passed with **158 JVM tests and zero failures**. Lint reported **zero errors and 117 warnings**. All **466 English/Spanish resources** and **29 pinned Tabler icons** passed verification.
+- The **five Android boundary tests** and **17 dependency-audit tests** passed. The resolved project graph contained **242 Maven component versions across 39 configurations**, with **zero OSV findings**. The final source scan checked **55 Kotlin files against seven local security rules**, with **zero findings**. The separate [Gradle distribution limitation](tools/security/README.md#dependency-advisories-and-toolchain-limits) still applies.
+- The in-place update retained **45 saved files byte-for-byte**, including **20 activities**, metadata, a private photo and the existing version 1 training plan.
+- AI model choices saved while AI remained off. Disabling AI also succeeded with a malformed draft key; the dummy credential was removed without making requests. Repeated fast sheet swipes kept sheets open, Close remained fixed, and Save stayed visible above the keyboard. The month picker survived rotation and preserved March after switching from an exact March 1 date; Personal progress hid date inputs.
+- Background synthetic GPS capture and force-stop recovery finished one additional recording, leaving **21 saved activities**.
+- The two-hour fixture selected **240×**. Native replay showed the satellite map without labels, heading-follow and the elevation island. Spanish details/options hid unavailable AI actions, and the GPX export choices remained available.
+
+- A fresh **Personal progress** plan used recorded **7.4 km/week** and three days/week automatically, with an eight-week rolling window and no race date. The previous test plan was restored afterward.
+- The exact signed **0.8.0 / version code 8** package installed in place and retained **21 saved activities** and the previous plan, including its Skipped state. APK SHA-256: `be0eaa63018f1d29aa4598d57b63ae3d5529e9559b384eba5cb7e7a769c8b48c`; stable signing-certificate SHA-256: `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`.
+
+Independent review of the inspected dark-mode, 1.3× text and landscape captures confirmed the fixes and found no additional control or layout issues. No real Anthropic generation or physical-phone field, battery or headphone test was performed. These results cover the listed cases only; [docs/TESTING.md](docs/TESTING.md#version-08-recorded-checks) records the bounded scope. Earlier results below apply only to their stated versions.
 
 ## Version 0.7 verification
 

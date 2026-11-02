@@ -4,10 +4,9 @@ import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import androidx.core.widget.NestedScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
@@ -19,22 +18,35 @@ import kotlin.math.roundToInt
 internal class AiSheet(val activity: AppCompatActivity, title: Int) {
     val dialog = BottomSheetDialog(activity)
     val column = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(12), dp(24), dp(24)) }
+    private val footer = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)); visibility = View.GONE
+    }
     var closed = false
     val isShowing get() = dialog.isShowing
     init {
-        val header = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
+        val header = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(24), dp(12), dp(24), dp(8)) }
         header.addView(text(activity.getString(title), 24, true), LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(button("", R.drawable.ic_close).apply { contentDescription = activity.getString(R.string.main_close); iconPadding = 0; setOnClickListener { close() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        column.addView(header, row(0, 16))
-        dialog.setContentView(ScrollView(activity).apply { addView(column) })
+        val shell = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        shell.addView(header, LinearLayout.LayoutParams(-1, -2))
+        shell.addView(NestedScrollView(activity).apply { addView(column); clipToPadding = false }, LinearLayout.LayoutParams(-1, 0, 1f))
+        shell.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        dialog.setContentView(shell, android.view.ViewGroup.LayoutParams(-1, -1))
         dialog.setOnDismissListener { closed = true }
-        dialog.setOnShowListener { dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let {
-            it.layoutParams.height = (activity.resources.displayMetrics.heightPixels * .92f).roundToInt()
-            BottomSheetBehavior.from(it).apply { state = BottomSheetBehavior.STATE_EXPANDED; skipCollapsed = true }
-        } }
+        StableSheet.configure(dialog, activity)
     }
     fun show() = dialog.show()
     fun close() { closed = true; dialog.dismiss() }
+    fun primaryAction(action: View, status: View? = null) {
+        footer.removeAllViews()
+        status?.let {
+            (it.parent as? android.view.ViewGroup)?.removeView(it)
+            footer.addView(it, row(0, 8))
+        }
+        (action.parent as? android.view.ViewGroup)?.removeView(action)
+        footer.addView(action, row())
+        footer.visibility = View.VISIBLE
+    }
     fun text(value: String, size: Int = 15, bold: Boolean = false) = TextView(activity).apply {
         text = value; textSize = size.toFloat(); setTextColor(activity.getColor(if (bold) R.color.on_surface else R.color.on_surface_variant))
         if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)

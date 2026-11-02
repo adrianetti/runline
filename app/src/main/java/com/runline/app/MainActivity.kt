@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.os.PowerManager
 import android.view.MenuItem
-import android.widget.ImageView
 import android.content.res.Configuration
 import android.graphics.Typeface
 import android.location.LocationManager
@@ -47,6 +46,8 @@ import com.runline.app.ui.ActiveRunView
 import com.runline.app.ui.VoiceCoachSheet
 import com.runline.app.ui.HistoryInsightsView
 import com.runline.app.ui.ActivityDetailsEditor
+import com.runline.app.ui.AppSettingsSheet
+import com.runline.app.ai.AiSettings
 import com.runline.app.ui.AiSettingsSheet
 import com.runline.app.ui.TrainingPlanSheet
 import com.runline.app.ui.RunReviewSheet
@@ -83,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     private var historyType: ActivityType? = null
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
+    private var appSettings: AppSettingsSheet? = null
     private var trainingPlan: TrainingPlanSheet? = null
     private var runReview: RunReviewSheet? = null
     private val ticker = object : Runnable {
@@ -133,10 +135,11 @@ class MainActivity : AppCompatActivity() {
         if (screen == "detail" && currentRun == null) screen = "history"
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
+        if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         savedInstanceState?.getBundle("coachSheet")?.let(::showCoach)
         savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it).also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("trainingPlan")?.let { trainingPlan = TrainingPlanSheet(this, it).also { sheet -> sheet.show() } }
-        savedInstanceState?.getBundle("runReview")?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
+        savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
         AiActivityCompletion.onAppOpen(this)
         savedInstanceState?.getBundle("detailsEditor")?.let { draft ->
             draft.getString("runId")?.let { id -> runCatching { store.get(id) }.getOrNull()?.let { showActivityEditor(it, draft) } }
@@ -151,7 +154,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { detailsEditor?.close(); aiSettings?.close(); trainingPlan?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); trainingPlan?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
@@ -161,6 +164,7 @@ class MainActivity : AppCompatActivity() {
         outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
         exporter.saveState(outState); super.onSaveInstanceState(outState)
+        outState.putBoolean("appSettings", appSettings?.isShowing == true)
         coachSheet?.takeIf { it.isShowing }?.let { outState.putBundle("coachSheet", it.saveState()) }
         detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
         aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
@@ -222,7 +226,6 @@ class MainActivity : AppCompatActivity() {
             }, margin(top = 24))
             return
         }
-        content.addView(iconView(R.drawable.ic_run), LinearLayout.LayoutParams(dp(64), dp(64)).apply { bottomMargin = dp(24) })
         content.addView(text(getString(R.string.main_ready), 30, bold = true), margin(bottom = 24))
         val types = ActivityType.entries
         val field = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedExposedDropdownMenuStyle).apply {
@@ -242,7 +245,6 @@ class MainActivity : AppCompatActivity() {
         }
         field.addView(choice, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, margin(bottom = 16))
-        content.addView(text(getString(R.string.main_start_hint), 15, muted = true))
         content.addView(button(getString(if (VoiceCoachSettings.load(this).enabled) R.string.coach_ui_on else R.string.coach_ui_off), outlined = true, iconId = R.drawable.ic_speaker) { showCoach() }, margin(top = 24))
         content.addView(button(getString(R.string.v7_training_plan), outlined = true, iconId = R.drawable.ic_calendar) { showTrainingPlan() }, margin(top = 12))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
@@ -315,7 +317,6 @@ class MainActivity : AppCompatActivity() {
                 content.addView(row); content.addView(divider())
             }
         }
-        content.addView(text(getString(R.string.main_saved_local), 14, muted = true), margin(top = 24))
     }
     private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 0; screen = "detail"; render() }
     private fun renderDetail(run: RunSession) {
@@ -331,40 +332,25 @@ class MainActivity : AppCompatActivity() {
     }
     private fun configureMenu() {
         toolbar.menu.clear()
-        toolbar.menu.add(0, 5, 0, R.string.main_protection).apply {
-            setIcon(R.drawable.ic_shield_check); icon?.setTint(getColor(R.color.on_surface))
+        toolbar.menu.add(0, 15, 0, R.string.v8_settings).apply {
+            setIcon(R.drawable.ic_settings); icon?.setTint(getColor(R.color.on_surface))
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 11, 1, R.string.v7_training_plan)
-        toolbar.menu.add(0, 12, 2, R.string.v7_ai_settings)
-        toolbar.menu.add(0, 9, 3, R.string.main_language)
-        toolbar.menu.add(0, 7, 2, R.string.main_about)
-        if (screen == "record") toolbar.menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
-        toolbar.overflowIcon = AppCompatResources.getDrawable(this, R.drawable.ic_more)?.apply { setTint(getColor(R.color.on_surface)) }
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) { 5 -> showProtection(); 9 -> showLanguage(); 7 -> showAbout(); 10 -> showCoach(); 11 -> showTrainingPlan(); 12 -> showAiSettings() }; true
-        }
+        toolbar.setOnMenuItemClickListener { showSettings(); true }
+    }
+    private fun showSettings() {
+        appSettings?.close()
+        appSettings = AppSettingsSheet(this, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout).also { it.show() }
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
             menu.add(0, 13, 0, R.string.v7_edit_activity)
-            menu.add(0, 14, 1, R.string.v7_run_review)
-            menu.add(0, 1, 2, R.string.main_export)
-            menu.add(0, 2, 1, R.string.main_share_file)
-            menu.add(0, 6, 2, R.string.main_save_to)
-            menu.add(0, 3, 2, R.string.main_run_info)
-            menu.add(0, 9, 3, R.string.main_language)
-            menu.add(0, 4, 4, R.string.main_delete_activity)
+            if (AiSettings.isReady(this@MainActivity)) menu.add(0, 14, 1, R.string.v7_run_review)
+            menu.add(0, 4, 2, R.string.main_delete_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     13 -> currentRun?.let { showActivityEditor(it) }
                     14 -> currentRun?.let { showRunReview(it) }
-                    1 -> currentRun?.let(::saveGpx)
-                    2 -> currentRun?.let(::shareGpx)
-                    6 -> currentRun?.let { exporter.saveAs(it) }
-                    3 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_run_info)
-                        .setMessage(R.string.main_run_info_body).setPositiveButton(R.string.main_done, null).show()
-                    9 -> showLanguage()
                     4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this@MainActivity)
                         .setTitle(R.string.main_delete_title).setMessage(R.string.main_delete_body)
                         .setNegativeButton(R.string.main_keep, null).setPositiveButton(R.string.main_delete) { _, _ ->
@@ -379,20 +365,13 @@ class MainActivity : AppCompatActivity() {
         PopupMenu(this, anchor).apply {
             menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
             setForceShowIcon(true)
-            menu.add(0, 12, 1, R.string.v7_ai_settings)
-            menu.add(0, 1, 2, R.string.main_protection)
-            menu.add(0, 2, 1, R.string.main_direction)
-            menu.add(0, 9, 2, R.string.main_language)
+            menu.add(0, 1, 1, R.string.main_protection).setIcon(R.drawable.ic_shield_check)
             if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 3, R.string.main_discard_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     10 -> showCoach()
-                    12 -> showAiSettings()
                     1 -> showProtection()
-                    2 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.main_direction)
-                        .setMessage(R.string.main_direction_body).setPositiveButton(R.string.main_done, null).show()
                     3 -> discardRun()
-                    9 -> showLanguage()
                 }; true
             }
         }.show()
@@ -406,7 +385,7 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.7")
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.8")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
@@ -460,7 +439,6 @@ class MainActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_discard_title)).setMessage(getString(R.string.main_discard_body))
             .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton(getString(R.string.main_keep), null).show()
     }
-    private fun saveGpx(run: RunSession) { exporter.start(run) }
     private fun showActivityTransfer(run: RunSession) {
         MaterialAlertDialogBuilder(this).setTitle(R.string.main_activity_file)
             .setItems(arrayOf(getString(R.string.main_download_gpx), getString(R.string.main_share_file), getString(R.string.main_save_to))) { _, which ->
@@ -480,7 +458,10 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this).also { it.show() } }
     private fun showTrainingPlan() { trainingPlan?.close(); trainingPlan = TrainingPlanSheet(this).also { it.show() } }
-    private fun showRunReview(run: RunSession) { runReview?.close(); runReview = RunReviewSheet(this, run).also { it.show() } }
+    private fun showRunReview(run: RunSession) {
+        if (!AiSettings.isReady(this)) return
+        runReview?.close(); runReview = RunReviewSheet(this, run).also { it.show() }
+    }
     private fun showActivityEditor(run: RunSession, state: Bundle? = null) {
         detailsEditor?.close()
         detailsEditor = ActivityDetailsEditor(this, run, state) {
@@ -503,7 +484,6 @@ class MainActivity : AppCompatActivity() {
         if (detailsEditor?.handleActivityResult(requestCode, resultCode, data) == true) return
         exporter.handleActivityResult(requestCode, resultCode, data)
     }
-    private fun shareGpx(run: RunSession) = exporter.share(run)
     private fun notice(message: String) { Snackbar.make(root, message, Snackbar.LENGTH_LONG).show() }
     private fun text(value: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(this).apply {
         text = value; textSize = size.toFloat(); setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
@@ -522,7 +502,6 @@ class MainActivity : AppCompatActivity() {
         setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(-1, -2)
     }
-    private fun iconView(id: Int) = ImageView(this).apply { setImageResource(id); imageTintList = ColorStateList.valueOf(getColor(R.color.primary)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     private fun divider() = View(this).apply { setBackgroundColor(getColor(R.color.surface_variant)); layoutParams = LinearLayout.LayoutParams(-1, dp(1)) }
     private fun margin(top: Int = 0, bottom: Int = 0, left: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom); marginStart = dp(left) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()

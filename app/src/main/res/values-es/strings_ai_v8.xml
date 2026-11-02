@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ai_v8_title">IA</string>
+    <string name="ai_v8_enabled">Activar IA</string>
+    <string name="ai_v8_summary">Envía resúmenes de actividad a Anthropic y consume saldo de tu API. Los puntos GPS y las fotos se quedan en este teléfono.</string>
+    <string name="ai_v8_data_costs">Datos y costes de API</string>
+    <string name="ai_v8_hide_details">Ocultar detalles</string>
+    <string name="ai_v8_connection">Conexión</string>
+    <string name="ai_v8_key">Clave de API</string>
+    <string name="ai_v8_key_required">Añade primero una clave válida de Anthropic.</string>
+    <string name="ai_v8_models">Modelos</string>
+    <string name="ai_v8_live_model">Guía durante la actividad</string>
+    <string name="ai_v8_review_model">Análisis y planes</string>
+    <string name="ai_v8_custom_model">Otro modelo…</string>
+    <string name="ai_v8_custom_id">ID del modelo Claude</string>
+    <string name="ai_v8_custom_hint">Usa un modelo disponible en tu cuenta de Anthropic.</string>
+    <string name="ai_v8_model_required">Escribe un ID de Claude o elige un modelo de la lista.</string>
+    <string name="ai_v8_test_ok">Acceso a los modelos confirmado. No se ha generado una respuesta de IA.</string>
+    <string name="ai_v8_features">Funciones</string>
+    <string name="ai_v8_live">Consejos durante la actividad</string>
+    <string name="ai_v8_live_hint">Requiere la guía de voz</string>
+    <string name="ai_v8_auto_review">Análisis automáticos</string>
+    <string name="ai_v8_auto_plan">Actualizar el plan automáticamente</string>
+    <string name="ai_v8_interval">Frecuencia de consejos</string>
+    <string name="ai_v8_minutes">Cada %1$d min</string>
+</resources>

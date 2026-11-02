@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plan_v8_goal">My goal</string>
+    <string name="plan_v8_5k">5K</string>
+    <string name="plan_v8_10k">10K</string>
+    <string name="plan_v8_half">Half marathon · 21.1 km</string>
+    <string name="plan_v8_progress">Personal progress</string>
+    <string name="plan_v8_custom">Custom distance</string>
+    <string name="plan_v8_custom_summary">%1$s km</string>
+    <string name="plan_v8_when">Target timing</string>
+    <string name="plan_v8_exact_day">Exact day</string>
+    <string name="plan_v8_target_month">Target month</string>
+    <string name="plan_v8_choose_month">Choose a month</string>
+    <string name="plan_v8_rolling_hint">Build consistency over the next 8 weeks. No race needed.</string>
+    <string name="plan_v8_days">Runs per week</string>
+    <plurals name="plan_v8_days_count"><item quantity="one">%1$d day</item><item quantity="other">%1$d days</item></plurals>
+    <plurals name="plan_v8_runs_count"><item quantity="one">%1$d run</item><item quantity="other">%1$d runs</item></plurals>
+    <string name="plan_v8_history_loading">Checking recent runs…</string>
+    <string name="plan_v8_no_history">No recent runs recorded yet.</string>
+    <string name="plan_v8_history_unavailable">Recent runs could not be read. You can adjust the starting distance.</string>
+    <string name="plan_v8_history_week">Last 7 days: %1$s km/week · %2$s</string>
+    <string name="plan_v8_history_month">Last 28 days: %1$s km/week · %2$s</string>
+    <string name="plan_v8_base">Plan starts at %1$s km/week.</string>
+    <string name="plan_v8_gentle_base">Suggested gentle start: %1$s km/week.</string>
+    <string name="plan_v8_adjust">Adjust starting distance</string>
+    <string name="plan_v8_hide_adjustment">Hide adjustment</string>
+    <string name="plan_v8_starting_distance">Starting distance · km/week</string>
+    <string name="plan_v8_distance_error">Choose a distance from 1 to 50 km.</string>
+    <string name="plan_v8_base_error">Choose a starting distance from 5 to 100 km/week.</string>
+    <string name="plan_v8_date_error">Choose a day or month ending 4–52 weeks from now.</string>
+    <string name="plan_v8_saved">Plan saved on this phone.</string>
+    <string name="plan_v8_progress_summary">Personal progress · 8 weeks</string>
+    <string name="plan_v8_local_source">Local plan</string>
+    <string name="plan_v8_ai_source">Personalized with Claude</string>
+    <string name="plan_v8_show_notes">Plan notes</string>
+    <string name="plan_v8_hide_notes">Hide plan notes</string>
+</resources>

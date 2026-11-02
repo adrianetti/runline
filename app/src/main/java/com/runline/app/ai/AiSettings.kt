@@ -15,12 +15,15 @@ data class AiConfig(
     val liveEnabled: Boolean = false,
     val automaticReviews: Boolean = false,
     val automaticPlanUpdates: Boolean = false,
-    val liveModel: String = "claude-haiku-5-5",
-    val reviewModel: String = "claude-sonnet-5-5",
+    val liveModel: String = AiProviderCatalog.DEFAULT_LIVE_MODEL,
+    val reviewModel: String = AiProviderCatalog.DEFAULT_REVIEW_MODEL,
     val intervalMinutes: Int = 5,
     val includeNotes: Boolean = false,
+    val provider: String = AiProviderCatalog.ANTHROPIC,
 ) {
-    fun valid() = intervalMinutes in 3..10 && validModel(liveModel) && validModel(reviewModel)
+    fun valid() = AiProviderCatalog.find(provider) != null && intervalMinutes in 3..10 && validModel(liveModel) && validModel(reviewModel)
+    /** Locally configured, not a guarantee of network availability or model access. */
+    fun isReady(hasKey: Boolean) = enabled && hasKey && valid()
     companion object { fun validModel(value: String) = value.matches(Regex("claude-[a-zA-Z0-9._-]{3,100}")) }
 }
 
@@ -32,18 +35,24 @@ object AiSettings {
     private fun prefs(context: Context) = context.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
     fun load(context: Context): AiConfig = prefs(context).let { p -> AiConfig(
         p.getBoolean("enabled", false), p.getBoolean("live", false), p.getBoolean("reviews", false), p.getBoolean("adapt", false),
-        p.getString("liveModel", null) ?: "claude-haiku-5-5", p.getString("reviewModel", null) ?: "claude-sonnet-5-5", p.getInt("interval", 5), p.getBoolean("includeNotes", false),
+        p.getString("liveModel", null) ?: AiProviderCatalog.DEFAULT_LIVE_MODEL,
+        p.getString("reviewModel", null) ?: AiProviderCatalog.DEFAULT_REVIEW_MODEL,
+        p.getInt("interval", 5), p.getBoolean("includeNotes", false),
+        p.getString("provider", null) ?: AiProviderCatalog.ANTHROPIC,
     ).takeIf { it.valid() } ?: AiConfig() }
+    fun isReady(context: Context): Boolean = load(context).isReady(hasKey(context))
     fun save(context: Context, config: AiConfig) {
         require(config.valid())
         changes.incrementAndGet()
         check(prefs(context).edit().putBoolean("enabled", config.enabled).putBoolean("live", config.liveEnabled)
             .putBoolean("reviews", config.automaticReviews).putBoolean("adapt", config.automaticPlanUpdates)
-            .putString("liveModel", config.liveModel).putString("reviewModel", config.reviewModel).putInt("interval", config.intervalMinutes).putBoolean("includeNotes", config.includeNotes).commit())
+            .putString("liveModel", config.liveModel).putString("reviewModel", config.reviewModel).putInt("interval", config.intervalMinutes)
+            .putBoolean("includeNotes", config.includeNotes).putString("provider", config.provider).commit())
     }
     fun hasKey(context: Context): Boolean = keyFile(context).exists()
+    fun validKey(value: String) = value.length in 20..512 && value.all { it.code in 33..126 }
     fun saveKey(context: Context, value: String) {
-        require(value.length in 20..512 && value.all { it.code in 33..126 })
+        require(validKey(value))
         changes.incrementAndGet()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))

@@ -1,0 +1,6 @@
+<resources>
+    <string name="map_v8_attribution">© IGN / PNOA · EOX</string>
+    <string name="map_v8_stats_info">About GPS estimates</string>
+    <string name="map_v8_estimated_laps">Estimated laps</string>
+    <string name="map_v8_credits_html"><![CDATA[<p>Spain: <a href="https://www.ign.es/web/ide-area-nodo-ide-ign">© IGN / PNOA</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Detailed aerial imagery is available when the map is centred in Spain.</p><p>Worldwide: <a href="https://cloudless.eox.at/">EOxCloudless</a> by EOX IT Services GmbH. Contains modified Copernicus Sentinel data 2025. <a href="https://maps.eox.at/">EOX::Maps</a>. <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>. Worldwide imagery is about 10 metres per pixel, so close zooms can look soft.</p><p>Map display: <a href="https://maplibre.org/">MapLibre</a>. Coverage outline: Natural Earth, public domain. The angled view shows satellite imagery; it does not add terrain relief.</p><p>Imagery needs internet and may be cached. Providers receive tile-area requests and your network address. Your activity file and timestamps stay on this phone. Recording works without map tiles.</p>]]></string>
+</resources>

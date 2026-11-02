@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -19,11 +18,13 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.widget.TextViewCompat
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
+import com.runline.app.ai.AiSettings
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.RunReplay
 import com.runline.app.core.ReplayPresentation
@@ -59,10 +60,11 @@ class RunReplayView(
     private var fitted = false
     private var details: BottomSheetDialog? = null
     private var speedDialog: androidx.appcompat.app.AlertDialog? = null
+    private var statsDialog: androidx.appcompat.app.AlertDialog? = null
     private var playbackGeneration = 0L
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val handler = Handler(Looper.getMainLooper())
-    private val panel = CappedColumn(context)
+    private val panel = ElevationIsland(context)
     private val play = control(context.getString(R.string.replay_play), R.drawable.ic_play)
     private val speed = control(context.getString(R.string.replay_multiplier, 1), R.drawable.ic_clock)
     private val seek = SeekBar(context).apply {
@@ -91,7 +93,9 @@ class RunReplayView(
 
     init {
         map.setReplayMode()
-        map.setRoute(replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } })
+        val displayPoints = replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } }
+        map.setRoute(displayPoints)
+        panel.setPoints(displayPoints)
         replay.at(0)?.point?.let { map.setCenter(it.latitude, it.longitude) }
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -116,11 +120,6 @@ class RunReplayView(
             marginEnd = dp(16); topMargin = dp(16)
         })
 
-        panel.orientation = LinearLayout.VERTICAL
-        panel.background = GradientDrawable().apply {
-            setColor(context.getColor(R.color.surface)); cornerRadius = dp(24).toFloat()
-        }
-        panel.elevation = dp(3).toFloat()
         panel.setPadding(dp(16), dp(8), dp(16), dp(12))
         val information = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -145,7 +144,10 @@ class RunReplayView(
         ).forEachIndexed { index, (name, amount) ->
             val column = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(label(context.getString(name), 12, muted = true).apply { minLines = 2; maxLines = 2 })
+                addView(label(context.getString(name), 12, muted = true).apply {
+                    minLines = if (compact || resources.configuration.fontScale > 1.15f) 2 else 1
+                    maxLines = 2
+                })
                 addView(amount, LinearLayout.LayoutParams(-1, dp(36)).apply { topMargin = dp(3) })
             }
             metrics.addView(column, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(8) })
@@ -223,7 +225,7 @@ class RunReplayView(
     }
     fun onHostResume() { resumed = true; map.onHostResume() }
     fun onHostPause() { resumed = false; playbackGeneration++; pausePlayback(); map.onHostPause() }
-    fun dispose() { disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; speedDialog?.dismiss(); speedDialog = null; map.dispose() }
+    fun dispose() { disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; speedDialog?.dismiss(); speedDialog = null; statsDialog?.dismiss(); statsDialog = null; map.dispose() }
     override fun onDetachedFromWindow() { pausePlayback(); super.onDetachedFromWindow() }
 
     private fun startPlayback() {
@@ -276,7 +278,7 @@ class RunReplayView(
             iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
             setOnClickListener { details?.dismiss() }
         }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        content.addView(header)
+        header.setPadding(dp(24), dp(12), dp(16), dp(8))
         val date = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
             .withLocale(locale()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(run.startedAtMs))
         content.addView(label(date, 13, muted = true), row(top = 4, bottom = 20))
@@ -298,13 +300,23 @@ class RunReplayView(
         content.addView(control(context.getString(R.string.v7_edit_activity), R.drawable.ic_edit).apply {
             setOnClickListener { details?.dismiss(); onEdit() }
         }, row(bottom = 8))
-        content.addView(control(context.getString(R.string.v7_run_review), R.drawable.ic_info).apply {
-            setOnClickListener { details?.dismiss(); onReview() }
-        }, row(bottom = 20))
+        if (AiSettings.isReady(context)) {
+            content.addView(control(context.getString(R.string.v7_run_review), R.drawable.ic_info).apply {
+                setOnClickListener { details?.dismiss(); onReview() }
+            }, row(bottom = 20))
+        }
         addDetail(content, R.string.replay_total_distance, context.getString(R.string.replay_kilometres, number(summary.distanceMeters / 1000, 2)))
         addDetail(content, R.string.replay_active_time, duration(run.activeDurationMs))
         addDetail(content, R.string.replay_average_pace, context.getString(R.string.replay_per_km, pace(RunMetrics.paceSecondsPerKm(summary.distanceMeters, run.activeDurationMs))))
-        content.addView(label(context.getString(R.string.replay_elevation), 22, bold = true), row(top = 24, bottom = 12))
+        content.addView(LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(label(context.getString(R.string.replay_elevation), 22, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
+            addView(floating("", R.drawable.ic_info).apply {
+                contentDescription = context.getString(R.string.map_v8_stats_info)
+                iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
+                setOnClickListener { showStatsInfo() }
+            }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        }, row(top = 16, bottom = 8))
         val elevation = LinearLayout(context)
         listOf(R.string.replay_total_climbed to summary.elevationGainMeters, R.string.replay_total_descended to summary.elevationLossMeters).forEachIndexed { index, (name, amount) ->
             elevation.addView(LinearLayout(context).apply {
@@ -316,8 +328,6 @@ class RunReplayView(
         content.addView(elevation)
         val profile = ElevationProfileView(context, replay).apply { selectedPositionMs = positionMs }
         content.addView(profile, LinearLayout.LayoutParams(-1, dp(160)).apply { topMargin = dp(16) })
-        content.addView(label(context.getString(R.string.replay_profile_note), 13, muted = true), row(top = 8))
-        content.addView(label(context.getString(R.string.replay_estimate_note), 13, muted = true), row(top = 8))
         content.addView(label(context.getString(R.string.replay_more_statistics), 22, bold = true), row(top = 24, bottom = 8))
         addDetail(content, R.string.replay_average_speed, context.getString(R.string.replay_kmh, number(summary.averageSpeedMetersPerSecond?.times(3.6), 1)))
         addDetail(content, R.string.replay_peak_speed, context.getString(R.string.replay_kmh, number(summary.maxSpeedMetersPerSecond?.times(3.6), 1)))
@@ -337,7 +347,7 @@ class RunReplayView(
         }
         val laps = LapAnalysis.analyze(run.points)
         if (laps.laps.isNotEmpty()) {
-            content.addView(label(context.getString(R.string.v7_detected_laps), 22, bold = true), row(top = 24, bottom = 8))
+            content.addView(label(context.getString(R.string.map_v8_estimated_laps), 22, bold = true), row(top = 24, bottom = 8))
             laps.laps.forEach { lap ->
                 addDetail(content, context.getString(R.string.v7_lap_number, lap.number),
                     context.getString(R.string.v7_lap_stats, number(lap.distanceMeters / 1000, 2), duration(lap.durationMs),
@@ -347,22 +357,43 @@ class RunReplayView(
                 content.addView(label(context.getString(R.string.v7_lap_sector_comparison, sector.number,
                     number(sector.paceChangePercent, 0)), 14, muted = true), row(top = 8))
             }
-            content.addView(label(context.getString(R.string.v7_lap_note), 13, muted = true), row(top = 8))
         }
-        content.addView(label(context.getString(R.string.replay_timing_note), 13, muted = true), row(top = 16))
         val scroll = ScrollView(context).apply { addView(content) }
+        val body = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(header, LinearLayout.LayoutParams(-1, -2))
+            addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        }
         details = BottomSheetDialog(context).also { dialog ->
-            dialog.setContentView(scroll)
-            dialog.setOnShowListener {
-                dialog.findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)?.let { sheet ->
-                    sheet.setBackgroundColor(context.getColor(R.color.surface))
-                    sheet.layoutParams = sheet.layoutParams.apply { height = (resources.displayMetrics.heightPixels * 0.9f).roundToInt() }
-                    BottomSheetBehavior.from(sheet).apply { state = BottomSheetBehavior.STATE_EXPANDED; skipCollapsed = true }
+            dialog.setContentView(body)
+            val activity = context as? AppCompatActivity
+            if (activity != null) StableSheet.configure(dialog, activity)
+            else {
+                dialog.setCanceledOnTouchOutside(false)
+                dialog.setOnShowListener {
+                    dialog.findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)?.let { sheet ->
+                        sheet.setBackgroundColor(context.getColor(R.color.surface))
+                        sheet.layoutParams = sheet.layoutParams.apply { height = (resources.displayMetrics.heightPixels * .92f).roundToInt() }
+                        BottomSheetBehavior.from(sheet).apply {
+                            state = BottomSheetBehavior.STATE_EXPANDED; skipCollapsed = true; isDraggable = false
+                        }
+                    }
                 }
             }
             dialog.setOnDismissListener { details = null }
             dialog.show()
         }
+    }
+
+    private fun showStatsInfo() {
+        if (disposed || statsDialog?.isShowing == true) return
+        statsDialog = MaterialAlertDialogBuilder(context).setTitle(R.string.map_v8_stats_info)
+            .setMessage(listOf(R.string.replay_profile_note, R.string.replay_estimate_note,
+                R.string.replay_timing_note, R.string.v7_lap_note).joinToString("\n\n") { context.getString(it) })
+            .setPositiveButton(R.string.map_close, null).create().also { dialog ->
+                dialog.setOnDismissListener { statsDialog = null }
+                dialog.show()
+            }
     }
 
     private fun addDetail(parent: LinearLayout, resource: Int, amount: String) = addDetail(parent, context.getString(resource), amount)
@@ -405,12 +436,6 @@ class RunReplayView(
     private fun pace(value: Double?): String = if (value == null || !value.isFinite() || value < 0) context.getString(R.string.replay_unavailable) else value.roundToInt().let { String.format(locale(), "%d:%02d", it / 60, it % 60) }
     private fun duration(ms: Long): String { val s = ms.coerceAtLeast(0) / 1000; return if (s >= 3600) String.format(locale(), "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(locale(), "%02d:%02d", s / 60, s % 60) }
 
-    private class CappedColumn(context: Context) : LinearLayout(context) {
-        var maxHeight = Int.MAX_VALUE
-        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(minOf(MeasureSpec.getSize(heightMeasureSpec), maxHeight), MeasureSpec.AT_MOST))
-        }
-    }
 }
 
 /** Relative elevation preserves climbs, descents and every missing-data boundary. */

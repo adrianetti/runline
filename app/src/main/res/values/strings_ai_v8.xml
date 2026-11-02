@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ai_v8_title">AI</string>
+    <string name="ai_v8_enabled">Enable AI</string>
+    <string name="ai_v8_summary">Sends activity summaries to Anthropic using your API credits. GPS points and photos stay on this phone.</string>
+    <string name="ai_v8_data_costs">Data and API costs</string>
+    <string name="ai_v8_hide_details">Hide details</string>
+    <string name="ai_v8_connection">Connection</string>
+    <string name="ai_v8_key">API key</string>
+    <string name="ai_v8_key_required">Add a valid Anthropic API key first.</string>
+    <string name="ai_v8_models">Models</string>
+    <string name="ai_v8_live_model">Live coach</string>
+    <string name="ai_v8_review_model">Reviews and plans</string>
+    <string name="ai_v8_custom_model">Custom model…</string>
+    <string name="ai_v8_custom_id">Claude model ID</string>
+    <string name="ai_v8_custom_hint">Use a model available to your Anthropic account.</string>
+    <string name="ai_v8_model_required">Enter a Claude model ID, or choose a preset.</string>
+    <string name="ai_v8_test_ok">Model access confirmed. No AI response was generated.</string>
+    <string name="ai_v8_features">Features</string>
+    <string name="ai_v8_live">Live advice</string>
+    <string name="ai_v8_live_hint">Requires voice coach</string>
+    <string name="ai_v8_auto_review">Automatic activity reviews</string>
+    <string name="ai_v8_auto_plan">Automatic plan updates</string>
+    <string name="ai_v8_interval">Advice frequency</string>
+    <string name="ai_v8_minutes">Every %1$d min</string>
+</resources>

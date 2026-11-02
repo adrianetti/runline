@@ -27,6 +27,7 @@ ICONS = {
     "external_link": "external-link", "clock": "clock", "check": "check",
     "settings": "settings", "close": "x", "location": "current-location", "navigation": "navigation", "speaker": "volume",
     "edit": "pencil", "photo": "photo", "calendar": "calendar-event",
+    "language": "language", "ai": "brain",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)
