@@ -1,6 +1,6 @@
 import java.util.Properties
 
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+plugins { id("com.android.application") }
 val signingValues = Properties().apply {
     val config = rootProject.file(".signing/signing.properties")
     if (config.isFile) config.inputStream().use { load(it) }
@@ -14,7 +14,6 @@ android {
     compileSdk = 34
     defaultConfig { applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 7; versionName = "0.7.0" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = "17" }
     signingConfigs {
         if (hasPersonalSigning) create("personal") {
             storeFile = rootProject.file(personalStore!!)

@@ -1,0 +1,72 @@
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+// Resolve the actual selected versions, including the plugin/buildscript classpath.
+// A missing configuration or unresolved dependency fails the audit rather than shrinking it.
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    root.tasks.register('exportDependencyAudit') {
+        group = 'verification'
+        description = 'Exports resolved Maven dependencies for the advisory gate.'
+        notCompatibleWithConfigurationCache('Audits all resolved project and buildscript configurations')
+        doLast {
+            def output = new File(root.layout.buildDirectory.get().asFile, 'reports/dependency-audit.json')
+            if (output.exists() && !output.delete()) throw new GradleException('Cannot clear the previous dependency audit')
+            def components = new TreeMap<String, Map>()
+            def configurationNames = new TreeSet<String>()
+            def collect = { project, configuration, buildscript ->
+                if (!configuration.canBeResolved) return
+                def label = "${project.path}${buildscript ? ':buildscript' : ''}:${configuration.name}".toString()
+                configurationNames.add(label)
+                def resolution = configuration.incoming.resolutionResult
+                def failed = resolution.allDependencies.findAll { it instanceof UnresolvedDependencyResult }
+                if (!failed.empty) {
+                    throw new GradleException("Cannot audit ${label}: ${failed.collect { it.attempted.displayName }.join(', ')}")
+                }
+                resolution.allComponents.each { component ->
+                    def id = component.id
+                    if (id instanceof ModuleComponentIdentifier) {
+                        def key = "${id.group}:${id.module}:${id.version}".toString()
+                        if (!components.containsKey(key)) {
+                            components[key] = [group: id.group, name: id.module, version: id.version, configurations: new TreeSet<String>()]
+                        }
+                        components[key].configurations.add(label)
+                    }
+                }
+            }
+            root.allprojects.sort { it.path }.each { project ->
+                project.buildscript.configurations.toList().each { collect(project, it, true) }
+                project.configurations.toList().each { collect(project, it, false) }
+            }
+            if (components.empty || configurationNames.empty) throw new GradleException('Dependency audit must not be empty')
+            // These are Runline's exercised build and app scopes, not a fixed inventory
+            // size or version allowlist. In particular, adding a direct dependency to
+            // androidLintTool can suppress AGP's default lint-gradle dependency.
+            def requiredScopes = [
+                '::buildscript:classpath': ['com.android.tools.build:gradle', 'org.jetbrains.kotlin:kotlin-gradle-plugin'],
+                ':app:androidLintTool': ['com.android.tools.lint:lint-gradle'],
+                ':app:debugCompileClasspath': ['org.maplibre.gl:android-sdk'],
+                ':app:releaseCompileClasspath': ['org.maplibre.gl:android-sdk'],
+                ':app:debugRuntimeClasspath': ['org.maplibre.gl:android-sdk'],
+                ':app:releaseRuntimeClasspath': ['org.maplibre.gl:android-sdk'],
+                ':app:debugUnitTestCompileClasspath': ['junit:junit'],
+                ':app:debugUnitTestRuntimeClasspath': ['junit:junit']
+            ]
+            requiredScopes.each { label, requiredModules ->
+                if (!configurationNames.contains(label)) throw new GradleException("Missing required dependency audit scope: ${label}")
+                def resolvedModules = components.values().findAll { it.configurations.contains(label) }
+                    .collect { "${it.group}:${it.name}".toString() }.toSet()
+                def missingModules = requiredModules.findAll { !resolvedModules.contains(it) }
+                if (!missingModules.empty) {
+                    throw new GradleException("Incomplete dependency audit scope ${label}: missing ${missingModules.join(', ')}")
+                }
+            }
+            output.parentFile.mkdirs()
+            output.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+                schemaVersion: 1, configurations: configurationNames, components: components.values().toList()
+            ])) + '\n'
+            logger.lifecycle("Exported ${components.size()} Maven components from ${configurationNames.size()} configurations to ${output}")
+        }
+    }
+}

@@ -4,7 +4,7 @@ The checklist is not a blanket pass report. Current v0.7 evidence and unperforme
 
 ## Build and unit checks
 
-With JDK 17, SDK 34 and Build Tools 34.0.0, use the pinned AGP 8.5.2 / Kotlin 2.0.20 / Gradle 8.7 build:
+With JDK 17, SDK 34 and Build Tools 36.0.0, use the pinned AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2 build:
 
 ```sh
 python3 tools/import_icons.py --check
@@ -12,6 +12,16 @@ python3 tools/import_icons.py --check
 ```
 
 Inspect unit-test and lint reports. Persistence tests should exercise actual temporary files with injected failures, including incomplete journal appends, corrupt metadata, finalization/cleanup interruption and duplicate completion. A passing calculation test does not validate Android service lifecycle or physical storage durability.
+
+Toolchain upgrade validation on 2 November 2026 (AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2):
+
+- Debug and signed release builds passed, with **137 JVM tests**, zero failures, and **zero lint errors / 78 warnings** from the newer lint engine. No lint errors were suppressed. The 401 bilingual resources and 27 pinned icons passed verification.
+- A standalone audit resolved **242 Maven component versions across 39 configurations**, including 68 lint-tool components, and OSV returned **zero findings**. The same checker detected all 60 original GitHub alert/package pairs against their old versions. Its 17 offline tests passed. Deliberately removing lint's default dependency made the exporter fail and remove its stale inventory.
+- The wrapper JAR and distribution checksums matched upstream. A runtime classloader check confirmed the Android plugin uses patched Guava 33.7.2-jre; Gradle core still uses its separate affected bundled copy. See the [remaining tooling limitation](../tools/security/README.md#dependency-advisories-and-toolchain-limits).
+- Gitleaks found no secrets in the inspected history/current source. All seven Semgrep rule fixtures and five Android surface guard tests passed; the strict Semgrep scan of 49 production Kotlin files found no issues.
+- On the API 34 emulator, the signed candidate updated the installed v0.7 release without uninstalling. All **47 recording, draft, annotation, photo and plan files** were initially byte-for-byte unchanged, including **19 saved activities**. The paused draft reopened as recovered with its original time and distance. Resume, background GPS capture, and notification Pause/Resume/Finish saved exactly one additional activity with **19 points in three segments**, removed the draft and retained all prior saved data. Native satellite rendering also worked in this bounded check.
+
+These toolchain checks do not repeat the entire field checklist or certify physical Samsung, battery, real-provider AI or headphone behavior. The published v0.7 release remains unchanged; this maintenance change does not publish a new app release.
 
 Activity-type/persistence tests should cover all three types, legacy fallback to Run, recovery/finalization and GPX typing. Filename tests should cover locale formatting, distance/date/time and forbidden characters. Elevation-progress tests should cover incremental updates, reset/shrink, missing height and segment/gap breaks. Marker-motion tests should cover valid interpolation, invalid/implausible samples, accuracy, gaps, segments, shortest longitude/bearing and endpoints.
 
