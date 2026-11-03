@@ -386,7 +386,7 @@ class TrackingService : Service(), LocationListener {
             val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh)
             coachEngine?.situation?.let { coachSpeech?.updateSituation(it) }
             cue?.let { coachSpeech?.speak(it) }
-            if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh)
+            if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh, coachConfig)
         }
     }
     private fun notification(): Notification {

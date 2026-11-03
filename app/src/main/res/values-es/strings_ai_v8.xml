@@ -10,7 +10,7 @@
     <string name="ai_v8_key_required">Añade primero una clave válida de Anthropic.</string>
     <string name="ai_v8_models">Modelos</string>
     <string name="ai_v8_live_model">Guía durante la actividad</string>
-    <string name="ai_v8_review_model">Análisis y planes</string>
+    <string name="ai_v8_review_model">Análisis y objetivos inteligentes</string>
     <string name="ai_v8_custom_model">Otro modelo…</string>
     <string name="ai_v8_custom_id">ID del modelo Claude</string>
     <string name="ai_v8_custom_hint">Usa un modelo disponible en tu cuenta de Anthropic.</string>
@@ -20,7 +20,6 @@
     <string name="ai_v8_live">Consejos durante la actividad</string>
     <string name="ai_v8_live_hint">Requiere la guía de voz</string>
     <string name="ai_v8_auto_review">Análisis automáticos</string>
-    <string name="ai_v8_auto_plan">Actualizar el plan automáticamente</string>
     <string name="ai_v8_interval">Frecuencia de consejos</string>
     <string name="ai_v8_minutes">Cada %1$d min</string>
 </resources>

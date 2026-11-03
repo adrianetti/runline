@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="smart_goal_title">Objetivo inteligente</string>
+    <string name="smart_overall_goal">Objetivo general · opcional</string>
+    <string name="smart_overall_goal_hint">Por ejemplo: media maratón en abril. Se incluye cuando usas la IA.</string>
+    <string name="smart_ai_review_model">Análisis y objetivos inteligentes</string>
+    <string name="smart_ai_disclosure">Anthropic recibe resúmenes, esfuerzo, tipo de rutina y tu objetivo general opcional. Los títulos y notas solo se comparten si lo eliges; el perfil tiene su propio permiso. Los puntos GPS y fotos nunca se envían. Las consultas consumen saldo de tu API. Los consejos en directo y los análisis automáticos tienen sus propios interruptores. Los objetivos inteligentes solo se preparan cuando lo pides. Tu clave se cifra en este teléfono.</string>
+    <string name="smart_goal_context">Usa tus últimas salidas y el esfuerzo guardado.</string>
+    <string name="smart_goal_analyze">Sugerir una salida</string>
+    <string name="smart_goal_analyze_again">Sugerir de nuevo</string>
+    <string name="smart_goal_thinking">Pensando en tu próxima salida…</string>
+    <string name="smart_goal_use">Usar objetivo</string>
+    <string name="smart_goal_adjust">Ajustar</string>
+    <string name="smart_goal_setup">Configurar IA</string>
+    <string name="smart_goal_setup_hint">Activa la IA y añade tu clave en Ajustes para sugerir una salida.</string>
+    <string name="smart_goal_request_cost">Consume saldo de tu API.</string>
+    <string name="smart_goal_ready">Salida sugerida</string>
+    <string name="smart_goal_rest">Descanso sugerido</string>
+    <string name="smart_goal_easy">Esfuerzo suave</string>
+    <string name="smart_goal_recovery">Esfuerzo de recuperación</string>
+    <string name="smart_goal_steady">Esfuerzo moderado</string>
+    <string name="smart_goal_time">Tiempo</string>
+    <string name="smart_pace_optional">Rango de ritmo · opcional</string>
+    <string name="smart_pace_faster">Ritmo más rápido · min/km</string>
+    <string name="smart_pace_slower">Ritmo más lento · min/km</string>
+    <string name="smart_pace_range_error">Introduce ritmos válidos, primero el más rápido. Por ejemplo: de 5:30 a 6:00.</string>
+    <string name="smart_distance_value">%1$s km</string>
+    <string name="smart_distance_range_value">%1$s–%2$s km</string>
+    <string name="smart_distance_target_value">Objetivo: %1$s km</string>
+    <string name="smart_pace_value">%1$s /km</string>
+    <string name="smart_pace_range_value">%1$s–%2$s /km</string>
+    <string name="smart_duration_value">%1$s min</string>
+    <string name="smart_goal_pair">%1$s · %2$s</string>
+    <string name="smart_goal_changed">Tus datos han cambiado. Pide una nueva sugerencia.</string>
+    <string name="smart_goal_previous">Está terminando una consulta anterior. Reintenta en un momento.</string>
+</resources>

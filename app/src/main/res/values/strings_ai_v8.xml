@@ -10,7 +10,7 @@
     <string name="ai_v8_key_required">Add a valid Anthropic API key first.</string>
     <string name="ai_v8_models">Models</string>
     <string name="ai_v8_live_model">Live coach</string>
-    <string name="ai_v8_review_model">Reviews and plans</string>
+    <string name="ai_v8_review_model">Reviews and Smart goals</string>
     <string name="ai_v8_custom_model">Custom model…</string>
     <string name="ai_v8_custom_id">Claude model ID</string>
     <string name="ai_v8_custom_hint">Use a model available to your Anthropic account.</string>
@@ -20,7 +20,6 @@
     <string name="ai_v8_live">Live advice</string>
     <string name="ai_v8_live_hint">Requires voice coach</string>
     <string name="ai_v8_auto_review">Automatic activity reviews</string>
-    <string name="ai_v8_auto_plan">Automatic plan updates</string>
     <string name="ai_v8_interval">Advice frequency</string>
     <string name="ai_v8_minutes">Every %1$d min</string>
 </resources>

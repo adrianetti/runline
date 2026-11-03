@@ -1,5 +1,4 @@
 <resources>
-    <string name="v7_training_plan">Plan de entrenamiento</string>
     <string name="v7_ai_settings">Conexiones de IA</string>
     <string name="v7_edit_activity">Editar actividad</string>
     <string name="v7_run_review">Análisis del entrenador</string>

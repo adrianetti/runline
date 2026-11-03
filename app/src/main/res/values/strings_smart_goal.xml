@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="smart_goal_title">Smart goal</string>
+    <string name="smart_overall_goal">Overall goal · optional</string>
+    <string name="smart_overall_goal_hint">For example: half marathon in April. Included when you use AI.</string>
+    <string name="smart_ai_review_model">Reviews and smart goals</string>
+    <string name="smart_ai_disclosure">Anthropic receives activity summaries, effort, routine and your optional overall goal. Titles and notes are shared only if selected; runner-profile sharing is separate. Raw GPS points and photos are never sent. Requests use your API credits. Live advice and automatic reviews have their own switches. Smart goals run only when you ask. Your key is encrypted on this phone.</string>
+    <string name="smart_goal_context">Uses your recent runs and saved effort.</string>
+    <string name="smart_goal_analyze">Suggest a run</string>
+    <string name="smart_goal_analyze_again">Suggest again</string>
+    <string name="smart_goal_thinking">Thinking about your next run…</string>
+    <string name="smart_goal_use">Use goal</string>
+    <string name="smart_goal_adjust">Adjust</string>
+    <string name="smart_goal_setup">Set up AI</string>
+    <string name="smart_goal_setup_hint">Enable AI and add your key in Settings to suggest a run.</string>
+    <string name="smart_goal_request_cost">Uses your API credits.</string>
+    <string name="smart_goal_ready">Suggested run</string>
+    <string name="smart_goal_rest">Rest suggested</string>
+    <string name="smart_goal_easy">Easy effort</string>
+    <string name="smart_goal_recovery">Recovery effort</string>
+    <string name="smart_goal_steady">Steady effort</string>
+    <string name="smart_goal_time">Time</string>
+    <string name="smart_pace_optional">Pace range · optional</string>
+    <string name="smart_pace_faster">Faster pace · min/km</string>
+    <string name="smart_pace_slower">Slower pace · min/km</string>
+    <string name="smart_pace_range_error">Enter valid paces, faster first. For example: 5:30 to 6:00.</string>
+    <string name="smart_distance_value">%1$s km</string>
+    <string name="smart_distance_range_value">%1$s–%2$s km</string>
+    <string name="smart_distance_target_value">Target: %1$s km</string>
+    <string name="smart_pace_value">%1$s /km</string>
+    <string name="smart_pace_range_value">%1$s–%2$s /km</string>
+    <string name="smart_duration_value">%1$s min</string>
+    <string name="smart_goal_pair">%1$s · %2$s</string>
+    <string name="smart_goal_changed">Your data changed. Ask for a fresh suggestion.</string>
+    <string name="smart_goal_previous">A previous request is finishing. Try again shortly.</string>
+</resources>
