@@ -52,13 +52,30 @@ object AiCoachingContext {
         val runs = SmartRunAiInput.history(history, details).filter { it.date <= today && it.date >= today.minusDays(29) }
         val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val recent = runs.filter { it.date >= today.minusDays(6) }
+        val orderedDistances = runs.map { it.distanceKm }.sorted()
+        val medianDistance = orderedDistances.takeIf { it.isNotEmpty() }?.let {
+            (it[(it.size - 1) / 2] + it[it.size / 2]) / 2.0
+        }
+        val periods = (0..3).map { index ->
+            val end = today.minusDays(index * 7L)
+            val start = end.minusDays(6)
+            val recorded = runs.filter { it.date in start..end }
+            JSONObject().put("from", start.toString()).put("through", end.toString())
+                .put("recorded_distance_km", recorded.sumOf { it.distanceKm }).put("recorded_runs", recorded.size)
+                .put("runs_with_reported_effort", recorded.count { it.effort != null })
+        }
         return JSONObject().put("week_starts_on", weekStart.toString())
             .put("calendar_week_recorded_km", runs.filter { it.date >= weekStart }.sumOf { it.distanceKm })
             .put("last_7_days_km", recent.sumOf { it.distanceKm }).put("last_7_days_runs", recent.size)
             .put("last_28_days_weekly_average_km", runs.filter { it.date >= today.minusDays(27) }.sumOf { it.distanceKm } / 4.0)
             .put("longest_run_last_30_days_km", runs.maxOfOrNull { it.distanceKm } ?: JSONObject.NULL)
+            .put("median_run_last_30_days_km", medianDistance ?: JSONObject.NULL)
+            .put("recorded_runs_last_30_days", runs.size)
+            .put("recorded_days_last_30_days", runs.map { it.date }.distinct().size)
+            .put("days_since_last_recorded_run", runs.lastOrNull()?.let { java.time.temporal.ChronoUnit.DAYS.between(it.date, today) } ?: JSONObject.NULL)
+            .put("recorded_7_day_windows", JSONArray(periods))
             .put("last_recorded_effort_1_to_10", runs.lastOrNull()?.effort ?: JSONObject.NULL)
-            .put("scope", "Completed recorded runs only. An in-progress run and manual plan checkmarks are not included. A short recording history is not proof of beginner fitness.")
+            .put("scope", "Completed recorded runs only; duplicate IDs count once. An in-progress run and manual plan checkmarks are excluded. Empty recorded periods do not prove no training occurred. The 28-day weekly average divides recorded distance by four and is not an established baseline with sparse history. A short recording history is not proof of beginner fitness; there is no weekly mileage allowance or remaining-capacity budget.")
     }
 
     private fun historySummary(run: RunSession, details: ActivityDetails, includeNotes: Boolean): JSONObject {

@@ -40,8 +40,7 @@ object SmartRunAi {
                         val input = SmartRunAiInput.build(request.today, history, runs::details, config.includeNotes, profile.profile, goal.goal)
                         val inputKey = SmartRunAiInput.key(input)
                         val language = if (AppLanguage.localizedContext(app).resources.configuration.locales[0].language == "es") "Spanish" else "English"
-                        val suggestion = SmartRunAiInput.request(AnthropicProvider(), key, config, language, input,
-                            SmartRunAiInput.history(history, runs::details), request.today) { current(app, request) }
+                        val suggestion = SmartRunAiInput.request(AnthropicProvider(), key, config, language, input) { current(app, request) }
                         // Re-read saved measurements/annotations before making the result available.
                         val latest = SmartRunAiInput.build(request.today, runs.list(), runs::details, config.includeNotes, profile.profile, goal.goal)
                         if (inputKey != SmartRunAiInput.key(latest)) throw AiFailure(AiFailure.Reason.RESPONSE)

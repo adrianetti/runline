@@ -2,7 +2,7 @@
 
 A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Current source targets version 0.10.1 (version code 11), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
+Current source targets version 0.10.2 (version code 12), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -44,7 +44,7 @@ Live requests use a configurable 3–10 minute active-time interval and a 24-att
 
 **Settings → AI → Overall goal** optionally stores a short aspiration such as “Half marathon in April.” There is no calendar planner or automatic plan generation. An existing saved plan contributes its goal once, preserving its original date/month precision; its old file and recordings stay untouched. Clearing the new goal is respected.
 
-Before a Run, open **Smart goal**, then explicitly **Suggest a run**. Claude considers recent runs, this week's distance, saved effort and the optional overall goal. The result proposes a distance/range, optional pace band or time goal, or rest, with a short reason. A native progress indicator shows preparation. **Use goal** applies the concrete target without starting; **Adjust** opens the ordinary goal editor. Nothing is applied on opening, rotation or failure. New runs, detail edits, changed context/settings and a new day invalidate old suggestions. No missed-mileage debt or fitness/readiness guarantee is implied. See [goals and limits](docs/GOALS.md).
+Before a Run, open **Smart goal**, then explicitly **Suggest a run**. Claude weighs recent runs, reported effort, recorded weekly patterns and the optional overall goal to choose ambitious but realistic progression. There is no precomputed mileage allowance or previous-run cap; a valid suggestion can exceed the previous distance. The result proposes a distance/range, optional pace band or time goal, or rest, with a short reason. A native progress indicator shows preparation. **Use goal** applies the concrete target without starting; **Adjust** opens the ordinary goal editor. Nothing is applied on opening, rotation or failure. New runs, detail edits, changed context/settings and a new day invalidate old suggestions. No missed-mileage debt or fitness/readiness guarantee is implied. See [goals and limits](docs/GOALS.md).
 
 Manual goals remain available without AI: distance, pace, active time, or distance within a time limit. Distance/time goals can include an optional pace range. Accepted Smart recovery intent stays with the goal, and suppresses local speed-up cues. Reaching a goal announces progress; it never automatically finishes the recording. Live AI can return silence, respects the applied target and never invents workout blocks or asks mid-run questions.
 
@@ -134,10 +134,10 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.10.1 package is `dist/Runline-0.10.1.apk`. Install that package with USB debugging enabled:
+Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.10.2 package is `dist/Runline-0.10.2.apk`. Install that package with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.10.1.apk
+adb install -r dist/Runline-0.10.2.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.

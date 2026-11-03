@@ -1,6 +1,6 @@
-# Version 0.10.1 test checklist
+# Version 0.10.2 test checklist
 
-The checklist is not a blanket pass report. Current v0.10.1 and historical v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.10.2 and historical v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,18 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.10.2 history-led Smart goals
+
+Recorded on 4 November 2026. Removed the local training-budget engine and its derived distance, duration, pace and recovery restrictions. Smart requests now provide recorded context and software input format; Claude chooses training load, and valid suggestions are applied without clamping. The shared input ranges are the existing manual-goal support, not recommended workload. Four recorded seven-day windows, recording/effort counts, median distance and days since the last run expose sparse history instead of treating an incomplete log as a full training baseline.
+
+- Final debug/release builds pass **249 JVM tests**, zero failures/errors; lint reports **zero errors / 106 warnings**. Obsolete formula tests were replaced by response-format, unchanged-target application and progression regressions. A recorded 3 km run can receive and apply a 5 km suggestion. Missing/future/wrong-type history, effort and sparse windows retain explicit evidence handling.
+- **464 bilingual resources**, **34 pinned icons**, **22 security-checker tests**, workflow lint, seven Semgrep rule tests and a strict scan of **73 production Kotlin files** pass. Required GitHub checks must pass on the exact PR head before merge.
+- **11 real Sonnet generations** across bounded six-, four- and one-case batches exercised production request builders, strict JSON schema, transport and validators. All HTTP requests succeeded and outputs parsed, with no automatic retries or truncation. Usage was **33,163 input / 2,014 output tokens**. The first batch led to stronger qualitative weighting of hard effort/current workload and a time-based exploratory option when history is absent; a later wording check removed an unsupported safety claim. The original outputs are retained privately as iteration evidence.
+- The actual private 3.023 km GPX with unknown effort received **5 km easy, range 4–6 km, no numerical pace** in both progression samples. Separate, explicitly simulated effort/history cases tested different workload choices; they are not the user's actual fitness data. The busy-week follow-up chose 8 km easy instead of a new longest run; the no-history final sample chose 30 minutes at conversational effort without inventing distance, pace or safety. These examples establish neither universal coaching quality nor an individual's readiness.
+- Exact signed artifact: **`dist/Runline-0.10.2.apk`**, **0.10.2 / code 12**, SHA-256 **`1283effce055014785d601a30f844a875c617f182dea531bc41bccdcbaf29a7d`**. The signing certificate matches the existing app. Storage schema, recording and speech scheduling are unchanged; these tests do not repeat physical-phone installation, TTS/audio-focus or field checks.
+
+Private GPX files, credentials and raw provider reports remain outside Git. Development-key access follows the local owner-only storage described below. Historical caps and their tests in the following v0.10.1/v0.10 sections no longer describe current Smart behavior.
 
 ## Version 0.10.1 real-provider validation
 
