@@ -116,5 +116,34 @@ class AiCoachingContextTest {
         assertEquals(0.0, context.getJSONObject("completed_training").getDouble("calendar_week_recorded_km"), 0.0)
     }
 
+    @Test fun sparseHistoryDescribesRecordedWindowsWithoutManufacturingAWeeklyAllowance() {
+        fun at(day: LocalDate) = day.atTime(8, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val recent = run("recent", at(today.minusDays(2)))
+        val older = run("older", at(today.minusDays(9)))
+        val data = AiCoachingContext.build(today, history = listOf(recent, recent, older),
+            details = { ActivityDetails(effort = if (it == "older") 8 else null) }).getJSONObject("completed_training")
+        assertEquals(2, data.getInt("recorded_runs_last_30_days"))
+        assertEquals(2, data.getInt("recorded_days_last_30_days"))
+        assertEquals(2, data.getInt("days_since_last_recorded_run"))
+        assertTrue(data.isNull("last_recorded_effort_1_to_10"))
+        val weeks = data.getJSONArray("recorded_7_day_windows")
+        assertEquals(4, weeks.length())
+        assertEquals(1, weeks.getJSONObject(0).getInt("recorded_runs"))
+        assertEquals(0, weeks.getJSONObject(0).getInt("runs_with_reported_effort"))
+        assertEquals(1, weeks.getJSONObject(1).getInt("runs_with_reported_effort"))
+        assertEquals(0, weeks.getJSONObject(2).getInt("recorded_runs"))
+        assertEquals(today.minusDays(6).toString(), weeks.getJSONObject(0).getString("from"))
+        assertEquals(today.minusDays(7).toString(), weeks.getJSONObject(1).getString("through"))
+        assertFalse(data.has("remaining_rolling_7_day_capacity_km"))
+    }
+
+    @Test fun noHistoryLeavesSessionAndGapEvidenceUnknown() {
+        val data = AiCoachingContext.build(today).getJSONObject("completed_training")
+        assertEquals(0, data.getInt("recorded_runs_last_30_days"))
+        assertTrue(data.isNull("median_run_last_30_days_km"))
+        assertTrue(data.isNull("longest_run_last_30_days_km"))
+        assertTrue(data.isNull("days_since_last_recorded_run"))
+    }
+
     private fun List<RunSession>.copyTypeForLast(type: ActivityType) = dropLast(1) + last().copy(activityType = type)
 }

@@ -22,18 +22,25 @@ data class CoachConfig(
         if ((paceMinSecondsPerKm == null) != (paceMaxSecondsPerKm == null)) return false
         if (paceMinSecondsPerKm != null && paceMaxSecondsPerKm != null &&
             (goal !in setOf(CoachGoal.DISTANCE, CoachGoal.PACE, CoachGoal.TIME) ||
-                paceMinSecondsPerKm !in 60..3600 || paceMaxSecondsPerKm !in paceMinSecondsPerKm..3600)) return false
+                paceMinSecondsPerKm !in PACE_SECONDS_RANGE || paceMaxSecondsPerKm !in paceMinSecondsPerKm..PACE_SECONDS_RANGE.last)) return false
         return when (goal) {
         CoachGoal.NONE -> true
         CoachGoal.DISTANCE -> validDistance()
-        CoachGoal.PACE -> paceMinSecondsPerKm != null || paceSecondsPerKm in 60..3600
-        CoachGoal.TIME -> targetMinutes.isFinite() && targetMinutes in 1.0..1440.0
-        CoachGoal.DISTANCE_TIME -> validDistance() && targetMinutes.isFinite() && targetMinutes in 1.0..1440.0 &&
-            targetMinutes * 60.0 / distanceKm in 60.0..3600.0
+        CoachGoal.PACE -> paceMinSecondsPerKm != null || paceSecondsPerKm in PACE_SECONDS_RANGE
+        CoachGoal.TIME -> targetMinutes.isFinite() && targetMinutes in DURATION_MINUTES_RANGE
+        CoachGoal.DISTANCE_TIME -> validDistance() && targetMinutes.isFinite() && targetMinutes in DURATION_MINUTES_RANGE &&
+            targetMinutes * 60.0 / distanceKm in PACE_SECONDS_RANGE.first.toDouble()..PACE_SECONDS_RANGE.last.toDouble()
         }
     }
 
-    private fun validDistance() = distanceKm.isFinite() && distanceKm in 0.1..500.0
+    companion object {
+        // Shared input support, not a recommended workout or a history-derived training ceiling.
+        val DISTANCE_KM_RANGE = 0.1..500.0
+        val DURATION_MINUTES_RANGE = 1.0..1440.0
+        val PACE_SECONDS_RANGE = 60..3600
+    }
+
+    private fun validDistance() = distanceKm.isFinite() && distanceKm in DISTANCE_KM_RANGE
     val distanceGoalMeters: Double? get() = if (isValid() && goal in setOf(CoachGoal.DISTANCE, CoachGoal.DISTANCE_TIME)) distanceKm * 1000 else null
     val durationGoalMs: Long? get() = if (isValid() && goal == CoachGoal.TIME) (targetMinutes * 60_000).toLong() else null
     val targetPaceSeconds: Double? get() = paceTargetRange?.let { (it.start + it.endInclusive) / 2 }
