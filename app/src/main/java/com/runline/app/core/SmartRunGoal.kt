@@ -99,8 +99,8 @@ object SmartRunGoal {
                 (run.elevationGainMeters ?: 0.0) / run.distanceKm < 25.0 }
         }.sorted()
         val typicalEasy = easyPaces.takeIf { it.size >= 2 }?.let { it[it.size / 2] }
-        val fastest = typicalEasy?.let { ceil(it * if (recovery) 1.08 else 1.0).toInt() }
-        val slowest = typicalEasy?.let { ceil(it * if (recovery) 1.55 else 1.4).toInt().coerceAtMost(3600) }
+        val fastest = typicalEasy?.let { ceilPaceSeconds(it * if (recovery) 1.08 else 1.0) }
+        val slowest = typicalEasy?.let { ceilPaceSeconds(it * if (recovery) 1.55 else 1.4).coerceAtMost(3600) }
         val measuredDuration = runs.maxOfOrNull { it.activeDurationMs / 60_000.0 }?.takeIf { it > 0 }
         val durationCap = if (maximum == 0.0) 0.0 else minOf(180.0,
             if (slowest != null) maximum * slowest / 60.0 else (measuredDuration ?: 20.0) * if (recovery) .7 else 1.0)
@@ -125,7 +125,7 @@ object SmartRunGoal {
         val target = down(minOf(limits.maxDistanceKm, typical * if (limits.recoveryOnly) .65 else .85)).coerceAtLeast(limits.minDistanceKm)
         return SmartRunSuggestion(SmartRunGoalType.DISTANCE, if (limits.recoveryOnly) SmartRunEffort.RECOVERY else SmartRunEffort.EASY,
             target, down(maxOf(limits.minDistanceKm, target * .8)), down(minOf(limits.maxDistanceKm, maxOf(target, target * 1.1))),
-            limits.fastestPaceSecondsPerKm?.let { ceil(it * 1.03).toInt().coerceAtMost(limits.slowestPaceSecondsPerKm!!) },
+            limits.fastestPaceSecondsPerKm?.let { ceilPaceSeconds(it * 1.03).coerceAtMost(limits.slowestPaceSecondsPerKm!!) },
             limits.slowestPaceSecondsPerKm,
             rationale = if (limits.recoveryOnly) {
                 if (spanish) "Una carrera más corta y cómoda respeta tu esfuerzo reciente o la pausa. Acorta o descansa si lo necesitas."
@@ -187,4 +187,8 @@ object SmartRunGoal {
     }
 
     private fun down(value: Double) = floor((value + 1e-9) * 10) / 10
+
+    // GPS distance arithmetic can turn exactly 6:00/km into 360.0000000001.
+    // Ignore sub-microsecond noise while still rounding genuine fractions upwards.
+    private fun ceilPaceSeconds(value: Double) = ceil(value - 1e-6).toInt()
 }

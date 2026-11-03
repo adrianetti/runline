@@ -13,11 +13,14 @@ import java.time.ZoneId
 /** Coordinate/photo-free summaries. Titles and notes require a separate explicit option. */
 object AiRunSummary {
     fun of(run: RunSession, details: ActivityDetails? = null, includeNotes: Boolean = false): JSONObject {
-        val analysis = RunReplay(run).summary
+        val replay = RunReplay(run)
+        val analysis = replay.summary
         val distance = RunMetrics.distanceMeters(run.points)
         val splits = JSONArray()
         RunMetrics.splits(run).take(80).forEach { split -> splits.put(JSONObject().put("number", split.index)
-            .put("distance_m", split.distanceMeters).put("duration_seconds", split.durationMs / 1000.0)) }
+            .put("distance_m", split.distanceMeters).put("duration_seconds", split.durationMs / 1000.0)
+            .put("pace_seconds_per_km", RunMetrics.paceSecondsPerKm(split.distanceMeters, split.durationMs) ?: JSONObject.NULL)
+            .put("is_full_kilometre", split.distanceMeters >= 999.999)) }
         val recent = run.points.takeLastWhile { run.points.last().timestampMs - it.timestampMs <= 120_000 }
         val recentDistance = RunMetrics.distanceMeters(recent)
         val recentDuration = RunReplay(run.copy(points = recent)).summary.observedDurationMs
@@ -32,9 +35,10 @@ object AiRunSummary {
             .put("active_seconds", run.activeDurationMs / 1000.0).put("distance_km", distance / 1000.0)
             .put("average_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs) ?: JSONObject.NULL)
             .put("recent_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(recentDistance, recentDuration) ?: JSONObject.NULL)
+            .put("recent_pace_comparison", replay.segments.lastOrNull()?.let(AiPaceWindows::comparison) ?: JSONObject.NULL)
             .put("ascent_m", analysis.elevationGainMeters ?: JSONObject.NULL).put("descent_m", analysis.elevationLossMeters ?: JSONObject.NULL)
             .put("gps_observed_seconds", analysis.observedDurationMs / 1000.0).put("splits", splits).put("estimated_repeated_laps", lapData)
-            .put("measurement_limits", "GPS estimates; missing or paused intervals are excluded from observed time. Elevation is uncorrected GPS. No heart rate, cadence, pain or terrain surface data.")
+            .put("measurement_limits", "GPS estimates; missing or paused intervals are excluded from observed time. Compare pace_seconds_per_km, never raw split durations: the final split may cover less than one kilometre. Lower pace seconds means faster. Elevation is uncorrected GPS. No heart rate, cadence, pain or terrain surface data.")
         laps.latestComparison?.let { c -> result.put("lap_comparison", JSONObject().put("pace_change_percent", c.paceChangePercent).also { comparison -> c.slowerSector?.let { sector -> comparison.put("slower_quarter", sector.number).put("quarter_pace_change_percent", sector.paceChangePercent).put("quarter_elevation_change_m", sector.elevationChangeMeters ?: JSONObject.NULL) } }) }
         details?.let {
             result.put("self_reported_effort_1_to_10", it.effort ?: JSONObject.NULL).put("routine", it.routine.storageValue)

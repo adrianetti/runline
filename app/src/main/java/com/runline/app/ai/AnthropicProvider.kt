@@ -8,6 +8,10 @@ import java.net.URL
 /** Provider boundary leaves the recorder and training model independent of any vendor SDK. */
 interface CoachAiProvider {
     fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int = 45_000): String
+    /** Existing providers remain compatible; callers still validate every returned goal locally. */
+    fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
+                          maxTokens: Int, timeoutMs: Int = 45_000): String =
+        message(key, model, system, data, maxTokens, timeoutMs)
     fun checkModel(key: String, model: String)
 }
 
@@ -25,14 +29,25 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport()) 
         if (runCatching { JSONObject(response.body).getString("id").isNotBlank() }.getOrDefault(false).not()) throw AiFailure(AiFailure.Reason.RESPONSE)
     }
     override fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int): String {
+        return sendMessage(key, model, system, data, null, maxTokens, timeoutMs)
+    }
+    override fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
+                                   maxTokens: Int, timeoutMs: Int): String {
+        return sendMessage(key, model, system, data, schema, maxTokens, timeoutMs)
+    }
+    private fun sendMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject?,
+                            maxTokens: Int, timeoutMs: Int): String {
         require(AiConfig.validModel(model)); require(maxTokens in 100..16_000)
         val body = JSONObject().put("model", model).put("max_tokens", maxTokens).put("stream", false)
             .put("system", system).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", data.toString())))
+        if (schema != null) body.put("output_config", JSONObject().put("format", JSONObject()
+            .put("type", "json_schema").put("schema", schema)))
         val response = transport.request("POST", "/v1/messages", key, body.toString(), timeoutMs)
         checkResponse(response)
         return runCatching {
             val json = JSONObject(response.body)
             require(json.optString("stop_reason") != "max_tokens")
+            if (schema != null) require(json.optString("stop_reason") == "end_turn")
             val blocks = json.getJSONArray("content")
             val text = (0 until blocks.length()).map { blocks.getJSONObject(it) }.filter { it.optString("type") == "text" }
                 .joinToString("\n") { it.getString("text") }.trim()

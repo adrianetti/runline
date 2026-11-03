@@ -1,6 +1,6 @@
-# Version 0.10 test checklist
+# Version 0.10.1 test checklist
 
-The checklist is not a blanket pass report. Current v0.10 evidence and pending checks are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.10.1 and historical v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,20 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.10.1 real-provider validation
+
+On 3 November 2026, a bounded external JVM harness exercised the production provider, request builders and validators. Its initial eight generations used four Smart cases and four live cases, including private GPX-backed summaries. The route and raw reports remain outside Git. No coordinates or photos entered the provider requests. Missing accuracy, effort and active-timer data remained explicitly unknown; observed GPX elapsed time was a disclosed import proxy, and the hypothetical live goal was labelled as simulated.
+
+All eight initial generations returned HTTP 200 and normal completion, but this was **not a coaching-quality pass**: two Smart responses violated the output contract, one live response confused a partial split's duration with speed, and one routine cue should have been silence. The fixes require Smart JSON schema output while retaining strict numeric validation, normalize split paces, compare adjacent continuous GPS windows and skip clearly unnecessary live requests locally. Whole-second pace bounds also ignore sub-microsecond floating-point noise.
+
+The updated signed debug/release builds pass **252 JVM tests**, including regressions for those failures, with **zero failures/errors** and **zero lint errors / 106 warnings**. All **464 bilingual resources**, **34 pinned icons**, **22 security-checker tests**, workflow lint and **seven Semgrep rules across 73 production Kotlin files** pass. Independent review verified that unknown or unusually long/high-volume runs remain eligible for AI advice. The applicable GitHub checks must pass on the exact PR head before merging.
+
+The five-case follow-up evaluated three Smart scenarios, the GPX-backed live replay and the stable-run silence case. All three Smart responses used the requested JSON schema and passed local validation on the first attempt. The live replay returned explicit provider `NONE`; the stable case returned local silence with **zero API requests**. This used **four generations**, all HTTP 200 / normal completion, with no retries or truncation. The first follow-up still overstated what sparse history could say about a desired goal's timing, so the prompt was tightened and **one final Smart generation** verified that it explicitly distinguishes an app data limit from fitness and leaves the user's aspiration/timing unchanged. That final structured response passed validation. Across the original batch and the two follow-ups, **13 generations** used **28,649 input / 4,110 output tokens**; typical observed latency was 1–5.4 seconds. These are a small set of examples, not statistical reliability or training-readiness evidence. The sparse-history distance cap itself was not relaxed.
+
+The exact candidate is **`dist/Runline-0.10.1.apk`**, **0.10.1 / code 11**, SHA-256 **`07b9b55eccfbab4000bae89e6f4947f4e30ff74427278ffd51f592a92b07a44f`**. Its signing certificate matches the existing stable certificate. These changes do not migrate recording storage. Physical-phone installation, Android TTS/music ducking and field coaching are not established by the headless provider test.
+
+For authorized future local tests, the developer key is stored separately in `~/.config/runline-dev/anthropic.env` (directory `0700`, file `0600`). It is outside this repository and is never added to CI, APKs, logs or reports. The local test runner checks ownership/permissions, reads the credential without printing it and passes it to its child through stdin, rather than command arguments. Every paid test batch has an explicit request cap, no automatic retries and an exclusive attempt ledger to prevent accidental reruns.
 
 ## Version 0.10 Smart goal checks
 
