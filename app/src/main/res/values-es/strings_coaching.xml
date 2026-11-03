@@ -7,7 +7,7 @@
     </plurals>
     <string name="coach_voice_average_pace">Ritmo medio: %1$d minutos y %2$d segundos por kilómetro.</string>
     <string name="coach_voice_one_remaining">Falta un kilómetro para tu objetivo de distancia.</string>
-    <string name="coach_voice_goal_reached">Objetivo de distancia alcanzado. Bien hecho.</string>
+    <string name="coach_voice_goal_reached">Objetivo alcanzado. Bien hecho.</string>
     <string name="coach_voice_goal_in_time">Objetivo de distancia alcanzado dentro del tiempo previsto. Bien hecho.</string>
     <string name="coach_voice_goal_over_time">Objetivo de distancia alcanzado. Tu tiempo activo supera el objetivo.</string>
     <string name="coach_voice_slower">Vas más despacio que tu ritmo objetivo.</string>

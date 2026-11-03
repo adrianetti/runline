@@ -1,6 +1,6 @@
-# Version 0.9 test checklist
+# Version 0.10 test checklist
 
-The checklist is not a blanket pass report. Current v0.9 evidence and pending checks are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.10 evidence and pending checks are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,29 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.10 Smart goal checks
+
+- Preserve recordings, annotations/photos and the legacy plan file through an in-place signed update. Migrate only the old goal once; clearing the optional goal must not bring it back. No calendar UI or automatic plan requests remain.
+- Smart preparation must be explicit, single-flight and rotation-safe. Verify disabled/setup, loading, result, rest, error and stale-input states with no generation on opening. Fake transports cover privacy, bounds, malformed output, truncation, network errors and discarded results.
+- Use/Adjust must recheck the current result. Use saves a concrete goal without starting capture; Adjust is a draft until Save. Errors do not change a previous manual target. Profile/notes consent stays separate.
+- Manual Distance/Pace/Time/Distance within time and optional pace ranges must validate, persist and survive rotation. Time uses active recording duration, excluding pause; GPS loss cannot fabricate distance/pace, and recovery must not replay an old completion.
+- Review English/Spanish, light/dark, 1.3× text, keyboard and landscape; inspect fixed Save and real indeterminate loading indicators. Live AI must respect accepted recovery intent and return silence when no useful new fact exists.
+
+## Version 0.10 recorded checks
+
+Recorded on 3 November 2026 with synthetic history and an API 34 emulator:
+
+- Signed debug/release builds passed **233 JVM tests**, with zero failures/errors. Lint reported **zero errors and 106 warnings**. All **464 bilingual resources** and **34 pinned icons** passed checks.
+- Native checks covered AI-off setup, the overall-goal field and rotation, manual goal choices, loading through rotation, distance/time results, Adjust/Save, rest and error states. **4.0 km with a 6:00–7:00 /km band and Easy intent** survived Adjust and rotation; **25 minutes with that band** applied to the Record screen. Rest/error offered no Apply action and kept existing settings. A temporary external harness injected those response states without contacting a provider; its invalid credential sentinel and preference backups were removed afterward.
+- Independent screenshot review found no material clipping in the inspected English/Spanish, dark, 1.3× text and landscape screens. Loading used the native indeterminate indicator, disabled repeat generation and retained Close. These are bounded captures, not a general animation performance benchmark.
+- The exact signed release installed in place and retained **all 49 inspected original files byte-for-byte**, including **22 saved activities**, recovery files, annotations, a photo and the old plan. Only the new overall-goal store is used; the old calendar file is not rewritten. Coaching preferences were restored after fixture checks.
+- Local security checks passed: **22 scanner regression tests**, Android exposure boundaries, workflow lint and **seven Semgrep rules across 71 Kotlin files**. Dependency audit covered **242 Maven versions / 39 configurations** with zero reported OSV findings. GitHub check and merge evidence is recorded on the release PR. The separate upstream build-tool limitation remains documented in [CHECKS.md](CHECKS.md).
+- Exact artifact: **`dist/Runline-0.10.0.apk`**, **0.10.0 / code 10**, SHA-256 **`d8a04c9a956ce5890e2b3797ced5b43f42dfce3ca4aff30878338923a7f36d6f`**. Its certificate matches the stable per-app signing key used since v0.2.
+
+No paid Anthropic generation, prospective validation of Smart goal advice, physical Samsung test or new music-player test was performed. Prior recording/audio evidence retains its versioned scope.
+
+Historical results below retain their original scope.
 
 ## Version 0.9 recorded checks
 

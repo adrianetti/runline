@@ -4,6 +4,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.Gravity
+import android.widget.LinearLayout
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -17,6 +20,13 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
     private val sheet = AiSheet(activity, R.string.ai_review_title)
     private val body = sheet.text("")
     private val status = sheet.text("")
+    private val progress = CircularProgressIndicator(activity).apply {
+        isIndeterminate = true
+        indicatorSize = sheet.dp(24); trackThickness = sheet.dp(2)
+        setIndicatorColor(activity.getColor(R.color.primary))
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        visibility = View.GONE
+    }
     private val store = AiReviewStore(activity)
     private val handler = Handler(Looper.getMainLooper())
     private val generate = sheet.button(activity.getString(R.string.ai_review_generate), R.drawable.ic_speaker, true)
@@ -53,7 +63,11 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
             observeReview()
         } }, sheet.row())
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        sheet.column.addView(status, sheet.row(8))
+        sheet.column.addView(LinearLayout(activity).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(progress, LinearLayout.LayoutParams(sheet.dp(32), sheet.dp(32)).apply { marginEnd = sheet.dp(12) })
+            addView(status, LinearLayout.LayoutParams(0, -2, 1f))
+        }, sheet.row(8))
         sheet.dialog.setOnDismissListener { sheet.closed = true; stopObserving() }
         activity.lifecycle.addObserver(lifecycleObserver)
     }
@@ -70,6 +84,7 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
         if (AiWork.isReviewRunning(run.id)) {
             if (!waitingForReview) previousReviewTime = store.get(run.id)?.createdAtMs ?: -1L
             waitingForReview = true
+            progress.visibility = View.VISIBLE
             generate.isEnabled = false
             status.setText(R.string.ai_working)
             handler.postDelayed(poll, 750)
@@ -85,12 +100,14 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
     }
 
     private fun updateAction() {
+        progress.visibility = View.GONE
         val ready = AiSettings.isReady(activity)
         generate.visibility = if (ready) View.VISIBLE else View.GONE
         generate.isEnabled = ready
     }
 
     private fun stopObserving() {
+        progress.visibility = View.GONE
         handler.removeCallbacks(poll)
         activity.lifecycle.removeObserver(lifecycleObserver)
     }

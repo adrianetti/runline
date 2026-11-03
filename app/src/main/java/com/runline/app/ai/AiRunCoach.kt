@@ -4,10 +4,10 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.runline.app.core.RunSession
+import com.runline.app.core.CoachConfig
 import com.runline.app.coaching.VoiceCoachSettings
 import com.runline.app.i18n.AppLanguage
 import com.runline.app.data.RunStore
-import com.runline.app.training.TrainingPlanStore
 import org.json.JSONObject
 import java.time.LocalDate
 import java.util.concurrent.Executors
@@ -45,7 +45,7 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
         AiSpokenHistory.record(id, text, source, elapsedRealtimeMs)
         spokenGeneration++
     }
-    @Synchronized fun update(run: RunSession, gpsFresh: Boolean) {
+    @Synchronized fun update(run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig = VoiceCoachSettings.load(context)) {
         if (closed) return
         if (run.id != runId) { generation++; spokenGeneration++; runId = run.id; schedule = LiveAiSchedule(context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).getInt(run.id, 0)) }
         if (fresh && !gpsFresh) generation++
@@ -62,30 +62,35 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
                 if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
                 val key = AiSettings.readKey(context) ?: throw AiFailure(AiFailure.Reason.KEY)
                 val language = AppLanguage.localizedContext(context).resources.configuration.locales[0].language
-                val goal = VoiceCoachSettings.load(context)
+                val goal = goalConfig
                 val profile = RunnerProfileStore(context).snapshot()
+                val runnerGoal = RunnerGoalStore(context).snapshot()
                 val runs = RunStore(context)
                 val input = JSONObject().put("run", AiRunSummary.of(run)).put("coaching_context", AiCoachingContext.build(
-                    LocalDate.now(), TrainingPlanStore(context).load(), goal, run, runs.list(), runs::details,
-                    settings.includeNotes, profile.profile, AiSpokenHistory.recent(run.id, requestedAt), requestedAt))
+                    LocalDate.now(), activeGoal = goal, activeRun = run, history = runs.list(), details = runs::details,
+                    includeNotes = settings.includeNotes, profile = profile.profile,
+                    spoken = AiSpokenHistory.recent(run.id, requestedAt), nowElapsedMs = requestedAt, runnerGoal = runnerGoal.goal))
                 if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
                 if (!profileCurrent(profile)) throw AiFailure(AiFailure.Reason.DISABLED)
+                if (!goalCurrent(runnerGoal)) throw AiFailure(AiFailure.Reason.DISABLED)
                 synchronized(this) {
                     if (closed || !active || !fresh || token != generation || speechToken != spokenGeneration || runId != run.id)
                         throw AiFailure(AiFailure.Reason.DISABLED)
                 }
-                LiveAiAdvice.request(AnthropicProvider(), key, settings.liveModel, if (language == "es") "Spanish" else "English", input) to profile
+                Triple(LiveAiAdvice.request(AnthropicProvider(), key, settings.liveModel, if (language == "es") "Spanish" else "English", input), profile, runnerGoal)
             }.getOrNull()
             main.post {
                 synchronized(this) {
                     busy = false
                     val advice = result?.first
                     val profile = result?.second
+                    val runnerGoal = result?.third
                     val valid = { synchronized(this) {
                         val now = AiSettings.load(context)
                         !closed && active && fresh && token == generation && speechToken == spokenGeneration && runId == run.id &&
                             now.enabled && now.liveEnabled && now == settings && AiSettings.revision() == settingsRevision &&
                             VoiceCoachSettings.load(context).enabled && profile != null && profileCurrent(profile) &&
+                            runnerGoal != null && goalCurrent(runnerGoal) &&
                             android.os.SystemClock.elapsedRealtime() - requestedAt in 0..105_000
                     } }
                     if (advice != null && android.os.SystemClock.elapsedRealtime() - requestedAt <= 30_000 && valid()) {
@@ -100,6 +105,8 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
     @Synchronized fun close() { closed = true; pause(); worker.shutdownNow() }
     private fun profileCurrent(snapshot: RunnerProfileSnapshot) = RunnerProfileStore.revision() == snapshot.revision &&
         RunnerProfileStore(context).load() == snapshot.profile
+    private fun goalCurrent(snapshot: RunnerGoalSnapshot) = RunnerGoalStore.revision() == snapshot.revision &&
+        RunnerGoalStore(context).load() == snapshot.goal
     companion object {
         fun cleanAdvice(raw: String): String? = LiveAiAdvice.clean(raw)
     }

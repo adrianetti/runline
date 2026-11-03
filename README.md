@@ -2,7 +2,7 @@
 
 A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Current source targets version 0.9.0 (version code 9), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Version 0.9 build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
+Current source targets version 0.10.0 (version code 10), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -10,7 +10,7 @@ Current source targets version 0.9.0 (version code 9), a sideloaded prototype fo
 2. A loading state stays over the map until a usable GPS fix arrives. Wait outdoors; the status explains disabled location or missing permission. You can lock the screen or switch apps while the independent foreground service records.
 3. Tap **Pause**, then **Resume** or **Finish**. The route is saved immediately, then an optional editor offers title, notes, effort, routine type and photos. Close the editor to keep the recording without extra details; edit it later from the saved activity’s **…** menu.
 
-The idle Record tab has an activity picker, a Start button, optional Voice coach settings and a Training plan entry. Record and Activities remain the two tabs. The single **Settings** icon opens **Runner profile**, **AI**, **Language**, **Recording protection** and **About**. The activity choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
+The idle Record tab has an activity picker, a Start button, optional Voice coach settings and a Smart goal entry for Run. Record and Activities remain the two tabs. The single **Settings** icon opens **Runner profile**, **AI**, **Language**, **Recording protection** and **About**. The activity choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
 
 During recording, the satellite map fills the app content area. A bottom island keeps distance, active time, average pace and Pause within reach; portrait also shows climbed and descended elevation. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
 
@@ -34,19 +34,23 @@ Before speech, Runline requests temporary audio focus that allows music to lower
 
 Finished and older recordings support a title, notes, optional effort, activity type and routine (easy, long, tempo, intervals, recovery, race or other). Effort uses a native slider: **Unrated** at zero, then self-ratings from 1–10 with a short intensity label. Save stays below the scrolling form. Up to six photos are copied into private app storage through Android’s picker, downsampled and stripped of EXIF. The details sheet shows photo previews and stored annotations. These records live separately from GPS samples and use checksummed atomic copies; annotation failure never replaces the original route. Photos are not included in CSV/GPX/ZIP or AI requests.
 
-## Optional Anthropic and training plans
+## Optional Anthropic and Smart goals
 
-**Settings → AI** accepts your own Anthropic key, encrypted with an Android Keystore key on the phone. No key ships in the APK, enters exported files or needs to be sent to the developer. All AI features start off. Enable live advice, automatic post-run review and automatic plan updates separately, or use **All AI features** to select those three together. This shortcut does not enable activity-note or profile sharing. Live speech also requires Voice coach enabled. Provider/model dropdowns offer Anthropic, Haiku for live advice and Sonnet for reviews/plans, plus a Custom model option. Opening setup is local. Review and personalization actions stay hidden until AI is enabled and a key is configured. **Test connection** checks access to both selected models without generating coaching.
+**Settings → AI** accepts your own Anthropic key, encrypted with an Android Keystore key on the phone. No key ships in the APK, enters exported files or needs to be sent to the developer. All AI features start off. Enable live advice and automatic post-run review separately, or use **All AI features** to select both. Smart goal preparation is always an explicit action. This shortcut does not enable activity-note or profile sharing. Live speech also requires Voice coach enabled. Provider/model dropdowns offer Anthropic, Haiku for live advice and Sonnet for reviews/Smart goals, plus a Custom model option. Opening setup is local. Reviews require enabled, configured AI; Smart goal offers setup when it is unavailable. **Test connection** checks access to both selected models without generating coaching.
 
-Live requests use a configurable 3–10 minute active-time interval and a 24-attempt cap per activity. Shared context includes the current goal/plan, intended session and recent adherence, recent activity summaries, GPS-estimated terrain, self-reported effort/routine and up to six recently spoken cues. The model can return silence when it has nothing useful to add; generated text only enters speech history after Android reports that speech started. Titles and notes require an additional sharing switch. Raw coordinates and photos are never sent. Requests spend the user’s Anthropic API credits; offline recording and coaching remain independent of network/model failures. Late or superseded live responses are dropped after pause/stop/settings changes or intervening feedback. See [AI setup, data flow and limits](docs/AI.md).
+Live requests use a configurable 3–10 minute active-time interval and a 24-attempt cap per activity. Shared context includes the optional overall aspiration, the applied distance/time/pace goal, calendar-week and recent running totals, recent activities, GPS-estimated terrain, self-reported effort/routine and up to six recently spoken cues. The model can return silence when it has nothing useful to add; generated text only enters speech history after Android reports that speech started. Titles and notes require an additional sharing switch. Raw coordinates and photos are never sent. Requests spend the user’s Anthropic API credits; offline recording and coaching remain independent of network/model failures. Late or superseded live responses are dropped after pause/stop/settings changes or intervening feedback. See [AI setup, data flow and limits](docs/AI.md).
 
 **Settings → Runner profile** optionally stores running experience, training preferences and health notes on this phone. Nothing is inferred from pace or appearance. **Include profile in AI** is a separate, initially off switch that also covers the health notes; it does not turn AI on. The profile is excluded from activity exports and Android backup. It can be cleared from the same sheet. Health notes remain self-report, not a diagnosis or a measured fitness assessment.
 
-**Training plan** offers 5K, 10K, Half marathon (21.1 km), Personal progress or a custom distance. Choose an exact day with the native date picker or just a target month; Personal progress uses eight weeks without a race target. Recent Run history supplies a visible 7/28-day average and suggested starting load, with optional adjustment. Sparse history is labelled separately from the gentle planning suggestion. A local schedule works without a key. Claude can personalize and adapt future sessions inside validated limits; it cannot rewrite completed sessions, add missed distance to tomorrow or guarantee readiness. Session states can be changed manually. Optional automatic adaptation reconciles completed/missed sessions when the app opens or an activity finishes, with a daily attempt cap. A review/error leaves the prior plan available. AI plan explanations and session notes are available under **Plan notes**; use the goal editor to change the target rather than expecting a model to silently change it.
+**Settings → AI → Overall goal** optionally stores a short aspiration such as “Half marathon in April.” There is no calendar planner or automatic plan generation. An existing saved plan contributes its goal once, preserving its original date/month precision; its old file and recordings stay untouched. Clearing the new goal is respected.
 
-The modules are separate: recording/persistence, editable annotations/photos, pure replay/lap/coach calculations, speech/audio focus, vendor-independent `CoachAiProvider`, Anthropic transport/credentials, and training-plan storage/validation. OpenAI support can be added at the provider boundary; it is not exposed as a working integration yet.
+Before a Run, open **Smart goal**, then explicitly **Suggest a run**. Claude considers recent runs, this week's distance, saved effort and the optional overall goal. The result proposes a distance/range, optional pace band or time goal, or rest, with a short reason. A native progress indicator shows preparation. **Use goal** applies the concrete target without starting; **Adjust** opens the ordinary goal editor. Nothing is applied on opening, rotation or failure. New runs, detail edits, changed context/settings and a new day invalidate old suggestions. No missed-mileage debt or fitness/readiness guarantee is implied. See [goals and limits](docs/GOALS.md).
 
-Settings, coaching, training, activity-edit and replay-detail sheets keep Close above scrolling content. Scrolling or tapping outside does not dismiss them; use Back or Close.
+Manual goals remain available without AI: distance, pace, active time, or distance within a time limit. Distance/time goals can include an optional pace range. Accepted Smart recovery intent stays with the goal, and suppresses local speed-up cues. Reaching a goal announces progress; it never automatically finishes the recording. Live AI can return silence, respects the applied target and never invents workout blocks or asks mid-run questions.
+
+The modules are separate: recording/persistence, editable annotations/photos, pure replay/lap/coach calculations, speech/audio focus, vendor-independent `CoachAiProvider`, Anthropic transport/credentials, and goal preparation/validation. OpenAI support can be added at the provider boundary; it is not exposed as a working integration yet.
+
+Settings, coaching, goal, activity-edit and replay-detail sheets keep Close above scrolling content. Scrolling or tapping outside does not dismiss them; use Back or Close.
 
 ## History charts
 
@@ -61,7 +65,7 @@ Choose one activity type to compare pace: the trend shows the latest eight eligi
 - GPS speed estimates, available altitude, and filtered ascent/descent estimates calculated from the recorded samples.
 - Saved runs and a recoverable unfinished session in the app's private storage.
 
-There is no Runline account, cloud recording sync or Strava connection. Internet access loads map tiles and, only after separate setup/opt-in, Anthropic requests. GPS recording, offline speech, local training schedules and saved-run calculations work without it. Heart rate and cadence are not recorded without a compatible sensor integration.
+There is no Runline account, cloud recording sync or Strava connection. Internet access loads map tiles and, only after separate setup/opt-in, Anthropic requests. GPS recording, offline speech, manual run goals and saved-run calculations work without it. Heart rate and cadence are not recorded without a compatible sensor integration.
 
 Distance is an estimate from accepted GPS fixes. Active time includes standing still and waiting for GPS, but excludes explicit pauses and unobserved process downtime. Elapsed time includes pauses. Average pace and average speed use active time. Replay and saved-run splits use observed GPS intervals, skipping pauses and gaps over 15 seconds; their duration can differ from the active timer. **About these stats** explains these details without filling the recording screen with text.
 
@@ -130,15 +134,15 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.9 package is `dist/Runline-0.9.0.apk`. Install that package with USB debugging enabled:
+Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.10 package is `dist/Runline-0.10.0.apk`. Install that package with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.9.0.apk
+adb install -r dist/Runline-0.10.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.
 
-Version 0.9 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
+Version 0.10 retains the dedicated per-app signing key introduced in v0.2, allowing an in-place update that keeps private recordings. The earlier v0.1 APK used a different development key. If v0.1 is already installed, export any runs before uninstalling it to migrate; Android cannot install a differently signed update over it. Uninstalling removes Runline's private data.
 
 GitHub Actions checks pushes and pull requests to `main`. Build/test/lint, resource and workflow checks, security scans and Dependabot maintenance are described in [repository checks](docs/CHECKS.md). Main-branch builds use repository signing secrets and publish a signed release APK plus check reports as private workflow artifacts. Pull requests do not receive signing secrets. The private key and its local configuration stay outside Git; a fresh clone can build a development APK but does not receive the private release key.
 
@@ -149,6 +153,26 @@ To verify the pinned icon resources without network access:
 ```sh
 python3 tools/import_icons.py --check
 ```
+
+## Version 0.10 source changes
+
+- Replaced the calendar planner with one optional overall AI goal and explicit pre-run Smart goal preparation.
+- Smart suggestions use measured history, weekly load and saved effort, with validated distance/pace/time limits and an explicit Use/Adjust decision. Errors and stale results leave the existing target alone.
+- Added manual active-time goals and optional pace bands, retaining recovery intent for local and AI coaching. Live advice remains brief, context-aware and optional.
+- Added native loading indicators for Smart preparation and completed-run reviews. Opening or rotating never starts a paid Smart request.
+
+## Version 0.10 verification
+
+Recorded on 3 November 2026 with synthetic history and an API 34 emulator:
+
+- Signed debug/release builds passed **233 JVM tests**, with zero failures/errors. Lint reported **zero errors and 106 warnings**. All **464 bilingual resources** and **34 pinned icons** passed checks.
+- Native checks covered AI-off setup, the overall-goal field and rotation, manual goal choices, loading through rotation, distance/time results, Adjust/Save, rest and error states. **4.0 km with a 6:00–7:00 /km band and Easy intent** survived Adjust and rotation; **25 minutes with that band** applied to the Record screen. Rest/error offered no Apply action and kept existing settings. A temporary external harness injected those response states without contacting a provider; its invalid credential sentinel and preference backups were removed afterward.
+- Independent screenshot review found no material clipping in the inspected English/Spanish, dark, 1.3× text and landscape screens. Loading used the native indeterminate indicator, disabled repeat generation and retained Close. These are bounded captures, not a general animation performance benchmark.
+- The exact signed release installed in place and retained **all 49 inspected original files byte-for-byte**, including **22 saved activities**, recovery files, annotations, a photo and the old plan. Only the new overall-goal store is used; the old calendar file is not rewritten. Coaching preferences were restored after fixture checks.
+- Local security checks passed: **22 scanner regression tests**, Android exposure boundaries, workflow lint and **seven Semgrep rules across 71 Kotlin files**. Dependency audit covered **242 Maven versions / 39 configurations** with zero reported OSV findings. GitHub check and merge evidence is recorded on the release PR. The separate upstream build-tool limitation remains documented in [CHECKS.md](docs/CHECKS.md).
+- Exact artifact: **`dist/Runline-0.10.0.apk`**, **0.10.0 / code 10**, SHA-256 **`d8a04c9a956ce5890e2b3797ced5b43f42dfce3ca4aff30878338923a7f36d6f`**. Its certificate matches the stable per-app signing key used since v0.2.
+
+No paid Anthropic generation, prospective validation of Smart goal advice, physical Samsung test or new music-player test was performed. Prior recording/audio evidence retains its versioned scope.
 
 ## Version 0.9 source changes
 

@@ -35,6 +35,7 @@ import com.runline.app.core.RoutineType
 import com.runline.app.core.RunSession
 import com.runline.app.data.ActivityPhotoImporter
 import com.runline.app.data.RunStore
+import com.runline.app.ai.AiActivityCompletion
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
@@ -314,6 +315,7 @@ class ActivityDetailsEditModel : ViewModel() {
         busy = true; saving = true; errorRes = 0; listener?.invoke()
         worker.execute {
             val result = runCatching { RunStore(context).saveDetails(runId, details) }
+                .onSuccess { runCatching { AiActivityCompletion.onDetailsSaved(context, runId) } }
             main.post {
                 busy = false; saving = false
                 if (result.isSuccess) { initial = details; stagedPhotos.removeAll(details.photoIds.toSet()); saved = true }

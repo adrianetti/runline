@@ -50,7 +50,8 @@ import com.runline.app.ui.RunnerProfileSheet
 import com.runline.app.ui.AppSettingsSheet
 import com.runline.app.ai.AiSettings
 import com.runline.app.ui.AiSettingsSheet
-import com.runline.app.ui.TrainingPlanSheet
+import com.runline.app.ui.SmartGoalSheet
+import com.runline.app.core.CoachConfig
 import com.runline.app.ui.RunReviewSheet
 import com.runline.app.ai.AiActivityCompletion
 import com.runline.app.coaching.VoiceCoachSettings
@@ -87,7 +88,7 @@ class MainActivity : AppCompatActivity() {
     private var aiSettings: AiSettingsSheet? = null
     private var appSettings: AppSettingsSheet? = null
     private var runnerProfile: RunnerProfileSheet? = null
-    private var trainingPlan: TrainingPlanSheet? = null
+    private var smartGoal: SmartGoalSheet? = null
     private var runReview: RunReviewSheet? = null
     private val ticker = object : Runnable {
         override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
@@ -138,10 +139,10 @@ class MainActivity : AppCompatActivity() {
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
-        savedInstanceState?.getBundle("coachSheet")?.let(::showCoach)
-        savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it).also { sheet -> sheet.show() } }
+        savedInstanceState?.getBundle("coachSheet")?.let { showCoach(it) }
+        savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { AiActivityCompletion.onAppOpen(this) }.also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
-        savedInstanceState?.getBundle("trainingPlan")?.let { trainingPlan = TrainingPlanSheet(this, it).also { sheet -> sheet.show() } }
+        savedInstanceState?.getBundle("smartGoal")?.let { showSmartGoal(it) }
         savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
         AiActivityCompletion.onAppOpen(this)
         savedInstanceState?.getBundle("detailsEditor")?.let { draft ->
@@ -157,7 +158,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); trainingPlan?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); smartGoal?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
@@ -172,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
         aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
         runnerProfile?.takeIf { it.isShowing }?.let { outState.putBundle("runnerProfile", it.saveState()) }
-        trainingPlan?.takeIf { it.isShowing }?.let { outState.putBundle("trainingPlan", it.saveState()) }
+        smartGoal?.takeIf { it.isShowing }?.let { outState.putBundle("smartGoal", it.saveState()) }
         runReview?.takeIf { it.isShowing }?.let { outState.putBundle("runReview", it.saveState()) }
     }
     @Deprecated("Uses platform Back for this single-activity prototype")
@@ -245,12 +246,16 @@ class MainActivity : AppCompatActivity() {
             setOnItemClickListener { _, _, index, _ ->
                 selectedActivity = types[index]
                 getPreferences(0).edit().putString("activityType", selectedActivity.storageValue).apply()
+                render()
             }
         }
         field.addView(choice, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, margin(bottom = 16))
         content.addView(button(getString(if (VoiceCoachSettings.load(this).enabled) R.string.coach_ui_on else R.string.coach_ui_off), outlined = true, iconId = R.drawable.ic_speaker) { showCoach() }, margin(top = 24))
-        content.addView(button(getString(R.string.v7_training_plan), outlined = true, iconId = R.drawable.ic_calendar) { showTrainingPlan() }, margin(top = 12))
+        VoiceCoachSettings.load(this).takeIf { it.enabled && it.goal != com.runline.app.core.CoachGoal.NONE }?.let {
+            content.addView(text(VoiceCoachSheet.goalSummary(this, it), 14, muted = true), margin(top = 8))
+        }
+        if (selectedActivity == ActivityType.RUN) content.addView(button(getString(R.string.smart_goal_title), outlined = true, iconId = R.drawable.ic_speaker) { showSmartGoal() }, margin(top = 12))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
@@ -389,7 +394,7 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.9")
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.10")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
@@ -461,8 +466,22 @@ class MainActivity : AppCompatActivity() {
             }.show()
     }
     private fun showRunnerProfile() { runnerProfile?.close(); runnerProfile = RunnerProfileSheet(this).also { it.show() } }
-    private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this).also { it.show() } }
-    private fun showTrainingPlan() { trainingPlan?.close(); trainingPlan = TrainingPlanSheet(this).also { it.show() } }
+    private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this) { AiActivityCompletion.onAppOpen(this) }.also { it.show() } }
+    private fun showSmartGoal(state: Bundle? = null) {
+        // Smart suggestions are preparation, never a replacement target during capture.
+        if (selectedActivity != ActivityType.RUN || TrackingService.state(this).run != null) return
+        coachSheet?.close(); smartGoal?.close()
+        smartGoal = SmartGoalSheet(this, state,
+            onUseGoal = { config ->
+                if (TrackingService.state(this).run == null && VoiceCoachSettings.save(this, config)) {
+                    TrackingService.refreshCoaching()
+                    if (screen == "record") render()
+                }
+            },
+            onEditGoal = { config -> if (TrackingService.state(this).run == null) showCoach(initialConfig = config) },
+            onConfigureAi = ::showAiSettings,
+        ).also { it.show() }
+    }
     private fun showRunReview(run: RunSession) {
         if (!AiSettings.isReady(this)) return
         runReview?.close(); runReview = RunReviewSheet(this, run).also { it.show() }
@@ -476,9 +495,9 @@ class MainActivity : AppCompatActivity() {
             render()
         }.also { it.show() }
     }
-    private fun showCoach(state: Bundle? = null) {
+    private fun showCoach(state: Bundle? = null, initialConfig: CoachConfig? = null) {
         coachSheet?.close()
-        coachSheet = VoiceCoachSheet(this, state) {
+        coachSheet = VoiceCoachSheet(this, state, initialConfig = initialConfig, onSmartGoal = { showSmartGoal() }, allowSmartGoal = selectedActivity == ActivityType.RUN && TrackingService.state(this).run == null) {
             TrackingService.refreshCoaching()
             if (screen == "record" && activeRunView == null) render()
         }.also { it.show() }

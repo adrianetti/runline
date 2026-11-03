@@ -1,5 +1,4 @@
 <resources>
-    <string name="v7_training_plan">Training plan</string>
     <string name="v7_ai_settings">AI connections</string>
     <string name="v7_edit_activity">Edit activity</string>
     <string name="v7_run_review">Coach review</string>

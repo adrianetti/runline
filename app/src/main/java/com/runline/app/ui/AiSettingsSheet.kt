@@ -7,10 +7,13 @@ import android.os.Looper
 import android.text.InputFilter
 import android.text.InputType
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -22,9 +25,14 @@ import com.runline.app.ai.AiFailure
 import com.runline.app.ai.AiProviderCatalog
 import com.runline.app.ai.AiSettings
 import com.runline.app.ai.AnthropicProvider
+import com.runline.app.ai.RunnerGoal
+import com.runline.app.ai.RunnerGoalStore
 import com.runline.app.tracking.TrackingService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+
+/** Personal goal drafts survive rotation in memory, never in saved-state Bundles. */
+class AiGoalDraft : ViewModel() { var text: String? = null }
 
 class AiSettingsSheet(
     private val activity: AppCompatActivity,
@@ -38,8 +46,10 @@ class AiSettingsSheet(
     private val enabled = toggle(R.string.ai_v8_enabled, state?.getBoolean("enabled") ?: config.enabled)
     private val live = toggle(R.string.ai_v8_live, state?.getBoolean("live") ?: config.liveEnabled)
     private val reviews = toggle(R.string.ai_v8_auto_review, state?.getBoolean("reviews") ?: config.automaticReviews)
-    private val adapt = toggle(R.string.ai_v8_auto_plan, state?.getBoolean("adapt") ?: config.automaticPlanUpdates)
     private val notes = toggle(R.string.ai_include_notes, state?.getBoolean("notes") ?: config.includeNotes)
+    private val goalStore = RunnerGoalStore(activity)
+    private val goalDraft = ViewModelProvider(activity)[AiGoalDraft::class.java]
+    private val overallGoal: Pair<TextInputLayout, TextInputEditText>
     private val key: Pair<TextInputLayout, TextInputEditText>
     private val liveModel: ModelPicker
     private val reviewModel: ModelPicker
@@ -62,7 +72,7 @@ class AiSettingsSheet(
     init {
         sheet.column.addView(enabled, sheet.row(0, 4))
         sheet.column.addView(sheet.text(activity.getString(R.string.ai_v8_summary)), sheet.row(0, 4))
-        val disclosure = sheet.text(activity.getString(R.string.ai_disclosure)).apply {
+        val disclosure = sheet.text(activity.getString(R.string.smart_ai_disclosure)).apply {
             visibility = if (privacyExpanded) View.VISIBLE else View.GONE
         }
         val privacyButton = sheet.button(activity.getString(R.string.ai_v8_data_costs), R.drawable.ic_shield_check).apply {
@@ -75,6 +85,19 @@ class AiSettingsSheet(
         }
         sheet.column.addView(privacyButton, sheet.row(0, 8))
         sheet.column.addView(disclosure, sheet.row(0, 12))
+
+        overallGoal = sheet.field(R.string.smart_overall_goal, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+        overallGoal.first.isSaveEnabled = false
+        overallGoal.first.helperText = activity.getString(R.string.smart_overall_goal_hint)
+        overallGoal.second.apply {
+            isSaveEnabled = false; setSaveFromParentEnabled(false)
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+            imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            filters = arrayOf(InputFilter.LengthFilter(RunnerGoal.TEXT_LIMIT))
+            minLines = 2; maxLines = 3
+            setText(goalDraft.text ?: goalStore.load().text)
+            doAfterTextChanged { goalDraft.text = text.toString() }
+        }
 
         dropdown(R.string.ai_v8_connection, AiProviderCatalog.providers.map { it.name },
             AiProviderCatalog.providers.indexOf(provider))
@@ -94,7 +117,7 @@ class AiSettingsSheet(
                 runCatching { AiSettings.clearKey(activity) }.onSuccess {
                     invalidateCheck()
                     key.second.text?.clear()
-                    enabled.isChecked = false; live.isChecked = false; reviews.isChecked = false; adapt.isChecked = false
+                    enabled.isChecked = false; live.isChecked = false; reviews.isChecked = false
                     key.first.helperText = activity.getString(R.string.ai_key_hint)
                     visibility = View.GONE
                     showStatus(R.string.ai_key_removed)
@@ -107,7 +130,7 @@ class AiSettingsSheet(
         section(R.string.ai_v8_models)
         liveModel = ModelPicker(R.string.ai_v8_live_model, state?.getString("liveModel") ?: config.liveModel,
             state?.getString("liveCustom"), state?.getBoolean("liveCustomSelected"))
-        reviewModel = ModelPicker(R.string.ai_v8_review_model, state?.getString("reviewModel") ?: config.reviewModel,
+        reviewModel = ModelPicker(R.string.smart_ai_review_model, state?.getString("reviewModel") ?: config.reviewModel,
             state?.getString("reviewCustom"), state?.getBoolean("reviewCustomSelected"))
         testButton = sheet.button(activity.getString(R.string.ai_test), R.drawable.ic_check).apply {
             setOnClickListener { testConnection() }
@@ -116,21 +139,21 @@ class AiSettingsSheet(
         sheet.column.addView(status, sheet.row(4, 12))
 
         section(R.string.ai_v8_features)
-        val allFeatures = toggle(R.string.ai_v9_all_features, live.isChecked && reviews.isChecked && adapt.isChecked)
+        val allFeatures = toggle(R.string.ai_v9_all_features, live.isChecked && reviews.isChecked)
         var synchronizingFeatures = false
         allFeatures.setOnCheckedChangeListener { _, checked ->
             if (!synchronizingFeatures) {
                 synchronizingFeatures = true
-                live.isChecked = checked; reviews.isChecked = checked; adapt.isChecked = checked
+                live.isChecked = checked; reviews.isChecked = checked
                 if (checked) enabled.isChecked = true
                 synchronizingFeatures = false
             }
         }
-        listOf(live, reviews, adapt).forEach { feature ->
+        listOf(live, reviews).forEach { feature ->
             feature.setOnCheckedChangeListener { _, _ ->
                 if (!synchronizingFeatures) {
                     synchronizingFeatures = true
-                    allFeatures.isChecked = live.isChecked && reviews.isChecked && adapt.isChecked
+                    allFeatures.isChecked = live.isChecked && reviews.isChecked
                     synchronizingFeatures = false
                 }
             }
@@ -141,7 +164,7 @@ class AiSettingsSheet(
         dropdown(R.string.ai_v8_interval, (3..10).map { activity.getString(R.string.ai_v8_minutes, it) }, intervalMinutes - 3) { index ->
             intervalMinutes = index + 3
         }
-        listOf(reviews, adapt, notes).forEach { sheet.column.addView(it, sheet.row(0, 8)) }
+        listOf(reviews, notes).forEach { sheet.column.addView(it, sheet.row(0, 8)) }
         sheet.primaryAction(sheet.button(activity.getString(R.string.coach_ui_save), filled = true).apply {
             setOnClickListener { save() }
         }, saveStatus)
@@ -155,7 +178,7 @@ class AiSettingsSheet(
     /** API keys are deliberately omitted, including unsaved input. */
     fun saveState() = Bundle().apply {
         putBoolean("enabled", enabled.isChecked); putBoolean("live", live.isChecked)
-        putBoolean("reviews", reviews.isChecked); putBoolean("adapt", adapt.isChecked); putBoolean("notes", notes.isChecked)
+        putBoolean("reviews", reviews.isChecked); putBoolean("notes", notes.isChecked)
         putString("provider", provider.id)
         putString("liveModel", liveModel.value()); putString("reviewModel", reviewModel.value())
         putString("liveCustom", liveModel.customValue()); putString("reviewCustom", reviewModel.customValue())
@@ -164,9 +187,9 @@ class AiSettingsSheet(
     }
 
     private fun save() {
-        var desired = AiConfig(enabled.isChecked, live.isChecked, reviews.isChecked, adapt.isChecked,
+        var desired = AiConfig(enabled.isChecked, live.isChecked, reviews.isChecked, false,
             liveModel.value(), reviewModel.value(), intervalMinutes, notes.isChecked, provider.id)
-        if (!desired.valid() && !enabled.isChecked) desired = config.copy(enabled = false)
+        if (!desired.valid() && !enabled.isChecked) desired = config.copy(enabled = false, automaticPlanUpdates = false)
         if (!desired.valid()) { validateModels(); return }
         val entered = key.second.text.toString().trim()
         if (!desired.enabled) {
@@ -174,6 +197,8 @@ class AiSettingsSheet(
                 // Disabling takes effect before touching the key store. Invalid drafts
                 // cannot keep background AI enabled; valid model selections still save.
                 AiSettings.save(activity, desired)
+                goalStore.save(RunnerGoal(overallGoal.second.text.toString()))
+                goalDraft.text = null
                 TrackingService.refreshCoaching()
                 onChanged()
                 if (entered.isNotBlank() && AiSettings.validKey(entered)) AiSettings.saveKey(activity, entered)
@@ -193,8 +218,10 @@ class AiSettingsSheet(
         }
         runCatching {
             if (entered.isNotBlank()) AiSettings.saveKey(activity, entered)
+            goalStore.save(RunnerGoal(overallGoal.second.text.toString()))
             AiSettings.save(activity, desired)
         }.onSuccess {
+            goalDraft.text = null
             TrackingService.refreshCoaching()
             onChanged()
             close()
@@ -238,7 +265,10 @@ class AiSettingsSheet(
     }
 
     private fun invalidateCheck() { checkGeneration.incrementAndGet(); status.visibility = View.GONE; saveStatus.visibility = View.GONE }
-    private fun dispose() { checkGeneration.incrementAndGet(); key.second.text?.clear(); worker.shutdownNow() }
+    private fun dispose() {
+        checkGeneration.incrementAndGet(); key.second.text?.clear(); worker.shutdownNow()
+        if (!activity.isChangingConfigurations) goalDraft.text = null
+    }
     private fun showStatus(message: Int) = showStatus(activity.getString(message))
     private fun showStatus(message: String) { status.text = message; status.visibility = View.VISIBLE }
     private fun section(label: Int) { sheet.column.addView(sheet.text(activity.getString(label), 18, true), sheet.row(20, 12)) }

@@ -67,6 +67,7 @@ class RunnerProfileSheet(private val activity: AppCompatActivity, @Suppress("UNU
         sheet.column.addView(sheet.button(activity.getString(R.string.profile_v9_clear), R.drawable.ic_trash).apply {
             setOnClickListener {
                 runCatching { store.clear(); TrackingService.refreshCoaching() }.onSuccess {
+                    AiActivityCompletion.onAppOpen(activity.applicationContext)
                     draft.value = null; close()
                 }.onFailure { showError() }
             }
@@ -74,6 +75,7 @@ class RunnerProfileSheet(private val activity: AppCompatActivity, @Suppress("UNU
         sheet.primaryAction(sheet.button(activity.getString(R.string.coach_ui_save), filled = true).apply {
             setOnClickListener {
                 runCatching { store.save(current()); TrackingService.refreshCoaching() }.onSuccess {
+                    AiActivityCompletion.onAppOpen(activity.applicationContext)
                     draft.value = null; close()
                 }.onFailure { showError() }
             }

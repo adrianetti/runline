@@ -1,25 +1,16 @@
 package com.runline.app.ai
 
 import com.runline.app.core.*
-import com.runline.app.training.*
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
+import java.time.ZoneId
 
 class AiCoachingContextTest {
     private val today = LocalDate.of(2026, 11, 2)
     private fun run(id: String = "active", at: Long = 1_000) = RunSession(id, at, at + 30_000, 30_000,
         (0..30).map { RunPoint(37.123456 + it * 2.0 / 111_195.0802, -3.123456, at + it * 1_000, 3f, 100.0 + it * .16) })
-    private fun plan(timing: TrainingTiming = TrainingTiming.TARGET_MONTH): TrainingPlan {
-        val goal = if (timing == TrainingTiming.ROLLING) TrainingGoal(0.0, today.plusWeeks(8), 2, 8.0, TrainingGoalType.PERSONAL_PROGRESS, timing)
-        else TrainingGoal(21.1, today.plusMonths(4).withDayOfMonth(31), 3, 12.0, timing = timing)
-        return TrainingPlan(goal, today.minusWeeks(2), listOf(
-            TrainingSession(today.minusDays(5), 4.0, "easy", "", SessionState.DONE),
-            TrainingSession(today.minusDays(2), 5.0, "long", "", SessionState.SKIPPED),
-            TrainingSession(today, 3.0, "recovery", "Comfortable effort"),
-            TrainingSession(today.plusDays(3), 5.0, "long", "")), "", 1)
-    }
     @Test fun profileAndNotesStayOutOfActualRequestByDefault() {
         val profile = RunnerProfile(RunningExperience.RETURNING, "PRIVATE PREFERENCE", "PRIVATE HEALTH")
         val context = AiCoachingContext.build(today, history = listOf(run()), profile = profile,
@@ -44,15 +35,13 @@ class AiCoachingContextTest {
         assertFalse(AiCoachingContext.build(today, profile = restored.copy(includeInAi = false)).has("runner_profile"))
         assertNull(RunnerProfile().forAi())
     }
-    @Test fun planRetainsMonthPrecisionRecoveryIntentAndRecentAdherence() {
-        val data = AiCoachingContext.build(today, plan = plan()).getJSONObject("training_plan")
-        assertTrue(data.isNull("race_date")); assertEquals("2027-03", data.getString("target_month"))
-        assertEquals("recovery", data.getJSONObject("today_session").getString("kind"))
-        assertEquals(today.toString(), data.getJSONObject("next_planned_session").getString("date"))
-        assertEquals(1, data.getJSONObject("recent_adherence_14_days").getInt("done"))
-        assertEquals(1, data.getJSONObject("recent_adherence_14_days").getInt("skipped"))
-        val rolling = AiCoachingContext.build(today, plan = plan(TrainingTiming.ROLLING)).getJSONObject("training_plan")
-        assertTrue(rolling.isNull("race_date")); assertTrue(rolling.isNull("target_distance_km")); assertTrue(rolling.isNull("target_month"))
+    @Test fun optionalAspirationIsBoundedAndNeverCreatesCalendarContext() {
+        val context = AiCoachingContext.build(today, runnerGoal = RunnerGoal("Half marathon in April"))
+        assertEquals("Half marathon in April", context.getJSONObject("runner_goal").getString("text"))
+        assertFalse(context.has("training_plan")); assertFalse(context.toString().contains("race_date"))
+        assertFalse(AiCoachingContext.build(today).has("runner_goal"))
+        val long = AiCoachingContext.build(today, runnerGoal = RunnerGoal("g".repeat(900)))
+        assertEquals(400, long.getJSONObject("runner_goal").getString("text").length)
     }
     @Test fun contextIsBoundedEvenWithLongHistoryAndConsentedNotes() {
         val data = AiCoachingContext.build(today, activeRun = run("active"), history = (0..100).map { run("history$it", it * 40_000L) },
@@ -98,4 +87,34 @@ class AiCoachingContextTest {
         assertTrue(AiSpokenHistory.recent("before-optout", 200).isEmpty())
         assertTrue(AiSpokenHistory.recent("other-run", 200).isEmpty())
     }
+
+    @Test fun completedLoadUsesCalendarWeekAndLatestActualEffortWithoutCountingWalksOrFutureRuns() {
+        fun at(day: LocalDate, hour: Int = 8) = day.atTime(hour, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val runs = listOf(run("previous-week", at(today.minusDays(1))), run("morning", at(today)),
+            run("evening", at(today, 18)), run("walk", at(today))).copyTypeForLast(ActivityType.WALK) + run("future", at(today.plusDays(1)))
+        val data = AiCoachingContext.build(today, history = runs, details = {
+            ActivityDetails(effort = if (it == "morning") 9 else null)
+        }).getJSONObject("completed_training")
+        assertEquals(today.toString(), data.getString("week_starts_on"))
+        assertEquals(.12, data.getDouble("calendar_week_recorded_km"), .002)
+        assertEquals(.18, data.getDouble("last_7_days_km"), .002)
+        assertTrue(data.isNull("last_recorded_effort_1_to_10"))
+        assertEquals(3, data.getInt("last_7_days_runs"))
+    }
+
+    @Test fun appliedGoalCarriesTimeAndPaceBandWithoutInventingCompletedMileage() {
+        val goal = CoachConfig(enabled = true, goal = CoachGoal.TIME, targetMinutes = 25.0,
+            paceMinSecondsPerKm = 390, paceMaxSecondsPerKm = 450, effortIntent = SmartRunEffort.RECOVERY)
+        val context = AiCoachingContext.build(today, activeGoal = goal)
+        val active = context.getJSONObject("active_goal")
+        assertEquals("TIME", active.getString("type"))
+        assertEquals(1500L, active.getLong("duration_goal_seconds"))
+        assertEquals(390, active.getInt("pace_min_seconds_per_km"))
+        assertEquals(450, active.getInt("pace_max_seconds_per_km"))
+        assertEquals("RECOVERY", active.getString("intended_effort"))
+        assertTrue(active.isNull("distance_goal_m"))
+        assertEquals(0.0, context.getJSONObject("completed_training").getDouble("calendar_week_recorded_km"), 0.0)
+    }
+
+    private fun List<RunSession>.copyTypeForLast(type: ActivityType) = dropLast(1) + last().copy(activityType = type)
 }
