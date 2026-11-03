@@ -36,6 +36,24 @@ class SmartRunAiInputTest {
             calls++; assertEquals("POST", method); assertEquals("/v1/messages", path)
             val request = JSONObject(body!!)
             assertEquals(config.reviewModel, request.getString("model"))
+            val schema = request.getJSONObject("output_config").getJSONObject("format").getJSONObject("schema")
+            val names = setOf("goal_type", "effort", "target_distance_km", "min_distance_km", "max_distance_km",
+                "pace_min_seconds_per_km", "pace_max_seconds_per_km", "duration_minutes", "rationale")
+            assertFalse(schema.getBoolean("additionalProperties"))
+            assertEquals(names, schema.getJSONObject("properties").keys().asSequence().toSet())
+            assertEquals(names, schema.getJSONArray("required").let { array -> (0 until array.length()).map { array.getString(it) }.toSet() })
+            val properties = schema.getJSONObject("properties")
+            assertEquals("string", properties.getJSONObject("effort").getString("type"))
+            assertEquals(listOf("EASY", "RECOVERY", "STEADY"), properties.getJSONObject("effort").getJSONArray("enum")
+                .let { array -> (0 until array.length()).map { array.getString(it) } })
+            assertEquals(listOf("integer", "null"), properties.getJSONObject("pace_min_seconds_per_km").getJSONArray("type")
+                .let { array -> (0 until array.length()).map { array.getString(it) } })
+            assertFalse(schema.toString().contains("Half marathon"))
+            assertFalse(schema.toString().contains("minimum")); assertFalse(schema.toString().contains("maxLength"))
+            assertTrue(request.getString("system").contains("For REST use effort EASY"))
+            assertTrue(request.getString("system").contains("Recorded history may be incomplete"))
+            assertTrue(request.getString("system").contains("Do not postpone, reschedule or redefine the user's stated distance or timing"))
+            assertTrue(request.getString("system").contains("leave the user's ambition and timing unchanged"))
             assertFalse(body.contains("PRIVATE")); assertFalse(body.contains("40.123456")); assertFalse(body.contains("-3.123456"))
             assertTrue(body.contains("Half marathon in April"))
             response(rest().toString())
@@ -46,6 +64,50 @@ class SmartRunAiInputTest {
         assertFalse(input.toString().contains("training_plan"))
         assertTrue(input.getJSONObject("allowed_goal").getBoolean("rest_recommended"))
         assertTrue(input.getJSONObject("allowed_goal").has("max_time_only_duration_minutes"))
+    }
+
+    @Test fun providerDefaultMethodPreservesExistingFakesAndLocalValidation() {
+        var calls = 0
+        val provider = object : CoachAiProvider {
+            override fun checkModel(key: String, model: String) = Unit
+            override fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int): String {
+                calls++; assertEquals(2048, maxTokens); assertEquals(60_000, timeoutMs)
+                return rest().put("effort", "EASY").toString()
+            }
+        }
+        assertEquals(SmartRunGoalType.REST, SmartRunAiInput.request(provider, "fake-key", config, "English",
+            JSONObject(), emptyList(), today).goalType)
+        assertEquals(1, calls)
+    }
+
+    @Test fun observedExtraFieldAndNullRestEffortRemainRejected() {
+        val established = listOf(1, 5, 8, 12).map { days -> SmartRunHistoryRun(today.minusDays(days.toLong()),
+            8.0, "run-$days", 3, 48 * 60_000) }
+        val extraField = """{"goal_type":"DISTANCE","effort":"EASY","target_distance_km":6,"min_distance_km":4,"max_distance_km":8,"pace_min_seconds_per_km":360,"pace_max_seconds_per_km":420,"duration_minutes":null,"rationale":"You ran an easy 5 km yesterday and recent runs have all felt easy. A relaxed 6 km at a comfortable pace fits your half marathon aim and stays well within your recent running and load capacity.","rest_recommended":null}"""
+        val nullEffort = """{"goal_type":"REST","effort":null,"target_distance_km":null,"min_distance_km":null,"max_distance_km":null,"pace_min_seconds_per_km":null,"pace_max_seconds_per_km":null,"duration_minutes":null,"rationale":"Ayer corriste 8,4 km con esfuerzo 8/10, bastante más duro que tus salidas habituales (3/10). Hoy descansar encaja bien y mantiene tu objetivo de media maratón con comodidad."}"""
+        for (observed in listOf(extraField, nullEffort)) {
+            var calls = 0
+            val provider = AnthropicProvider(AiTransport { _, _, _, _, _ -> calls++; response(observed) })
+            failure(AiFailure.Reason.RESPONSE) {
+                SmartRunAiInput.request(provider, "fake-key", config, "English", JSONObject(), established, today)
+            }
+            assertEquals(1, calls)
+        }
+        val validRest = JSONObject(nullEffort).put("effort", "EASY").toString()
+        assertEquals(SmartRunGoalType.REST, SmartRunAiInput.parse(validRest, established, today).goalType)
+    }
+
+    @Test fun schemaCompliantShapeStillCannotBypassNumericCaps() {
+        var calls = 0
+        val tooFar = rest().put("goal_type", "DISTANCE").put("effort", "EASY")
+            .put("target_distance_km", 100).put("min_distance_km", 90).put("max_distance_km", 110)
+        val provider = AnthropicProvider(AiTransport { _, _, _, body, _ ->
+            calls++; assertTrue(JSONObject(body!!).has("output_config")); response(tooFar.toString())
+        })
+        failure(AiFailure.Reason.RESPONSE) {
+            SmartRunAiInput.request(provider, "fake-key", config, "English", JSONObject(), emptyList(), today)
+        }
+        assertEquals(1, calls)
     }
 
     @Test fun profileAndNotesRequireSeparateConsentAndRemainBounded() {

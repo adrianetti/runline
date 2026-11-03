@@ -2,7 +2,7 @@
 
 A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Current source targets version 0.10.0 (version code 10), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
+Current source targets version 0.10.1 (version code 11), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -134,10 +134,10 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.10 package is `dist/Runline-0.10.0.apk`. Install that package with USB debugging enabled:
+Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.10.1 package is `dist/Runline-0.10.1.apk`. Install that package with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.10.0.apk
+adb install -r dist/Runline-0.10.1.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.

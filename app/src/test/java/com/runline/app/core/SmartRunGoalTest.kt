@@ -75,6 +75,19 @@ class SmartRunGoalTest {
         assertFalse(SmartRunGoal.validate(valid.copy(paceMaxSecondsPerKm = 350), runs, today))
         assertFalse(SmartRunGoal.validate(valid.copy(paceMaxSecondsPerKm = null), runs, today))
     }
+    @Test fun wholeSecondPaceBoundsIgnoreFloatingPointDistanceNoise() {
+        val runs = history().map { it.copy(distanceKm = it.distanceKm * (1.0 - 1e-12)) }
+        val limits = SmartRunGoal.limits(runs, today)
+        assertEquals(360, limits.fastestPaceSecondsPerKm)
+        assertEquals(504, limits.slowestPaceSecondsPerKm)
+        val sixMinutes = distance().copy(paceMinSecondsPerKm = 360, paceMaxSecondsPerKm = 420)
+        assertTrue(SmartRunGoal.validate(sixMinutes, runs, today))
+        assertFalse(SmartRunGoal.validate(sixMinutes.copy(paceMinSecondsPerKm = 359), runs, today))
+    }
+    @Test fun genuineFractionalPaceStillRoundsUp() {
+        val runs = history().map { it.copy(activeDurationMs = (it.distanceKm * 360_010).toLong()) }
+        assertEquals(361, SmartRunGoal.limits(runs, today).fastestPaceSecondsPerKm)
+    }
     @Test fun gapReducesNextDistanceWithoutCatchupDebt() {
         val runs = listOf(SmartRunHistoryRun(today.minusDays(14), 8.4, "older", 3))
         val suggestion = SmartRunGoal.suggest(runs, today)
