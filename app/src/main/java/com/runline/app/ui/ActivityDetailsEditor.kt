@@ -244,7 +244,7 @@ class ActivityDetailsEditor(
         if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
     private fun button(label: Int, icon: Int, filled: Boolean = false) = MaterialButton(activity, null,
-        if (filled) com.google.android.material.R.attr.materialButtonStyle else com.google.android.material.R.attr.borderlessButtonStyle).apply {
+        if (filled) com.google.android.material.R.attr.materialButtonStyle else androidx.appcompat.R.attr.borderlessButtonStyle).apply {
         setText(label); isAllCaps = false; textSize = 14f; minHeight = dp(48); minimumHeight = dp(48); minWidth = 0; minimumWidth = 0
         setIconResource(icon); iconSize = dp(22); iconPadding = dp(8); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; cornerRadius = dp(16)
         setPadding(dp(12), dp(8), dp(12), dp(8))
