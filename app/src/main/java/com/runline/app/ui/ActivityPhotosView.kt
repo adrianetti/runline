@@ -48,7 +48,7 @@ class ActivityPhotosView(context: Context, runId: String, photos: List<String>, 
                 }
             }
             if (onRemove != null) {
-                column.addView(MaterialButton(context, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                column.addView(MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
                     setIconResource(R.drawable.ic_trash); iconSize = dp(22); iconPadding = 0; iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
                     text = ""; contentDescription = context.getString(R.string.details_remove_photo, index + 1)
                     minHeight = dp(48); minimumHeight = dp(48); minWidth = 0; minimumWidth = 0

@@ -1,10 +1,10 @@
 # Version 0.11 test checklist
 
-The checklist is not a blanket pass report. Current v0.11 and historical v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.11 and historical v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
-With JDK 17, SDK 34 and Build Tools 36.0.0, use the pinned AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2 build:
+With JDK 17, SDK 37.0 and Build Tools 36.0.0, use the pinned AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2 build:
 
 ```sh
 python3 tools/import_icons.py --check
@@ -333,7 +333,7 @@ The results above describe the builds/configurations actually exercised. They do
 Historical v0.4 results on 1 November 2026:
 
 - Signed debug/release builds succeeded; 53 JVM tests passed (38 existing, nine GPS-course, six notification-action guard tests). Lint reported zero errors and 28 warnings. All 23 generated icon resources matched the pinned subset.
-- The API 34 signed v0.4 update retained v0.3 and older runs. An unfinished draft survived an additional update and offered recovery. The exact packaged release APK also installed and opened successfully, retaining the new 0.14 km test run and older history. Its signature matched the existing per-app key; its checksum is in README.md.
+- The API 34 signed v0.4 update retained v0.3 and older runs. An unfinished draft survived an additional update and offered recovery. The exact packaged release APK also installed and opened successfully, retaining the new 0.14 km test run and older history. Its signature matched the existing per-app key; its checksum is in [release history](RELEASE-HISTORY.md).
 - Synthetic east-to-north movement produced the corresponding arrow and close centering. Pan disengaged follow and the location control restored it. Light/dark, 1.3× font scale and landscape screenshot review found no material clipping in those captures. Final paused-state text and lock-screen guidance were confirmed visible without clipping.
 - With the Activity absent, notification Pause/Resume/Finish worked; paused time froze. Finish removed the notification and saved 45 fixes in three segments. Notification tap from history opened recording; navigating back to history and rotating retained history.
 - Lock-screen statistics were visible after enabling silent lock-screen notifications (`lock_screen_show_silent_notifications=1` on the emulator). Expanding from the lock screen opened the shade; Pause worked there. No PIN was set, so secure-lock-screen actions and physical Samsung/Now bar presentation remain untested.
@@ -349,4 +349,4 @@ Historical v0.3 results on 1 November 2026:
 - Offline background/screen-locked recording retained seven synthetic GPS samples. Force-stop/reopen recovered the draft, and Finish saved it.
 - Automatic Downloads sharing saved valid GPX with 121 samples in two segments and opened the official browser uploader without a save picker. No Strava account login, upload or publication was tested.
 
-CI results are tracked separately in the repository's [Android workflow](https://github.com/adrianetti/runline/actions/workflows/android.yml). No physical-phone field/battery-exhaustion test, Android 8/9 picker runtime check or 16 KB page-size device test has been completed. Offline imagery is not guaranteed. Unlisted checklist cases remain unverified; the results above do not certify every failure path or device. README.md retains the earlier v0.2 results separately.
+CI results are tracked separately in the repository's [Android workflow](https://github.com/adrianetti/runline/actions/workflows/android.yml). No physical-phone field/battery-exhaustion test, Android 8/9 picker runtime check or 16 KB page-size device test has been completed. Offline imagery is not guaranteed. Unlisted checklist cases remain unverified; the results above do not certify every failure path or device. [release history](RELEASE-HISTORY.md) retains the earlier v0.2 results separately.

@@ -49,6 +49,6 @@ Runline requests `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` with speech/navigation att
 
 The service owns live coaching. Closing the screen does not intentionally stop it. Pause/finish/interruption stops speech and invalidates pending work. Configuration changes/recovery baseline history; old pace or kilometre cues are not replayed. Current cues can wait only in the bounded, expiring slots above. Prompts are helpful feedback, not a guaranteed alarm.
 
-Version 0.9 integrated build/runtime verification is pending. On 2 November 2026 the user reported that the v0.6 coach worked well during their run. This is useful field feedback, not a controlled audit of Samsung/Spotify/headphone volume or every audio route. Exact versioned evidence remains in [TESTING.md](TESTING.md) and [README.md](../README.md).
+On 2 November 2026 the user reported that the v0.6 coach worked well during their run. This is useful field feedback, not a controlled audit of Samsung/Spotify/headphone volume or every audio route. Exact versioned evidence remains in [TESTING.md](TESTING.md) and [Release history](RELEASE-HISTORY.md).
 
 Official contracts: [Android audio focus](https://developer.android.com/media/optimize/audio-focus), [TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech) and [Voice](https://developer.android.com/reference/android/speech/tts/Voice).
