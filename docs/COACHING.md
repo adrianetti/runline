@@ -52,3 +52,9 @@ The service owns live coaching. Closing the screen does not intentionally stop i
 On 2 November 2026 the user reported that the v0.6 coach worked well during their run. This is useful field feedback, not a controlled audit of Samsung/Spotify/headphone volume or every audio route. Exact versioned evidence remains in [TESTING.md](TESTING.md) and [Release history](RELEASE-HISTORY.md).
 
 Official contracts: [Android audio focus](https://developer.android.com/media/optimize/audio-focus), [TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech) and [Voice](https://developer.android.com/reference/android/speech/tts/Voice).
+
+## Version 0.12 context and diagnosis
+
+Encouragement includes supported uphill/downhill progress, sustained consistency, returning to target and distance/time goal progress. Recheck relevance at delivery; progress milestones retain priority over routine morale and all share the existing 85-second quiet interval. Routine morale waits three minutes. Opposing recent terrain invalidates queued directional cues; live AI also requires terrain to match the request context. Unknown terrain never supports a definite climb/descent claim.
+
+Local diagnostic events distinguish queued/skipped/expired feedback from actual TTS starts, recording the latest fix timestamp/accuracy separately from speech time. Logs are bounded and optional, with explicit export and default coordinate redaction. They do not prove the physical terrain or reconstruct previous-version speech. See [DIAGNOSTICS.md](DIAGNOSTICS.md).

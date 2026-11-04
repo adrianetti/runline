@@ -16,7 +16,7 @@ sealed interface CoachCue {
     data object EasingAfterHill : CoachCue
     data class LapCompleted(val number: Int, val comparison: LapComparison?) : CoachCue
 }
-enum class EncouragementKind { SETTLING_IN, STEADY, HALFWAY, FINAL_STRETCH, ENDURANCE }
+enum class EncouragementKind { SETTLING_IN, STEADY, HALFWAY, FINAL_STRETCH, ENDURANCE, UPHILL, DOWNHILL, ON_TARGET, CONSISTENT }
 enum class CoachTerrain { UNKNOWN, LEVEL, UPHILL, DOWNHILL }
 
 /** Immutable delivery-time facts; a deferred prompt must still describe the current run. */
@@ -35,6 +35,10 @@ data class CoachSituation(
     val gpsFresh: Boolean = true,
     val timeGoal: Boolean = false,
     val allowSpeedUp: Boolean = true,
+    val gradePercent: Double? = null,
+    val goalProgress: Double? = null,
+    val steadyPace: Boolean = false,
+    val activeMs: Long = 0L,
 ) {
     fun allows(cue: CoachCue): Boolean {
         if (!eligible) return false
@@ -46,7 +50,17 @@ data class CoachSituation(
             is CoachCue.LapCompleted -> cue.number == completedLaps
             is CoachCue.Terrain -> terrain == cue.kind
             CoachCue.EasingAfterHill -> terrain == CoachTerrain.LEVEL && hillRecovery
-            is CoachCue.Encouragement -> !goalReached
+            is CoachCue.Encouragement -> !goalReached && when (cue.kind) {
+                EncouragementKind.UPHILL -> terrain == CoachTerrain.UPHILL
+                EncouragementKind.DOWNHILL -> terrain == CoachTerrain.DOWNHILL
+                EncouragementKind.ON_TARGET -> terrain == CoachTerrain.LEVEL && !hillRecovery && paceSeconds != null && targetPaceSeconds != null &&
+                    CoachPaceBand.classify(paceSeconds, (paceMinSeconds ?: targetPaceSeconds)..(paceMaxSeconds ?: targetPaceSeconds)) == 0
+                EncouragementKind.CONSISTENT -> steadyPace && terrain == CoachTerrain.LEVEL
+                EncouragementKind.HALFWAY -> goalProgress?.let { it >= .5 && it < .8 } == true
+                EncouragementKind.FINAL_STRETCH -> goalProgress?.let { it >= .8 && it < 1 } == true
+                EncouragementKind.ENDURANCE -> activeMs >= 30 * 60_000
+                else -> true
+            }
             else -> {
                 val pace = paceSeconds ?: return false
                 val target = targetPaceSeconds ?: return false
@@ -109,12 +123,14 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     private var terrainEstimate = TerrainEstimate()
     private var lastHillMs: Long? = null
     private var hillRecoveryAnnounced = false
+    private var paceAnchor: Double? = null
+    private var steadySince = 0L
     var situation = CoachSituation()
         private set
 
     init { if (initialRun != null) rebase(initialRun) }
     fun pause() {
-        recent.clear(); previousPaceBand = null; candidateBand = null
+        recent.clear(); paceAnchor = null; steadySince = 0; previousPaceBand = null; candidateBand = null
         terrainCandidate = CoachTerrain.UNKNOWN; announcedTerrain = CoachTerrain.UNKNOWN
         terrainTrend.reset(); terrainEstimate = TerrainEstimate(); situation = CoachSituation()
     }
@@ -157,9 +173,15 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
             lastHillMs = now; hillRecoveryAnnounced = false
         }
         val hillRecovery = lastHillMs?.let { now - it < 120_000 } == true
+        if (pace == null || paceAnchor == null || abs(pace - paceAnchor!!) > paceAnchor!! * .06 || terrain != CoachTerrain.LEVEL) {
+            paceAnchor = pace; steadySince = now
+        }
+        val progress = goal?.let { distance / it } ?: timeGoal?.let { now.toDouble() / it }
+        val steady = pace != null && now - steadySince >= 90_000
         situation = CoachSituation(true, distance, goal, pace, config.targetPaceSeconds, terrain,
             hillRecovery, goalAnnounced, lapCount, config.paceTargetRange?.start, config.paceTargetRange?.endInclusive,
-            gpsFresh = true, timeGoal = timeGoal != null, allowSpeedUp = config.effortIntent != SmartRunEffort.RECOVERY)
+            gpsFresh = true, timeGoal = timeGoal != null, allowSpeedUp = config.effortIntent != SmartRunEffort.RECOVERY,
+            gradePercent = terrainEstimate.gradePercent, goalProgress = progress, steadyPace = steady, activeMs = now)
         if (crossedGoal) return emit(CoachCue.GoalReached(
             if (config.goal == CoachGoal.DISTANCE_TIME) now <= config.targetMinutes * 60_000 else null), now)
         // Delivery, deferral and deduplication belong to the shared local/AI speech schedule.
@@ -183,12 +205,18 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         }
         val paceCue = paceCue(now, pace, terrain)
         if (paceCue != null) return emit(paceCue, now)
-        if (config.encouragement && !goalAnnounced && canSpeak(now, 60_000) && now - lastMoraleMs >= 180_000 &&
+        val progressMilestone = progress?.let { (!finalStretch && it >= .8) || (!halfway && it >= .5) } == true
+        val moraleInterval = if (progressMilestone) 85_000 else 180_000
+        if (config.encouragement && !goalAnnounced && canSpeak(now, 85_000) && now - lastMoraleMs >= moraleInterval &&
             now - baselineActiveMs >= 120_000) {
             val kind = when {
-                goal != null && distance >= goal * .8 && !finalStretch -> { finalStretch = true; EncouragementKind.FINAL_STRETCH }
-                goal != null && distance >= goal * .5 && !halfway -> { halfway = true; EncouragementKind.HALFWAY }
+                progress != null && progress >= .8 && !finalStretch -> { finalStretch = true; EncouragementKind.FINAL_STRETCH }
+                progress != null && progress >= .5 && !halfway -> { halfway = true; EncouragementKind.HALFWAY }
                 !startedEncouragement -> { startedEncouragement = true; EncouragementKind.SETTLING_IN }
+                terrain == CoachTerrain.UPHILL -> EncouragementKind.UPHILL
+                terrain == CoachTerrain.DOWNHILL -> EncouragementKind.DOWNHILL
+                terrain == CoachTerrain.LEVEL && config.paceTargetRange?.let { CoachPaceBand.classify(pace, it) == 0 } == true && !hillRecovery -> EncouragementKind.ON_TARGET
+                steady -> EncouragementKind.CONSISTENT
                 now >= 30 * 60_000 -> EncouragementKind.ENDURANCE
                 else -> EncouragementKind.STEADY
             }
@@ -224,8 +252,8 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         remainingAnnounced = config.distanceGoalMeters?.let { distance >= it - 1000 } ?: false
         goalAnnounced = config.distanceGoalMeters?.let { distance >= it } == true ||
             config.durationGoalMs?.let { run.activeDurationMs >= it } == true
-        halfway = config.distanceGoalMeters?.let { distance >= it * .5 } ?: false
-        finalStretch = config.distanceGoalMeters?.let { distance >= it * .8 } ?: false
+        halfway = config.distanceGoalMeters?.let { distance >= it * .5 } ?: config.durationGoalMs?.let { run.activeDurationMs >= it * .5 } ?: false
+        finalStretch = config.distanceGoalMeters?.let { distance >= it * .8 } ?: config.durationGoalMs?.let { run.activeDurationMs >= it * .8 } ?: false
         lastSpeechMs = Long.MIN_VALUE; lastPaceSpeechMs = Long.MIN_VALUE; lastTerrainMs = Long.MIN_VALUE
         lastMoraleMs = run.activeDurationMs; startedEncouragement = run.activeDurationMs > 180_000
         previousPaceBand = null; candidateBand = null; terrainCandidate = CoachTerrain.UNKNOWN; announcedTerrain = CoachTerrain.UNKNOWN

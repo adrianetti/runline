@@ -53,7 +53,7 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
     }
 
     fun update(paceSeconds: Double?, distanceMeters: Double?, durationMs: Long, terrain: TerrainEstimate,
-               climbedMeters: Double?, descendedMeters: Double?, averagePace: Double? = null, animate: Boolean = true) {
+               climbedMeters: Double?, descendedMeters: Double?, averagePace: Double? = null, animate: Boolean = true, profile: com.runline.app.core.SlopeProfile = com.runline.app.core.SlopeProfile.EMPTY) {
         val paceValue = paceSeconds?.takeIf { it.isFinite() && it > 0 && it < 6_000 }?.roundToInt()
         val paceText = paceValue?.let { String.format(locale, "%d:%02d", it / 60, it % 60) } ?: "—"
         pace.setValue(paceText, paceValue?.toDouble(), animate)
@@ -67,7 +67,7 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
             else String.format(locale, "%02d:%02d", seconds / 60, seconds % 60)
         time.setValue(duration, seconds.toDouble(), animate)
         time.contentDescription = context.getString(R.string.island_time_accessibility, duration)
-        slope.update(terrain, animate)
+        slope.update(terrain, animate, profile)
         val up = number(climbedMeters, 0); val down = number(descendedMeters, 0)
         change(ascent, context.getString(R.string.island_metres, up))
         change(descent, context.getString(R.string.island_metres, down))

@@ -63,19 +63,19 @@
         <item>Busca comodidad. Terminar con algo de energía de reserva también está bien.</item>
     </string-array>
     <string-array name="coach_phrase_halfway">
-        <item>Has pasado la mitad de tu objetivo de distancia. Mantén el control.</item>
-        <item>Ya llevas más de la mitad de la distancia prevista. Sigue tramo a tramo.</item>
+        <item>Has pasado la mitad de tu objetivo. Mantén el control.</item>
+        <item>Ya llevas más de la mitad de la sesión prevista. Sigue tramo a tramo.</item>
         <item>La mitad ya queda atrás. Guarda algo de energía para lo que falta.</item>
         <item>Has pasado la mitad. Mantén un esfuerzo que puedas sostener.</item>
-        <item>Más de la mitad del objetivo de distancia. Buen progreso.</item>
+        <item>Más de la mitad del objetivo. Buen progreso.</item>
         <item>La primera mitad está hecha. Sigue valorando tu esfuerzo en lo que viene.</item>
     </string-array>
     <string-array name="coach_phrase_final">
-        <item>Estás en la última parte de tu objetivo de distancia. Termina con comodidad.</item>
-        <item>El objetivo de distancia se acerca. Mantén el esfuerzo controlado.</item>
-        <item>Ya has cubierto casi toda la distancia prevista. Mantente relajado.</item>
+        <item>Estás en la última parte de tu objetivo. Termina con comodidad.</item>
+        <item>El objetivo se acerca. Mantén el esfuerzo controlado.</item>
+        <item>Ya has cubierto casi toda la sesión prevista. Mantente relajado.</item>
         <item>Estás en el tramo final hacia tu objetivo. No hace falta esprintar.</item>
-        <item>Queda poca distancia del plan. Mantén un ritmo con el que te encuentres bien.</item>
+        <item>Queda poco del objetivo. Mantén un ritmo con el que te encuentres bien.</item>
         <item>Te acercas al objetivo. Termina con un esfuerzo adecuado para ti.</item>
     </string-array>
     <string-array name="coach_phrase_endurance">

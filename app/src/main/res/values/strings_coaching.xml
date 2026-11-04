@@ -63,19 +63,19 @@
         <item>Keep it comfortable. Finishing with something in reserve is a good option.</item>
     </string-array>
     <string-array name="coach_phrase_halfway">
-        <item>You are past halfway to your distance goal. Keep the next part controlled.</item>
-        <item>More than half the planned distance is done. Take it one stretch at a time.</item>
+        <item>You are past halfway to your goal. Keep the next part controlled.</item>
+        <item>More than half the goal is done. Take it one stretch at a time.</item>
         <item>Halfway is behind you. Keep some energy for the rest.</item>
         <item>You have passed the halfway mark. Stay with a sustainable effort.</item>
-        <item>Over halfway to your distance goal. Nice progress.</item>
+        <item>Over halfway to your goal. Nice progress.</item>
         <item>The first half is done. Keep listening to your effort for the next part.</item>
     </string-array>
     <string-array name="coach_phrase_final">
-        <item>You are into the last part of your distance goal. Bring it home comfortably.</item>
-        <item>The distance goal is getting close. Keep the effort controlled.</item>
-        <item>You have covered most of your planned distance. Stay relaxed.</item>
-        <item>You are in the final stretch toward your distance goal. No sprint needed.</item>
-        <item>Not much of the planned distance remains. Keep a rhythm that feels good.</item>
+        <item>You are into the last part of your goal. Bring it home comfortably.</item>
+        <item>The goal is getting close. Keep the effort controlled.</item>
+        <item>You have covered most of your goal. Stay relaxed.</item>
+        <item>You are in the final stretch toward your goal. No sprint needed.</item>
+        <item>Not much of the goal remains. Keep a rhythm that feels good.</item>
         <item>You are getting close to your goal. Finish at an effort that suits you.</item>
     </string-array>
     <string-array name="coach_phrase_endurance">

@@ -33,7 +33,9 @@ enum class SpeechResult { READY, UNAVAILABLE, AUDIO_BUSY, ERROR }
  * Short, optional speech using an installed offline system voice. All engine/focus
  * operations are serialized on main; recording persistence never waits for speech.
  */
-class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) -> Unit = {}) {
+class CoachSpeech(context: Context,
+    private val onDiagnostic: (String, String, String, String, CoachSituation) -> Unit = { _, _, _, _, _ -> },
+    private val onSpoken: (SpokenCoachAdvice) -> Unit = {}) {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private val audio = context.getSystemService(AudioManager::class.java)
@@ -51,9 +53,17 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
     private var pendingPreview: ((SpeechResult) -> Unit)? = null
     private var utterancePreview: ((SpeechResult) -> Unit)? = null
     private var currentId: String? = null
+    private var currentText = ""
+    private var currentSource = "LOCAL"
+    private var currentCue = ""
+    private fun diagnostic(event: String, text: String = currentText, source: String = currentSource, cue: String = currentCue) {
+        runCatching { onDiagnostic(event, text, source, cue, situation) }
+    }
     private var utteranceValid: (() -> Boolean)? = null
     private var timeout: Runnable? = null
-    private val schedule = CoachSpeechSchedule()
+    private val schedule = CoachSpeechSchedule { request, reason ->
+        diagnostic("dropped_$reason", request.advice.orEmpty(), if (request.cue == null) "AI" else "LOCAL", request.key)
+    }
     private val spokenGate = SpokenCoachGate()
     private var situation = CoachSituation()
     private val retrySpeech = Runnable { drainPendingSpeech() }
@@ -101,8 +111,9 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
             is CoachCue.Encouragement -> CoachSpeechPriority.MORALE
             else -> CoachSpeechPriority.PACE
         }
-        schedule.offer(CoachSpeechRequest(cue.toString(), priority, cue = cue,
+        val offered = schedule.offer(CoachSpeechRequest(cue.toString(), priority, cue = cue,
             isValid = { situation.allows(cue) }), SystemClock.elapsedRealtime())
+        diagnostic(if (offered) "queued" else "rejected", "", "LOCAL", cue.toString())
         prepareInternal()
         drainPendingSpeech()
     }
@@ -110,8 +121,9 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
     fun speakAdvice(text: String, isValid: () -> Boolean = { true }) = onMain {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
         if (closed || clean.isEmpty() || clean.length > 220 || clean.split(' ').size > 30) return@onMain
-        schedule.offer(CoachSpeechRequest("ai", CoachSpeechPriority.AI, advice = clean,
+        val offered = schedule.offer(CoachSpeechRequest("ai", CoachSpeechPriority.AI, advice = clean,
             isValid = { situation.eligible && isValid() }), SystemClock.elapsedRealtime())
+        diagnostic(if (offered) "queued" else "rejected", clean, "AI", "advice")
         prepareInternal()
         drainPendingSpeech()
     }
@@ -149,7 +161,9 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
                                         stopInternal(); return@post
                                     }
                                     completePreview(SpeechResult.READY)
-                                    spokenGate.started(id, SystemClock.elapsedRealtime())?.let { runCatching { onSpoken(it) } }
+                                    spokenGate.started(id, SystemClock.elapsedRealtime())?.let {
+                                        diagnostic("started"); runCatching { onSpoken(it) }
+                                    }
                                 }
                             } }
                             override fun onDone(id: String?) { main.post { finish(id, null) } }
@@ -206,12 +220,14 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
         if (lease.isBusy || (speakingInstance != null && speakingInstance !== this)) {
             preview?.invoke(SpeechResult.AUDIO_BUSY); return
         }
-        if (!runCatching { ensureVoice() }.getOrDefault(false)) { preview?.invoke(SpeechResult.UNAVAILABLE); return }
+        if (!runCatching { ensureVoice() }.getOrDefault(false)) { diagnostic("voice_unavailable", text, source?.name ?: "PREVIEW", currentCue); preview?.invoke(SpeechResult.UNAVAILABLE); return }
         if (isValid?.let { !runCatching(it).getOrDefault(false) } == true) return
         val id = "runline-coach-${++serial}"
         currentId = id; utterancePreview = preview; utteranceValid = isValid
+        currentText = text; currentSource = source?.name ?: "PREVIEW"
         source?.let { spokenGate.expect(id, text, it, isValid ?: { true }) }
         if (!lease.begin(text, id)) {
+            diagnostic("audio_unavailable")
             currentId = null; utteranceValid = null; spokenGate.clear()
             schedule.finished(SystemClock.elapsedRealtime())
             completePreview(SpeechResult.AUDIO_BUSY)
@@ -235,6 +251,7 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
     private fun finish(id: String?, error: SpeechResult?) {
         if (id == null || id != currentId) return
         timeout?.let(main::removeCallbacks); timeout = null
+        diagnostic(if (error == null) "completed" else "interrupted")
         lease.finish(id); currentId = null; utteranceValid = null; spokenGate.clear()
         schedule.finished(SystemClock.elapsedRealtime())
         if (speakingInstance === this) speakingInstance = null
@@ -243,6 +260,7 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
     }
     private fun completePreview(result: SpeechResult) { val callback = utterancePreview; utterancePreview = null; callback?.invoke(result) }
     private fun stopInternal() {
+        if (currentId != null) diagnostic("stopped")
         invalidatePendingInternal()
         situation = CoachSituation()
         pendingPreview = null; utterancePreview = null; currentId = null; utteranceValid = null; spokenGate.clear()
@@ -257,6 +275,7 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
         val next = schedule.takeReady(SystemClock.elapsedRealtime(), initialized && !lease.isBusy && speakingInstance == null)
         if (next != null && runCatching(next.isValid).getOrDefault(false)) {
             val text = next.cue?.let(::cueText) ?: next.advice.orEmpty()
+            currentCue = next.cue?.toString() ?: "advice"
             speakInternal(text, null, if (next.cue == null) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
         }
         // At most three bounded slots; no polling or held focus after they expire.
@@ -287,6 +306,10 @@ class CoachSpeech(context: Context, private val onSpoken: (SpokenCoachAdvice) ->
             EncouragementKind.HALFWAY -> R.array.coach_phrase_halfway
             EncouragementKind.FINAL_STRETCH -> R.array.coach_phrase_final
             EncouragementKind.ENDURANCE -> R.array.coach_phrase_endurance
+            EncouragementKind.UPHILL -> R.array.coach_v12_uphill_support
+            EncouragementKind.DOWNHILL -> R.array.coach_v12_downhill_support
+            EncouragementKind.ON_TARGET -> R.array.coach_v12_on_target
+            EncouragementKind.CONSISTENT -> R.array.coach_v12_consistent
         })
         is CoachCue.Terrain -> phrase(if (cue.kind == CoachTerrain.UPHILL) R.array.coach_phrase_uphill else R.array.coach_phrase_downhill)
         CoachCue.EasingAfterHill -> phrase(R.array.coach_phrase_after_hill)

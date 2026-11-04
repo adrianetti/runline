@@ -15,7 +15,7 @@ data class CoachSpeechRequest(
     val isValid: () -> Boolean = { true },
 )
 
-class CoachSpeechSchedule {
+class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Unit = { _, _ -> }) {
     private data class Pending(val request: CoachSpeechRequest, val offeredAt: Long)
     private var goal: Pending? = null
     private var milestone: Pending? = null
@@ -39,14 +39,15 @@ class CoachSpeechSchedule {
             if (goalSeen) return false
             goalSeen = true
             goal = Pending(request, nowMs)
+            dropped(milestone, "superseded"); dropped(routine, "superseded")
             milestone = null; routine = null
         } else if (request.priority == CoachSpeechPriority.MILESTONE) {
             if (goal != null) return false
-            milestone = Pending(request, nowMs)
+            dropped(milestone, "superseded"); milestone = Pending(request, nowMs)
         } else {
             if (goal != null) return false
             if (routine != null && routine!!.request.priority.rank > request.priority.rank) return false
-            routine = Pending(request, nowMs)
+            dropped(routine, "superseded"); routine = Pending(request, nowMs)
         }
         return true
     }
@@ -59,7 +60,7 @@ class CoachSpeechSchedule {
         if (last != null && nowMs - last < next.request.priority.silenceMs) return null
         when (next) { goal -> goal = null; milestone -> milestone = null; else -> routine = null }
         // A milestone already breaks the music. Do not follow it with an older routine cue.
-        if (next.request.priority == CoachSpeechPriority.MILESTONE) routine = null
+        if (next.request.priority == CoachSpeechPriority.MILESTONE) { dropped(routine, "superseded"); routine = null }
         return next.request
     }
 
@@ -69,13 +70,17 @@ class CoachSpeechSchedule {
         lastFinishedAt = nowMs
     }
 
-    fun invalidate() { goal = null; milestone = null; routine = null }
+    fun invalidate() { listOf(goal, milestone, routine).forEach { dropped(it, "invalidated") }; goal = null; milestone = null; routine = null }
+    private fun dropped(value: Pending?, reason: String) { value?.let { runCatching { onDrop(it.request, reason) } } }
     fun reset() { invalidate(); lastKilometre = 0; goalSeen = false }
 
     private fun prune(nowMs: Long) {
         observeTime(nowMs)
-        fun Pending?.fresh(): Pending? = this?.takeIf {
-            nowMs >= it.offeredAt && nowMs - it.offeredAt < it.request.priority.lifetimeMs && valid(it.request)
+        fun Pending?.fresh(): Pending? {
+            if (this == null) return null
+            val fresh = nowMs >= offeredAt && nowMs - offeredAt < request.priority.lifetimeMs
+            if (!fresh || !valid(request)) { dropped(this, if (fresh) "context_changed" else "expired"); return null }
+            return this
         }
         goal = goal.fresh(); milestone = milestone.fresh(); routine = routine.fresh()
     }

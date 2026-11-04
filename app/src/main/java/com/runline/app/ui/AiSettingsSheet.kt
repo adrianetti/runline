@@ -64,6 +64,7 @@ class AiSettingsSheet(
         accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
     }
     private val testButton: MaterialButton
+    private var usage: DiagnosticsSheet? = null
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val checkGeneration = AtomicInteger()
@@ -138,6 +139,10 @@ class AiSettingsSheet(
         sheet.column.addView(testButton, sheet.row(0, 4))
         sheet.column.addView(status, sheet.row(4, 12))
 
+        sheet.column.addView(sheet.button(activity.getString(R.string.diag_v12_usage), R.drawable.ic_history).apply {
+            setOnClickListener { usage?.close(); usage = DiagnosticsSheet(activity, usageOnly = true).also { it.show() } }
+        }, sheet.row(0, 12))
+        if (state?.getBoolean("usage") == true) sheet.column.post { usage = DiagnosticsSheet(activity, usageOnly = true).also { it.show() } }
         section(R.string.ai_v8_features)
         val allFeatures = toggle(R.string.ai_v9_all_features, live.isChecked && reviews.isChecked)
         var synchronizingFeatures = false
@@ -177,6 +182,7 @@ class AiSettingsSheet(
 
     /** API keys are deliberately omitted, including unsaved input. */
     fun saveState() = Bundle().apply {
+        putBoolean("usage", usage?.isShowing == true)
         putBoolean("enabled", enabled.isChecked); putBoolean("live", live.isChecked)
         putBoolean("reviews", reviews.isChecked); putBoolean("notes", notes.isChecked)
         putString("provider", provider.id)
@@ -242,7 +248,7 @@ class AiSettingsSheet(
         showStatus(R.string.ai_testing)
         worker.execute {
             val result = runCatching {
-                val connection = AnthropicProvider()
+                val connection = com.runline.app.diagnostics.Diagnostics.provider(activity, "connection")
                 models.forEach { model ->
                     if (checkGeneration.get() != generation || Thread.currentThread().isInterrupted) throw AiFailure(AiFailure.Reason.DISABLED)
                     connection.checkModel(candidate, model)
@@ -266,6 +272,7 @@ class AiSettingsSheet(
 
     private fun invalidateCheck() { checkGeneration.incrementAndGet(); status.visibility = View.GONE; saveStatus.visibility = View.GONE }
     private fun dispose() {
+        usage?.close(); usage = null
         checkGeneration.incrementAndGet(); key.second.text?.clear(); worker.shutdownNow()
         if (!activity.isChangingConfigurations) goalDraft.text = null
     }

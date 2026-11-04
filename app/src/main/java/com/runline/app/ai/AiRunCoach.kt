@@ -39,17 +39,18 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
     private var busy = false
     private var closed = false
     private var spokenGeneration = 0L
+    private var currentTerrain = com.runline.app.core.CoachTerrain.UNKNOWN
     @Synchronized fun onSpoken(text: String, source: String, elapsedRealtimeMs: Long) {
         val id = runId ?: return
         if (closed) return
         AiSpokenHistory.record(id, text, source, elapsedRealtimeMs)
         spokenGeneration++
     }
-    @Synchronized fun update(run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig = VoiceCoachSettings.load(context)) {
+    @Synchronized fun update(run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig = VoiceCoachSettings.load(context), terrain: com.runline.app.core.CoachTerrain = com.runline.app.core.CoachTerrain.UNKNOWN) {
         if (closed) return
         if (run.id != runId) { generation++; spokenGeneration++; runId = run.id; schedule = LiveAiSchedule(context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).getInt(run.id, 0)) }
         if (fresh && !gpsFresh) generation++
-        active = true; fresh = gpsFresh
+        active = true; fresh = gpsFresh; currentTerrain = terrain
         val settings = AiSettings.load(context)
         if (!settings.enabled || !settings.liveEnabled || !AiSettings.hasKey(context) || !VoiceCoachSettings.load(context).enabled) { generation++; return }
         if (!gpsFresh || busy || !schedule.due(run.activeDurationMs, settings.intervalMinutes)) return
@@ -77,7 +78,7 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
                     if (closed || !active || !fresh || token != generation || speechToken != spokenGeneration || runId != run.id)
                         throw AiFailure(AiFailure.Reason.DISABLED)
                 }
-                Triple(LiveAiAdvice.request(AnthropicProvider(), key, settings.liveModel, if (language == "es") "Spanish" else "English", input), profile, runnerGoal)
+                Triple(LiveAiAdvice.request(com.runline.app.diagnostics.Diagnostics.provider(context, "live", run.id), key, settings.liveModel, if (language == "es") "Spanish" else "English", input), profile, runnerGoal)
             }.getOrNull()
             main.post {
                 synchronized(this) {
@@ -87,7 +88,7 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
                     val runnerGoal = result?.third
                     val valid = { synchronized(this) {
                         val now = AiSettings.load(context)
-                        !closed && active && fresh && token == generation && speechToken == spokenGeneration && runId == run.id &&
+                        !closed && active && fresh && currentTerrain == terrain && token == generation && speechToken == spokenGeneration && runId == run.id &&
                             now.enabled && now.liveEnabled && now == settings && AiSettings.revision() == settingsRevision &&
                             VoiceCoachSettings.load(context).enabled && profile != null && profileCurrent(profile) &&
                             runnerGoal != null && goalCurrent(runnerGoal) &&

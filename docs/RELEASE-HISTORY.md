@@ -1,6 +1,6 @@
 # Release history
 
-Historical source changes, artifact checksums and bounded verification evidence moved from the README. These records describe the versions tested, not a blanket verification of the current app. See [TESTING.md](TESTING.md) for the current checklist and v0.11 evidence.
+Historical source changes, artifact checksums and bounded verification evidence moved from the README. These records describe the versions tested, not a blanket verification of the current app. See [TESTING.md](TESTING.md) for the current checklist and v0.12 evidence.
 
 ## Version 0.10 source changes
 

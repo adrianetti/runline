@@ -21,10 +21,10 @@ class AiFailure(val reason: Reason) : Exception(reason.name) {
     enum class Reason { KEY, MODEL, RATE_LIMIT, NETWORK, RESPONSE, DISABLED, STORAGE }
 }
 
-class AnthropicProvider(private val transport: AiTransport = HttpAiTransport()) : CoachAiProvider {
+class AnthropicProvider(private val transport: AiTransport = HttpAiTransport(), private val onMetric: (AiRequestMetric) -> Unit = {}) : CoachAiProvider {
     override fun checkModel(key: String, model: String) {
         require(AiConfig.validModel(model))
-        val response = transport.request("GET", "/v1/models/$model", key, null, 15_000)
+        val response = tracked("GET", "/v1/models/$model", key, model, null, 15_000)
         checkResponse(response)
         if (runCatching { JSONObject(response.body).getString("id").isNotBlank() }.getOrDefault(false).not()) throw AiFailure(AiFailure.Reason.RESPONSE)
     }
@@ -42,7 +42,7 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport()) 
             .put("system", system).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", data.toString())))
         if (schema != null) body.put("output_config", JSONObject().put("format", JSONObject()
             .put("type", "json_schema").put("schema", schema)))
-        val response = transport.request("POST", "/v1/messages", key, body.toString(), timeoutMs)
+        val response = tracked("POST", "/v1/messages", key, model, body.toString(), timeoutMs)
         checkResponse(response)
         return runCatching {
             val json = JSONObject(response.body)
@@ -54,6 +54,14 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport()) 
             require(text.isNotBlank() && text.length <= 80_000)
             text
         }.getOrElse { throw AiFailure(AiFailure.Reason.RESPONSE) }
+    }
+    private fun tracked(method: String, path: String, key: String, model: String, body: String?, timeout: Int): AiHttpResponse {
+        val at = System.currentTimeMillis(); val start = System.nanoTime()
+        var response: AiHttpResponse? = null
+        var failure: String? = null
+        try { return transport.request(method, path, key, body, timeout).also { response = it } }
+        catch (error: Exception) { failure = (error as? AiFailure)?.reason?.name ?: "NETWORK"; throw error }
+        finally { runCatching { onMetric(AiRequestMetric.from(model, method, response, at, (System.nanoTime() - start) / 1_000_000, failure)) } }
     }
     private fun checkResponse(response: AiHttpResponse) {
         if (response.status in 200..299) return

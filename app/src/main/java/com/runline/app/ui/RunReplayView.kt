@@ -237,7 +237,8 @@ class RunReplayView(
         map.setReplayMarker(frame?.point, ReplayPresentation.bearing(replay, positionMs), smoothHeading)
         readout.update(frame?.paceSecondsPerKm, frame?.distanceMeters, positionMs,
             frame?.let { replayTerrain.at(positionMs, it.segmentIndex) } ?: TerrainEstimate(),
-            frame?.elevationGainMeters, frame?.elevationLossMeters, animate = animate)
+            frame?.elevationGainMeters, frame?.elevationLossMeters, animate = animate,
+            profile = frame?.let { panel.slopeProfile(positionMs, it.segmentIndex) } ?: com.runline.app.core.SlopeProfile.EMPTY)
         setText(clock, duration(replay.durationMs))
         clock.contentDescription = context.getString(R.string.replay_time_of, duration(positionMs), duration(replay.durationMs))
         seek.progress = if (replay.durationMs > 0) (positionMs.toDouble() / replay.durationMs * seek.max).roundToInt() else 0
@@ -285,7 +286,7 @@ class RunReplayView(
         content.addView(control(context.getString(R.string.v7_edit_activity), R.drawable.ic_edit).apply {
             setOnClickListener { details?.dismiss(); onEdit() }
         }, row(bottom = 8))
-        if (AiSettings.isReady(context)) {
+        if (AiSettings.isReady(context) || com.runline.app.ai.AiReviewStore(context).get(replay.session.id) != null) {
             content.addView(control(context.getString(R.string.v7_run_review), R.drawable.ic_info).apply {
                 setOnClickListener { details?.dismiss(); onReview() }
             }, row(bottom = 20))

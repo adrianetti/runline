@@ -8,6 +8,7 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
     val durationMs: Long
     private val bySegment: List<List<Fix>>
     val latestCursor: Sample?
+    val latestSegmentIndex: Int get() = bySegment.lastIndex
 
     init {
         val paths = mutableListOf<List<Sample>>()
