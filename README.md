@@ -12,7 +12,7 @@ Recordings stay on your phone. **Export important activities before uninstalling
 
 ## Build
 
-Use JDK 17, Android SDK 37 and Build Tools 36.0.0. Set `ANDROID_HOME` to your SDK.
+Use JDK 17, Android SDK 37.0 and Build Tools 36.0.0. Set `ANDROID_HOME` to your SDK.
 
 ```sh
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug

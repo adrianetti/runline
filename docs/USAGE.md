@@ -123,4 +123,3 @@ Strava remains removed. Cancelled or failed export keeps the source recordings. 
 ## Keep your own copy
 
 All recording copies are on the same phone. Android backup is disabled. Uninstalling Runline, clearing app storage or losing the phone removes the recordings, including local recovery copies. Export important runs to a location you control. GPX preserves route samples, timestamps and available altitude; it is not a full backup of every internal timing or recovery field.
-

@@ -4,7 +4,7 @@ The checklist is not a blanket pass report. Current v0.11 and historical v0.10.2
 
 ## Build and unit checks
 
-With JDK 17, SDK 37 and Build Tools 36.0.0, use the pinned AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2 build:
+With JDK 17, SDK 37.0 and Build Tools 36.0.0, use the pinned AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2 build:
 
 ```sh
 python3 tools/import_icons.py --check
