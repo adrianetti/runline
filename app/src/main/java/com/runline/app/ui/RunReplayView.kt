@@ -9,7 +9,6 @@ import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -17,7 +16,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.core.widget.TextViewCompat
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -67,23 +65,20 @@ class RunReplayView(
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val handler = Handler(Looper.getMainLooper())
     private val panel = ElevationIsland(context)
-    private val terrain = TerrainLabel(context)
+    private val readout = RunReadoutView(context)
     private val replayTerrain = ReplayTerrain(replay)
-    private val play = control(context.getString(R.string.replay_play), R.drawable.ic_play)
+    private val play = control("", R.drawable.ic_play).apply {
+        contentDescription = context.getString(R.string.replay_play)
+        iconPadding = 0
+        backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
+        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_primary))
+    }
     private val speed = control(context.getString(R.string.replay_multiplier, 1), R.drawable.ic_clock)
     private val seek = SeekBar(context).apply {
         max = 10_000; minimumHeight = dp(48)
         contentDescription = context.getString(R.string.replay_position)
     }
     private val clock = label("", 12, muted = true)
-    private val pace = label("", 12, muted = true)
-    private val speedValue = value()
-    private val ascentValue = value()
-    private val descentValue = value()
-    private val distanceValue = label("", 22, bold = true).apply {
-        maxLines = 1
-        TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(this, 16, 22, 1, TypedValue.COMPLEX_UNIT_SP)
-    }
     private val tick = object : Runnable {
         override fun run() {
             if (!playing || !resumed || disposed) return
@@ -124,53 +119,30 @@ class RunReplayView(
             marginEnd = dp(16); topMargin = dp(16)
         })
 
-        panel.setPadding(dp(16), dp(8), dp(16), dp(12))
+        panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setOnClickListener { showDetails() }
         }
-        val title = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        title.addView(distanceValue, LinearLayout.LayoutParams(0, dp(48), 1f))
-        title.addView(MaterialButton(context, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
-            text = context.getString(R.string.replay_details); isAllCaps = false
-            setIconResource(R.drawable.ic_info); iconSize = dp(20); iconPadding = dp(5)
-            minWidth = 0; minimumWidth = 0; minHeight = dp(48); minimumHeight = dp(48)
-            setPadding(dp(8), 0, dp(4), 0)
-            contentDescription = context.getString(R.string.replay_open_details)
-            setOnClickListener { showDetails() }
-        }, LinearLayout.LayoutParams(-2, dp(48)))
-        information.addView(title)
-        val metrics = LinearLayout(context)
-        listOf(
-            R.string.replay_speed_label to speedValue,
-            R.string.replay_climbed_label to ascentValue,
-            R.string.replay_descended_label to descentValue,
-        ).forEachIndexed { index, (name, amount) ->
-            val column = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(label(context.getString(name), 12, muted = true).apply {
-                    minLines = if (compact || resources.configuration.fontScale > 1.15f) 2 else 1
-                    maxLines = 2
-                })
-                addView(amount, LinearLayout.LayoutParams(-1, dp(36)).apply { topMargin = dp(3) })
-            }
-            metrics.addView(column, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(8) })
-        }
-        information.addView(metrics)
-        information.addView(terrain, row(top = 4))
+        information.addView(readout, row())
+        panel.setChartContent(readout)
         val scroll = ScrollView(context).apply {
             isFillViewport = false
             addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
         }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val controls = LinearLayout(context)
-        controls.addView(play, LinearLayout.LayoutParams(0, dp(48), 1f))
+        controls.addView(play, LinearLayout.LayoutParams(dp(64), dp(48)))
         controls.addView(speed, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
-        panel.addView(controls, row(top = 8))
-        panel.addView(seek, LinearLayout.LayoutParams(-1, dp(48)))
+        controls.addView(control("", R.drawable.ic_info).apply {
+            contentDescription = context.getString(R.string.replay_open_details)
+            iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
+            setOnClickListener { showDetails() }
+        }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) })
+        panel.addView(controls, row(top = if (compact) 8 else 12))
         val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        timeline.addView(clock, LinearLayout.LayoutParams(0, -2, 1f))
-        timeline.addView(pace, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
+        timeline.addView(seek, LinearLayout.LayoutParams(0, dp(48), 1f))
+        timeline.addView(clock, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
         panel.addView(timeline)
         addView(panel, LayoutParams(if (compact) dp(340) else -1, -2, Gravity.BOTTOM or Gravity.START).apply {
             setMargins(dp(16), 0, dp(16), dp(16))
@@ -241,14 +213,14 @@ class RunReplayView(
 
     private fun startPlayback() {
         if (replay.durationMs <= 0L || !resumed || disposed) return
-        if (positionMs >= replay.durationMs) setPosition(0L)
+        if (positionMs >= replay.durationMs) setPosition(0L, smoothHeading = false)
         playing = true; lastTick = SystemClock.elapsedRealtime()
-        play.text = context.getString(R.string.replay_pause); play.setIconResource(R.drawable.ic_pause)
+        play.contentDescription = context.getString(R.string.replay_pause); play.setIconResource(R.drawable.ic_pause)
         handler.removeCallbacks(tick); handler.post(tick)
     }
     private fun pausePlayback() {
-        playing = false; handler.removeCallbacks(tick)
-        play.text = context.getString(if (positionMs >= replay.durationMs && replay.durationMs > 0) R.string.replay_restart else R.string.replay_play)
+        playing = false; handler.removeCallbacks(tick); readout.settle()
+        play.contentDescription = context.getString(if (positionMs >= replay.durationMs && replay.durationMs > 0) R.string.replay_restart else R.string.replay_play)
         play.setIconResource(R.drawable.ic_play)
     }
     private fun setPlaybackSpeed(value: Int) {
@@ -257,17 +229,17 @@ class RunReplayView(
         speed.contentDescription = context.getString(R.string.replay_speed_description, playbackSpeed)
     }
     private fun setPosition(value: Long, smoothHeading: Boolean = true) {
+        val previousSegment = replay.at(positionMs)?.segmentIndex
         positionMs = value.coerceIn(0L, replay.durationMs)
         val frame = replay.at(positionMs)
         panel.setPosition(positionMs, frame?.segmentIndex)
-        terrain.update(frame?.let { replayTerrain.at(positionMs, it.segmentIndex) } ?: TerrainEstimate())
+        val animate = smoothHeading && playing && previousSegment == frame?.segmentIndex
         map.setReplayMarker(frame?.point, ReplayPresentation.bearing(replay, positionMs), smoothHeading)
-        setText(distanceValue, context.getString(R.string.replay_kilometres, number(frame?.distanceMeters?.div(1000), 2)))
-        setText(speedValue, number(frame?.speedMetersPerSecond?.times(3.6), 1))
-        setText(ascentValue, number(frame?.elevationGainMeters, 0))
-        setText(descentValue, number(frame?.elevationLossMeters, 0))
-        setText(pace, context.getString(R.string.replay_pace_value, pace(frame?.paceSecondsPerKm)))
-        setText(clock, context.getString(R.string.replay_time_of, duration(positionMs), duration(replay.durationMs)))
+        readout.update(frame?.paceSecondsPerKm, frame?.distanceMeters, positionMs,
+            frame?.let { replayTerrain.at(positionMs, it.segmentIndex) } ?: TerrainEstimate(),
+            frame?.elevationGainMeters, frame?.elevationLossMeters, animate = animate)
+        setText(clock, duration(replay.durationMs))
+        clock.contentDescription = context.getString(R.string.replay_time_of, duration(positionMs), duration(replay.durationMs))
         seek.progress = if (replay.durationMs > 0) (positionMs.toDouble() / replay.durationMs * seek.max).roundToInt() else 0
         val description = context.getString(R.string.replay_position_description, duration(positionMs), duration(replay.durationMs))
         if (seek.contentDescription != description) seek.contentDescription = description
@@ -416,10 +388,6 @@ class RunReplayView(
         line.addView(label(amount, 16, bold = true).apply { gravity = Gravity.END }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
         parent.addView(line)
         parent.addView(View(context).apply { setBackgroundColor(context.getColor(R.color.surface_variant)) }, LinearLayout.LayoutParams(-1, dp(1)))
-    }
-    private fun value() = label(context.getString(R.string.replay_unavailable), 22, bold = true).apply {
-        maxLines = 1; gravity = Gravity.CENTER_VERTICAL
-        TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(this, 14, 22, 1, TypedValue.COMPLEX_UNIT_SP)
     }
     private fun label(value: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(context).apply {
         text = value; textSize = size.toFloat(); includeFontPadding = false; fontFeatureSettings = "tnum"

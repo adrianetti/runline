@@ -1,8 +1,10 @@
 # Runline
 
-A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; real imagery keeps its colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
+Version 0.11 puts min/km pace first in live/replay islands, with rolling digits, clear distance and a smooth colored grade line. See [current verification](docs/TESTING.md#version-011-pace-first-islands).
 
-Current source targets version 0.10.2 (version code 12), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
+A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; the grade line uses semantic uphill/downhill colors and imagery keeps its real colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
+
+Current source targets version 0.11.0 (version code 13), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -12,7 +14,7 @@ Current source targets version 0.10.2 (version code 12), a sideloaded prototype 
 
 The idle Record tab has an activity picker, a Start button, optional Voice coach settings and a Smart goal entry for Run. Record and Activities remain the two tabs. The single **Settings** icon opens **Runner profile**, **AI**, **Language**, **Recording protection** and **About**. The activity choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
 
-During recording, the satellite map fills the app content area. A bottom island keeps distance, active time, average pace and Pause within reach; portrait also shows climbed and descended elevation. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
+During recording, the satellite map fills the app content area. A bottom island leads with recent pace in min/km, a smooth signed-grade indicator and distance. Time and elevation totals are smaller; portrait retains average pace as supporting context. Pause stays fixed within reach. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
 
 The app follows the **phone’s language** by default, with English fallback and Spanish support. **Language / Idioma** offers Phone language, English and Español. Updating from v0.5 clears its forced-Spanish setting once; later explicit language choices are retained. Controls, messages, recording notifications and exported activity names follow the selected app language. Android permission dialogs and third-party document providers follow their own language settings.
 
@@ -85,7 +87,7 @@ Map providers receive requests for visible tile areas and the phone's network ad
 
 Open a saved run to play or seek through its route at **1×, 5×, 10×, 30×, 60×, 120×, 240× or 480×**. Opening a run chooses the available speed whose playback duration is nearest 30 seconds; the saved GPS timeline determines that choice. A close heading-follow camera tracks the arrow, with observed position interpolation and softened turns; route-fit remains north-up. Playback updates up to 30 times per second, and pauses when the screen goes into the background. It cuts across missing intervals instead of animating an invented connection. Replay is an in-app view; it does not export an MP4 or other video.
 
-Replay puts the map behind a compact bottom island with distance, speed, climbed/descended elevation, Play/Pause, speed selection, seeking and pace. Tap its statistics or **Details** to open the full activity information. A floating download icon exports GPX; Back and options remain accessible above the map.
+Replay puts the map behind the same pace-first island: large min/km digits, distance, a smooth grade line and smaller time/elevation totals, with Play/Pause, multiplier and seeking controls. Tap its statistics or the **Details** info icon to open full activity information. A floating download icon exports GPX; Back and options remain accessible above the map.
 
 The details sheet emphasizes total **climb and descent** and an elevation-change profile relative to the first available GPS height. It also includes totals and splits; raw GPS altitude and altitude range are secondary information. Speed uses a trailing five-second GPS estimate, with implausible running speeds omitted. Elevation totals use raw GPS heights with a 3-metre noise threshold. The live/replay island separately shows uphill, flat or downhill with an approximate whole-percent GPS grade when a recent 35–55 m moving window supports it. Missing/noisy heights, weak fixes and stops show **Terrain —**. These estimates are not terrain-corrected; [MAPS.md](docs/MAPS.md) explains the quality gates and observed-time cursor.
 
@@ -134,10 +136,10 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.10.2 package is `dist/Runline-0.10.2.apk`. Install that package with USB debugging enabled:
+Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.11.0 package is `dist/Runline-0.11.0.apk`. Install that package with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.10.2.apk
+adb install -r dist/Runline-0.11.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.

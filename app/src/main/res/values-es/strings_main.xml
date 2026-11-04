@@ -72,14 +72,12 @@
     <string name="active_options">Opciones de grabación</string>
     <string name="active_distance">Distancia · km</string>
     <string name="active_time">Tiempo</string>
-    <string name="active_pace">Media /km</string>
     <string name="active_pause">Pausar</string>
     <string name="active_resume">Reanudar</string>
     <string name="active_finish">Finalizar</string>
     <string name="active_paused_hint">Tiempo y GPS en pausa</string>
     <string name="active_recovered_hint">Guardado · reanuda o finaliza</string>
     <string name="active_accuracy">GPS ±%1$d m · guardado</string>
-    <string name="active_elevation">Subida %1$s m · bajada %2$s m</string>
     <plurals name="main_week_summary">
         <item quantity="one">%1$s km · %2$d actividad · últimos 7 días</item>
         <item quantity="other">%1$s km · %2$d actividades · últimos 7 días</item>
