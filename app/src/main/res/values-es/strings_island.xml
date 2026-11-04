@@ -1,0 +1,12 @@
+<resources>
+    <string name="island_pace">Ritmo · min/km</string>
+    <string name="island_grade">Pendiente</string>
+    <string name="island_km">km</string>
+    <string name="island_grade_value">≈ %1$s%%</string>
+    <string name="island_metres">%1$s m</string>
+    <string name="island_average">Media %1$s /km</string>
+    <string name="island_pace_accessibility">Ritmo: %1$s minutos por kilómetro</string>
+    <string name="island_time_accessibility">Tiempo: %1$s</string>
+    <string name="island_climbed_accessibility">Ascenso: %1$s metros</string>
+    <string name="island_descended_accessibility">Descenso: %1$s metros</string>
+</resources>

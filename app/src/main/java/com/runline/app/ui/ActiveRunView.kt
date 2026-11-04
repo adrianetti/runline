@@ -3,16 +3,15 @@ package com.runline.app.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.core.widget.TextViewCompat
 import com.google.android.material.button.MaterialButton
 import com.runline.app.R
+import com.runline.app.core.LivePace
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.ElevationProgress
 import com.runline.app.core.RunPoint
@@ -35,12 +34,8 @@ class ActiveRunView(
     val map = SatelliteMapView(context)
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val panel = ElevationIsland(context)
-    private val distance = value()
-    private val time = value()
-    private val pace = value()
+    private val readout = RunReadoutView(context)
     private val gps = label(context.getString(R.string.active_loading), 12, muted = true)
-    private val extra = label("", 12, muted = true)
-    private val terrain = TerrainLabel(context)
     private val terrainTrend = TerrainTrend()
     private var terrainCount = 0
     private var terrainLast: RunPoint? = null
@@ -50,7 +45,7 @@ class ActiveRunView(
         RecordingStatus.PAUSED -> R.string.active_paused
         RecordingStatus.INTERRUPTED -> R.string.active_recovered
         else -> R.string.active_recording
-    }), 16, bold = true)
+    }), if (compact) 14 else 16, bold = true)
 
     init {
         map.setNavigationMode(true)
@@ -71,22 +66,12 @@ class ActiveRunView(
             topMargin = dp(16); marginStart = dp(16)
         })
 
-        panel.setPadding(dp(16), dp(16), dp(16), dp(12))
+        panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         information.addView(heading, row(bottom = 4))
-        information.addView(gps, row(bottom = 12))
-        val metrics = LinearLayout(context)
-        listOf(Triple(context.getString(R.string.active_distance), distance, 0), Triple(context.getString(R.string.active_time), time, 1), Triple(context.getString(R.string.active_pace), pace, 2)).forEach { (name, amount, index) ->
-            val column = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(label(name, 12, muted = true))
-                addView(amount, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(3) })
-            }
-            metrics.addView(column, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(8) })
-        }
-        information.addView(metrics)
-        information.addView(terrain, row(top = 4))
-        if (!compact) information.addView(extra, row(top = 4))
+        information.addView(gps, row(bottom = if (compact) 6 else 12))
+        information.addView(readout, row())
+        panel.setChartContent(readout)
         val scroll = ScrollView(context).apply {
             isFillViewport = false; clipToPadding = false
             addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
@@ -138,17 +123,20 @@ class ActiveRunView(
         for (index in terrainCount until points.size) terrainEstimate = terrainTrend.update(points[index])
         terrainCount = points.size; terrainLast = points.lastOrNull()
         val fresh = terrainLast?.let { System.currentTimeMillis() - it.timestampMs in 0L..15_000L } == true
-        terrain.update(if (state.status == RecordingStatus.RECORDING && fresh) terrainEstimate else TerrainEstimate())
+        val currentTerrain = if (state.status == RecordingStatus.RECORDING && fresh) terrainEstimate else TerrainEstimate()
         map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
         map.setLocationWaitingMessage(if (state.status == RecordingStatus.RECORDING) state.message else context.getString(if (state.status == RecordingStatus.PAUSED) R.string.active_paused_hint else R.string.active_recovered_hint))
         map.setRoute(points)
         map.setMarker(points.lastOrNull())
         val meters = RunMetrics.distanceMeters(points)
-        change(distance, number(meters / 1000, 2))
-        change(time, duration(run.activeDurationMs))
-        change(pace, pace(RunMetrics.paceSecondsPerKm(meters, run.activeDurationMs)))
         elevation.update(points)
-        change(extra, context.getString(R.string.active_elevation, number(elevation.climbedMeters, 0), number(elevation.descendedMeters, 0)))
+        readout.update(
+            paceSeconds = if (state.status == RecordingStatus.RECORDING && !state.gpsStale) LivePace.secondsPerKm(points, System.currentTimeMillis()) else null,
+            distanceMeters = meters, durationMs = run.activeDurationMs, terrain = currentTerrain,
+            climbedMeters = elevation.climbedMeters, descendedMeters = elevation.descendedMeters,
+            averagePace = RunMetrics.paceSecondsPerKm(meters, run.activeDurationMs),
+            animate = state.status == RecordingStatus.RECORDING,
+        )
         val status = when {
             state.status == RecordingStatus.INTERRUPTED -> state.message ?: context.getString(R.string.active_recovered_hint)
             state.status == RecordingStatus.PAUSED -> state.message?.takeUnless { state.messageRes == R.string.tracking_paused } ?: context.getString(R.string.active_paused_hint)
@@ -157,12 +145,11 @@ class ActiveRunView(
             else -> context.getString(R.string.active_loading)
         }
         change(gps, status)
+        val routineStatus = state.messageRes in setOf(null, R.string.tracking_paused, R.string.tracking_recovered_hint)
+        gps.visibility = if (compact && routineStatus) GONE else VISIBLE
+        heading.contentDescription = "${heading.text}. $status"
     }
 
-    private fun value() = label("—", 26, bold = true).apply {
-        maxLines = 1; gravity = Gravity.CENTER_VERTICAL; fontFeatureSettings = "tnum"
-        TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(this, 16, 26, 1, TypedValue.COMPLEX_UNIT_SP)
-    }
     private fun label(textValue: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(context).apply {
         text = textValue; textSize = size.toFloat(); includeFontPadding = false
         setTextColor(context.getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
@@ -187,8 +174,5 @@ class ActiveRunView(
     private fun row(top: Int = 0, bottom: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom) }
     private fun change(view: TextView, value: String) { if (view.text != value) view.text = value }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
-    private fun number(value: Double?, decimals: Int) = if (value == null || !value.isFinite()) "—" else String.format(resources.configuration.locales[0], "%.${decimals}f", value)
-    private fun pace(value: Double?): String = if (value == null || !value.isFinite() || value < 0) "—" else value.roundToInt().let { String.format(resources.configuration.locales[0], "%d:%02d", it / 60, it % 60) }
-    private fun duration(ms: Long): String { val s = ms / 1000; return if (s >= 3600) String.format(resources.configuration.locales[0], "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(resources.configuration.locales[0], "%02d:%02d", s / 60, s % 60) }
 
 }

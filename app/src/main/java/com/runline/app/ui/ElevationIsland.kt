@@ -3,16 +3,16 @@ package com.runline.app.ui
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
+import android.view.View
 import android.graphics.Path
 import android.graphics.drawable.GradientDrawable
 import android.widget.LinearLayout
-import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.graphics.withClip
 import com.runline.app.R
 import com.runline.app.core.ObservedElevationTrace
 import com.runline.app.core.RunPoint
 import com.runline.app.core.RunReplay
-import com.runline.app.core.TerrainDirection
-import com.runline.app.core.TerrainEstimate
 import kotlin.math.roundToInt
 
 /** Quiet, truthful terrain context behind the numbers. No height samples means no trace. */
@@ -28,6 +28,8 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
     private var range = 3.0
     private var baseline = 0f
     private var profileHeight = 0f
+    private var chartContent: View? = null
+    private val chartBounds = Rect()
 
     init {
         orientation = VERTICAL
@@ -37,6 +39,13 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
         elevation = dp(3).toFloat()
         clipToOutline = true
         setWillNotDraw(false)
+    }
+
+    fun setChartContent(view: View) { chartContent = view }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        if (changed) rebuild()
     }
 
     fun setPoints(points: List<RunPoint>) {
@@ -76,8 +85,20 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
         val high = heights.maxOrNull()
         if (width <= 0 || height <= 0 || minimum == null || high == null || trace.durationMs <= 0) { invalidate(); return }
         low = minimum
-        baseline = (height * .70f).coerceAtLeast(dp(32).toFloat())
-        profileHeight = minOf(dp(88).toFloat(), height * .32f)
+        val bounds = Rect()
+        chartContent?.let {
+            it.getDrawingRect(bounds); offsetDescendantRectToMyCoords(it, bounds)
+            var parent = it.parent as? View
+            while (parent != null && parent !== this) {
+                val clip = Rect(0, 0, parent.width, parent.height)
+                offsetDescendantRectToMyCoords(parent, clip)
+                if (!bounds.intersect(clip)) bounds.setEmpty()
+                parent = parent.parent as? View
+            }
+        }
+        chartBounds.set(bounds)
+        baseline = if (bounds.height() > 0) bounds.bottom.toFloat() else height * .60f
+        profileHeight = minOf(dp(64).toFloat(), (bounds.height().takeIf { it > 0 } ?: height) * .32f)
         range = (high - low).coerceAtLeast(3.0)
         trace.sections.forEach { section ->
             val sectionArea = Path()
@@ -98,6 +119,8 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (chartBounds.isEmpty) return
+        canvas.withClip(0, chartBounds.top, width, chartBounds.bottom) {
         ink.color = context.getColor(R.color.on_surface)
         ink.style = Paint.Style.FILL; ink.alpha = 10
         canvas.drawPath(area, ink)
@@ -111,51 +134,12 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
             ink.color = context.getColor(R.color.on_surface); ink.alpha = 190
             canvas.drawCircle(x(it), y(it), dp(3).toFloat(), ink)
         }
+        }
     }
 
     private fun x(sample: ObservedElevationTrace.Sample) =
         dp(8) + (sample.positionMs.toDouble() / trace.durationMs * (width - dp(16)).coerceAtLeast(0)).toFloat()
     private fun y(sample: ObservedElevationTrace.Sample) = baseline - ((sample.heightMeters - low) / range * profileHeight).toFloat()
 
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
-}
-
-/** One quiet status line. Unknown never borrows the flat icon or a fabricated 0%. */
-internal class TerrainLabel(context: Context) : AppCompatTextView(context) {
-    private var shown: Pair<TerrainDirection, String>? = null
-    init {
-        textSize = 12f; includeFontPadding = false
-        setTextColor(context.getColor(R.color.on_surface_variant))
-        compoundDrawablePadding = dp(5)
-        update(TerrainEstimate())
-    }
-    fun update(value: TerrainEstimate) {
-        val direction = value.direction.takeIf { value.gradePercent?.isFinite() == true } ?: TerrainDirection.UNKNOWN
-        val name = context.getString(when (direction) {
-            TerrainDirection.UPHILL -> R.string.map_v9_uphill
-            TerrainDirection.DOWNHILL -> R.string.map_v9_downhill
-            TerrainDirection.FLAT -> R.string.map_v9_flat
-            TerrainDirection.UNKNOWN -> R.string.map_v9_terrain_unknown
-        })
-        val amount = value.gradePercent?.takeIf { direction != TerrainDirection.UNKNOWN }?.let {
-            // Whole percentages match the precision warranted by this GPS estimate.
-            String.format(resources.configuration.locales[0], "%+d", it.roundToInt())
-        }
-        val label = if (amount == null) name else context.getString(R.string.map_v9_terrain_grade, name, amount)
-        val next = direction to label
-        if (shown == next) return
-        shown = next; text = label
-        contentDescription = if (amount == null) name else context.getString(R.string.map_v9_terrain_accessibility, name, amount)
-        val icon = when (direction) {
-            TerrainDirection.UPHILL -> R.drawable.ic_slope_up
-            TerrainDirection.DOWNHILL -> R.drawable.ic_slope_down
-            TerrainDirection.FLAT -> R.drawable.ic_flat
-            TerrainDirection.UNKNOWN -> null
-        }
-        val drawable = icon?.let { context.getDrawable(it)!!.mutate().apply {
-            setTint(context.getColor(R.color.on_surface_variant)); setBounds(0, 0, dp(18), dp(18))
-        } }
-        setCompoundDrawablesRelative(drawable, null, null, null)
-    }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 }

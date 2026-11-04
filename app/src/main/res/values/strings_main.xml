@@ -72,14 +72,12 @@
     <string name="active_options">Recording options</string>
     <string name="active_distance">Distance · km</string>
     <string name="active_time">Time</string>
-    <string name="active_pace">Avg /km</string>
     <string name="active_pause">Pause</string>
     <string name="active_resume">Resume</string>
     <string name="active_finish">Finish</string>
     <string name="active_paused_hint">Time and GPS paused</string>
     <string name="active_recovered_hint">Saved on phone · resume or finish</string>
     <string name="active_accuracy">GPS ±%1$d m · saved on phone</string>
-    <string name="active_elevation">Climbed %1$s m · descended %2$s m</string>
     <plurals name="main_week_summary">
         <item quantity="one">%1$s km · %2$d activity · last 7 days</item>
         <item quantity="other">%1$s km · %2$d activities · last 7 days</item>

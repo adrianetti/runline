@@ -4,4 +4,6 @@
     <color name="surface">#141414</color><color name="on_surface">#F5F5F5</color>
     <color name="surface_variant">#242424</color><color name="on_surface_variant">#B8B8B8</color>
     <color name="outline">#888888</color><color name="error">#E5E5E5</color>
+    <color name="grade_uphill">#E9B94F</color><color name="grade_steep">#F27868</color>
+    <color name="grade_downhill">#65C591</color>
 </resources>

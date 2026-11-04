@@ -12,6 +12,12 @@ colors:
   on-surface-variant: "#5C5C5C"
   outline: "#777777"
   error: "#333333"
+  grade-uphill: "#A76A00"
+  grade-steep: "#C13B2A"
+  grade-downhill: "#247A51"
+  grade-uphill-dark: "#E9B94F"
+  grade-steep-dark: "#F27868"
+  grade-downhill-dark: "#65C591"
   primary-dark: "#F5F5F5"
   on-primary-dark: "#171717"
   primary-container-dark: "#333333"
@@ -42,7 +48,12 @@ typography:
     fontWeight: 500
   live-metric:
     fontFamily: "sans-serif-medium"
-    fontSize: "26sp"
+    fontSize: "32sp"
+    fontWeight: 500
+    fontFeature: "tnum"
+  island-pace:
+    fontFamily: "sans-serif-medium"
+    fontSize: "56sp portrait / 40sp landscape"
     fontWeight: 500
     fontFeature: "tnum"
   metric-value:
@@ -100,7 +111,7 @@ components:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.on-surface}"
     rounded: "{rounded.island}"
-    padding: "16dp 16dp 12dp"
+    padding: "16dp 20dp 12dp"
   active-run-map:
     height: "available content height"
   active-run-action:
@@ -120,7 +131,7 @@ components:
   replay-island:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.island}"
-    padding: "8dp 16dp 12dp"
+    padding: "16dp 20dp 12dp"
   replay-control:
     textColor: "{colors.primary}"
     rounded: "{rounded.replay-control}"
@@ -160,7 +171,7 @@ This record follows `MainActivity.kt`, `ActiveRunView.kt`, `SatelliteMapView.kt`
 
 ## Colors
 
-Use neutral grays for every application role. Primary is dark ink in light mode and near-white in dark mode; on-primary reverses with it. Surface/surface-variant separate controls and content without a hue accent. On-surface-variant carries labels and status. Errors use explicit words/actions, never color alone. Satellite imagery and supplied labels retain source colors. Android dialogs and external document providers retain their owners' styling.
+Use neutral grays for application chrome. The user-requested grade instrument is the sole semantic color exception: amber through red uphill, green downhill and gray near flat, with matching light/dark tokens. The line angle and signed percentage convey the same information without relying on color. Primary is dark ink in light mode and near-white in dark mode; on-primary reverses with it. Surface/surface-variant separate controls and content without a hue accent. On-surface-variant carries labels and status. Errors use explicit words/actions, never color alone. Satellite imagery and supplied labels retain source colors. Android dialogs and external document providers retain their owners' styling.
 
 `Base.Theme.Runline` supplies shared Material roles. Day/night resources and window-insets handling keep system-bar icons visible. Pair foregrounds with their corresponding surfaces. The sidecar's neutral ramps are documentation previews, not extra runtime palette tokens.
 
@@ -168,15 +179,15 @@ Use neutral grays for every application role. Primary is dark ink in light mode 
 
 Use Android system sans, medium for key measurements/headings, with tabular numerals for live values. Preserve font scaling. Normal-state copy is short, with persistent units and labels; — indicates unavailable data. Follow phone language by default, with English fallback and Spanish support; explicit system/English/Spanish choices remain available. The v0.5 forced-Spanish setting is cleared once on upgrade. Translate controls, error/recovery messages, map explanations, notifications and export names. Locale-aware numbers/date labels must not change GPX's numeric/XML conventions or UTC sample timestamps.
 
-The ready heading is 30sp. Active values are nominally 26sp and fit 16–26sp; labels are 12sp and the state heading 16sp. Replay distance and compact metric values are nominally 22sp and fit down where needed. Replay metric labels reserve two lines so Spanish labels align. Detail-sheet values use a larger 26sp treatment. Prefer on-demand calculation information to paragraphs in the island, but retain meaningful failure and recovery messages.
+The ready heading is 30sp. Both islands share a dominant 56sp pace value (40sp in landscape), a 32sp distance value (24sp in landscape), a smaller 20sp timer and 14sp climb/descent totals. Width fitting and sp-based measured heights preserve larger text. Persistent min/km and km labels distinguish pace from speed. The current live pace uses the last ten seconds of continuous usable GPS, requiring five observed seconds and multiple pairs; stale fixes, stops and gaps clear it. Average timer pace remains a small portrait supporting value. Replay uses its existing recent observed pace. Details retain speed and average pace. Keep meaningful failure/recovery messages visible.
 
 ## Layout
 
 Idle Record and history retain the app bar and Record/Activities tabs. One Settings icon opens Runner profile, AI, Language, Recording protection and About; Smart goal lives on idle Run, with no duplicate global overflow entry. Record shows Run/Walk/Hike in an exposed dropdown and one Start action, without a map. Voice coach has an off-by-default speaker control before starting and an entry in the active **…** menu. The choice is remembered and stored in each session. Do not infer a legacy recording's activity type from speed; untyped sessions remain Run.
 
-Active, paused and recovered recording hide the app bar/tabs. The map fills the content area under floating 48dp Activities/options controls and a bottom island inset 16dp. Three columns show distance, active time and average pace; portrait adds climbed/descended elevation. Pause, or Resume/Finish, remains below scrollable information. The island is capped at 55% of portrait content height. Landscape places it lower left with width capped at 340dp or 45% of available width. Its measured bounds reserve map space for the marker and credits. Android status/navigation bars remain visible.
+Active, paused and recovered recording hide the app bar/tabs. The map fills the content area under floating 48dp Activities/options controls and a bottom island inset 16dp. Pace leads beside the slope instrument; distance follows with smaller time and elevation totals. Portrait retains state/GPS status and average pace. Landscape uses a condensed pace/slope and distance/time composition, omits secondary totals and routine status text, and preserves non-routine GPS/storage/recovery messages. Pause, or Resume/Finish, remains below scrollable information. The island is capped at 55% of portrait content height. Landscape places it lower left, capped at 340dp or 45% width; controls remain fixed and at least 48dp. Measured bounds reserve marker and attribution space.
 
-Saved replay uses the same full-content composition: floating Back/options/download controls, map, and a compact bottom island. Replayed distance and Details sit above speed/climbed/descended columns. Play/Pause, speed, seek, time and pace remain reachable below. Tap the statistics or Details for a scrollable bottom sheet. It pauses playback and exposes total distance/time/pace, prominent climb/descent and a 160dp elevation-change profile, then secondary raw altitude, speed totals and splits. Landscape moves the island lower left rather than shrinking the map to a fixed panel.
+Saved replay uses the same pace-first readout. A filled, accessible Play/Pause icon, playback multiplier and separate Details icon form the control row; seeking and total duration share the next row. Current time is a supporting metric. Statistics and Details both open the existing paused details sheet, with average pace, speeds, totals, profile and splits. Landscape keeps pace, grade and distance visible before secondary data.
 
 History places a four-local-calendar-week summary above the chronological flat list. All/Run/Walk/Hike controls filter only charts; long translated filter labels scroll horizontally. Weekly distance bars have explicit values and local Monday labels. A single activity type enables the latest-eight pace trend when at least two observations exist; no mixed-type or fabricated zero-pace trend. Chart content descriptions expose measurements to accessibility. Period pace is distance-weighted; current-week incompleteness and missing GPS remain explicit.
 
@@ -204,7 +215,9 @@ Replay uses observed GPS intervals, selects the nearest-to-30-second speed from 
 
 ## Elevation, shapes and depth
 
-Both islands use a quiet background trace from actual GPS elevation samples; insufficient data produces no invented shape, and missing height, poor accuracy, segments and gaps split the trace. A small contrasting dot marks supported current elevation, using the exact replay observed clock or latest live sample; never bridge unknown heights or isolated endpoints. Elevation information means climbed/descended change first. A single 12sp terrain line adds a Tabler slope/flat icon and approximate whole-percent grade from the quality-gated recent moving window. Unknown says Terrain — with no flat icon or zero. The details profile is relative to the first available GPS height and preserves missing-height and segment gaps. Totals retain the separate 3-metre noise threshold. No terrain correction is implied; raw altitude/range remain secondary.
+Both islands use a quiet background trace from actual GPS heights, clipped to the visible statistics area so it cannot run underneath controls. Missing heights, poor fixes, segments and gaps split the trace; its dot follows supported observed position only. A rounded line smoothly tilts with signed GPS grade: positive rises to the right in amber/red, negative falls in green and near-flat remains neutral. Angle is visually amplified (2.5 degrees per percentage point, bounded at 28 degrees) as an instrument, not a literal surveyed slope. The numerical whole-percent estimate remains explicit. Unknown uses a broken neutral line and a dash, never a fabricated zero. Height-window quality gates and the separate three-metre total deadband are unchanged.
+
+Pace and distance use native 280ms rolling-digit transitions with fixed tabular numerals. Rapid updates keep only the latest pending reading; pause, seek, segment changes, detach and hidden views settle immediately. The slope smoothly approaches new observations without altering measurements. System Remove animations disables rolling and slope movement. Accessible labels expose current values with units without repeated live announcements. No web runtime, extra animation dependency or artificial data oscillation is used.
 
 Use native pressed/focus feedback and dialogs. Islands use 24dp corners and 3dp native elevation; flat history/detail rows use thin rules. Start uses a 16dp radius and at least 64dp height. Active actions use 60dp, or 48dp in landscape. Replay controls use 12dp corners and 48dp height. Floating map/export controls and credits use 48dp targets. No blur, decorative gradients or decorative motion.
 
@@ -229,7 +242,7 @@ All app pictograms use the pinned MIT Tabler outline subset; originals/license a
 
 ## Do's and Don'ts
 
-- Keep controls achromatic in both themes and imagery in real colors.
+- Keep controls achromatic in both themes; grade alone uses semantic colors with a signed number/angle. Imagery retains real colors.
 - Label primary actions; give icon-only actions accessible localized names.
 - Keep start, pause, resume and finish reachable, including landscape and larger Spanish text.
 - Keep climbs/descents prominent and unfamiliar calculation details on demand.

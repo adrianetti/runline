@@ -1,0 +1,12 @@
+<resources>
+    <string name="island_pace">Pace · min/km</string>
+    <string name="island_grade">Grade</string>
+    <string name="island_km">km</string>
+    <string name="island_grade_value">≈ %1$s%%</string>
+    <string name="island_metres">%1$s m</string>
+    <string name="island_average">Avg %1$s /km</string>
+    <string name="island_pace_accessibility">Pace: %1$s minutes per kilometre</string>
+    <string name="island_time_accessibility">Time: %1$s</string>
+    <string name="island_climbed_accessibility">Climbed: %1$s metres</string>
+    <string name="island_descended_accessibility">Descended: %1$s metres</string>
+</resources>

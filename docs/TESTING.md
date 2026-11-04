@@ -1,6 +1,6 @@
-# Version 0.10.2 test checklist
+# Version 0.11 test checklist
 
-The checklist is not a blanket pass report. Current v0.10.2 and historical v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.11 and historical v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,17 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.11 pace-first islands
+
+Recorded on 4 November 2026. Live and replay share a pace-first readout with native rolling digits, distance and a smooth signed-grade line. Live headline pace is a display-only trailing ten-second estimate with five seconds of usable continuous movement required. Storage, recorded metrics, exports, speech and AI behavior are unchanged.
+
+- Debug/release builds and **254 JVM tests** pass, with zero failures/errors and **zero lint errors / 106 warnings**. The five new regressions cover recent rather than whole-run pace, acquisition/staleness, pauses/gaps/bad fixes, stopping and weighted window boundaries without sample mutation.
+- **466 English/Spanish resources**, **34 pinned Tabler icons**, **22 security-checker tests**, workflow lint, seven Semgrep rule fixtures and the strict source scan of **77 Kotlin files** pass. No animation library or other dependency was added. Applicable GitHub checks must pass on the exact head before merge.
+- Bounded API 34 emulator checks used synthetic hill/flat/downhill data and actual production live/replay screens. English/light, Spanish/dark, 1.3× font, portrait/landscape, unknown grade, seeking, playback, Details and live GPS capture/pause/finish were inspected. The first pass exposed hidden distance in larger-text landscape; the confirmation keeps pace, slope and distance visible together, with fixed controls and map attribution. The elevation backdrop stays above controls. Initial captures taken during theme/rotation recreation were black and are not counted as visual evidence; settled confirmation captures are retained locally.
+- A temporary same-signature native instrumentation harness verified rapid updates, exact latest-value settlement, unknown values, digit carry and detach, both with animations enabled and system animation scale zero. Both runs passed, and the harness was uninstalled. Grade-line colors exceed 3:1 contrast on both surfaces; color is accompanied by signed grade and angle. Emulator evidence does not establish physical-phone frame rate, sunlight readability or GPS accuracy.
+- The initial signed update retained all **59 inspected original files byte-for-byte**. After runtime recording checks, all original recording/journal files remained unchanged; **56 of 59** total original files were identical. Expected changes were the map cache, installation profile marker and completion bookkeeping for synthetic recordings. Settings were restored. The final exact signed APK was installed in place and launched; its signature matches prior releases.
+- Artifact: **`dist/Runline-0.11.0.apk`**, **0.11.0 / code 13**, SHA-256 **`813747db511702d83c6a24ee51a96d23defa562ee5c420592bdf8dddef5306e9`**. No physical Samsung, battery-exhaustion, music/headphone or real-provider AI test was repeated for this UI change.
 
 ## Version 0.10.2 history-led Smart goals
 

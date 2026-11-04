@@ -3,6 +3,5 @@
     <string name="map_v9_downhill">Bajada</string>
     <string name="map_v9_flat">Llano</string>
     <string name="map_v9_terrain_unknown">Terreno —</string>
-    <string name="map_v9_terrain_grade">%1$s · ≈ %2$s%%</string>
     <string name="map_v9_terrain_accessibility">%1$s. Pendiente GPS estimada: %2$s por ciento.</string>
 </resources>
