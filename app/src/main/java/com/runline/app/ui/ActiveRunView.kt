@@ -135,7 +135,7 @@ class ActiveRunView(
             distanceMeters = meters, durationMs = run.activeDurationMs, terrain = currentTerrain,
             climbedMeters = elevation.climbedMeters, descendedMeters = elevation.descendedMeters,
             averagePace = RunMetrics.paceSecondsPerKm(meters, run.activeDurationMs),
-            animate = state.status == RecordingStatus.RECORDING,
+            animate = state.status == RecordingStatus.RECORDING, profile = panel.slopeProfile(),
         )
         val status = when {
             state.status == RecordingStatus.INTERRUPTED -> state.message ?: context.getString(R.string.active_recovered_hint)

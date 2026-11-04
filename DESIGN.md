@@ -215,7 +215,7 @@ Replay uses observed GPS intervals, selects the nearest-to-30-second speed from 
 
 ## Elevation, shapes and depth
 
-Both islands use a quiet background trace from actual GPS heights, clipped to the visible statistics area so it cannot run underneath controls. Missing heights, poor fixes, segments and gaps split the trace; its dot follows supported observed position only. A rounded line smoothly tilts with signed GPS grade: positive rises to the right in amber/red, negative falls in green and near-flat remains neutral. Angle is visually amplified (2.5 degrees per percentage point, bounded at 28 degrees) as an instrument, not a literal surveyed slope. The numerical whole-percent estimate remains explicit. Unknown uses a broken neutral line and a dash, never a fabricated zero. Height-window quality gates and the separate three-metre total deadband are unchanged.
+Both islands use a quiet background trace from actual GPS heights, clipped to the visible statistics area so it cannot run underneath controls. Missing heights, poor fixes, segments and gaps split the trace; its dot follows supported observed position only. A rounded miniature profile shows the last 45 observed seconds at the previous slope instrument’s footprint. Midpoint quadratics keep the line smooth; its right-hand dot marks the latest supported height. The number remains an independently quality-gated whole-percent grade. Profile color follows valid current grade: uphill amber/red, downhill green, flat/unknown neutral. Missing heights stay gaps; unknown numerical grade uses a dash without hiding supported height history. Pause, seek and Remove animations settle immediately.
 
 Pace and distance use native 280ms rolling-digit transitions with fixed tabular numerals. Rapid updates keep only the latest pending reading; pause, seek, segment changes, detach and hidden views settle immediately. The slope smoothly approaches new observations without altering measurements. System Remove animations disables rolling and slope movement. Accessible labels expose current values with units without repeated live announcements. No web runtime, extra animation dependency or artificial data oscillation is used.
 
@@ -254,3 +254,7 @@ All app pictograms use the pinned MIT Tabler outline subset; originals/license a
 - Do not animate through GPS gaps or represent visual smoothing as better GPS accuracy.
 - Do not imply export uploads an activity, or that local mirrors are cloud backup.
 - Do not claim a powered-off phone records, or historical emulator checks validate every device.
+
+## Version 0.12 secondary surfaces
+
+Post-run reviews use a short headline, recorded distance, two icon-led sections and a tonal Next session panel. Keep total generated copy at most 100 words, with tighter field limits. Legacy text remains readable. Diagnostics is a secondary Settings sheet with Coach log/AI usage tabs, expandable event details, replay shortcuts and explicit share controls. Only the Coach tab exposes the recording switch. Idle tab swipes require clear horizontal intent and avoid system edges, map/replay gestures and vertical scrolling.

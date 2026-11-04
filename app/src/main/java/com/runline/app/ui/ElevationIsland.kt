@@ -41,6 +41,9 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
         setWillNotDraw(false)
     }
 
+    fun slopeProfile(positionMs: Long = trace.durationMs, segmentIndex: Int = trace.latestSegmentIndex) =
+        com.runline.app.core.SlopeProfile.at(trace, positionMs, segmentIndex)
+
     fun setChartContent(view: View) { chartContent = view }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {

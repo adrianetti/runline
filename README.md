@@ -1,10 +1,14 @@
 # Runline
 
-Version 0.11 puts min/km pace first in live/replay islands, with rolling digits, clear distance and a smooth colored grade line. See [current verification](docs/TESTING.md#version-011-pace-first-islands).
+Version 0.12 adds contextual encouragement, a moving terrain profile, private coach logs, AI usage and automatic post-run review cards. See [what changed and verification](docs/TESTING.md#version-012-coach-insight).
+
+<table><tr><td><img src="docs/images/replay-es.png" width="250" alt="Runline satellite replay with large pace and a compact terrain profile"></td><td><img src="docs/images/review-es.png" width="250" alt="Short Spanish review with achievement, focus and next session"></td><td><img src="docs/images/coach-log-es.png" width="250" alt="Private coach timeline with spoken messages and replay shortcuts"></td></tr></table>
+
+Actual Android screens with synthetic demonstration data. [Image provenance](docs/images/README.md) · [Open-source and Google Play plan](docs/PUBLISHING.md).
 
 A personal Android recorder for runs, walks and hikes, with local history, satellite maps, route replay, optional spoken coaching and exportable activity data. Controls stay monochrome; the grade line uses semantic uphill/downhill colors and imagery keeps its real colors. Source and build history live in the private [adrianetti/runline](https://github.com/adrianetti/runline) repository.
 
-Current source targets version 0.11.0 (version code 13), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
+Current source targets version 0.12.0 (version code 14), a sideloaded prototype for Android 8.0 and later. It uses Kotlin, Android Views, Material 3 and Android's GPS location provider. It targets and compiles against SDK 34; Play Store distribution is not configured. Versioned build and bounded emulator evidence is recorded below; current CI and published packages are tracked in the private repository. Published builds are available from the private Releases page. A controlled physical-phone field and battery test remains outstanding.
 
 ## Record an activity
 
@@ -14,7 +18,7 @@ Current source targets version 0.11.0 (version code 13), a sideloaded prototype 
 
 The idle Record tab has an activity picker, a Start button, optional Voice coach settings and a Smart goal entry for Run. Record and Activities remain the two tabs. The single **Settings** icon opens **Runner profile**, **AI**, **Language**, **Recording protection** and **About**. The activity choice is remembered; after Android's permissions are granted, starting takes one tap. Activity type is stored with the session through pause, recovery and export. Older recordings without a stored type remain **Run**; Runline does not guess a type from their speed.
 
-During recording, the satellite map fills the app content area. A bottom island leads with recent pace in min/km, a smooth signed-grade indicator and distance. Time and elevation totals are smaller; portrait retains average pace as supporting context. Pause stays fixed within reach. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
+During recording, the satellite map fills the app content area. A bottom island leads with recent pace in min/km, a compact rolling terrain profile and signed grade and distance. Time and elevation totals are smaller; portrait retains average pace as supporting context. Pause stays fixed within reach. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
 
 The app follows the **phone’s language** by default, with English fallback and Spanish support. **Language / Idioma** offers Phone language, English and Español. Updating from v0.5 clears its forced-Spanish setting once; later explicit language choices are retained. Controls, messages, recording notifications and exported activity names follow the selected app language. Android permission dialogs and third-party document providers follow their own language settings.
 
@@ -38,7 +42,7 @@ Finished and older recordings support a title, notes, optional effort, activity 
 
 ## Optional Anthropic and Smart goals
 
-**Settings → AI** accepts your own Anthropic key, encrypted with an Android Keystore key on the phone. No key ships in the APK, enters exported files or needs to be sent to the developer. All AI features start off. Enable live advice and automatic post-run review separately, or use **All AI features** to select both. Smart goal preparation is always an explicit action. This shortcut does not enable activity-note or profile sharing. Live speech also requires Voice coach enabled. Provider/model dropdowns offer Anthropic, Haiku for live advice and Sonnet for reviews/Smart goals, plus a Custom model option. Opening setup is local. Reviews require enabled, configured AI; Smart goal offers setup when it is unavailable. **Test connection** checks access to both selected models without generating coaching.
+**Settings → AI** accepts your own Anthropic key, encrypted with an Android Keystore key on the phone. No key ships in the APK, enters exported files or needs to be sent to the developer. All AI features start off. Enable live advice and automatic post-run review separately, or use **All AI features** to select both. Smart goal preparation is always an explicit action. This shortcut does not enable activity-note or profile sharing. Live speech also requires Voice coach enabled. Provider/model dropdowns offer Anthropic, Haiku for live advice and Sonnet for reviews/Smart goals, plus a Custom model option. Opening setup is local. New reviews require enabled, configured AI; saved reviews remain readable with AI off; Smart goal offers setup when it is unavailable. **Test connection** checks access to both selected models without generating coaching.
 
 Live requests use a configurable 3–10 minute active-time interval and a 24-attempt cap per activity. Shared context includes the optional overall aspiration, the applied distance/time/pace goal, calendar-week and recent running totals, recent activities, GPS-estimated terrain, self-reported effort/routine and up to six recently spoken cues. The model can return silence when it has nothing useful to add; generated text only enters speech history after Android reports that speech started. Titles and notes require an additional sharing switch. Raw coordinates and photos are never sent. Requests spend the user’s Anthropic API credits; offline recording and coaching remain independent of network/model failures. Late or superseded live responses are dropped after pause/stop/settings changes or intervening feedback. See [AI setup, data flow and limits](docs/AI.md).
 
@@ -71,6 +75,16 @@ There is no Runline account, cloud recording sync or Strava connection. Internet
 
 Distance is an estimate from accepted GPS fixes. Active time includes standing still and waiting for GPS, but excludes explicit pauses and unobserved process downtime. Elapsed time includes pauses. Average pace and average speed use active time. Replay and saved-run splits use observed GPS intervals, skipping pauses and gaps over 15 seconds; their duration can differ from the active timer. **About these stats** explains these details without filling the recording screen with text.
 
+## Coach insight
+
+**Settings → Diagnostics** shows local coaching events and AI usage. A saved activity’s **… → Coach log** opens its timeline: what actually started speaking, the exact event time and latest GPS fix/time/accuracy, pace and estimated grade. Tap an entry for details or **Replay here** to inspect that location. Queued, expired and skipped prompts are available separately. Logs cannot reconstruct speech from older versions. Share a diagnostic JSON through Android; precise coordinates are excluded unless explicitly selected. Nothing is uploaded to a developer automatically.
+
+**AI → Usage** shows retained request counts, reported input/output/cache tokens, model, operation, HTTP status, latency and supported-model cost estimates. This is this phone’s local history from v0.12, not an Anthropic account invoice. Opening it is free of API requests. See [diagnostics and privacy](docs/DIAGNOSTICS.md).
+
+When **AI → Automatic reviews** is enabled, finishing a run queues one persistent background analysis after a 90-second journal window. Android waits for connectivity and may defer execution. A notification opens a saved, compact **Win / Focus / Next session** card. The request includes this run, recorded weekly volume without double-counting, comparable recent runs, the optional overall goal and separately consented profile/notes. Failed or interrupted attempts require explicit retry; reopening does not silently charge again. Notification permission is required for the alert. Older text reviews stay readable.
+
+Swipe horizontally between **Record** and **Activities** while idle. Maps, replay, sheets, vertical scrolling and the recording controls keep their own gestures.
+
 ## Maps, replay and run details
 
 The active-run map fills the content area, with its camera centered in the visible space around the island and controls. Follow uses close zoom 18 and a gently turning 46° camera tilt when movement establishes a heading. A screen-anchored Tabler arrow indicates travel direction relative to the camera; a neutral marker remains until movement establishes a reliable heading. It is not a phone compass. The last known heading is retained while stopped, and gaps or new recording segments require a fresh heading.
@@ -87,7 +101,7 @@ Map providers receive requests for visible tile areas and the phone's network ad
 
 Open a saved run to play or seek through its route at **1×, 5×, 10×, 30×, 60×, 120×, 240× or 480×**. Opening a run chooses the available speed whose playback duration is nearest 30 seconds; the saved GPS timeline determines that choice. A close heading-follow camera tracks the arrow, with observed position interpolation and softened turns; route-fit remains north-up. Playback updates up to 30 times per second, and pauses when the screen goes into the background. It cuts across missing intervals instead of animating an invented connection. Replay is an in-app view; it does not export an MP4 or other video.
 
-Replay puts the map behind the same pace-first island: large min/km digits, distance, a smooth grade line and smaller time/elevation totals, with Play/Pause, multiplier and seeking controls. Tap its statistics or the **Details** info icon to open full activity information. A floating download icon exports GPX; Back and options remain accessible above the map.
+Replay puts the map behind the same pace-first island: large min/km digits, distance, a rolling terrain profile and smaller time/elevation totals, with Play/Pause, multiplier and seeking controls. Tap its statistics or the **Details** info icon to open full activity information. A floating download icon exports GPX; Back and options remain accessible above the map.
 
 The details sheet emphasizes total **climb and descent** and an elevation-change profile relative to the first available GPS height. It also includes totals and splits; raw GPS altitude and altitude range are secondary information. Speed uses a trailing five-second GPS estimate, with implausible running speeds omitted. Elevation totals use raw GPS heights with a 3-metre noise threshold. The live/replay island separately shows uphill, flat or downhill with an approximate whole-percent GPS grade when a recent 35–55 m moving window supports it. Missing/noisy heights, weak fixes and stops show **Terrain —**. These estimates are not terrain-corrected; [MAPS.md](docs/MAPS.md) explains the quality gates and observed-time cursor.
 
@@ -136,10 +150,10 @@ Use JDK 17, Android SDK Platform 34 and Build Tools 36.0.0. The project pins AGP
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
-Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.11.0 package is `dist/Runline-0.11.0.apk`. Install that package with USB debugging enabled:
+Published APKs are available from the private [Releases page](https://github.com/adrianetti/runline/releases/latest). The v0.12.0 package is `dist/Runline-0.12.0.apk`. Install that package with USB debugging enabled:
 
 ```sh
-adb install -r dist/Runline-0.11.0.apk
+adb install -r dist/Runline-0.12.0.apk
 ```
 
 Or copy the APK to your phone and open it, allowing installation from the app you use to open the file. It is privately distributed, not a Play Store release.

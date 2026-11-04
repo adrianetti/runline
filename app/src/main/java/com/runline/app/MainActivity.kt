@@ -90,6 +90,7 @@ class MainActivity : AppCompatActivity() {
     private var runnerProfile: RunnerProfileSheet? = null
     private var smartGoal: SmartGoalSheet? = null
     private var runReview: RunReviewSheet? = null
+    private var diagnostics: com.runline.app.ui.DiagnosticsSheet? = null
     private val ticker = object : Runnable {
         override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
     }
@@ -117,7 +118,18 @@ class MainActivity : AppCompatActivity() {
             setTabTextColors(getColor(R.color.on_surface_variant), getColor(R.color.primary))
         }
         root.addView(tabs, LinearLayout.LayoutParams(-1, dp(48)))
-        body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        body = com.runline.app.ui.SwipeTabs(this,
+            enabled = { tabs.visibility == View.VISIBLE && screen in setOf("record", "history") },
+            swipe = { direction ->
+                val next = (tabs.selectedTabPosition + direction).coerceIn(0, 1)
+                if (next != tabs.selectedTabPosition) {
+                    tabs.getTabAt(next)?.select()
+                    if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+                        body.translationX = dp(24).toFloat() * direction
+                        body.animate().translationX(0f).setDuration(180).start()
+                    }
+                }
+            }).apply { orientation = LinearLayout.VERTICAL }
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) { screen = if (tab.position == 0) "record" else "history"; render() }
@@ -143,14 +155,17 @@ class MainActivity : AppCompatActivity() {
         savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { AiActivityCompletion.onAppOpen(this) }.also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("smartGoal")?.let { showSmartGoal(it) }
-        savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
+        savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) || currentRun?.let { com.runline.app.ai.AiReviewStore(this).get(it.id) } != null }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
         AiActivityCompletion.onAppOpen(this)
+        savedInstanceState?.getString("diagnostics")?.let { showDiagnostics(it.ifBlank { null }) }
+        if (savedInstanceState == null) openReviewIntent()
         savedInstanceState?.getBundle("detailsEditor")?.let { draft ->
             draft.getString("runId")?.let { id -> runCatching { store.get(id) }.getOrNull()?.let { showActivityEditor(it, draft) } }
         }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent)
+        openReviewIntent()
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
             intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING)
             screen = "record"; tabs.getTabAt(0)?.select(); render()
@@ -158,12 +173,13 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); smartGoal?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); smartGoal?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
         outState.putString("historyType", historyType?.storageValue)
         outState.putString("pendingAction", pendingAction)
+        diagnostics?.takeIf { it.isShowing }?.let { outState.putString("diagnostics", it.runId ?: "") }
         outState.putString("screen", screen); outState.putString("runId", currentRun?.id)
         outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
@@ -349,17 +365,19 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showSettings() {
         appSettings?.close()
-        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout).also { it.show() }
+        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }).also { it.show() }
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
             menu.add(0, 13, 0, R.string.v7_edit_activity)
-            if (AiSettings.isReady(this@MainActivity)) menu.add(0, 14, 1, R.string.v7_run_review)
+            if (AiSettings.isReady(this@MainActivity) || currentRun?.let { com.runline.app.ai.AiReviewStore(this@MainActivity).get(it.id) } != null) menu.add(0, 14, 1, R.string.v7_run_review)
+            menu.add(0, 16, 2, R.string.diag_v12_coach)
             menu.add(0, 4, 2, R.string.main_delete_activity)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     13 -> currentRun?.let { showActivityEditor(it) }
                     14 -> currentRun?.let { showRunReview(it) }
+                    16 -> currentRun?.let { showDiagnostics(it.id) }
                     4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this@MainActivity)
                         .setTitle(R.string.main_delete_title).setMessage(R.string.main_delete_body)
                         .setNegativeButton(R.string.main_keep, null).setPositiveButton(R.string.main_delete) { _, _ ->
@@ -394,7 +412,7 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.11.0")
+        MaterialAlertDialogBuilder(this).setTitle("Runline 0.12.0")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
@@ -482,8 +500,29 @@ class MainActivity : AppCompatActivity() {
             onConfigureAi = ::showAiSettings,
         ).also { it.show() }
     }
+    private fun showDiagnostics(id: String? = null) {
+        diagnostics?.close()
+        diagnostics = com.runline.app.ui.DiagnosticsSheet(this, id) { runId, at ->
+            runCatching { store.get(runId) }.getOrNull()?.let { run ->
+                var offset = 0L
+                var position = 0L
+                com.runline.app.core.RunReplay(run).segments.forEach { points ->
+                    if (at >= points.first().timestampMs) position = offset + (at - points.first().timestampMs).coerceIn(0, points.last().timestampMs - points.first().timestampMs)
+                    offset += points.last().timestampMs - points.first().timestampMs
+                }
+                currentRun = run; restoredReplayPosition = position; restoredReplaySpeed = 0; screen = "detail"; render()
+            }
+        }.also { it.show() }
+    }
+    private fun openReviewIntent() {
+        val id = intent.getStringExtra(com.runline.app.ai.AutomaticReviews.EXTRA_RUN) ?: return
+        intent.removeExtra(com.runline.app.ai.AutomaticReviews.EXTRA_RUN)
+        runCatching { store.get(id) }.getOrNull()?.let { run ->
+            openRun(run); showRunReview(run)
+        }
+    }
     private fun showRunReview(run: RunSession) {
-        if (!AiSettings.isReady(this)) return
+        if (!AiSettings.isReady(this) && com.runline.app.ai.AiReviewStore(this).get(run.id) == null) return
         runReview?.close(); runReview = RunReviewSheet(this, run).also { it.show() }
     }
     private fun showActivityEditor(run: RunSession, state: Bundle? = null) {

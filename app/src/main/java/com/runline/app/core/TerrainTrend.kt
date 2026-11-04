@@ -71,6 +71,16 @@ class TerrainTrend {
             error * error
         } / samples.size)
         if (!grade.isFinite() || abs(grade) > 40.0 || residual > 1.8) return unknown()
+        // The long window can lag behind a crest/valley. Do not announce its old
+        // direction when the latest ~10 seconds already contradict it.
+        val tail = samples.filter { point.timestampMs - it.point.timestampMs <= 12_000L }
+        if (abs(grade) >= 1.5 && tail.size >= 4 && tail.last().distance - tail.first().distance >= 12.0) {
+            val mx = tail.sumOf { it.distance } / tail.size
+            val my = tail.sumOf { it.point.altitudeMeters!! } / tail.size
+            val vx = tail.sumOf { (it.distance - mx) * (it.distance - mx) }
+            val recentGrade = 100 * tail.sumOf { (it.distance - mx) * (it.point.altitudeMeters!! - my) } / vx
+            if (grade * recentGrade < 0 || abs(recentGrade) < 1.0) return unknown()
+        }
         direction = when {
             grade >= 3.0 -> TerrainDirection.UPHILL
             grade <= -3.0 -> TerrainDirection.DOWNHILL

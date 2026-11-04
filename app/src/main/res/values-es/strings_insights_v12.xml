@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_v12_title">Diagnóstico</string>
+    <string name="diag_v12_usage">Uso de IA</string>
+    <string name="diag_v12_coach">Registro del entrenador</string>
+    <string name="diag_v12_private">Guardado en este teléfono. Tú decides si lo compartes.</string>
+    <string name="diag_v12_record">Guardar mensajes del entrenador</string>
+    <string name="diag_v12_refresh">Actualizar</string>
+    <string name="diag_v12_clear">Borrar diagnósticos</string>
+    <string name="diag_v12_clear_hint">¿Borrar los mensajes y el uso de IA registrado? Las actividades y los análisis se conservan.</string>
+    <string name="diag_v12_empty">Aún no hay mensajes registrados. El registro empieza con esta versión.</string>
+    <string name="diag_v12_all_events">Ver mensajes en espera y descartados</string>
+    <string name="diag_v12_fix">Posición GPS %1$s · precisión %2$s m</string>
+    <string name="diag_v12_expand">Mensaje a las %1$s. Toca para ver el GPS.</string>
+    <string name="diag_v12_replay">Reproducir aquí</string>
+    <string name="diag_v12_earlier">Mensajes anteriores</string>
+    <string name="diag_v12_requests">%1$d solicitudes</string>
+    <string name="diag_v12_tokens">Entrada %1$d · Salida %2$d\nCaché leída %3$d · Escrita %4$d</string>
+    <string name="diag_v12_cost">≈ %1$s USD · coste de %2$d de %3$d solicitudes</string>
+    <string name="diag_v12_scope">Solicitudes conservadas en este teléfono desde esta versión. Los tokens ausentes y costes de modelos personalizados son desconocidos. Estimación a precio de catálogo; no es tu factura.</string>
+    <string name="diag_v12_share_title">Compartir registro</string>
+    <string name="diag_v12_without_location">Sin coordenadas</string>
+    <string name="diag_v12_with_location">Incluir coordenadas GPS exactas</string>
+    <string name="review_v12_channel">Análisis del entrenador</string>
+    <string name="review_v12_waiting">Programado · esperando a Android y conexión</string>
+    <string name="review_v12_retry">Análisis no disponible. Toca Analizar para reintentarlo.</string>
+    <string name="review_v12_win">Lo que has logrado</string>
+    <string name="review_v12_focus">A mejorar</string>
+    <string name="review_v12_next">Próxima sesión</string>
+    <string name="review_v12_distance">%.2f km registrados</string>
+    <string name="review_v12_refresh">Analizar de nuevo</string>
+    <string-array name="coach_v12_uphill_support">
+        <item>Vas sumando en esta subida. Deja que el esfuerzo marque el ritmo.</item>
+        <item>Busca pasos cómodos aquí. Cada tramo suma a tu sesión.</item>
+        <item>Buen progreso en la subida. No hace falta buscar el ritmo de llano.</item>
+        <item>Tramo a tramo. Deja que el ritmo baje mientras el terreno sube.</item>
+    </string-array>
+    <string-array name="coach_v12_downhill_support">
+        <item>Buen progreso. Baja con control y comodidad.</item>
+        <item>Deja fluir este tramo de bajada sin buscar más velocidad.</item>
+        <item>Sigues sumando distancia. Mantén el control en la bajada.</item>
+    </string-array>
+    <string-array name="coach_v12_on_target">
+        <item>Tu ritmo reciente encaja con el objetivo. Buen control; sigue escuchando cómo te encuentras.</item>
+        <item>Vas manteniendo el ritmo elegido. Los pasos tranquilos van sumando.</item>
+        <item>El ritmo reciente está en tu rango. Buen trabajo manteniendo el control.</item>
+        <item>Estás cerca del ritmo que elegiste. Sigue con comodidad, tramo a tramo.</item>
+    </string-array>
+    <string-array name="coach_v12_consistent">
+        <item>Tu ritmo reciente se mantiene constante. Buen ritmo; busca comodidad.</item>
+        <item>Has mantenido un ritmo estable en este tramo. Es una buena práctica.</item>
+        <item>Buena constancia en el ritmo reciente. Sigue paso a paso.</item>
+    </string-array>
+</resources>

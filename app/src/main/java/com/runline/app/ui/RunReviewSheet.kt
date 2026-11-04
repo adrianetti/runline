@@ -18,7 +18,7 @@ import java.util.Date
 
 class RunReviewSheet(private val activity: AppCompatActivity, private val run: RunSession, state: Bundle? = null) {
     private val sheet = AiSheet(activity, R.string.ai_review_title)
-    private val body = sheet.text("")
+    private val body = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
     private val status = sheet.text("")
     private val progress = CircularProgressIndicator(activity).apply {
         isIndeterminate = true
@@ -44,7 +44,7 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
     }
     val isShowing get() = sheet.isShowing
     init {
-        sheet.column.addView(sheet.text(activity.getString(R.string.v8_review_cost)), sheet.row(0, 16))
+
         sheet.column.addView(body, sheet.row(0, 16))
         renderReview(store.get(run.id))
         sheet.column.addView(generate.apply { setOnClickListener {
@@ -81,21 +81,24 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
     private fun observeReview() {
         handler.removeCallbacks(poll)
         if (sheet.closed || !isShowing || !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
-        if (AiWork.isReviewRunning(run.id)) {
+        if (AiWork.isReviewRunning(run.id) || AutomaticReviews.queue(activity).get(run.id)?.state == "pending") {
             if (!waitingForReview) previousReviewTime = store.get(run.id)?.createdAtMs ?: -1L
             waitingForReview = true
             progress.visibility = View.VISIBLE
             generate.isEnabled = false
-            status.setText(R.string.ai_working)
-            handler.postDelayed(poll, 750)
+            status.setText(if (AiWork.isReviewRunning(run.id)) R.string.ai_working else R.string.review_v12_waiting)
+            handler.postDelayed(poll, 1000)
             return
         }
         updateAction()
+        if (!waitingForReview && store.get(run.id) == null && AutomaticReviews.queue(activity).get(run.id)?.state == "failed") {
+            status.setText(R.string.review_v12_retry)
+        }
         if (waitingForReview) {
             waitingForReview = false
             val saved = store.get(run.id)
             renderReview(saved)
-            status.setText(if (saved != null && saved.createdAtMs != previousReviewTime) R.string.ai_review_saved else R.string.ai_error_response)
+            status.setText(if (saved != null && saved.createdAtMs != previousReviewTime) R.string.ai_review_saved else R.string.review_v12_retry)
         }
     }
 
@@ -103,6 +106,7 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
         progress.visibility = View.GONE
         val ready = AiSettings.isReady(activity)
         generate.visibility = if (ready) View.VISIBLE else View.GONE
+        generate.setText(if (store.get(run.id) != null) R.string.review_v12_refresh else R.string.ai_review_generate)
         generate.isEnabled = ready
     }
 
@@ -113,8 +117,36 @@ class RunReviewSheet(private val activity: AppCompatActivity, private val run: R
     }
 
     private fun renderReview(review: RunAiReview?) {
-        if (review == null) body.setText(R.string.ai_review_empty)
-        else body.text = review.text + "\n\n" + review.model + " · " +
-            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(review.createdAtMs))
+        body.removeAllViews()
+        if (review == null) { body.addView(sheet.text(activity.getString(R.string.ai_review_empty))); return }
+        val card = review.card
+        if (card == null) body.addView(sheet.text(review.text)) else {
+            body.addView(sheet.text(card.headline, 26, true), sheet.row(0, 20))
+            val distance = com.runline.app.core.RunMetrics.distanceMeters(run.points) / 1000
+            body.addView(sheet.text(activity.getString(R.string.review_v12_distance, distance), 14), sheet.row(0, 24))
+            fun section(title: Int, text: String, icon: Int, emphasis: Boolean = false) {
+                val group = LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    if (emphasis) {
+                        setPadding(sheet.dp(16), sheet.dp(16), sheet.dp(16), sheet.dp(16))
+                        background = android.graphics.drawable.GradientDrawable().apply {
+                            setColor(activity.getColor(R.color.surface_variant)); cornerRadius = sheet.dp(16).toFloat()
+                        }
+                    }
+                }
+                val label = sheet.text(activity.getString(title), 16, true).apply {
+                    compoundDrawablePadding = sheet.dp(8)
+                    setCompoundDrawablesRelative(androidx.appcompat.content.res.AppCompatResources.getDrawable(activity, icon)!!.mutate().apply {
+                        setTint(activity.getColor(R.color.on_surface)); setBounds(0, 0, sheet.dp(22), sheet.dp(22))
+                    }, null, null, null)
+                }
+                group.addView(label, sheet.row(0, 8)); group.addView(sheet.text(text, 17))
+                body.addView(group, sheet.row(0, 24))
+            }
+            section(R.string.review_v12_win, card.win, R.drawable.ic_check)
+            section(R.string.review_v12_focus, card.focus, R.drawable.ic_effort)
+            section(R.string.review_v12_next, card.nextSession, R.drawable.ic_route, true)
+        }
+        body.addView(sheet.text(review.model + " · " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(review.createdAtMs)), 12), sheet.row(0, 8))
     }
 }

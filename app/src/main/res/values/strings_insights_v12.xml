@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_v12_title">Diagnostics</string>
+    <string name="diag_v12_usage">AI usage</string>
+    <string name="diag_v12_coach">Coach log</string>
+    <string name="diag_v12_private">Stored on this phone. Shared only when you choose.</string>
+    <string name="diag_v12_record">Record coach feedback</string>
+    <string name="diag_v12_refresh">Refresh</string>
+    <string name="diag_v12_clear">Clear diagnostics</string>
+    <string name="diag_v12_clear_hint">Remove coach logs and recorded AI usage? Activities and reviews stay saved.</string>
+    <string name="diag_v12_empty">No spoken feedback recorded yet. Logs begin with this version.</string>
+    <string name="diag_v12_all_events">Show queued and skipped prompts</string>
+    <string name="diag_v12_fix">GPS fix %1$s · accuracy %2$s m</string>
+    <string name="diag_v12_expand">Feedback at %1$s. Tap for GPS details.</string>
+    <string name="diag_v12_replay">Replay here</string>
+    <string name="diag_v12_earlier">Earlier messages</string>
+    <string name="diag_v12_requests">%1$d requests</string>
+    <string name="diag_v12_tokens">Input %1$d · Output %2$d\nCache read %3$d · Cache write %4$d</string>
+    <string name="diag_v12_cost">≈ US$%1$s · priced %2$d of %3$d requests</string>
+    <string name="diag_v12_scope">Retained requests on this phone, from this version. Missing token counts and custom-model costs are unknown. Standard list-price estimates, not your account bill.</string>
+    <string name="diag_v12_share_title">Share coach log</string>
+    <string name="diag_v12_without_location">Without coordinates</string>
+    <string name="diag_v12_with_location">Include exact GPS coordinates</string>
+    <string name="review_v12_channel">Coach reviews</string>
+    <string name="review_v12_waiting">Scheduled · waiting for Android and internet</string>
+    <string name="review_v12_retry">Review unavailable. Tap Analyze to try again.</string>
+    <string name="review_v12_win">Your win</string>
+    <string name="review_v12_focus">Work on</string>
+    <string name="review_v12_next">Next session</string>
+    <string name="review_v12_distance">%.2f km recorded</string>
+    <string name="review_v12_refresh">Analyze again</string>
+    <string-array name="coach_v12_uphill_support">
+        <item>You are making progress through this rise. Let your effort guide the pace.</item>
+        <item>Keep the steps comfortable here. Each stretch adds to your session.</item>
+        <item>Good progress on this rise. There is no need to chase your flat-ground pace.</item>
+        <item>One stretch at a time. Let the pace ease as the ground rises.</item>
+    </string-array>
+    <string-array name="coach_v12_downhill_support">
+        <item>Good progress. Keep this descent controlled and comfortable.</item>
+        <item>Let this downhill stretch flow without chasing more speed.</item>
+        <item>You are adding distance. Stay relaxed and controlled on the descent.</item>
+    </string-array>
+    <string-array name="coach_v12_on_target">
+        <item>Your recent pace matches your goal. Nice control; keep listening to how you feel.</item>
+        <item>You are holding your chosen pace. Small, calm steps are adding up.</item>
+        <item>That recent pace is in your range. Good work keeping it measured.</item>
+        <item>You are close to the pace you chose. Stay comfortable, one stretch at a time.</item>
+    </string-array>
+    <string-array name="coach_v12_consistent">
+        <item>Your recent pace has stayed consistent. Good rhythm; keep it comfortable.</item>
+        <item>You have held a steady rhythm through this stretch. That is useful practice.</item>
+        <item>Nice consistency in your recent pace. Let the next stretch come to you.</item>
+    </string-array>
+</resources>

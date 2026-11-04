@@ -370,7 +370,10 @@ class TrackingService : Service(), LocationListener {
                 coachSpeech?.reset()
             }
             if (next.enabled && mode == RecordingStatus.RECORDING) {
-                if (coachSpeech == null) coachSpeech = CoachSpeech(this) { spoken ->
+                if (coachSpeech == null) coachSpeech = CoachSpeech(this, onDiagnostic = { event, text, source, cue, situation ->
+                    published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.speech(
+                        this, observed, event, text, source, cue, situation, !published.gpsStale) }
+                }) { spoken ->
                     aiCoach?.onSpoken(spoken.text, spoken.source.name, spoken.elapsedRealtimeMs)
                 }
                 coachSpeech?.prepare()
@@ -386,7 +389,7 @@ class TrackingService : Service(), LocationListener {
             val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh)
             coachEngine?.situation?.let { coachSpeech?.updateSituation(it) }
             cue?.let { coachSpeech?.speak(it) }
-            if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh, coachConfig)
+            if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh, coachConfig, coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN)
         }
     }
     private fun notification(): Notification {

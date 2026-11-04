@@ -1,6 +1,6 @@
-# Version 0.11 test checklist
+# Version 0.12 test checklist
 
-The checklist is not a blanket pass report. Current v0.11 and historical v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.12 and historical v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in README.md. Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,18 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.12 coach insight
+
+Recorded 4 November 2026. Private GPX files and provider responses remain outside Git.
+
+- Final signed debug/release build: **271 JVM tests, zero failures/errors; lint zero errors / 107 warnings**. All **499 bilingual resources**, **34 pinned icons**, **22 security-checker tests**, actionlint and seven Semgrep rules across 87 production Kotlin files passed. GitHub checks must also pass on the exact final head before merge.
+- Regression coverage includes terrain reversals/leveling, distance/time progress and contextual encouragement, profile gaps/seeks/no future samples, bounded/torn diagnostic logs, coordinate-redacted export, provider usage/cost handling, persistent one-attempt review jobs and strict short review cards.
+- Native API 34: horizontal idle-tab swipes in both directions and vertical-history scroll separation; spoken-only/all-events logs; export produced four synthetic events with no coordinates; saved-review deep link with AI disabled; rotation, Spanish, dark mode and 1.3× text. Two bounded visual passes fixed review restoration after rotation and smoothed the mini-profile joins. README images use synthetic data only.
+- Background integration: one pending network-constrained JobScheduler job survived process death; after restoring connectivity its cached synthetic result completed without a provider call and posted a notification. Duplicate enqueue did not create another job. A temporary same-signature test harness and dummy encrypted key were removed/restored after testing. This is not a real provider run through Android's scheduler.
+- Signed update initially retained all 65 existing inspected files byte-for-byte. After the final update and map/UI testing, all original recording, journal, preferences and credential files remained identical; only the map cache and Android profile-install marker changed (63/65 original files identical). Final APK: `dist/Runline-0.12.0.apk`, version 0.12.0/code 14, SHA-256 `b55849028a1c33a6407c35e9458a2d4d217d0237995033d4746be7b9c47c6ff3`, same dedicated signing certificate.
+- Real-provider validation: three explicitly bounded external requests used production summary/context builders, provider and review validator with the two privately supplied GPX recordings. No raw coordinates/photos were sent; unknown effort/accuracy remained unknown and elapsed GPX time was disclosed as a proxy for active time. The first card failed validation; the second had 121 words despite valid field lengths. Tightened per-field word budgets produced a validated 63-word Spanish review in the final request. It used 3,213 input / 1,179 reported output tokens, HTTP 200, 11.3 seconds and an estimated US$0.0182 at standard list prices. It recognized the completed distance and supported split pattern, suggested steadier pacing and an easy next session. This small sample does not certify training advice or field GPS accuracy. No automatic paid retries were added.
+- Physical Samsung motion, battery exhaustion, live terrain ground truth and music/headphone routing have not been re-certified in this release. Logs begin with this version; an old GPX cannot reconstruct what was spoken. Android can defer background work; notifications need permission. Open source and Google Play are readiness plans, not completed publication.
 
 ## Version 0.11 pace-first islands
 

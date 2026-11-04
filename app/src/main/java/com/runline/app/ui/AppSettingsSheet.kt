@@ -13,6 +13,7 @@ class AppSettingsSheet(
     onLanguage: () -> Unit,
     onProtection: () -> Unit,
     onAbout: () -> Unit,
+    onDiagnostics: () -> Unit,
 ) {
     private val sheet = AiSheet(activity, R.string.v8_settings)
     val isShowing get() = sheet.isShowing
@@ -32,6 +33,7 @@ class AppSettingsSheet(
         }
         item(activity.getString(R.string.v8_language_value, language), R.drawable.ic_language, onLanguage)
         item(activity.getString(R.string.main_protection), R.drawable.ic_shield_check, onProtection)
+        item(activity.getString(R.string.diag_v12_title), R.drawable.ic_history, onDiagnostics)
         item(activity.getString(R.string.main_about), R.drawable.ic_info, onAbout)
     }
     fun show() = sheet.show()

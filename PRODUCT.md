@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.11.0 (code 13) targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.12.0 (code 14) targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -81,3 +81,7 @@ Simple monochrome controls, very short copy, one free sporty icon family (Tabler
 ## Open Decisions
 
 Final app name, future watch support, video export, broader distribution and cloud backup. Strava integration is outside the current scope. Personal APK distribution uses the private GitHub repository; broader use requires reviewing imagery licensing.
+
+## Version 0.12 coach insight
+
+Private, bounded speech logs record actual TTS starts and current GPS context; explicit exports omit coordinates by default. Diagnostics and AI usage live in Settings, keeping the two primary tabs focused. Optional automatic reviews use persistent, network-constrained Android jobs and concise saved cards with a completion notification. Contextual encouragement rechecks terrain before delivery. The compact slope instrument is now a causal 45-second mini profile, separate from the validated numeric grade. Intentional horizontal swipes switch idle tabs. See docs/RELEASE-0.12-PLAN.md and docs/DIAGNOSTICS.md. Public source and Play publication remain preparation work, not current distribution.
