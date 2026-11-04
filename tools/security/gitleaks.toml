@@ -5,12 +5,13 @@ useDefault = true
 
 # This is the PUBLIC signing-certificate SHA-256, not a keystore/private key.
 # The generic rule sees prose saying "app key:" and mistakes the fingerprint
-# for a credential. Allow only this exact value in the two artifact-evidence docs.
+# for a credential. Allow only this exact value in artifact-evidence docs,
+# including the original README path when scanning historical commits.
 [[rules]]
 id = "generic-api-key"
   [[rules.allowlists]]
   description = "Published app signing-certificate fingerprint in verification evidence"
   condition = "AND"
   regexTarget = "secret"
-  paths = ['''^(README\.md|docs/TESTING\.md)$''']
+  paths = ['''^(README\.md|docs/TESTING\.md|docs/RELEASE-HISTORY\.md)$''']
   regexes = ['''^fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab$''']

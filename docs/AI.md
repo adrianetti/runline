@@ -46,7 +46,7 @@ Opening the sheet, rotating, saving effort, finishing a run or changing the over
 
 ## Verification scope
 
-The released v0.9 debug/release builds passed **197 JVM tests with zero failures**; lint reported zero errors and 117 warnings. Those are historical results, not verification of the new goal flow. [The v0.9 record](../README.md#version-09-verification) retains its bounded runtime and update evidence.
+The released v0.9 debug/release builds passed **197 JVM tests with zero failures**; lint reported zero errors and 117 warnings. Those are historical results, not verification of the new goal flow. [The v0.9 record](RELEASE-HISTORY.md#version-09-verification) retains its bounded runtime and update evidence.
 
 The final v0.10 build passed **233 JVM tests with zero failures**; lint reported zero errors and 106 warnings. All 464 bilingual resources and 34 pinned icons passed verification. Tests cover freeform-goal migration/clear semantics, consent-bound context, explicit request gating, unsafe output rejection, stale responses, numeric goal validation and request setup failure recovery. Native setup/rotation, injected loading/result/rest/error states and numeric target application passed. The exact signed update retained all 49 inspected original files and 22 activities; the temporary harness was cleaned up. GitHub CI/merge evidence is tracked on the release PR. [TESTING.md](TESTING.md) is the current verification record.
 
