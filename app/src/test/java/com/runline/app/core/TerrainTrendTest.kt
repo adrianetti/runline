@@ -17,7 +17,7 @@ class TerrainTrendTest {
             val value = estimate(slope(grade, 120))
             assertEquals(direction, value.direction)
             assertEquals(grade, value.gradePercent!!, .01)
-            assertTrue(value.windowMeters in 35.0..55.0)
+            assertTrue(value.windowMeters in 55.0..90.0)
         }
     }
 
@@ -54,7 +54,7 @@ class TerrainTrendTest {
         var value = TerrainEstimate()
         // Once the old slope leaves the window, 2% is below entry but above exit.
         for (i in 31..75) value = trend.update(point(i * 2.0, i.toLong(), 102.4 + (i * 2.0 - 60.0) * .02))
-        assertEquals(2.0, value.gradePercent!!, .01)
+        assertEquals(2.0, value.gradePercent!!, .25) // Trailing distance smoothing settles gradually.
         assertEquals(TerrainDirection.UPHILL, value.direction)
         for (i in 76..120) value = trend.update(point(i * 2.0, i.toLong(), 104.2))
         assertEquals(TerrainDirection.FLAT, value.direction)

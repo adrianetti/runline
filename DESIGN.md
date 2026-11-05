@@ -258,3 +258,9 @@ All app pictograms use the pinned MIT Tabler outline subset; originals/license a
 ## Version 0.12 secondary surfaces
 
 Post-run reviews use a short headline, recorded distance, two icon-led sections and a tonal Next session panel. Keep total generated copy at most 100 words, with tighter field limits. Legacy text remains readable. Diagnostics is a secondary Settings sheet with Coach log/AI usage tabs, expandable event details, replay shortcuts and explicit share controls. Only the Coach tab exposes the recording switch. Idle tab swipes require clear horizontal intent and avoid system edges, map/replay gestures and vertical scrolling.
+
+## Terrain inspection in 0.13
+
+The island labels the current state (Uphill/Downhill/Flat; Subida/Bajada/Llano) with a 260 ms vertical flip only when the state changes. Rapid changes settle to the latest value; pause, seek, detach and Remove animations leave no half-flipped text. The existing miniature profile eases across 280 ms. Unknown remains distinct from flat.
+
+Replay Details keeps a short title, 48 dp overflow and Close targets with 8 dp separation. The overflow uses the existing Tabler pencil and brain with theme-aware tint. Elevation is a full-width touch chart with a position dot, concise selected time/distance/relative height, terrain reading and native accessible slider. Horizontal gestures inspect; vertical gestures scroll. Gaps retain the observed clock.

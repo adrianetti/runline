@@ -303,7 +303,9 @@ class TrackingService : Service(), LocationListener {
         // UTC labels must keep increasing within a segment even if the wall clock is corrected.
         if (previous != null && previous.segment == segment && location.time <= previous.timestampMs) segment++
         val point = RunPoint(location.latitude, location.longitude, location.time, location.accuracy,
-            if (location.hasAltitude() && location.altitude.isFinite()) location.altitude else null, segment)
+            if (location.hasAltitude() && location.altitude.isFinite()) location.altitude else null, segment,
+            if (location.hasVerticalAccuracy() && location.verticalAccuracyMeters.isFinite() && location.verticalAccuracyMeters >= 0)
+                location.verticalAccuracyMeters else null)
         val checkpoint = draftRecord()
         if (!safely { store.appendPoint(point, checkpoint) }) return
         current = current!!.copy(points = current!!.points + point)

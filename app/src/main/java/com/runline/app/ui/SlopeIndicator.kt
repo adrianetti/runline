@@ -28,7 +28,7 @@ internal class SlopeIndicator(context: Context) : LinearLayout(context) {
         fontFeatureSettings = "tnum"; setTextColor(context.getColor(R.color.on_surface))
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
-    private val label = TextView(context).apply {
+    private val label = TerrainLabel(context).apply {
         text = context.getString(R.string.island_grade); textSize = 12f; includeFontPadding = false
         gravity = Gravity.CENTER; setTextColor(context.getColor(R.color.on_surface_variant))
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -52,11 +52,40 @@ internal class SlopeIndicator(context: Context) : LinearLayout(context) {
         val percent = grade?.roundToInt()?.let { String.format(resources.configuration.locales[0], "%+d", it) }
         val text = percent?.let { context.getString(R.string.island_grade_value, it) } ?: "—"
         if (amount.text.toString() != text) amount.text = text
+        label.setTerrain(name, animate)
         contentDescription = if (percent == null) name else context.getString(R.string.map_v9_terrain_accessibility, name, percent)
         line.setGrade(grade, profile, animate)
     }
-    fun settle() = line.settle()
+    fun settle() { line.settle(); label.settle() }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+}
+
+/** One short shared-axis flip per state change, never per GPS/render frame. */
+private class TerrainLabel(context: Context) : androidx.appcompat.widget.AppCompatTextView(context) {
+    private var target = ""
+    private var motion: ValueAnimator? = null
+    init { maxLines = 1; cameraDistance = 8_000 * resources.displayMetrics.density }
+    fun setTerrain(value: String, animate: Boolean) {
+        if (value == target) { if (!animate) settle(); return }
+        settle()
+        val old = text.toString()
+        target = value
+        if (!animate || !isShown || !ValueAnimator.areAnimatorsEnabled() || old.isBlank()) { settle(); return }
+        motion = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 260
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener {
+                val progress = it.animatedValue as Float
+                if (progress >= .5f) text = target
+                rotationX = if (progress < .5f) 180 * progress else -180 * (1 - progress)
+                alpha = abs(2 * progress - 1)
+            }
+            start()
+        }
+    }
+    fun settle() { motion?.cancel(); motion = null; text = target; rotationX = 0f; alpha = 1f }
+    override fun onDetachedFromWindow() { settle(); super.onDetachedFromWindow() }
+    override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); if (!isVisible) settle() }
 }
 
 /** Same compact footprint, now a rolling 45-second observed elevation profile. */
@@ -89,7 +118,7 @@ private class SlopeLine(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         if (!ValueAnimator.areAnimatorsEnabled()) { shown = target; shownGrade = targetGrade ?: 0.0 }
         val now = SystemClock.uptimeMillis()
-        val alpha = (1.0 - exp(-(now - lastFrame).coerceIn(1, 64) / 90.0)).toFloat()
+        val alpha = (1.0 - exp(-(now - lastFrame).coerceIn(1, 64) / 280.0)).toFloat()
         var moving = false
         shown = target.mapIndexed { index, value ->
             val old = shown.getOrNull(index)

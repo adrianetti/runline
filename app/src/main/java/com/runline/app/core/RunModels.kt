@@ -21,7 +21,16 @@ data class RunPoint(
     val accuracyMeters: Float,
     val altitudeMeters: Double? = null,
     val segment: Int = 0,
+    /** Android's reported 68% vertical uncertainty; absent in older recordings. */
+    val verticalAccuracyMeters: Float? = null,
 )
+
+internal fun RunPoint.hasUsableAltitude(): Boolean = altitudeMeters?.isFinite() == true &&
+    (verticalAccuracyMeters == null || (verticalAccuracyMeters.isFinite() && verticalAccuracyMeters in 0f..8f))
+
+internal fun canJoinAltitude(a: RunPoint?, b: RunPoint): Boolean = a != null &&
+    MarkerMotion.canInterpolate(a, b) && a.hasUsableAltitude() && b.hasUsableAltitude() &&
+    kotlin.math.abs(b.altitudeMeters!! - a.altitudeMeters!!) <= maxOf(4.0, RunMetrics.distanceMeters(listOf(a, b)) * .5)
 
 /** The original fixes and timer duration remain available for future analyses. */
 data class RunSession(

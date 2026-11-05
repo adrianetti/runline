@@ -167,6 +167,8 @@ class RunReplay(val session: RunSession) {
             accuracyMeters = maxOf(edge.a.accuracyMeters, edge.b.accuracyMeters),
             altitudeMeters = altitude,
             segment = edge.segmentIndex,
+            verticalAccuracyMeters = if (edge.a.verticalAccuracyMeters != null && edge.b.verticalAccuracyMeters != null)
+                maxOf(edge.a.verticalAccuracyMeters, edge.b.verticalAccuracyMeters) else null,
         )
         return frame(point, position, edge.startDistance + edge.length * fraction, speedAt(position, edge),
             lerp(edge.gainBefore, edge.gainAfter, fraction), lerp(edge.lossBefore, edge.lossAfter, fraction), edge.segmentIndex)

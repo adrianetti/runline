@@ -42,6 +42,8 @@ object MarkerMotion {
             accuracyMeters = maxOf(from.accuracyMeters, to.accuracyMeters),
             altitudeMeters = if (altitudeA != null && altitudeB != null) altitudeA + (altitudeB - altitudeA) * amount else null,
             segment = to.segment,
+            verticalAccuracyMeters = if (from.verticalAccuracyMeters != null && to.verticalAccuracyMeters != null)
+                maxOf(from.verticalAccuracyMeters, to.verticalAccuracyMeters) else null,
         )
     }
 

@@ -327,8 +327,10 @@ class DiskRunStore(
     private fun encodePoint(p: RunPoint) = JSONObject().apply {
         put("latitude", p.latitude); put("longitude", p.longitude); put("timestampMs", p.timestampMs)
         put("accuracyMeters", p.accuracyMeters.toDouble()); put("altitudeMeters", p.altitudeMeters ?: JSONObject.NULL); put("segment", p.segment)
+        put("verticalAccuracyMeters", p.verticalAccuracyMeters?.toDouble() ?: JSONObject.NULL)
     }
     private fun decodePoint(o: JSONObject): RunPoint = RunPoint(o.getDouble("latitude"), o.getDouble("longitude"),
-        o.getLong("timestampMs"), o.getDouble("accuracyMeters").toFloat(), if (o.isNull("altitudeMeters")) null else o.getDouble("altitudeMeters"), o.getInt("segment"))
+        o.getLong("timestampMs"), o.getDouble("accuracyMeters").toFloat(), if (o.isNull("altitudeMeters")) null else o.getDouble("altitudeMeters"), o.getInt("segment"),
+        o.optDouble("verticalAccuracyMeters", Double.NaN).takeIf { it.isFinite() && it >= 0 }?.toFloat())
         .also { require(it.latitude.isFinite() && it.latitude in -90.0..90.0 && it.longitude.isFinite() && it.longitude in -180.0..180.0 && it.timestampMs >= 0 && it.accuracyMeters.isFinite() && it.accuracyMeters >= 0 && it.segment >= 0) }
 }

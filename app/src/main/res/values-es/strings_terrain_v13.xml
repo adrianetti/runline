@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="elevation_explore">Desliza para explorar</string>
+    <string name="elevation_selected">%1$s · %2$s km · %3$s m</string>
+    <string name="elevation_selected_terrain">%1$s · %2$s</string>
+    <string name="activity_action_edit">Editar</string>
+    <string name="activity_action_review">Análisis IA</string>
+</resources>

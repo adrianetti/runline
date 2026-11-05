@@ -1,4 +1,4 @@
-# Version 0.12 test checklist
+# Version 0.13 test checklist
 
 The checklist is not a blanket pass report. Current v0.12 and historical v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
@@ -29,6 +29,17 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.13 terrain confidence and open source
+
+- Signed debug/release builds: **278 JVM tests, zero failures/errors; lint zero errors / 103 warnings**. Verified **504 English/Spanish resources**, **34 pinned icons**, 22 security-checker tests and seven Semgrep rules across 88 production Kotlin files. The current advisory query checked 236 dependency components across 39 configurations with zero findings; exact-head CI remains required before merge.
+- Synthetic regressions cover separate vertical versus horizontal accuracy, an abrupt 12 m height relocation, a single noisy altitude spike, gradual grade changes, a genuine −15% descent, deterministic replay seeking, GPX accuracy extensions and accuracy retention through journal recovery/completed storage. Legacy recordings remain readable with absent vertical accuracy.
+- Native API 34 instrumentation verified horizontal chart scrubbing changes replay position, vertical movement preserves position and the open sheet, native accessible seeking, fixed-header actions, rapidly interrupted label transitions and Remove animations. Bounded visual checks covered English, Spanish at 1.3× font scale in dark mode, and a 2220×1080 wide emulator layout. The headless emulator's rotation request did not change orientation, so the wide layout was tested with a temporary display-size override instead; physical rotation is not claimed.
+- Two visual issues found in the first pass were fixed together: chart axis values now use the recording's height origin, and popup pencil/brain icons use a readable theme tint. A final pass confirmed both. All screenshots use a synthetic session, not a personal route. No provider requests were made.
+- Artifact: `dist/Runline-0.13.0.apk`, **0.13.0 / code 15**, SHA-256 `fc1231f1b614974f9d8e07df08d21d3a038de037e2fda1f9afacccd8b6a2a348`. Same app signing certificate as prior releases.
+- The exact signed release installed in place and cold-launched on API 34. All original recording, journal, metadata, preferences and credential files were byte-for-byte unchanged: 64 of 65 inspected original files matched; only the map cache changed. Synthetic test data and the temporary harness were removed, display settings restored, app language returned to the phone default, and emulator root access disabled.
+- Publication audit: remote branches/tags contained no GPX, signing stores, activity JSONL or unrelated local files. Gitleaks scanned the existing remote/tag history and the implementation commit (36 commits) without findings; subsequent documentation commits are also checked before publication. Release assets are APKs/checksums; the three tracked screenshots have synthetic-data provenance. Human PR descriptions and issue/review comments were checked for route/credential payloads. Developer keys and private native-test backups remain outside Git.
+- **Unverified:** the exact reported 10K −15% section could not be reproduced because its GPX was no longer at the previous local path; the private prior test retained summaries only. No independent terrain model, barometer, physical Samsung field run or new battery/headphone audit was used. Smooth altitude drift can still resemble a hill; see [Terrain](TERRAIN.md).
 
 ## Version 0.12 coach insight
 

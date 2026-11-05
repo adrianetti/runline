@@ -9,7 +9,7 @@
     <string name="replay_export_file">Export GPX</string>
     <string name="replay_open_details">Show activity details and elevation</string>
     <string name="replay_close_details">Close details</string>
-    <string name="replay_activity_details">Activity details</string>
+    <string name="replay_activity_details">Details</string>
     <string name="replay_position">Replay position</string>
     <string name="replay_position_description">Replay position %1$s of %2$s</string>
     <string name="replay_playback_speed">Playback speed</string>

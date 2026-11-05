@@ -1,12 +1,12 @@
 # Runline
 
-A personal Android app for runs, walks and hikes. GPS recording, local history, satellite maps, route replay and GPX/CSV exports. Optional voice coaching and AI goals. English and Spanish.
+An open-source Android app for runs, walks and hikes. GPS recording, local history, satellite maps, route replay and GPX/CSV exports. Optional voice coaching and AI goals. English and Spanish.
 
 <table><tr><td><img src="docs/images/replay-es.png" width="250" alt="Runline satellite replay with large pace and a compact terrain profile"></td><td><img src="docs/images/review-es.png" width="250" alt="Short Spanish review with achievement, focus and next session"></td><td><img src="docs/images/coach-log-es.png" width="250" alt="Private coach timeline with spoken messages and replay shortcuts"></td></tr></table>
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.12:** contextual encouragement, a moving terrain profile, private coach logs, AI usage, automatic review cards and tab swipes. [Release verification](docs/TESTING.md#version-012-coach-insight).
+**New in 0.13:** smoother terrain estimates, altitude-accuracy checks, animated terrain labels and an interactive elevation chart. [Terrain and accuracy](docs/TERRAIN.md).
 
 ## Get started
 
@@ -24,11 +24,17 @@ Use JDK 17, Android SDK 37.0 and Build Tools 36.0.0. Set `ANDROID_HOME` to your 
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 ```
 
+## Contribute
+
+[MIT licensed](LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md). Third-party assets and map services keep their own licenses. Global EOX imagery has noncommercial restrictions; source availability does not remove those terms.
+
+Google Play publication is deferred until a developer account and the remaining release checks are ready. Signed GitHub APKs remain the update channel.
+
 ## More
 
 - [Usage](docs/USAGE.md) · [Development](docs/DEVELOPMENT.md) · [Repository checks](docs/CHECKS.md)
 - [Maps](docs/MAPS.md) · [Coaching](docs/COACHING.md) · [AI](docs/AI.md) · [Goals](docs/GOALS.md) · [Exports](docs/EXPORTS.md)
-- [Coach diagnostics](docs/DIAGNOSTICS.md) · [Open-source and Google Play plan](docs/PUBLISHING.md)
+- [Coach diagnostics](docs/DIAGNOSTICS.md) · [Distribution and Google Play plan](docs/PUBLISHING.md)
 - [Testing and known limits](docs/TESTING.md) · [Release history](docs/RELEASE-HISTORY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 Prototype: controlled physical-phone field and battery tests remain outstanding.
