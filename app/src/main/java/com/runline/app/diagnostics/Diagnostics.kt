@@ -19,6 +19,7 @@ object Diagnostics {
         val value = JSONObject().put("version", 1).put("event", event).put("at_ms", now).put("source", source)
             .put("text", text.take(500)).put("cue", cue.take(120)).put("active_ms", run.activeDurationMs)
             .put("distance_m", situation.distanceMeters).put("pace_seconds_per_km", situation.paceSeconds ?: JSONObject.NULL)
+            .put("terrain_source", situation.terrainSource.name)
             .put("terrain", situation.terrain.name).put("grade_percent", situation.gradePercent ?: JSONObject.NULL)
             .put("gps_fresh", fresh).put("fix_at_ms", fix?.timestampMs ?: JSONObject.NULL)
             .put("accuracy_m", fix?.accuracyMeters?.takeIf { it.isFinite() } ?: JSONObject.NULL)

@@ -19,7 +19,7 @@ object SmartRunAiInput {
         if (!distance.isFinite() || distance <= 0) return@mapNotNull null
         SmartRunHistoryRun(Instant.ofEpochMilli(run.startedAtMs).atZone(zone).toLocalDate(), distance, run.id,
             annotation.effort?.takeIf { it in 1..10 }, run.activeDurationMs,
-            RunMetrics.elevationGainMeters(run.points), run.startedAtMs)
+            RunMetrics.elevationGainMeters(run.withTrustedElevation().points), run.startedAtMs)
     }.sortedWith(compareBy<SmartRunHistoryRun> { it.date }.thenBy { it.startedAtMs }.thenBy { it.id })
 
     fun build(today: LocalDate, runs: List<RunSession>, details: (String) -> ActivityDetails,

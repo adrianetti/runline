@@ -40,6 +40,8 @@ data class RunSession(
     val activeDurationMs: Long,
     val points: List<RunPoint>,
     val activityType: ActivityType = ActivityType.RUN,
+    /** In-memory analysis provenance only. DiskRunStore always retains original GPS observations. */
+    val elevationSource: TerrainSource = TerrainSource.GPS,
 )
 
 /** A kilometre, or the final partial kilometre, measured from recorded GPS samples. */

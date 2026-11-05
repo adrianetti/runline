@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="coach_phrase_after_hill">
-        <item>La altura del GPS se está estabilizando. Deja que el ritmo se asiente antes de buscar tu objetivo.</item>
+        <item>El camino se está allanando. Deja que el ritmo se asiente antes de buscar tu objetivo.</item>
         <item>Este tramo parece más llano. Recupera un ritmo cómodo; no hace falta compensar el tiempo.</item>
         <item>La pendiente parece suavizarse. Date un momento para recuperar tu ritmo.</item>
         <item>El terreno parece más llano. Mantén un esfuerzo cómodo mientras cambia la pendiente.</item>

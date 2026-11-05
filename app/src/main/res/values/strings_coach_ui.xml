@@ -34,5 +34,5 @@
     <string name="coach_ui_encouragement">Encouragement</string>
     <string name="coach_ui_terrain">Climbs and descents</string>
     <string name="coach_ui_laps">Laps and comparisons</string>
-    <string name="coach_ui_estimates">Terrain and laps are cautious GPS estimates. Prompts stay brief and spaced out.</string>
+    <string name="coach_ui_estimates">Hill feedback needs terrain maps. Laps use GPS. Prompts stay brief and spaced out.</string>
 </resources>

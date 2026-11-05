@@ -8,7 +8,8 @@ class CoachScenariosTest {
         val points = mutableListOf(RunPoint(0.0, 0.0, 1000, 4f, 700.0))
         var active = 0L; var metres = 0.0
         private var height = 700.0
-        val engine = CoachEngine(config, session())
+        // These synthetic heights are an explicit independent-reference fixture.
+        val engine = CoachEngine(config, session(), terrainPoint = { it })
         fun session() = RunSession("scenario", 1000, 1000 + active, active, points.toList())
         fun step(speed: Double, climb: Double = 0.0, fresh: Boolean = true): CoachCue? {
             active += 5000; metres += speed * 5; height += climb * 5

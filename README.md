@@ -6,7 +6,7 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.13:** smoother terrain estimates, altitude-accuracy checks, animated terrain labels and an interactive elevation chart. [Terrain and accuracy](docs/TERRAIN.md).
+**New in 0.14:** terrain-map elevations replace unreliable GPS heights in recording, replay and coaching. Nearby areas cache for offline use; missing or ambiguous terrain stays unknown. Mainland Spain and Balearic Islands initially. [Terrain and accuracy](docs/TERRAIN.md).
 
 ## Get started
 

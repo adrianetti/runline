@@ -56,6 +56,7 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
         if (!gpsFresh || busy || !schedule.due(run.activeDurationMs, settings.intervalMinutes)) return
         val token = generation; val settingsRevision = AiSettings.revision(); val requestedAt = android.os.SystemClock.elapsedRealtime(); busy = true
         val speechToken = spokenGeneration
+        val terrainRevision = com.runline.app.terrain.TerrainRepository.get(context).snapshot.revision
         val attempt = schedule.attempts
         worker.execute {
             val result = runCatching {
@@ -67,8 +68,10 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
                 val profile = RunnerProfileStore(context).snapshot()
                 val runnerGoal = RunnerGoalStore(context).snapshot()
                 val runs = RunStore(context)
-                val input = JSONObject().put("run", AiRunSummary.of(run)).put("coaching_context", AiCoachingContext.build(
-                    LocalDate.now(), activeGoal = goal, activeRun = run, history = runs.list(), details = runs::details,
+                val terrainMap = com.runline.app.terrain.TerrainRepository.get(context).snapshot
+                val verifiedRun = terrainMap.project(run)
+                val input = JSONObject().put("run", AiRunSummary.of(verifiedRun)).put("coaching_context", AiCoachingContext.build(
+                    LocalDate.now(), activeGoal = goal, activeRun = verifiedRun, history = runs.list().map(terrainMap::project), details = runs::details,
                     includeNotes = settings.includeNotes, profile = profile.profile,
                     spoken = AiSpokenHistory.recent(run.id, requestedAt), nowElapsedMs = requestedAt, runnerGoal = runnerGoal.goal))
                 if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
@@ -88,7 +91,7 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
                     val runnerGoal = result?.third
                     val valid = { synchronized(this) {
                         val now = AiSettings.load(context)
-                        !closed && active && fresh && currentTerrain == terrain && token == generation && speechToken == spokenGeneration && runId == run.id &&
+                        !closed && active && fresh && com.runline.app.terrain.TerrainRepository.get(context).snapshot.revision == terrainRevision && currentTerrain == terrain && token == generation && speechToken == spokenGeneration && runId == run.id &&
                             now.enabled && now.liveEnabled && now == settings && AiSettings.revision() == settingsRevision &&
                             VoiceCoachSettings.load(context).enabled && profile != null && profileCurrent(profile) &&
                             runnerGoal != null && goalCurrent(runnerGoal) &&

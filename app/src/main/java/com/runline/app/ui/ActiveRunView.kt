@@ -36,7 +36,11 @@ class ActiveRunView(
     private val panel = ElevationIsland(context)
     private val readout = RunReadoutView(context)
     private val gps = label(context.getString(R.string.active_loading), 12, muted = true)
-    private val terrainTrend = TerrainTrend()
+    private val terrainRepository = com.runline.app.terrain.TerrainRepository.get(context)
+    private val terrainProjector = com.runline.app.core.TerrainProjector()
+    private var lastState = initial
+    private val terrainListener: () -> Unit = { if (isAttachedToWindow) update(lastState) }
+    private val terrainTrend = TerrainTrend(com.runline.app.core.TerrainSource.TERRAIN_MAP)
     private var terrainCount = 0
     private var terrainLast: RunPoint? = null
     private var terrainEstimate = TerrainEstimate()
@@ -113,9 +117,14 @@ class ActiveRunView(
         else map.setOverlayInsets(0, dp(72), 0, panel.height + dp(16))
     }
 
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); terrainRepository.listen(terrainListener); lastState.run?.points?.let(terrainRepository::request); update(lastState) }
+    override fun onDetachedFromWindow() { terrainRepository.unlisten(terrainListener); super.onDetachedFromWindow() }
+
     fun update(state: TrackingState) {
+        lastState = state
         val run = state.run ?: return
-        val points = run.points
+        val points = terrainProjector.project(run, terrainRepository.snapshot).points
+        readout.setTerrainSource(TerrainUi.status(context, run.points, points, terrainRepository))
         panel.setPoints(points)
         if (points.size < terrainCount || (terrainCount > 0 && points.getOrNull(terrainCount - 1) != terrainLast)) {
             terrainTrend.reset(); terrainCount = 0; terrainEstimate = TerrainEstimate()
@@ -126,8 +135,8 @@ class ActiveRunView(
         val currentTerrain = if (state.status == RecordingStatus.RECORDING && fresh) terrainEstimate else TerrainEstimate()
         map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
         map.setLocationWaitingMessage(if (state.status == RecordingStatus.RECORDING) state.message else context.getString(if (state.status == RecordingStatus.PAUSED) R.string.active_paused_hint else R.string.active_recovered_hint))
-        map.setRoute(points)
-        map.setMarker(points.lastOrNull())
+        map.setRoute(run.points)
+        map.setMarker(run.points.lastOrNull())
         val meters = RunMetrics.distanceMeters(points)
         elevation.update(points)
         readout.update(

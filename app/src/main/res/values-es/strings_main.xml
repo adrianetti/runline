@@ -36,7 +36,7 @@
     <string name="main_share_file">Compartir archivo</string>
     <string name="main_run_info">Sobre estas estadísticas</string>
     <string name="main_delete_activity">Eliminar actividad</string>
-    <string name="main_run_info_body">El ritmo medio usa el tiempo activo. La reproducción y los parciales usan el tiempo GPS, omitiendo las pausas y los huecos de más de 15 segundos. La velocidad se estima con cinco segundos de GPS. El desnivel positivo y negativo usan cambios de elevación GPS con un umbral de ruido de 3 m, sin corrección del terreno. Los datos no disponibles se muestran como —.</string>
+    <string name="main_run_info_body">El ritmo medio usa el tiempo activo. La reproducción y los parciales usan el tiempo GPS, omitiendo las pausas y los huecos de más de 15 segundos. La velocidad se estima con cinco segundos de GPS. El desnivel de la reproducción usa mapas de relieve con un umbral de 3 m. Las exportaciones conservan las alturas GPS originales. Los datos no disponibles se muestran como —.</string>
     <string name="main_delete_title">¿Eliminar la actividad?</string>
     <string name="main_delete_body">Exporta una copia antes si quieres conservarla.</string>
     <string name="main_delete_failed">No se pudo eliminar. Inténtalo de nuevo.</string>

@@ -87,19 +87,19 @@
         <item>Revisa un momento cómo estás. Ajusta el esfuerzo si lo necesitas.</item>
     </string-array>
     <string-array name="coach_phrase_uphill">
-        <item>El GPS indica una subida. Deja bajar el ritmo y busca un esfuerzo cómodo.</item>
+        <item>En esta subida, deja bajar el ritmo y busca un esfuerzo cómodo.</item>
         <item>Parece un tramo de subida. No hace falta mantener el ritmo de llano.</item>
         <item>Parece que estás ganando altura. Mantén el esfuerzo controlado.</item>
         <item>La ruta parece subir aquí. Unos pasos más cortos y cómodos pueden ayudar.</item>
-        <item>La altura del GPS va subiendo. Afloja el ritmo si aumenta el esfuerzo.</item>
+        <item>El camino va subiendo. Afloja el ritmo si aumenta el esfuerzo.</item>
         <item>Este tramo parece cuesta arriba. Guarda energía en vez de buscar velocidad.</item>
     </string-array>
     <string-array name="coach_phrase_downhill">
-        <item>El GPS indica una bajada. Controla el ritmo y presta atención al terreno.</item>
+        <item>En esta bajada, controla el ritmo y presta atención al terreno.</item>
         <item>Parece una bajada. Busca comodidad en vez de más velocidad.</item>
         <item>Parece que estás perdiendo altura. Mantén los pasos controlados.</item>
         <item>La ruta parece bajar aquí. Deja margen para reaccionar al camino.</item>
-        <item>La altura del GPS va bajando. Prioriza el control sobre la velocidad.</item>
+        <item>El camino va bajando. Prioriza el control sobre la velocidad.</item>
         <item>Este tramo parece cuesta abajo. Presta atención al suelo que tienes delante.</item>
     </string-array>
     <string name="coach_lap_complete">Parece la vuelta %1$d por el mismo recorrido.</string>

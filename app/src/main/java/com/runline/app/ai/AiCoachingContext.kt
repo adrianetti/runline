@@ -80,22 +80,28 @@ object AiCoachingContext {
 
     private fun historySummary(run: RunSession, details: ActivityDetails, includeNotes: Boolean): JSONObject {
         val distance = RunMetrics.distanceMeters(run.points)
-        val elevation = ElevationProgress().apply { update(run.points) }
+        val verified = run.withTrustedElevation()
+        val elevation = ElevationProgress().apply { update(verified.points) }
         return JSONObject().put("date", Instant.ofEpochMilli(run.startedAtMs).atZone(ZoneId.systemDefault()).toLocalDate().toString())
             .put("activity_type", (details.activityType ?: run.activityType).storageValue).put("distance_km", distance / 1000)
             .put("active_seconds", run.activeDurationMs / 1000).put("average_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs) ?: JSONObject.NULL)
             .put("ascent_m", elevation.climbedMeters ?: JSONObject.NULL).put("descent_m", elevation.descendedMeters ?: JSONObject.NULL)
+            .put("elevation_source", verified.elevationSource.name)
+            .put("elevation_coverage", if (verified.points.isEmpty()) 0.0 else verified.points.count { it.altitudeMeters != null }.toDouble() / verified.points.size)
             .put("self_reported_effort_1_to_10", details.effort ?: JSONObject.NULL).put("routine", details.routine.storageValue).apply {
                 if (includeNotes) { put("user_title", details.title.take(120)); put("user_notes", details.description.take(500)) }
             }
     }
     private fun terrain(run: RunSession): JSONObject {
-        val trend = TerrainTrend()
-        val estimate = run.points.takeLast(180).map(trend::update).lastOrNull()
+        val verified = run.withTrustedElevation()
+        val trend = TerrainTrend(verified.elevationSource)
+        val estimate = verified.points.takeLast(180).map(trend::update).lastOrNull()
         return JSONObject().put("direction", estimate?.direction?.name ?: "UNKNOWN")
             .put("grade_percent", estimate?.gradePercent ?: JSONObject.NULL)
             .put("window_m", estimate?.windowMeters ?: 0.0)
             .put("vertical_accuracy_m", run.points.lastOrNull()?.verticalAccuracyMeters ?: JSONObject.NULL)
-            .put("source", "robust recent GPS altitude estimate, uncorrected; smooth altitude drift can still resemble a hill; absent vertical accuracy is unknown")
+            .put("source", estimate?.source?.name ?: "UNKNOWN")
+            .put("hill_advice_allowed", estimate?.source == TerrainSource.TERRAIN_MAP && estimate.direction != TerrainDirection.UNKNOWN)
+            .put("limits", "Independent terrain map only. Missing or ambiguous positions are unknown. A terrain map does not measure bridges, stairs, fatigue or effort.")
     }
 }

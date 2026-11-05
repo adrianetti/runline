@@ -36,7 +36,7 @@
     <string name="main_share_file">Share file</string>
     <string name="main_run_info">About these stats</string>
     <string name="main_delete_activity">Delete activity</string>
-    <string name="main_run_info_body">Average pace uses active time. Replay and splits use GPS time, skipping pauses and gaps over 15 seconds. Speed is a five-second GPS estimate. Climb and descent use GPS elevation changes with a 3 m noise threshold, without terrain correction. Missing measurements show —.</string>
+    <string name="main_run_info_body">Average pace uses active time. Replay and splits use GPS time, skipping pauses and gaps over 15 seconds. Speed is a five-second GPS estimate. Replay climb and descent use terrain maps with a 3 m noise threshold. Exports retain original GPS heights. Missing measurements show —.</string>
     <string name="main_delete_title">Delete activity?</string>
     <string name="main_delete_body">Export a copy first to keep it.</string>
     <string name="main_delete_failed">Couldn’t delete. Try again.</string>

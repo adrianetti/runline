@@ -14,7 +14,7 @@ Use **Test voice** and **Voice settings** to check the selected app language bef
 | Distance within a time | Distance completion and comparison with the target's required average pace |
 | Pace guidance | Can be disabled independently of the goal |
 | Encouragement | Brief settling-in, sustained-effort, halfway and final-stretch cues |
-| Climbs and descents | Cautious GPS-height context; no target-speed pressure on detected climbs or descents |
+| Climbs and descents | Independent terrain-map context; no target-speed pressure on detected climbs or descents |
 | Laps and comparisons | Repeated-loop and quarter-of-loop comparisons when GPS evidence is sufficient |
 
 The four feedback modules default on **inside the existing voice-coach opt-in**. Kilometre announcements retain their separate switch. New users do not get unsolicited speech. The settings sheet keeps draft fields/toggles through recreation and permits turning guidance off even with an invalid goal draft.
@@ -25,13 +25,13 @@ Pace decisions use approximately 40 seconds of fresh movement, a 60-second warmu
 
 Encouragement is spaced at least three minutes apart and yields to useful goal/pace information. Localized phrase alternatives use shuffle bags to avoid immediate repetition, including a recovery cue after a detected hill. Milestone and lap templates add measured context. This is a bounded rule-based vocabulary, not a claim of hundreds of independently validated situations.
 
-The map, local coach and AI context share `TerrainTrend`: a bounded robust fit of GPS height over a recent 55–90 m moving window, with separate vertical-accuracy, abrupt-jump, recent-direction, residual-noise and movement gates. Missing heights, poor fixes, gaps and stops remain unknown, not flat. Entering a climb/descent requires an estimated ±3% slope; returning toward flat uses ±1.5% hysteresis. Detected climbs/descents suppress pace correction, followed by two minutes of recovery before pace correction can resume, even if terrain announcements are disabled. This describes GPS height, not mapped terrain or measured effort. The app does not know pain, heart rate, footing, fatigue or weather unless the user separately supplies notes, and must not tell someone to ignore them.
+The map, local coach and AI context share `TerrainTrend`: a bounded robust fit of independent terrain-map height over a recent 55–90 m moving window, with position-footprint, abrupt-jump, recent-direction, residual-noise and movement gates. Missing heights, poor fixes, gaps and stops remain unknown, not flat. Entering a mapped climb/descent requires an estimated ±1.5% slope; returning toward flat uses ±0.5% hysteresis. Detected climbs/descents suppress pace correction, followed by two minutes of recovery before pace correction can resume, even if terrain announcements are disabled. A terrain map does not measure effort. The app does not know pain, heart rate, footing, fatigue or weather unless the user separately supplies notes, and must not tell someone to ignore them.
 
 ## Estimated laps and sections
 
 `LapTracker` searches for return points with matching travel direction after at least 300 metres and 90 seconds. A second loop must have similar distance and agree spatially at sampled positions before either loop is reported. Gaps, pauses, poor accuracy, implausible movement and changed shapes interrupt matching. These conservative requirements can miss short loops or incomplete routes; an absent lap is not proof that the user did not run one.
 
-Verified loops have distance, observed duration, estimated ascent/descent and four equal-distance sections. The comparison uses the previous matched loop; a section is highlighted only when its pace is at least 8% slower. A longer section time does not establish a cause or a lack of effort. Height changes can add context, but there are no named parks, official lap timing or terrain-corrected grades. Saved activity details and the optional AI summaries can use the same local analysis.
+Verified loops have distance, observed duration and four equal-distance sections. The comparison uses the previous matched loop; a section is highlighted only when its pace is at least 8% slower. A longer section time does not establish a cause or a lack of effort. AI lap summaries use mapped heights where available; local lap speech does not infer climbs from raw GPS heights. There are no named parks or official lap timings.
 
 ## Optional Anthropic advice
 
@@ -59,4 +59,8 @@ Encouragement includes supported uphill/downhill progress, sustained consistency
 
 Local diagnostic events distinguish queued/skipped/expired feedback from actual TTS starts, recording the latest fix timestamp/accuracy separately from speech time. Logs are bounded and optional, with explicit export and default coordinate redaction. They do not prove the physical terrain or reconstruct previous-version speech. See [DIAGNOSTICS.md](DIAGNOSTICS.md).
 
-See [Terrain estimates](TERRAIN.md) for smoothing, historical compatibility and the remaining smooth-drift limitation. No external terrain model is used.
+Version 0.12 used GPS-only heights. Current [terrain estimates](TERRAIN.md) use an independent model to address smooth altitude drift.
+
+## Independent terrain (0.14)
+
+Hill guidance now uses the independent map source described in [Terrain](TERRAIN.md), rather than raw GPS heights. Existing spacing, relevance and expiry checks remain. Missing/disabled/ambiguous maps suppress hill cues; map-generation changes also invalidate delayed AI advice. Raw lap heights no longer justify a spoken climb explanation. A calibrated barometer is not yet implemented.

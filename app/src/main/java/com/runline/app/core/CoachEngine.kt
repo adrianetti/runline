@@ -39,6 +39,7 @@ data class CoachSituation(
     val goalProgress: Double? = null,
     val steadyPace: Boolean = false,
     val activeMs: Long = 0L,
+    val terrainSource: TerrainSource = TerrainSource.UNKNOWN,
 ) {
     fun allows(cue: CoachCue): Boolean {
         if (!eligible) return false
@@ -94,7 +95,9 @@ internal object CoachPaceBand {
 }
 
 /** Incremental, conservative decisions. Recovered history never becomes a backlog of cues. */
-class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = null) {
+class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = null,
+                  private val terrainPoint: (RunPoint) -> RunPoint = { it.copy(altitudeMeters = null, verticalAccuracyMeters = null) },
+                  private val terrainRevision: () -> Long = { 0L }) {
     private var runId: String? = null
     private var count = 0
     private var lastPoint: RunPoint? = null
@@ -119,8 +122,9 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     private var halfway = false
     private var finalStretch = false
     private var startedEncouragement = false
-    private val terrainTrend = TerrainTrend()
+    private val terrainTrend = TerrainTrend(TerrainSource.TERRAIN_MAP)
     private var terrainEstimate = TerrainEstimate()
+    private var mapRevision = Long.MIN_VALUE
     private var lastHillMs: Long? = null
     private var hillRecoveryAnnounced = false
     private var paceAnchor: Double? = null
@@ -138,6 +142,12 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     fun update(run: RunSession, recording: Boolean, gpsFresh: Boolean): CoachCue? {
         if (runId != run.id || count > run.points.size || (count > 0 && run.points[count - 1] !== lastPoint)) {
             rebase(run); return null
+        }
+        if (mapRevision != terrainRevision()) {
+            mapRevision = terrainRevision(); terrainTrend.reset(); terrainEstimate = TerrainEstimate()
+            run.points.take(count).takeLast(180).forEach { terrainEstimate = terrainTrend.update(terrainPoint(it)) }
+            terrainCandidate = CoachTerrain.UNKNOWN; announcedTerrain = CoachTerrain.UNKNOWN
+            lastHillMs = null; hillRecoveryAnnounced = false
         }
         append(run.points)
         if (!recording || !config.enabled || !config.isValid()) {
@@ -181,7 +191,7 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         situation = CoachSituation(true, distance, goal, pace, config.targetPaceSeconds, terrain,
             hillRecovery, goalAnnounced, lapCount, config.paceTargetRange?.start, config.paceTargetRange?.endInclusive,
             gpsFresh = true, timeGoal = timeGoal != null, allowSpeedUp = config.effortIntent != SmartRunEffort.RECOVERY,
-            gradePercent = terrainEstimate.gradePercent, goalProgress = progress, steadyPace = steady, activeMs = now)
+            gradePercent = terrainEstimate.gradePercent, goalProgress = progress, steadyPace = steady, activeMs = now, terrainSource = terrainEstimate.source)
         if (crossedGoal) return emit(CoachCue.GoalReached(
             if (config.goal == CoachGoal.DISTANCE_TIME) now <= config.targetMinutes * 60_000 else null), now)
         // Delivery, deferral and deduplication belong to the shared local/AI speech schedule.
@@ -261,7 +271,7 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     private fun append(points: List<RunPoint>) {
         for (index in count until points.size) {
             val point = points[index]
-            terrainEstimate = terrainTrend.update(point)
+            terrainEstimate = terrainTrend.update(terrainPoint(point))
             val previous = lastPoint
             val span = previous?.let { point.timestampMs - it.timestampMs } ?: 0
             val usable = point.hasValidCoordinates() && point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f

@@ -87,19 +87,19 @@
         <item>Take a moment to check in with yourself. Adjust the effort if you need to.</item>
     </string-array>
     <string-array name="coach_phrase_uphill">
-        <item>The GPS suggests a climb. Let the pace ease and keep your effort comfortable.</item>
+        <item>On this climb, let the pace ease and keep your effort comfortable.</item>
         <item>This looks like an uphill stretch. There is no need to chase your flat pace.</item>
         <item>It looks like you are gaining height. Keep the effort controlled.</item>
         <item>The route appears to climb here. Shorter, comfortable steps may help.</item>
-        <item>GPS height is trending upward. Ease the pace if the effort rises.</item>
+        <item>The path is rising. Ease the pace if the effort rises.</item>
         <item>This stretch seems uphill. Keep something in reserve instead of chasing speed.</item>
     </string-array>
     <string-array name="coach_phrase_downhill">
-        <item>The GPS suggests a descent. Keep the pace controlled and watch your footing.</item>
+        <item>On this descent, keep the pace controlled and watch your footing.</item>
         <item>This looks downhill. Stay comfortable rather than chasing extra speed.</item>
         <item>It looks like you are losing height. Keep your steps controlled.</item>
         <item>The route appears to descend here. Leave room to react to the path.</item>
-        <item>GPS height is trending downward. Choose control over extra speed.</item>
+        <item>The path is descending. Choose control over extra speed.</item>
         <item>This stretch seems downhill. Keep an eye on the surface ahead.</item>
     </string-array>
     <string name="coach_lap_complete">This looks like lap %1$d on the same loop.</string>
