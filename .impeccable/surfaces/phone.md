@@ -43,3 +43,10 @@ Version 0.9 retains the pinned Tabler icon family. Its integrated builds passed 
 Version 0.10 Smart goal review covered English/Spanish, dark, 1.3× text, rotation and fixed actions in landscape. Independent inspection found no material clipping across setup/loading/result/Adjust/rest/error captures. Synthetic suggestions applied numeric distance/time/pace settings; no provider call was made. Exact signed-update retention and limits are in docs/TESTING.md.
 
 Version 0.11 adds shared native rolling digits for pace/distance, coalesced rapid updates and exact settlement on pause, seek, segment changes and detach. Android Remove animations snaps both digits and slope. Live headline pace is a trailing ten-second display estimate with five seconds of continuous observations required; stops, stale GPS and gaps clear it. Average pace remains secondary. No recording, export, coach or AI data is changed.
+
+
+## 0.16 current interaction contract
+
+This supersedes earlier Record, Smart, transfer and terrain-entry descriptions above. The idle screen retains activity selection/Start and uses speaker/options icons between them. Voice and goal are separate; a chosen daily goal never turns speech on. Opt-in Daily suggestion renders distance/time, optional pace and effort directly on Record with Use; no suggestion drawer. Cache/reservation changes and retries never block Start. Start snapshots intent through recovery/review. AI All features now selects Live, Reviews and Daily suggestion, leaving note/profile consent unchanged.
+
+Settings owns automatic terrain, Wi-Fi-only and manual area preparation. About owns measured storage, full credits and cached GitHub updates with a labeled amber indicator. No automatic APK installation. Shared readouts show pace plus inline min/km without the duplicate source footer. Activities uses a trailing 48dp overflow for whole-history Share/Export. Replay keeps a 48dp stepped speed slider, current multiplier and compact endpoints separate from its timeline. English/Spanish, font 1.3, day/night and wide layouts remain part of bounded native review.

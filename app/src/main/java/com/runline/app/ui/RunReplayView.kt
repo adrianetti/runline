@@ -56,7 +56,6 @@ class RunReplayView(
     private var disposed = false
     private var fitted = false
     private var details: BottomSheetDialog? = null
-    private var speedDialog: androidx.appcompat.app.AlertDialog? = null
     private var statsDialog: androidx.appcompat.app.AlertDialog? = null
     private var playbackGeneration = 0L
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
@@ -77,7 +76,8 @@ class RunReplayView(
         backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
         iconTint = ColorStateList.valueOf(context.getColor(R.color.on_primary))
     }
-    private val speed = control(context.getString(R.string.replay_multiplier, 1), R.drawable.ic_clock)
+    private val speed = SeekBar(context).apply { max = ReplayPresentation.speeds.lastIndex; contentDescription = context.getString(R.string.replay_playback_speed) }
+    private val speedValue = label("", 14)
     private val seek = SeekBar(context).apply {
         max = 10_000; minimumHeight = dp(48)
         contentDescription = context.getString(R.string.replay_position)
@@ -135,9 +135,17 @@ class RunReplayView(
             addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
         }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        val controls = LinearLayout(context)
+        val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         controls.addView(play, LinearLayout.LayoutParams(dp(64), dp(48)))
-        controls.addView(speed, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+        val speedColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        speedColumn.addView(speed, LinearLayout.LayoutParams(-1, dp(48)))
+        val endpoints = LinearLayout(context).apply { setPadding(dp(16), 0, dp(16), 0); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS }
+        endpoints.addView(label(context.getString(R.string.replay_multiplier, 1), 12, muted = true), LinearLayout.LayoutParams(0, -2, 1f))
+        endpoints.addView(label(context.getString(R.string.replay_multiplier, 480), 12, muted = true))
+        speedColumn.addView(endpoints)
+        controls.addView(speedColumn, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
+        controls.addView(speedValue, LinearLayout.LayoutParams(-2, -1).apply { marginStart = dp(4) })
+        speedValue.gravity = Gravity.CENTER_VERTICAL
         controls.addView(control("", R.drawable.ic_info).apply {
             contentDescription = context.getString(R.string.replay_open_details)
             iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
@@ -156,22 +164,11 @@ class RunReplayView(
         speed.isEnabled = replay.durationMs > 0L
         seek.isEnabled = replay.durationMs > 0L
         play.setOnClickListener { if (playing) pausePlayback() else startPlayback() }
-        speed.setOnClickListener {
-            val wasPlaying = playing
-            val generation = playbackGeneration
-            pausePlayback()
-            val values = ReplayPresentation.speeds
-            val dialog = MaterialAlertDialogBuilder(context).setTitle(R.string.replay_playback_speed)
-                .setSingleChoiceItems(values.map { context.getString(R.string.replay_multiplier, it) }.toTypedArray(), values.indexOf(playbackSpeed)) { dialog, index ->
-                    setPlaybackSpeed(values[index]); dialog.dismiss()
-                }.setNegativeButton(R.string.replay_cancel, null).create()
-            speedDialog = dialog
-            dialog.setOnDismissListener {
-                speedDialog = null
-                if (wasPlaying && generation == playbackGeneration && resumed && !disposed) startPlayback()
-            }
-            dialog.show()
-        }
+        speed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) { if (fromUser) setPlaybackSpeed(ReplayPresentation.speeds[progress]) }
+            override fun onStartTrackingTouch(bar: SeekBar) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar) = Unit
+        })
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
                 if (fromUser) setPosition((progress.toDouble() / bar.max * replay.durationMs).toLong(), smoothHeading = false)
@@ -212,7 +209,7 @@ class RunReplayView(
     }
     fun onHostResume() { resumed = true; map.onHostResume(); terrainRepository.request(replay.session.points); refreshTerrain() }
     fun onHostPause() { resumed = false; playbackGeneration++; pausePlayback(); map.onHostPause() }
-    fun dispose() { terrainRepository.unlisten(terrainListener); disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; speedDialog?.dismiss(); speedDialog = null; statsDialog?.dismiss(); statsDialog = null; map.dispose() }
+    fun dispose() { terrainRepository.unlisten(terrainListener); disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; statsDialog?.dismiss(); statsDialog = null; map.dispose() }
     override fun onAttachedToWindow() { super.onAttachedToWindow(); terrainRepository.listen(terrainListener); terrainRepository.request(replay.session.points); refreshTerrain() }
     override fun onDetachedFromWindow() { terrainRepository.unlisten(terrainListener); pausePlayback(); super.onDetachedFromWindow() }
     private fun refreshTerrain() {
@@ -237,7 +234,6 @@ class RunReplayView(
         }
         val status = TerrainUi.status(context, replay.session.points, elevationReplay.session.points, terrainRepository)
         if (status != terrainStatus) { terrainStatus = status; terrainDetailsChanged?.invoke() }
-        readout.setTerrainSource(status)
         setPosition(positionMs, smoothHeading = false)
     }
 
@@ -254,8 +250,14 @@ class RunReplayView(
         play.setIconResource(R.drawable.ic_play)
     }
     private fun setPlaybackSpeed(value: Int) {
+        if (playing) {
+            val now = SystemClock.elapsedRealtime()
+            setPosition((positionMs + (now - lastTick).coerceAtLeast(0L) * playbackSpeed).coerceAtMost(replay.durationMs))
+            lastTick = now
+        }
         playbackSpeed = value.takeIf { it in ReplayPresentation.speeds } ?: ReplayPresentation.defaultSpeed(replay.durationMs)
-        speed.text = context.getString(R.string.replay_multiplier, playbackSpeed)
+        speed.progress = ReplayPresentation.speeds.indexOf(playbackSpeed)
+        speedValue.text = context.getString(R.string.replay_multiplier, playbackSpeed)
         speed.contentDescription = context.getString(R.string.replay_speed_description, playbackSpeed)
     }
     private fun setPosition(value: Long, smoothHeading: Boolean = true) {

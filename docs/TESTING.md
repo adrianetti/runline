@@ -1,6 +1,6 @@
-# Version 0.15 test checklist
+# Version 0.16 test checklist
 
-The checklist is not a blanket pass report. Current v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -401,3 +401,18 @@ Historical v0.3 results on 1 November 2026:
 - Automatic Downloads sharing saved valid GPX with 121 samples in two segments and opened the official browser uploader without a save picker. No Strava account login, upload or publication was tested.
 
 CI results are tracked separately in the repository's [Android workflow](https://github.com/adrianetti/runline/actions/workflows/android.yml). No physical-phone field/battery-exhaustion test, Android 8/9 picker runtime check or 16 KB page-size device test has been completed. Offline imagery is not guaranteed. Unlisted checklist cases remain unverified; the results above do not certify every failure path or device. [release history](RELEASE-HISTORY.md) retains the earlier v0.2 results separately.
+
+
+## Version 0.16 validation
+
+The local 0.16 build runs 330 JVM tests. New regression cases cover durable daily reservations/results, provider failure, storage failure before/after requests, explicit retry cooldown, stale completion, history/consent changes, rest/pace-free goals, midnight/clock rollback/timezones, voice-independent session intent, numeric release versions/expected APK assets, update caching/backoff, and strict terrain disk accounting/eviction. Existing recorder, GPX, terrain, replay and coach suites remain included.
+
+Bounded API 34 native checks use synthetic routes and an encrypted dummy AI key while offline, with original emulator data backed up privately. English/light, Spanish/font 1.3/dark/reduced motion, and wide layouts exercise compact Record controls, cached suggestions, Use/voice independence, recreation, About storage/new-version state/browser intent, terrain settings, Activities sharing menu and the accessible replay speed slider. Paused speed changes preserve exact position; playing changes retain playback and rotation keeps multiplier/position. Process termination after a paused GPS recording preserves its samples and session intent; reopening, resume and finish retain original GPS altitude. No paid AI generation or physical-phone test is claimed.
+
+The signed debug/release build and Android lint passed with **zero errors / 150 warnings**. Resource checks cover 574 English/Spanish entries and 37 pinned Tabler icons. Seven Semgrep rule tests, production scanning, five Android surface tests, 17 advisory-checker tests and actionlint passed. A fresh OSV audit covered 236 Maven components across 39 configurations with no findings; the separately documented bundled-Gradle limitation remains.
+
+The API 34 backend check successfully fetched the real public GitHub latest release, persisted its cache/backoff, and rejected an immediate manual recheck. Automatic foreground terrain preparation downloaded nearby global tiles for a synthetic Venezuela location, stopped its location listener and stayed within the cache budget. Clearing terrain removed its data while retaining the test recording and encrypted credential file. These tests do not establish worldwide path accuracy, physical Samsung background/audio behavior or Play Store readiness.
+
+The final signed APK passed the confirmation batch after the speed endpoint labels/selection refresh. An offline update check reported failure while retaining its known release, rather than claiming a successful check. The in-place update from v0.15 used the existing signing certificate. All 55 original recording/annotation/review files remained byte-for-byte unchanged during native testing. Original emulator preferences/data were restored afterward; all 65 original non-cache files matched the backup, with test-only routes, cache and dummy credentials removed. Physical-phone installation remains user-driven through GitHub.
+
+Release APK: `Runline-0.16.0.apk`, version code 18, SHA-256 `1ffe5b9a518c8878c87822bfa167dbef477025dd6ae75bec01045d712aec51f8`. Signing certificate SHA-256 remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`.

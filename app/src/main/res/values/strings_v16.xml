@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v16_daily">Daily suggestion</string>
+    <string name="v16_use">Use</string>
+    <string name="v16_rest">Rest</string>
+    <string name="v16_easy">Easy</string>
+    <string name="v16_recovery">Recovery</string>
+    <string name="v16_steady">Steady</string>
+    <string name="v16_distance">%1$s km</string>
+    <string name="v16_minutes">%1$s min</string>
+    <string name="v16_retry_suggestion">Refresh suggestion</string>
+    <string name="v16_suggestion_changed">Session changed</string>
+    <string name="v16_suggestion_failed">Suggestion unavailable</string>
+    <string name="v16_voice_on">Voice coach on</string>
+    <string name="v16_voice_off">Voice coach off</string>
+    <string name="v16_voice_settings">Voice settings</string>
+    <string name="v16_run_options">Run options</string>
+    <string name="v16_history_options">Share or export all activities</string>
+    <string name="v16_check_updates">Check for updates</string>
+    <string name="v16_update_available">%1$s available</string>
+    <string name="v16_releases">Releases</string>
+    <string name="v16_update_checking">Checking…</string>
+    <string name="v16_update_failed">Could not check</string>
+    <string name="v16_up_to_date">Up to date</string>
+    <string name="v16_repository">Repository</string>
+    <string name="v16_credits">Sources &amp; licenses</string>
+    <string name="v16_storage_loading">Measuring storage…</string>
+    <string name="v16_storage">Storage · %1$s</string>
+    <string name="v16_terrain_size">Terrain · %1$s</string>
+    <string name="v16_auto_terrain">Automatic downloads</string>
+    <string name="v16_wifi_only">Wi-Fi only</string>
+    <string name="v16_terrain_cache">%1$s · 64 MiB limit</string>
+    <string name="v16_unit_pace">min/km</string>
+    <string name="v16_session_goal_fixed">Session goal</string>
+</resources>

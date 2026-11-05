@@ -123,6 +123,18 @@
       "sha256": "e7284d4e0f7e83f1b20ff31bd5254e4bd019ce89007e2b3c8f8b69358c9950e9",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/gauge.svg"
     },
+    "icons/outline/volume-off.svg": {
+      "sha256": "2cb9e81af317a9884c5fdc059f55dba2ec67a55b471a5448fe5a381eefc02156",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/volume-off.svg"
+    },
+    "icons/outline/alert-circle.svg": {
+      "sha256": "7aff9be6b14daf212f982513de43ad7784752c021995719d00006cad8a75bef0",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/alert-circle.svg"
+    },
+    "icons/outline/refresh.svg": {
+      "sha256": "9dd8ab8cac268489501cbb0a106d93cc3f367add493d20c47ec1e1d9804c760a",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/refresh.svg"
+    },
     "icons/outline/trending-up.svg": {
       "sha256": "df5ab21c69d17e8d1a978ca86273b3390c109ae7b66fbe1016362ab279b9feb0",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/trending-up.svg"

@@ -10,6 +10,7 @@ import java.io.File
 
 /** Android adapter: all files remain private, and file replacements also sync their directory. */
 class RunStore(context: Context) {
+    private val contextApp = context.applicationContext
     private val disk = DiskRunStore(File(context.filesDir, "runs"), syncDirectory = { folder ->
         val descriptor = Os.open(folder.path, OsConstants.O_RDONLY, 0)
         try { Os.fsync(descriptor) } finally { Os.close(descriptor) }
@@ -33,7 +34,7 @@ class RunStore(context: Context) {
     fun get(id: String): RunSession? = disk.get(id)?.let(::withDetails)
     fun save(run: RunSession) = disk.save(run)
     fun complete(run: RunSession) = disk.complete(run)
-    fun delete(id: String) { disk.delete(id); annotations.delete(id) }
+    fun delete(id: String) { disk.delete(id); annotations.delete(id); SessionIntentStore(contextApp).delete(id) }
     fun loadDraft(): RunSession? = disk.loadDraft()
     fun loadDraftRecord(): DraftRecord? = disk.loadDraftRecord()
     fun beginDraft(run: RunSession) = disk.beginDraft(run)
@@ -42,6 +43,9 @@ class RunStore(context: Context) {
     fun appendPoint(point: RunPoint) = disk.appendPoint(point)
     fun appendPoint(point: RunPoint, record: DraftRecord) = disk.appendPoint(point, record)
     fun clearDraft() = disk.clearDraft()
-    fun discardDraft() = disk.discardDraft()
+    fun discardDraft() {
+        val id = runCatching { disk.loadDraft()?.id }.getOrNull()
+        disk.discardDraft(); id?.let { SessionIntentStore(contextApp).delete(it) }
+    }
     fun archiveDraft() = disk.archiveDraft()
 }

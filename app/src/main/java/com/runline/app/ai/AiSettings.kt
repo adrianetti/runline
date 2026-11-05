@@ -20,6 +20,7 @@ data class AiConfig(
     val intervalMinutes: Int = 5,
     val includeNotes: Boolean = false,
     val provider: String = AiProviderCatalog.ANTHROPIC,
+    val dailySuggestion: Boolean = false,
 ) {
     fun valid() = AiProviderCatalog.find(provider) != null && intervalMinutes in 3..10 && validModel(liveModel) && validModel(reviewModel)
     /** Locally configured, not a guarantee of network availability or model access. */
@@ -31,7 +32,8 @@ data class AiConfig(
 object AiSettings {
     private val changes = java.util.concurrent.atomic.AtomicLong()
     fun revision(): Long = changes.get()
-    private fun changed() { changes.incrementAndGet(); AiSpokenHistory.clearAll() }
+    private fun changed(context: Context) { changes.incrementAndGet(); check(prefs(context).edit().putLong("epoch", cacheEpoch(context) + 1).commit()); AiSpokenHistory.clearAll(); SmartRunAi.clear() }
+    fun cacheEpoch(context: Context) = prefs(context).getLong("epoch", 0)
     private const val ALIAS = "runline-anthropic-v1"
     private fun prefs(context: Context) = context.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
     fun load(context: Context): AiConfig = prefs(context).let { p -> AiConfig(
@@ -39,22 +41,22 @@ object AiSettings {
         p.getString("liveModel", null) ?: AiProviderCatalog.DEFAULT_LIVE_MODEL,
         p.getString("reviewModel", null) ?: AiProviderCatalog.DEFAULT_REVIEW_MODEL,
         p.getInt("interval", 5), p.getBoolean("includeNotes", false),
-        p.getString("provider", null) ?: AiProviderCatalog.ANTHROPIC,
+        p.getString("provider", null) ?: AiProviderCatalog.ANTHROPIC, p.getBoolean("dailySuggestion", false),
     ).takeIf { it.valid() } ?: AiConfig() }
     fun isReady(context: Context): Boolean = load(context).isReady(hasKey(context))
     fun save(context: Context, config: AiConfig) {
         require(config.valid())
-        changed()
+        changed(context)
         check(prefs(context).edit().putBoolean("enabled", config.enabled).putBoolean("live", config.liveEnabled)
             .putBoolean("reviews", config.automaticReviews).putBoolean("adapt", config.automaticPlanUpdates)
             .putString("liveModel", config.liveModel).putString("reviewModel", config.reviewModel).putInt("interval", config.intervalMinutes)
-            .putBoolean("includeNotes", config.includeNotes).putString("provider", config.provider).commit())
+            .putBoolean("includeNotes", config.includeNotes).putString("provider", config.provider).putBoolean("dailySuggestion", config.dailySuggestion).commit())
     }
     fun hasKey(context: Context): Boolean = keyFile(context).exists()
     fun validKey(value: String) = value.length in 20..512 && value.all { it.code in 33..126 }
     fun saveKey(context: Context, value: String) {
         require(validKey(value))
-        changed()
+        changed(context)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
         val atomic = android.util.AtomicFile(keyFile(context))
@@ -72,10 +74,10 @@ object AiSettings {
         }.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)).toString(Charsets.UTF_8)
     }.getOrNull()
     fun clearKey(context: Context) {
-        changed()
+        changed(context)
         android.util.AtomicFile(keyFile(context)).delete()
         runCatching { KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(ALIAS) }
-        save(context, load(context).copy(enabled = false, liveEnabled = false, automaticReviews = false, automaticPlanUpdates = false))
+        save(context, load(context).copy(enabled = false, liveEnabled = false, automaticReviews = false, automaticPlanUpdates = false, dailySuggestion = false))
     }
     private fun keyFile(context: Context) = java.io.File(context.noBackupFilesDir, "anthropic-key.enc")
     @Synchronized private fun key(): SecretKey {

@@ -6,7 +6,7 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.15:** download nearby terrain inside the app for offline use, including Venezuela and other regions. Global Mapzen data complements Spain’s finer IGN data. Progress, cancel/resume and saved-area readiness; no file imports or API key. Polar caps are excluded. [Terrain and accuracy](docs/TERRAIN.md).
+**New in 0.16:** a simpler Record screen, optional daily AI suggestion with a session-specific Use switch, automatic nearby terrain, GitHub update checks and storage usage in About, compact sharing controls, inline pace units and a replay-speed slider. [Using Runline](docs/USAGE.md).
 
 ## Get started
 

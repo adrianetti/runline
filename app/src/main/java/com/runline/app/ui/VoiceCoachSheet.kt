@@ -32,6 +32,7 @@ class VoiceCoachSheet(
     initialConfig: CoachConfig? = null,
     private val onSmartGoal: () -> Unit = {},
     private val allowSmartGoal: Boolean = true,
+    private val goalEditable: Boolean = true,
     private val onSaved: () -> Unit,
 ) {
     private val config = initialConfig ?: VoiceCoachSettings.load(activity)
@@ -87,7 +88,9 @@ class VoiceCoachSheet(
             }
         }
         goalField.addView(goalChoice, LinearLayout.LayoutParams(-1, -2))
+        goalField.visibility = if (goalEditable) View.VISIBLE else View.GONE
         column.addView(goalField, row(16, 12))
+        if (!goalEditable && config.goal != CoachGoal.NONE) column.addView(text(goalSummary(activity, config), 16), row(16, 12))
         distance.second.setText(state?.getString("distance") ?: decimal(config.distanceKm))
         pace.second.setText(state?.getString("pace") ?: "%d:%02d".format(java.util.Locale.ROOT, config.paceSecondsPerKm / 60, config.paceSecondsPerKm % 60))
         time.second.setText(state?.getString("time") ?: decimal(config.targetMinutes))
@@ -147,6 +150,7 @@ class VoiceCoachSheet(
     fun onHostPause() = speech.stop()
     fun close() { speech.close(); closed = true; dialog.dismiss() }
     fun saveState() = Bundle().apply {
+        putBoolean("goalEditable", goalEditable)
         putString("goal", goal.name); putBoolean("enabled", enabled.isChecked); putBoolean("kilometres", kilometres.isChecked)
         putBoolean("paceFeedback", paceFeedback.isChecked); putBoolean("encouragement", encouragement.isChecked)
         putBoolean("terrain", terrain.isChecked); putBoolean("laps", laps.isChecked)
@@ -179,7 +183,7 @@ class VoiceCoachSheet(
         if (useRange && (faster == null || slower == null || faster > slower)) {
             slowerPace.first.error = activity.getString(R.string.smart_pace_range_error); valid = false
         }
-        if (!valid && enabled.isChecked) return
+        if (!valid) return
         val chosen = (if (valid) CoachConfig(enabled.isChecked, goal, km ?: config.distanceKm,
             if (useRange && faster != null && slower != null) (faster + slower) / 2 else seconds ?: config.paceSecondsPerKm,
             minutes ?: config.targetMinutes, kilometres.isChecked,
@@ -192,6 +196,10 @@ class VoiceCoachSheet(
     }
 
     private fun updateFields() {
+        if (!goalEditable) {
+            listOf(distance, pace, time, fasterPace, slowerPace).forEach { it.first.visibility = View.GONE }
+            paceRange.visibility = View.GONE; return
+        }
         distance.first.visibility = if (goal in setOf(CoachGoal.DISTANCE, CoachGoal.DISTANCE_TIME)) View.VISIBLE else View.GONE
         val bandEligible = goal in setOf(CoachGoal.DISTANCE, CoachGoal.TIME, CoachGoal.PACE)
         pace.first.visibility = if (goal == CoachGoal.PACE && !paceRange.isChecked) View.VISIBLE else View.GONE
