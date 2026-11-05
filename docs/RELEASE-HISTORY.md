@@ -162,3 +162,10 @@ No physical-phone field test, hardware battery-exhaustion test or Strava publica
 ## Version 0.16 verification
 
 0.16.0 / code 18 simplifies preparation and shared readouts, adds opt-in durable daily suggestions/session intent, automatic bounded nearby terrain, About updates/storage/credits, history transfer overflow and a native replay-speed slider. Local validation passed 330 JVM tests, debug/release compilation and Android lint (zero errors, 150 warnings), 574 bilingual resources, 37 pinned icons, workflow/source/secret checks and a 236-component/39-configuration advisory audit with no findings. [Testing](TESTING.md#version-016-validation) records bounded native UI, recovery, real public release-check and automatic terrain/cache checks. No paid AI or physical-device field test was performed for this release.
+
+
+## Version 0.16.1 verification
+
+0.16.1 / code 19 places a larger min/km directly beside pace in shared live/replay islands, adds a Recommended brain disclosure with the saved rationale and analysis time, and prefers GitHub Mobile for About links with an external-handler fallback. Replay speed gets a full row at narrow widths/large text. Local checks passed 330 JVM tests, debug/release builds, lint (zero errors, 150 warnings), 578 bilingual resources, 37 icons and the source/workflow/security checks. [Testing](TESTING.md#version-0161-validation) records native layout, cache/disclosure, link fallback and data-retention evidence and its limits.
+
+APK SHA-256: `5d2655221f8ce3168a7e85cbb6dbb219ee72fbf89dcc48ffa2474f1b31378d99`. Signing identity is unchanged. No paid AI or physical-phone test was performed.

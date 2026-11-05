@@ -13,7 +13,10 @@ import com.runline.app.R
 import com.runline.app.ai.*
 import com.runline.app.core.*
 
-class RunPreparation : ViewModel() { var intent: SessionIntent? = null }
+class RunPreparation : ViewModel() {
+    var intent: SessionIntent? = null
+    var expandedSuggestionId: String? = null
+}
 
 internal class DailySuggestionView(private val activity: AppCompatActivity, private val preparation: RunPreparation,
                                   private val onSelectionChanged: () -> Unit) : LinearLayout(activity) {
@@ -21,6 +24,20 @@ internal class DailySuggestionView(private val activity: AppCompatActivity, priv
     private val words = LinearLayout(activity).apply { orientation = VERTICAL }
     private val primary = TextView(activity).apply { textSize = 26f; setTextColor(activity.getColor(R.color.on_surface)); fontFeatureSettings = "tnum" }
     private val secondary = TextView(activity).apply { textSize = 15f; setTextColor(activity.getColor(R.color.on_surface_variant)) }
+    private val recommended = MaterialButton(activity, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+        setText(R.string.v161_recommended); isAllCaps = false; textSize = 14f
+        setIconResource(R.drawable.ic_ai); iconSize = dp(20); iconPadding = dp(8); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+        minHeight = dp(48); minimumHeight = dp(48); minWidth = 0; minimumWidth = 0; setPadding(0, 0, dp(12), 0)
+        setOnClickListener {
+            val current = SmartRunAi.snapshot(activity)
+            if (current?.suggestion != null && current.id != null) {
+                preparation.expandedSuggestionId = if (preparation.expandedSuggestionId == current.id) null else current.id
+                render()
+            }
+        }
+    }
+    private val reason = TextView(activity).apply { textSize = 15f; setTextColor(activity.getColor(R.color.on_surface_variant)); setLineSpacing(dp(3).toFloat(), 1f) }
+    private val preparedAt = TextView(activity).apply { textSize = 12f; setTextColor(activity.getColor(R.color.on_surface_variant)) }
     private val spinner = ProgressBar(activity)
     private val use = MaterialSwitch(activity).apply { setText(R.string.v16_use); minHeight = dp(48) }
     private val retry = MaterialButton(activity, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
@@ -30,13 +47,20 @@ internal class DailySuggestionView(private val activity: AppCompatActivity, priv
     }
     private var updating = false
     init {
-        orientation = if (resources.configuration.fontScale > 1.15f || resources.configuration.screenWidthDp < 360) VERTICAL else HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(16), 0, dp(16))
+        orientation = VERTICAL; setPadding(0, dp(8), 0, dp(16))
+        addView(recommended, LayoutParams(-2, dp(48)))
+        val row = LinearLayout(activity).apply {
+            orientation = if (resources.configuration.fontScale > 1.15f || resources.configuration.screenWidthDp < 360) VERTICAL else HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         words.addView(primary); words.addView(secondary, LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        addView(words, if (orientation == HORIZONTAL) LayoutParams(0, -2, 1f) else LayoutParams(-1, -2))
-        addView(spinner, LayoutParams(dp(28), dp(28)).apply { marginStart = dp(12) })
-        addView(use, LayoutParams(-2, dp(56)).apply { marginStart = dp(12) })
-        addView(retry, LayoutParams(dp(48), dp(48)))
+        row.addView(words, if (row.orientation == HORIZONTAL) LayoutParams(0, -2, 1f) else LayoutParams(-1, -2))
+        row.addView(spinner, LayoutParams(dp(28), dp(28)).apply { marginStart = dp(12) })
+        row.addView(use, LayoutParams(-2, dp(56)).apply { marginStart = dp(12) })
+        row.addView(retry, LayoutParams(dp(48), dp(48)))
+        addView(row, LayoutParams(-1, -2))
+        addView(reason, LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        addView(preparedAt, LayoutParams(-1, -2).apply { topMargin = dp(8) })
         use.setOnCheckedChangeListener { _, checked ->
             if (!updating) {
                 val current = SmartRunAi.snapshot(activity)
@@ -54,6 +78,14 @@ internal class DailySuggestionView(private val activity: AppCompatActivity, priv
         visibility = if (config.dailySuggestion && AiSettings.isReady(activity)) VISIBLE else GONE
         if (visibility == GONE) return
         val state = SmartRunAi.snapshot(activity); val result = state?.suggestion
+        val expanded = result != null && state.id != null && preparation.expandedSuggestionId == state.id
+        recommended.visibility = if (result != null) VISIBLE else GONE
+        recommended.contentDescription = activity.getString(if (expanded) R.string.ai_v8_hide_details else R.string.v161_explain)
+        recommended.tooltipText = recommended.contentDescription
+        reason.visibility = if (expanded) VISIBLE else GONE
+        preparedAt.visibility = if (expanded && state.preparedAtMs != null) VISIBLE else GONE
+        reason.text = result?.rationale.orEmpty()
+        state?.preparedAtMs?.let { preparedAt.text = activity.getString(R.string.v161_prepared_at, android.text.format.DateFormat.getTimeFormat(activity).format(java.util.Date(it))) }
         spinner.visibility = if (state?.running == true) VISIBLE else GONE
         retry.visibility = if (state?.running != true && result == null) VISIBLE else GONE
         use.visibility = if (result != null && result.goalType != SmartRunGoalType.REST) VISIBLE else GONE

@@ -1,7 +1,5 @@
 package com.runline.app.ui
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.text.format.Formatter
@@ -74,5 +72,7 @@ internal class AboutSheet(private val activity: AppCompatActivity) {
         status.text = activity.getString(when { state.checking -> R.string.v16_update_checking; state.failed -> R.string.v16_update_failed
             newer -> R.string.v16_update_available; latest != null -> R.string.v16_up_to_date; else -> R.string.v16_check_updates }, state.latest.orEmpty())
     }
-    private fun open(url: String) { runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }
+    private fun open(url: String) {
+        if (!RepositoryLinks.open(activity, url)) android.widget.Toast.makeText(activity, R.string.v161_link_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+    }
 }
