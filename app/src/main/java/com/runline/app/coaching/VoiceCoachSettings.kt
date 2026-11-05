@@ -35,7 +35,6 @@ object VoiceCoachSettings {
         config.paceMinSecondsPerKm?.let { editor.putInt("paceMinSecondsPerKm", it) } ?: editor.remove("paceMinSecondsPerKm")
         config.paceMaxSecondsPerKm?.let { editor.putInt("paceMaxSecondsPerKm", it) } ?: editor.remove("paceMaxSecondsPerKm")
         config.effortIntent?.let { editor.putString("effortIntent", it.name) } ?: editor.remove("effortIntent")
-        editor.apply()
-        return true
+        return editor.commit()
     }
 }

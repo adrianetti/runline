@@ -46,6 +46,7 @@ class AiSettingsSheet(
     private val enabled = toggle(R.string.ai_v8_enabled, state?.getBoolean("enabled") ?: config.enabled)
     private val live = toggle(R.string.ai_v8_live, state?.getBoolean("live") ?: config.liveEnabled)
     private val reviews = toggle(R.string.ai_v8_auto_review, state?.getBoolean("reviews") ?: config.automaticReviews)
+    private val daily = toggle(R.string.v16_daily, state?.getBoolean("daily") ?: config.dailySuggestion)
     private val notes = toggle(R.string.ai_include_notes, state?.getBoolean("notes") ?: config.includeNotes)
     private val goalStore = RunnerGoalStore(activity)
     private val goalDraft = ViewModelProvider(activity)[AiGoalDraft::class.java]
@@ -118,7 +119,7 @@ class AiSettingsSheet(
                 runCatching { AiSettings.clearKey(activity) }.onSuccess {
                     invalidateCheck()
                     key.second.text?.clear()
-                    enabled.isChecked = false; live.isChecked = false; reviews.isChecked = false
+                    enabled.isChecked = false; live.isChecked = false; reviews.isChecked = false; daily.isChecked = false
                     key.first.helperText = activity.getString(R.string.ai_key_hint)
                     visibility = View.GONE
                     showStatus(R.string.ai_key_removed)
@@ -144,21 +145,21 @@ class AiSettingsSheet(
         }, sheet.row(0, 12))
         if (state?.getBoolean("usage") == true) sheet.column.post { usage = DiagnosticsSheet(activity, usageOnly = true).also { it.show() } }
         section(R.string.ai_v8_features)
-        val allFeatures = toggle(R.string.ai_v9_all_features, live.isChecked && reviews.isChecked)
+        val allFeatures = toggle(R.string.ai_v9_all_features, live.isChecked && reviews.isChecked && daily.isChecked)
         var synchronizingFeatures = false
         allFeatures.setOnCheckedChangeListener { _, checked ->
             if (!synchronizingFeatures) {
                 synchronizingFeatures = true
-                live.isChecked = checked; reviews.isChecked = checked
+                live.isChecked = checked; reviews.isChecked = checked; daily.isChecked = checked
                 if (checked) enabled.isChecked = true
                 synchronizingFeatures = false
             }
         }
-        listOf(live, reviews).forEach { feature ->
+        listOf(live, reviews, daily).forEach { feature ->
             feature.setOnCheckedChangeListener { _, _ ->
                 if (!synchronizingFeatures) {
                     synchronizingFeatures = true
-                    allFeatures.isChecked = live.isChecked && reviews.isChecked
+                    allFeatures.isChecked = live.isChecked && reviews.isChecked && daily.isChecked
                     synchronizingFeatures = false
                 }
             }
@@ -169,7 +170,7 @@ class AiSettingsSheet(
         dropdown(R.string.ai_v8_interval, (3..10).map { activity.getString(R.string.ai_v8_minutes, it) }, intervalMinutes - 3) { index ->
             intervalMinutes = index + 3
         }
-        listOf(reviews, notes).forEach { sheet.column.addView(it, sheet.row(0, 8)) }
+        listOf(daily, reviews, notes).forEach { sheet.column.addView(it, sheet.row(0, 8)) }
         sheet.primaryAction(sheet.button(activity.getString(R.string.coach_ui_save), filled = true).apply {
             setOnClickListener { save() }
         }, saveStatus)
@@ -184,7 +185,7 @@ class AiSettingsSheet(
     fun saveState() = Bundle().apply {
         putBoolean("usage", usage?.isShowing == true)
         putBoolean("enabled", enabled.isChecked); putBoolean("live", live.isChecked)
-        putBoolean("reviews", reviews.isChecked); putBoolean("notes", notes.isChecked)
+        putBoolean("daily", daily.isChecked); putBoolean("reviews", reviews.isChecked); putBoolean("notes", notes.isChecked)
         putString("provider", provider.id)
         putString("liveModel", liveModel.value()); putString("reviewModel", reviewModel.value())
         putString("liveCustom", liveModel.customValue()); putString("reviewCustom", reviewModel.customValue())
@@ -194,7 +195,7 @@ class AiSettingsSheet(
 
     private fun save() {
         var desired = AiConfig(enabled.isChecked, live.isChecked, reviews.isChecked, false,
-            liveModel.value(), reviewModel.value(), intervalMinutes, notes.isChecked, provider.id)
+            liveModel.value(), reviewModel.value(), intervalMinutes, notes.isChecked, provider.id, daily.isChecked)
         if (!desired.valid() && !enabled.isChecked) desired = config.copy(enabled = false, automaticPlanUpdates = false)
         if (!desired.valid()) { validateModels(); return }
         val entered = key.second.text.toString().trim()

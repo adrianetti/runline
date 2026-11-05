@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v16_daily">Sugerencia diaria</string>
+    <string name="v16_use">Usar</string>
+    <string name="v16_rest">Descanso</string>
+    <string name="v16_easy">Suave</string>
+    <string name="v16_recovery">Recuperación</string>
+    <string name="v16_steady">Constante</string>
+    <string name="v16_distance">%1$s km</string>
+    <string name="v16_minutes">%1$s min</string>
+    <string name="v16_retry_suggestion">Actualizar sugerencia</string>
+    <string name="v16_suggestion_changed">Sesión actualizada</string>
+    <string name="v16_suggestion_failed">Sugerencia no disponible</string>
+    <string name="v16_voice_on">Guía de voz activada</string>
+    <string name="v16_voice_off">Guía de voz desactivada</string>
+    <string name="v16_voice_settings">Ajustes de voz</string>
+    <string name="v16_run_options">Opciones de actividad</string>
+    <string name="v16_history_options">Compartir o exportar todas las actividades</string>
+    <string name="v16_check_updates">Buscar actualizaciones</string>
+    <string name="v16_update_available">%1$s disponible</string>
+    <string name="v16_releases">Versiones</string>
+    <string name="v16_update_checking">Buscando…</string>
+    <string name="v16_update_failed">No se pudo comprobar</string>
+    <string name="v16_up_to_date">Actualizada</string>
+    <string name="v16_repository">Repositorio</string>
+    <string name="v16_credits">Fuentes y licencias</string>
+    <string name="v16_storage_loading">Calculando espacio…</string>
+    <string name="v16_storage">Espacio · %1$s</string>
+    <string name="v16_terrain_size">Relieve · %1$s</string>
+    <string name="v16_auto_terrain">Descargas automáticas</string>
+    <string name="v16_wifi_only">Solo Wi-Fi</string>
+    <string name="v16_terrain_cache">%1$s · límite de 64 MiB</string>
+    <string name="v16_unit_pace">min/km</string>
+    <string name="v16_session_goal_fixed">Objetivo de esta actividad</string>
+</resources>

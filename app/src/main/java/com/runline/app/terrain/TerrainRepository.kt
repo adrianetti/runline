@@ -38,6 +38,18 @@ class TerrainRepository private constructor(context: Context) {
         private set
     @Volatile var snapshot = TerrainMapSnapshot(0, preferences.getBoolean("enabled", true), emptyMap())
         private set
+    val automatic get() = preferences.getBoolean("automatic", true)
+    val wifiOnly get() = preferences.getBoolean("wifiOnly", false)
+    fun setAutomatic(value: Boolean) { preferences.edit().putBoolean("automatic", value).apply(); if (!value) cancelDownloads(); notifyListeners() }
+    fun setWifiOnly(value: Boolean) { preferences.edit().putBoolean("wifiOnly", value).apply(); cancelDownloads(); notifyListeners() }
+    fun cacheBytes() = TerrainDiskBudget.used(folder)
+    private fun networkAllowed(): Boolean {
+        val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            (!wifiOnly || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) &&
+            !(cm.isActiveNetworkMetered && cm.restrictBackgroundStatus == android.net.ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED)
+    }
     val enabled get() = preferences.getBoolean("enabled", true)
     init { area?.let { enqueue(it.keys, network = false) } }
     fun listen(listener: () -> Unit) { listeners += listener }
@@ -80,7 +92,7 @@ class TerrainRepository private constructor(context: Context) {
     }
     fun request(points: List<RunPoint>) {
         if (!enabled) return
-        enqueue(points.asReversed().flatMap { TerrainDownloadKey.forPoint(it) }.distinct().take(64), network = true)
+        enqueue(points.asReversed().flatMap { TerrainDownloadKey.forPoint(it) }.distinct().take(64), network = automatic)
     }
     fun isLoading(points: List<RunPoint>): Boolean = synchronized(this) {
         points.any { point -> TerrainDownloadKey.forPoint(point).any { it in pending } }
@@ -99,6 +111,8 @@ class TerrainRepository private constructor(context: Context) {
                     folder.mkdirs(); val file = AtomicFile(File(folder, key.name))
                     val cached = runCatching { file.openRead().use { input -> readBounded(input, key.maxBytes) }.let { bytes -> Entry(decode(key, bytes), bytes.size.toLong()) } }.getOrNull()
                     val entry = cached ?: if (network) {
+                        require(networkAllowed())
+                        reserveSpace(key)
                         val bytes = download(key); val grid = decode(key, bytes)
                         if (token != generation || !enabled) return@execute
                         val output = file.startWrite()
@@ -111,7 +125,7 @@ class TerrainRepository private constructor(context: Context) {
                         entries[key] = entry
                         val pinned = area?.keys.orEmpty()
                         while (entries.size > 64) entries.remove(entries.keys.firstOrNull { it !in pinned } ?: entries.keys.first())
-                        available = entries.mapValues { it.value.bytes }
+                        refreshAvailable()
                         snapshot = TerrainMapSnapshot(snapshot.revision + 1, true,
                             entries.filterKeys { it is TerrainDownloadKey.Spain }.map { (k, v) -> (k as TerrainDownloadKey.Spain).key to v.grid as TerrainGrid }.toMap(),
                             entries.filterKeys { it is TerrainDownloadKey.World }.map { (k, v) -> (k as TerrainDownloadKey.World).key to v.grid as WorldTerrainGrid }.toMap())
@@ -130,12 +144,22 @@ class TerrainRepository private constructor(context: Context) {
         }
         notifyListeners()
     }
+    /** Reserve the worst-case new file before writing, including atomic/temp files. */
+    private fun reserveSpace(key: TerrainDownloadKey) {
+        try { TerrainDiskBudget.reserve(folder, key.maxBytes.toLong(), key.name, area?.keys.orEmpty().map { it.name }.toSet()) }
+        finally { refreshAvailable() }
+    }
+    private fun refreshAvailable() {
+        // Keep useful decoded grids for the current run, but report only durable files as offline-ready.
+        available = entries.filterKeys { File(folder, it.name).isFile }.mapValues { it.value.bytes }
+    }
     private fun trimCache() {
         val pinned = area?.keys.orEmpty().map { it.name }.toSet()
         val files = folder.listFiles().orEmpty().filter { it.extension in setOf("asc", "png") }
             .sortedWith(compareByDescending<File> { it.name in pinned }.thenByDescending { it.lastModified() })
         var bytes = 0L
-        files.forEachIndexed { index, file -> bytes += file.length(); if (index >= 96 || bytes > 64 * 1024 * 1024L) file.delete() }
+        files.forEachIndexed { index, file -> bytes += file.length(); if (index >= 96 || bytes > TerrainDiskBudget.BYTES) file.delete() }
+        refreshAvailable()
     }
     private fun decode(key: TerrainDownloadKey, bytes: ByteArray): Any = when (key) {
         is TerrainDownloadKey.Spain -> TerrainGrid.parse(bytes.toString(Charsets.US_ASCII)).also { require(it.matches(key.key)) }
@@ -165,7 +189,7 @@ class TerrainRepository private constructor(context: Context) {
         val request = URL(key.url).openConnection() as HttpURLConnection; connection = request
         try {
             request.connectTimeout = 8_000; request.readTimeout = 12_000; request.instanceFollowRedirects = false
-            request.setRequestProperty("User-Agent", "Runline/0.15 (offline terrain)")
+            request.setRequestProperty("User-Agent", "Runline/0.16 (offline terrain)")
             require(request.responseCode == 200 && request.contentLengthLong <= key.maxBytes)
             return request.inputStream.use { readBounded(it, key.maxBytes, SystemClock.elapsedRealtime() + 20_000) }
         } finally { request.disconnect(); connection = null }

@@ -50,7 +50,6 @@ import com.runline.app.ui.RunnerProfileSheet
 import com.runline.app.ui.AppSettingsSheet
 import com.runline.app.ai.AiSettings
 import com.runline.app.ui.AiSettingsSheet
-import com.runline.app.ui.SmartGoalSheet
 import com.runline.app.core.CoachConfig
 import com.runline.app.ui.RunReviewSheet
 import com.runline.app.ai.AiActivityCompletion
@@ -88,9 +87,12 @@ class MainActivity : AppCompatActivity() {
     private var aiSettings: AiSettingsSheet? = null
     private var appSettings: AppSettingsSheet? = null
     private var terrainSettings: com.runline.app.ui.TerrainSettingsSheet? = null
-    private var terrainSummary: TextView? = null
+    private var dailySuggestion: com.runline.app.ui.DailySuggestionView? = null
+    private val preparation by lazy { androidx.lifecycle.ViewModelProvider(this)[com.runline.app.ui.RunPreparation::class.java] }
+    private val terrainWarmup by lazy { com.runline.app.terrain.TerrainWarmup(this) }
+    private var about: com.runline.app.ui.AboutSheet? = null
+    private var idleDay: java.time.LocalDate? = null
     private var runnerProfile: RunnerProfileSheet? = null
-    private var smartGoal: SmartGoalSheet? = null
     private var runReview: RunReviewSheet? = null
     private var diagnostics: com.runline.app.ui.DiagnosticsSheet? = null
     private val ticker = object : Runnable {
@@ -134,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             }).apply { orientation = LinearLayout.VERTICAL }
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) { screen = if (tab.position == 0) "record" else "history"; render() }
+            override fun onTabSelected(tab: TabLayout.Tab) { screen = if (tab.position == 0) "record" else "history"; render(); prepareIdle() }
             override fun onTabUnselected(tab: TabLayout.Tab) = Unit
             override fun onTabReselected(tab: TabLayout.Tab) = Unit
         })
@@ -152,14 +154,14 @@ class MainActivity : AppCompatActivity() {
         if (screen == "detail" && currentRun == null) screen = "history"
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
+        if (savedInstanceState?.getBoolean("about") == true) showAbout()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
         savedInstanceState?.getBundle("terrainDraft")?.let { terrainSettings?.restoreState(it) }
         if (savedInstanceState?.getBoolean("terrainLocating") == true) terrainSettings?.locate()
         savedInstanceState?.getBundle("coachSheet")?.let { showCoach(it) }
-        savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { AiActivityCompletion.onAppOpen(this) }.also { sheet -> sheet.show() } }
+        savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { onAiChanged() }.also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
-        savedInstanceState?.getBundle("smartGoal")?.let { showSmartGoal(it) }
         savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) || currentRun?.let { com.runline.app.ai.AiReviewStore(this).get(it.id) } != null }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
         AiActivityCompletion.onAppOpen(this)
         savedInstanceState?.getString("diagnostics")?.let { showDiagnostics(it.ifBlank { null }) }
@@ -176,10 +178,10 @@ class MainActivity : AppCompatActivity() {
             screen = "record"; tabs.getTabAt(0)?.select(); render()
         }
     }
-    override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
+    override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume(); prepareIdle() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); smartGoal?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
-    override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
+    override fun onDestroy() { about?.close(); dailySuggestion?.dispose(); terrainWarmup.stop(); terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onPause() { terrainWarmup.stop(); coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
         outState.putString("historyType", historyType?.storageValue)
@@ -189,6 +191,7 @@ class MainActivity : AppCompatActivity() {
         outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
         exporter.saveState(outState); super.onSaveInstanceState(outState)
+        outState.putBoolean("about", about?.isShowing == true)
         outState.putBoolean("appSettings", appSettings?.isShowing == true)
         outState.putBoolean("terrainSettings", terrainSettings?.isShowing == true)
         outState.putBoolean("terrainLocating", terrainSettings?.locating == true)
@@ -197,7 +200,6 @@ class MainActivity : AppCompatActivity() {
         detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
         aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
         runnerProfile?.takeIf { it.isShowing }?.let { outState.putBundle("runnerProfile", it.saveState()) }
-        smartGoal?.takeIf { it.isShowing }?.let { outState.putBundle("smartGoal", it.saveState()) }
         runReview?.takeIf { it.isShowing }?.let { outState.putBundle("runReview", it.saveState()) }
     }
     @Deprecated("Uses platform Back for this single-activity prototype")
@@ -209,7 +211,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun render() {
         route?.dispose(); replayView?.dispose(); replayView = null
-        body.removeAllViews(); route = null; activeRunView = null; terrainSummary = null
+        dailySuggestion?.dispose(); dailySuggestion = null
+        body.removeAllViews(); route = null; activeRunView = null
         val state = TrackingService.state(this)
         val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
         toolbar.visibility = if (live || screen == "detail") View.GONE else View.VISIBLE
@@ -270,19 +273,37 @@ class MainActivity : AppCompatActivity() {
             setOnItemClickListener { _, _, index, _ ->
                 selectedActivity = types[index]
                 getPreferences(0).edit().putString("activityType", selectedActivity.storageValue).apply()
-                render()
+                preparation.intent = null; render(); prepareIdle()
             }
         }
         field.addView(choice, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, margin(bottom = 16))
-        content.addView(button(getString(if (VoiceCoachSettings.load(this).enabled) R.string.coach_ui_on else R.string.coach_ui_off), outlined = true, iconId = R.drawable.ic_speaker) { showCoach() }, margin(top = 24))
-        VoiceCoachSettings.load(this).takeIf { it.enabled && it.goal != com.runline.app.core.CoachGoal.NONE }?.let {
-            content.addView(text(VoiceCoachSheet.goalSummary(this, it), 14, muted = true), margin(top = 8))
+        val controls = LinearLayout(this).apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }
+        val voice = iconControl(if (VoiceCoachSettings.load(this).enabled) R.drawable.ic_speaker else R.drawable.ic_speaker_off,
+            getString(if (VoiceCoachSettings.load(this).enabled) R.string.v16_voice_on else R.string.v16_voice_off))
+        voice.setOnClickListener {
+            val next = VoiceCoachSettings.load(this).copy(enabled = !VoiceCoachSettings.load(this).enabled)
+            if (VoiceCoachSettings.save(this, next)) {
+                TrackingService.refreshCoaching(); render()
+                val snackbar = Snackbar.make(root, getString(if (next.enabled) R.string.v16_voice_on else R.string.v16_voice_off), Snackbar.LENGTH_LONG)
+                if (next.enabled) snackbar.setAction(R.string.v16_voice_settings) { showCoach(editGoal = false) }
+                snackbar.show()
+            } else notice(getString(R.string.ai_error_storage))
         }
-        if (selectedActivity == ActivityType.RUN) content.addView(button(getString(R.string.smart_goal_title), outlined = true, iconId = R.drawable.ic_speaker) { showSmartGoal() }, margin(top = 12))
-        content.addView(button(getString(R.string.terrain_offline_title), outlined = true, iconId = R.drawable.ic_download) { showTerrainSettings() }, margin(top = 12))
-        terrainSummary = text("", 13, muted = true).also { content.addView(it, margin(top = 8)) }
-        updateTerrainSummary()
+        voice.isSelected = VoiceCoachSettings.load(this).enabled
+        controls.addView(voice)
+        controls.addView(iconControl(R.drawable.ic_more, getString(R.string.v16_run_options)).apply {
+            setOnClickListener { PopupMenu(this@MainActivity, this).apply {
+                menu.add(0, 1, 0, R.string.v16_voice_settings)
+                menu.add(0, 2, 1, R.string.coach_ui_goal)
+                setOnMenuItemClickListener { showCoach(editGoal = it.itemId == 2); true }; show()
+            } }
+        })
+        content.addView(controls, margin(top = 8))
+        if (selectedActivity == ActivityType.RUN) dailySuggestion = com.runline.app.ui.DailySuggestionView(this, preparation) { render() }.also { content.addView(it, margin(top = 12)) }
+        preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }?.let {
+            content.addView(text(VoiceCoachSheet.goalSummary(this, it.goal), 16), margin(top = 12))
+        }
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
@@ -298,6 +319,7 @@ class MainActivity : AppCompatActivity() {
         val finishedId = state.savedRunId ?: completion.getString("pending_id", null)
         if (finishedId != null && finishedId != lastSavedId) {
             runCatching { store.get(finishedId) }.getOrNull()?.let {
+                preparation.intent = null
                 lastSavedId = finishedId
                 completion.edit().putString("seen_id", finishedId).apply()
                 openRun(it)
@@ -307,34 +329,37 @@ class MainActivity : AppCompatActivity() {
             }
         }
         if (screen != "record") return
-        if (state.status.name != renderedStatus) render() else updateMetrics()
+        if (state.status.name != renderedStatus) { render(); if (state.run == null) prepareIdle() } else updateMetrics()
     }
-    private fun updateMetrics() { activeRunView?.update(TrackingService.state(this)); updateTerrainSummary() }
-    private fun updateTerrainSummary() {
-        val label = terrainSummary ?: return
-        val repo = com.runline.app.terrain.TerrainRepository.get(this); val state = repo.areaStatus()
-        val value = getString(when { !repo.enabled -> R.string.terrain_maps_off; state.loading -> R.string.terrain_downloading
-            state.ready -> R.string.terrain_ready; else -> R.string.terrain_prepare_hint })
-        if (label.text.toString() != value) label.text = value
+    private fun updateMetrics() {
+        activeRunView?.update(TrackingService.state(this))
+        if (screen == "record" && activeRunView == null && idleDay != java.time.LocalDate.now()) prepareIdle()
+        dailySuggestion?.render()
+    }
+    private fun prepareIdle() {
+        if (!::body.isInitialized || screen != "record" || TrackingService.state(this).run != null) return
+        idleDay = java.time.LocalDate.now(); terrainWarmup.start()
+        if (selectedActivity == ActivityType.RUN) com.runline.app.ai.SmartRunAi.refresh(this)
+    }
+    private fun iconControl(icon: Int, label: String) = MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+        setIconResource(icon); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
+        minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0)
+        contentDescription = label; tooltipText = label; layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
     }
     private fun renderHistory() {
         val content = scrollContent()
         val runs = try { store.list() } catch (e: Exception) { notice(getString(R.string.main_history_failed)); emptyList() }
         if (runs.isNotEmpty()) {
             content.addView(HistoryInsightsView(this, runs, historyType) { historyType = it })
-            content.addView(text(getString(R.string.main_activities), 24, bold = true), margin(top = 24, bottom = 12))
-            val stacked = resources.configuration.screenWidthDp < 360 || resources.configuration.fontScale > 1.15f
-            val transfers = LinearLayout(this).apply { orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL }
-            listOf(true, false).forEachIndexed { index, share ->
-                val action = button(getString(if (share) R.string.v7_share_short else R.string.v7_export_short), outlined = true,
-                    iconId = if (share) R.drawable.ic_share else R.drawable.ic_download) { showHistoryTransfer(runs, share) }.apply {
-                    contentDescription = getString(if (share) R.string.main_share_all else R.string.main_export_all)
-                    maxLines = 1
-                }
-                transfers.addView(action, if (stacked) LinearLayout.LayoutParams(-1, dp(64)).apply { if (index > 0) topMargin = dp(12) }
-                    else LinearLayout.LayoutParams(0, dp(64), 1f).apply { if (index > 0) marginStart = dp(12) })
-            }
-            content.addView(transfers, margin(bottom = 12))
+            val heading = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+            heading.addView(text(getString(R.string.main_activities), 24, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
+            heading.addView(iconControl(R.drawable.ic_more, getString(R.string.v16_history_options)).apply {
+                setOnClickListener { PopupMenu(this@MainActivity, this).apply {
+                    menu.add(0, 1, 0, R.string.main_share_all); menu.add(0, 2, 1, R.string.main_export_all)
+                    setOnMenuItemClickListener { showHistoryTransfer(runs, it.itemId == 1); true }; show()
+                } }
+            })
+            content.addView(heading, margin(top = 24, bottom = 12))
         }
         if (runs.isEmpty()) {
             content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
@@ -429,15 +454,7 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss(); AppLanguage.select(this, tags[which])
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
-    private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline ${packageManager.getPackageInfo(packageName, 0).versionName}")
-            .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
-            .setNeutralButton(R.string.main_icon_license) { _, _ ->
-                MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")
-                    .setMessage(assets.open("licenses/tabler-icons.txt").bufferedReader().use { it.readText() })
-                    .setPositiveButton(R.string.main_done, null).show()
-            }.show()
-    }
+    private fun showAbout() { about?.close(); about = com.runline.app.ui.AboutSheet(this).also { it.show() } }
     private fun showProtection() {
         val unrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         val notifications = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
@@ -487,7 +504,13 @@ class MainActivity : AppCompatActivity() {
     private fun command(action: String) {
         if (android.os.SystemClock.elapsedRealtime() < actionPendingUntil) return
         actionPendingUntil = android.os.SystemClock.elapsedRealtime() + 700
-        try { TrackingService.command(this, action, selectedActivity); handler.postDelayed({ refreshRecording() }, 150) }
+        try {
+            val selected = preparation.intent
+            val target = if (selected?.source != "smart") selected else selected.takeIf {
+                selectedActivity == ActivityType.RUN && AiSettings.load(this).dailySuggestion && com.runline.app.ai.SmartRunAi.snapshot(this)?.id == it.suggestionId
+            }
+            if (action == TrackingService.ACTION_START) terrainWarmup.stop()
+            TrackingService.command(this, action, selectedActivity, target ?: com.runline.app.core.SessionIntent.free()); handler.postDelayed({ refreshRecording() }, 150) }
         catch (e: Exception) { notice(getString(R.string.main_start_failed)) }
     }
     private fun discardRun() {
@@ -521,22 +544,8 @@ class MainActivity : AppCompatActivity() {
             else terrainSettings?.locate()
         }.also { it.show() }
     }
-    private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this) { AiActivityCompletion.onAppOpen(this) }.also { it.show() } }
-    private fun showSmartGoal(state: Bundle? = null) {
-        // Smart suggestions are preparation, never a replacement target during capture.
-        if (selectedActivity != ActivityType.RUN || TrackingService.state(this).run != null) return
-        coachSheet?.close(); smartGoal?.close()
-        smartGoal = SmartGoalSheet(this, state,
-            onUseGoal = { config ->
-                if (TrackingService.state(this).run == null && VoiceCoachSettings.save(this, config)) {
-                    TrackingService.refreshCoaching()
-                    if (screen == "record") render()
-                }
-            },
-            onEditGoal = { config -> if (TrackingService.state(this).run == null) showCoach(initialConfig = config) },
-            onConfigureAi = ::showAiSettings,
-        ).also { it.show() }
-    }
+    private fun onAiChanged() { AiActivityCompletion.onAppOpen(this); handler.post { if (screen == "record" && TrackingService.state(this).run == null) { render(); prepareIdle() } } }
+    private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this) { onAiChanged() }.also { it.show() } }
     private fun showDiagnostics(id: String? = null) {
         diagnostics?.close()
         diagnostics = com.runline.app.ui.DiagnosticsSheet(this, id) { runId, at ->
@@ -571,10 +580,16 @@ class MainActivity : AppCompatActivity() {
             render()
         }.also { it.show() }
     }
-    private fun showCoach(state: Bundle? = null, initialConfig: CoachConfig? = null) {
+    private fun showCoach(state: Bundle? = null, initialConfig: CoachConfig? = null, editGoal: Boolean = true) {
+        val active = TrackingService.state(this).run
+        val canEditGoal = active == null && (state?.getBoolean("goalEditable", editGoal) ?: editGoal)
+        val preferences = VoiceCoachSettings.load(this)
+        val visibleConfig = initialConfig ?: if (active != null) com.runline.app.data.SessionIntentStore(this).get(active.id)?.applyTo(preferences) ?: preferences
+            else if (!canEditGoal) (preparation.intent ?: com.runline.app.core.SessionIntent.free()).applyTo(preferences) else preparation.intent?.applyTo(preferences) ?: preferences
         coachSheet?.close()
-        coachSheet = VoiceCoachSheet(this, state, initialConfig = initialConfig, onSmartGoal = { showSmartGoal() }, allowSmartGoal = selectedActivity == ActivityType.RUN && TrackingService.state(this).run == null) {
+        coachSheet = VoiceCoachSheet(this, state, initialConfig = visibleConfig, allowSmartGoal = false, goalEditable = canEditGoal) {
             TrackingService.refreshCoaching()
+            if (canEditGoal && TrackingService.state(this).run == null) preparation.intent = com.runline.app.core.SessionIntent(VoiceCoachSettings.load(this), "manual")
             if (screen == "record" && activeRunView == null) render()
         }.also { it.show() }
     }

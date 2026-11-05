@@ -21,13 +21,15 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
     private val ascent = minorMetric(R.drawable.ic_slope_up)
     private val descent = minorMetric(R.drawable.ic_slope_down)
     private val average = label("", 12)
-    private val terrainSource = label("", 11)
     private val locale get() = resources.configuration.locales[0]
 
     init {
         orientation = VERTICAL
         val primary = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        primary.addView(column(context.getString(R.string.island_pace), pace), LayoutParams(0, -2, 1f))
+        val paceRow = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
+        paceRow.addView(pace, LayoutParams(0, scaled(if (compact) 48 else 66), 1f))
+        paceRow.addView(label(context.getString(R.string.v16_unit_pace), 12), LayoutParams(-2, -2).apply { marginStart = dp(4); bottomMargin = dp(9) })
+        primary.addView(paceRow, LayoutParams(0, -2, 1f))
         primary.addView(slope, LayoutParams(dp(88), -2).apply { marginStart = dp(12) })
         addView(primary, LayoutParams(-1, -2))
 
@@ -51,7 +53,6 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
         if (compact) footer.visibility = GONE
         average.visibility = GONE
         addView(average, LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        addView(terrainSource, LayoutParams(-1, -2).apply { topMargin = dp(6) })
     }
 
     fun update(paceSeconds: Double?, distanceMeters: Double?, durationMs: Long, terrain: TerrainEstimate,
@@ -82,7 +83,6 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
         }
     }
 
-    fun setTerrainSource(value: String) { change(terrainSource, value) }
 
     fun settle() { pace.settle(); distance.settle(); time.settle(); slope.settle() }
 

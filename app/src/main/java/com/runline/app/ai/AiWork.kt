@@ -58,10 +58,11 @@ object AiWork {
             val history = runStore.list().map(terrainMap::project).filter { it.startedAtMs <= run.endedAtMs }.distinctBy { it.id }
             val asOf = java.time.Instant.ofEpochMilli(run.endedAtMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
             val input = JSONObject().put("activity", AiRunSummary.of(verifiedRun, runDetails, config.includeNotes))
-                .put("coaching_context", AiCoachingContext.build(asOf, activeGoal = VoiceCoachSettings.load(app),
+                .put("coaching_context", AiCoachingContext.build(asOf, activeGoal = com.runline.app.data.SessionIntentStore(app).get(run.id)?.applyTo(com.runline.app.core.CoachConfig(enabled = true)),
                     activeRun = verifiedRun, history = history, details = runStore::details, includeNotes = config.includeNotes,
                     profile = profile.profile, spoken = AiSpokenHistory.recent(run.id, elapsed), nowElapsedMs = elapsed, runnerGoal = runnerGoal.goal))
             ensureCurrent(app, config, revision, profile, runnerGoal)
+            input.put("session_intent", com.runline.app.data.SessionIntentStore(app).get(run.id)?.json() ?: JSONObject.NULL)
             val card = ReviewAi.request(com.runline.app.diagnostics.Diagnostics.provider(app, "review", run.id),
                 key, config.reviewModel, language(app), input)
             if (runStore.details(run.id) != runDetails) throw AiFailure(AiFailure.Reason.RESPONSE)

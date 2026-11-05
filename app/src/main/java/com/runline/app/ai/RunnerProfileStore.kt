@@ -24,10 +24,10 @@ class RunnerProfileStore(context: Context) {
         try {
             out.write(profile.json().toString().toByteArray(Charsets.UTF_8)); file.finishWrite(out)
             changes.incrementAndGet()
-            AiSpokenHistory.clearAll()
+            AiSpokenHistory.clearAll(); SmartRunAi.clear()
         } catch (error: Exception) { file.failWrite(out); throw error }
     }
-    fun clear() = synchronized(LOCK) { file.delete(); changes.incrementAndGet(); AiSpokenHistory.clearAll() }
+    fun clear() = synchronized(LOCK) { file.delete(); changes.incrementAndGet(); AiSpokenHistory.clearAll(); SmartRunAi.clear() }
     companion object {
         private val LOCK = Any()
         private val changes = AtomicLong()

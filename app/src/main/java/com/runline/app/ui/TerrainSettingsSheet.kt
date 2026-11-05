@@ -53,6 +53,11 @@ internal class TerrainSettingsSheet(private val activity: AppCompatActivity, pri
     private val cancel = sheet.button(activity.getString(R.string.main_cancel), R.drawable.ic_close)
     private val locationSettings = sheet.button(activity.getString(R.string.main_location_settings), R.drawable.ic_settings)
     private val useMaps = MaterialSwitch(activity)
+    private val automatic = MaterialSwitch(activity)
+    private val wifi = MaterialSwitch(activity)
+    private val cacheSize = sheet.text("")
+    private val storageWorker = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val measuring = java.util.concurrent.atomic.AtomicBoolean()
     private var candidate: TerrainDownloadArea? = null
     private var error: Int? = null
     private val changed: () -> Unit = { refresh() }
@@ -62,6 +67,11 @@ internal class TerrainSettingsSheet(private val activity: AppCompatActivity, pri
         private set
     val isShowing get() = sheet.isShowing
     init {
+        automatic.apply { text = activity.getString(R.string.v16_auto_terrain); minHeight = sheet.dp(56); isChecked = repository.automatic
+            setOnCheckedChangeListener { _, checked -> repository.setAutomatic(checked) } }
+        wifi.apply { text = activity.getString(R.string.v16_wifi_only); minHeight = sheet.dp(56); isChecked = repository.wifiOnly
+            setOnCheckedChangeListener { _, checked -> repository.setWifiOnly(checked) } }
+        sheet.column.addView(automatic, sheet.row()); sheet.column.addView(wifi, sheet.row()); sheet.column.addView(cacheSize, sheet.row(0, 20))
         sheet.column.addView(title, sheet.row(0, 8))
         sheet.column.addView(detail, sheet.row(0, 16))
         sheet.column.addView(progress, sheet.row(0, 16))
@@ -96,7 +106,7 @@ internal class TerrainSettingsSheet(private val activity: AppCompatActivity, pri
         retry.setOnClickListener { error = null; repository.resumeArea(); refresh() }
         cancel.setOnClickListener { stopLocation(); candidate = null; repository.cancelDownloads(); refresh() }
         locationSettings.setOnClickListener { activity.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
-        sheet.dialog.setOnDismissListener { sheet.closed = true; repository.unlisten(changed); stopLocation(); sourceDialog?.dismiss() }
+        sheet.dialog.setOnDismissListener { sheet.closed = true; repository.unlisten(changed); storageWorker.shutdownNow(); stopLocation(); sourceDialog?.dismiss() }
     }
     fun show() { repository.listen(changed); sheet.show(); refresh() }
     fun close() { sheet.close() }
@@ -136,6 +146,10 @@ internal class TerrainSettingsSheet(private val activity: AppCompatActivity, pri
     private fun stopLocation() { locating = false; handler.removeCallbacks(timeout); runCatching { manager.removeUpdates(this) } }
     private fun refresh() {
         if (sheet.closed) return
+        if (measuring.compareAndSet(false, true)) storageWorker.execute {
+            val bytes = repository.cacheBytes()
+            handler.post { measuring.set(false); if (!sheet.closed) cacheSize.text = activity.getString(R.string.v16_terrain_cache, android.text.format.Formatter.formatFileSize(activity, bytes)) }
+        }
         val state = repository.areaStatus(); val area = candidate
         useMaps.isChecked = repository.enabled
         title.text = activity.getString(when {

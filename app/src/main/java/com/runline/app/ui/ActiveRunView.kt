@@ -124,7 +124,6 @@ class ActiveRunView(
         lastState = state
         val run = state.run ?: return
         val points = terrainProjector.project(run, terrainRepository.snapshot).points
-        readout.setTerrainSource(TerrainUi.status(context, run.points, points, terrainRepository))
         panel.setPoints(points)
         if (points.size < terrainCount || (terrainCount > 0 && points.getOrNull(terrainCount - 1) != terrainLast)) {
             terrainTrend.reset(); terrainCount = 0; terrainEstimate = TerrainEstimate()

@@ -198,7 +198,7 @@ class TrackingService : Service(), LocationListener {
                         stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
                     }
                 }
-                ACTION_START -> startRun(requestedType)
+                ACTION_START -> startRun(requestedType, intent?.getStringExtra(EXTRA_SESSION_INTENT))
                 ACTION_RESUME -> resumeRun()
                 ACTION_PAUSE -> pauseRun()
                 ACTION_FINISH -> finishRun()
@@ -211,12 +211,16 @@ class TrackingService : Service(), LocationListener {
         return START_STICKY
     }
 
-    private fun startRun(activityType: ActivityType) {
+    private fun startRun(activityType: ActivityType, intentJson: String?) {
         if (mode == RecordingStatus.RECOVERY_ERROR) { fail(R.string.tracking_set_aside_first); return }
         if (current != null) { publish(); updateNotification(); return }
         val now = System.currentTimeMillis()
         val run = RunSession(UUID.randomUUID().toString(), now, now, 0L, emptyList(), activityType)
-        if (!safely { store.beginDraft(run) }) return
+        if (!safely {
+            val target = intentJson?.let(com.runline.app.core.SessionIntent::parse) ?: com.runline.app.core.SessionIntent.free()
+            com.runline.app.data.SessionIntentStore(this).save(run.id, target)
+            store.beginDraft(run)
+        }) return
         current = run; lastSavedAt = now; segment = 0
         resumeRun()
     }
@@ -355,7 +359,8 @@ class TrackingService : Service(), LocationListener {
     /** Optional audio must never be part of the recorder's storage/error path. */
     private fun reloadCoaching() {
         runCatching {
-            val next = VoiceCoachSettings.load(this)
+            val preferences = VoiceCoachSettings.load(this)
+            val next = current?.id?.let { com.runline.app.data.SessionIntentStore(this).get(it)?.applyTo(preferences) } ?: preferences
             if (aiCoach == null) aiCoach = AiRunCoach(this) { advice ->
                 // AI callbacks arrive on main; published is the recorder's volatile snapshot.
                 if (published.status == RecordingStatus.RECORDING && VoiceCoachSettings.load(this).enabled) {
@@ -493,6 +498,7 @@ class TrackingService : Service(), LocationListener {
         const val ACTION_FINISH = "com.runline.app.FINISH"
         const val ACTION_DISCARD = "com.runline.app.DISCARD"
         const val ACTION_ARCHIVE_DRAFT = "com.runline.app.ARCHIVE_DRAFT"
+        const val EXTRA_SESSION_INTENT = "com.runline.app.SESSION_INTENT"
         const val EXTRA_ACTIVITY_TYPE = "com.runline.app.ACTIVITY_TYPE"
         const val EXTRA_OPEN_RECORDING = "com.runline.app.OPEN_RECORDING"
         private const val EXTRA_NOTIFICATION_RUN_ID = "com.runline.app.NOTIFICATION_RUN_ID"
@@ -526,9 +532,9 @@ class TrackingService : Service(), LocationListener {
             instance?.let { recorder -> recorder.worker.post { recorder.reloadCoaching() } }
         }
         /** Visible Activity controls; notifications use their own run-scoped PendingIntents. */
-        fun command(context: Context, action: String, activityType: ActivityType = ActivityType.RUN) {
+        fun command(context: Context, action: String, activityType: ActivityType = ActivityType.RUN, sessionIntent: com.runline.app.core.SessionIntent? = null) {
             val intent = Intent(context, TrackingService::class.java).setAction(action)
-            if (action == ACTION_START) intent.putExtra(EXTRA_ACTIVITY_TYPE, activityType.storageValue)
+            if (action == ACTION_START) { intent.putExtra(EXTRA_ACTIVITY_TYPE, activityType.storageValue); sessionIntent?.let { intent.putExtra(EXTRA_SESSION_INTENT, it.json().toString()) } }
             if (action == ACTION_START || action == ACTION_RESUME) context.startForegroundService(intent) else context.startService(intent)
         }
     }

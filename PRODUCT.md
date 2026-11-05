@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.13.0 (code 15) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.16.0 (code 18) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -80,7 +80,7 @@ Simple monochrome controls, very short copy, one free sporty icon family (Tabler
 
 ## Open Decisions
 
-Final app name, future watch support, video export, broader distribution and cloud backup. Strava integration is outside the current scope. Personal APK distribution uses the private GitHub repository; broader use requires reviewing imagery licensing.
+Final app name, future watch support, video export, broader distribution and cloud backup. Strava integration is outside the current scope. APK distribution uses public GitHub releases; broader use requires reviewing imagery licensing.
 
 ## Version 0.12 coach insight
 
@@ -95,3 +95,12 @@ This supersedes the earlier GPS-only elevation behavior above. Recording/replay 
 ## Offline terrain in 0.15
 
 Global public Mapzen/AWS tiles complement the IGN regional source. Optional in-app 5 km area preparation uses a recent foreground location and an explicit download action, with conservative transfer-size preview, progress and resume. No user file import, account, subscription or Runline backend is required. A saved area survives app restart; satellite imagery is separate. Latitude ±85° preparation limits and uncertain data remain explicit. Recording is independent of terrain availability.
+
+
+## Compact preparation — 0.16
+
+This supersedes earlier preparation/menu descriptions. Record has the activity dropdown, one-tap speaker, options and Start. Voice settings/Test voice and manual goals live in options. Opt-in Daily suggestion joins Live advice and Automatic reviews in AI and its All AI features switch. First idle Run visit per local day loads/generates compact distance/time, optional pace and effort, with an explicit Use switch; disabled/unconfigured AI stays hidden. Durable reservations/results prevent silent repeat paid calls after interruption. History/goal/model/consent changes invalidate advice, with explicit retry. Start snapshots intent independently of speech; recovery/live coaching/reviews retain it, while old recordings have unknown original intent.
+
+Terrain prepares nearby small tiles automatically using an already-granted foreground location and bounded worker/cache work. Settings contains its automatic/Wi-Fi-only/manual preparation/clear controls; temporary files count toward 64 MiB. About reports measured app/terrain storage, repository and consolidated credits, plus cached public GitHub release checks with an amber icon for newer stable APK releases. It links to GitHub without installing anything.
+
+Shared islands use the large pace value with a smaller inline min/km unit, omitting the duplicate provider footer. Details/About retain source information and map attribution stays visible. Activities offers Share all/Export all in its heading menu. Replay uses a native stepped speed slider, with 1×/480× endpoints and retained approximately-30-second initial speed, position and recreation state. The map, profile, original GPS data and exports remain intact.
