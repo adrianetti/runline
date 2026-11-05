@@ -34,5 +34,5 @@
     <string name="coach_ui_encouragement">Ánimos</string>
     <string name="coach_ui_terrain">Subidas y bajadas</string>
     <string name="coach_ui_laps">Vueltas y comparaciones</string>
-    <string name="coach_ui_estimates">El terreno y las vueltas se estiman con el GPS. Los avisos son breves y espaciados.</string>
+    <string name="coach_ui_estimates">Los avisos de cuestas necesitan mapas de relieve. Las vueltas usan GPS. Los avisos son breves y espaciados.</string>
 </resources>

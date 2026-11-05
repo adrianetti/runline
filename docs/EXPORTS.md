@@ -44,3 +44,5 @@ Final integrated v0.6 builds passed all 96 JVM tests and lint with zero errors/3
 Historical v0.5 API 34 checks confirmed direct bilingual GPX Downloads exports, a 7,201-point/two-segment walk export, and a second export matching 13 saved points/three segments. Repeated exports preserved `(2).gpx` and `(3).gpx`. Those results do not validate every new v0.6 archive/share path.
 
 GPX 0.13 exports retain original heights and add optional `runline:horizontalAccuracyMeters` / `runline:verticalAccuracyMeters` extensions in `https://github.com/adrianetti/runline/xmlns/1`. Values are Android-reported metres, not corrected elevation or a guarantee. Legacy vertical accuracy remains absent. Standard GPX readers can ignore these extensions.
+
+Version 0.14 displays mapped elevation in recording/replay and supplies it to coaching, but GPX and archive exports retain the original GPS observations and GPS-derived totals. No corrected values silently replace measured heights. See [Terrain](TERRAIN.md) for source/coverage distinctions.

@@ -21,6 +21,7 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
     private val ascent = minorMetric(R.drawable.ic_slope_up)
     private val descent = minorMetric(R.drawable.ic_slope_down)
     private val average = label("", 12)
+    private val terrainSource = label("", 11)
     private val locale get() = resources.configuration.locales[0]
 
     init {
@@ -50,6 +51,7 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
         if (compact) footer.visibility = GONE
         average.visibility = GONE
         addView(average, LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        addView(terrainSource, LayoutParams(-1, -2).apply { topMargin = dp(6) })
     }
 
     fun update(paceSeconds: Double?, distanceMeters: Double?, durationMs: Long, terrain: TerrainEstimate,
@@ -79,6 +81,8 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
             change(average, context.getString(R.string.island_average, String.format(locale, "%d:%02d", it / 60, it % 60)))
         }
     }
+
+    fun setTerrainSource(value: String) { change(terrainSource, value) }
 
     fun settle() { pace.settle(); distance.settle(); time.settle(); slope.settle() }
 

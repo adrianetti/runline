@@ -64,6 +64,7 @@ class DiskRunStore(
     }
 
     fun save(run: RunSession) {
+        require(run.elevationSource == com.runline.app.core.TerrainSource.GPS) { "Derived terrain must never replace a recording." }
         val text = seal(encodeRun(run))
         // Two independent durable copies, each self-checking. No cloud or external backup.
         atomicWrite(File(runFile(run.id).path + ".backup"), text)

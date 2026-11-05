@@ -11,6 +11,7 @@ data class TerrainEstimate(
     val direction: TerrainDirection = TerrainDirection.UNKNOWN,
     val gradePercent: Double? = null,
     val windowMeters: Double = 0.0,
+    val source: TerrainSource = TerrainSource.UNKNOWN,
 )
 
 /**
@@ -21,7 +22,7 @@ data class TerrainEstimate(
  * This cannot distinguish smooth altitude drift from a real hill without another
  * height source. Original recordings are never changed or terrain-corrected here.
  */
-class TerrainTrend {
+class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
     private data class Sample(val point: RunPoint, val distance: Double)
     private data class Bin(val distance: Double, val height: Double)
     private data class Fit(val grade: Double, val residual: Double)
@@ -79,14 +80,16 @@ class TerrainTrend {
         if (abs(fit.grade - recent.grade) > 8.0) return unknown()
         val grade = smoothedGrade?.let { it + (fit.grade - it) * (1 - exp(-distance / 18.0)) } ?: fit.grade
         smoothedGrade = grade
+        val enter = if (source == TerrainSource.TERRAIN_MAP) 1.5 else 3.0
+        val leave = if (source == TerrainSource.TERRAIN_MAP) .5 else 1.5
         direction = when {
-            grade >= 3.0 -> TerrainDirection.UPHILL
-            grade <= -3.0 -> TerrainDirection.DOWNHILL
-            direction == TerrainDirection.UPHILL && grade > 1.5 -> TerrainDirection.UPHILL
-            direction == TerrainDirection.DOWNHILL && grade < -1.5 -> TerrainDirection.DOWNHILL
+            grade >= enter -> TerrainDirection.UPHILL
+            grade <= -enter -> TerrainDirection.DOWNHILL
+            direction == TerrainDirection.UPHILL && grade > leave -> TerrainDirection.UPHILL
+            direction == TerrainDirection.DOWNHILL && grade < -leave -> TerrainDirection.DOWNHILL
             else -> TerrainDirection.FLAT
         }
-        return TerrainEstimate(direction, grade, span).also { estimate = it }
+        return TerrainEstimate(direction, grade, span, source).also { estimate = it }
     }
 
     private fun fit(bins: List<Bin>, separation: Double): Fit? {
@@ -120,7 +123,7 @@ class ReplayTerrain(replay: RunReplay) {
     init {
         var offset = 0L
         bySegment = replay.segments.map { points ->
-            val trend = TerrainTrend()
+            val trend = TerrainTrend(replay.session.elevationSource)
             val start = points.first().timestampMs
             points.map { Sample(offset + it.timestampMs - start, trend.update(it)) }.also {
                 offset += points.last().timestampMs - start

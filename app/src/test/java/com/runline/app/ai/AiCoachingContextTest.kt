@@ -51,7 +51,7 @@ class AiCoachingContextTest {
         assertTrue(data.toString().length < 12_000)
     }
     @Test fun terrainUsesObservedWindowAndBecomesUnknownAfterGap() {
-        val source = run()
+        val source = run().copy(elevationSource = com.runline.app.core.TerrainSource.TERRAIN_MAP)
         val terrain = AiCoachingContext.build(today, activeRun = source).getJSONObject("recent_terrain")
         assertEquals("UPHILL", terrain.getString("direction")); assertEquals(8.0, terrain.getDouble("grade_percent"), .05)
         val gap = source.copy(points = source.points + source.points.last().copy(timestampMs = 90_000))

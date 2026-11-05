@@ -12,7 +12,7 @@ val hasPersonalSigning = personalStore != null && personalPassword != null && ro
 android {
     namespace = "com.runline.app"
     compileSdk = 37
-    defaultConfig { applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 15; versionName = "0.13.0" }
+    defaultConfig { applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 16; versionName = "0.14.0" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     signingConfigs {
         if (hasPersonalSigning) create("personal") {

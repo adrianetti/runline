@@ -3,5 +3,5 @@
     <string name="map_v9_downhill">Downhill</string>
     <string name="map_v9_flat">Flat</string>
     <string name="map_v9_terrain_unknown">Terrain —</string>
-    <string name="map_v9_terrain_accessibility">%1$s. Estimated GPS grade: %2$s percent.</string>
+    <string name="map_v9_terrain_accessibility">%1$s. Estimated grade: %2$s percent.</string>
 </resources>

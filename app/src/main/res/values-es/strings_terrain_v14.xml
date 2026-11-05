@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terrain_maps_title">Mapas de relieve</string>
+    <string name="terrain_maps_download">Descargar relieve cercano</string>
+    <string name="terrain_maps_description">Relieve guardado para usar sin conexión. España peninsular y Baleares. Sin datos fiables, la pendiente queda desconocida. IGN recibe la zona y tu IP, nunca tu archivo ni sus horas. Los datos GPS originales se conservan.</string>
+    <string name="terrain_maps_clear">Borrar relieve descargado</string>
+    <string name="terrain_maps_cleared">Relieve descargado borrado</string>
+    <string name="terrain_maps_credit">Derivado de MDT05 · IGN/CNIG · CC BY 4.0. Malla de 5 m; las fechas de captura varían. El modelo puede omitir puentes, escaleras o cambios recientes.</string>
+    <string name="terrain_maps_source_link">Fuente y licencia</string>
+    <string name="terrain_map_source">Relieve · IGN/CNIG</string>
+    <string name="terrain_map_partial">IGN/CNIG · %1$d%% del recorrido</string>
+    <string name="terrain_maps_loading">Cargando relieve…</string>
+    <string name="terrain_maps_unavailable">Relieve no disponible</string>
+    <string name="terrain_maps_off">Mapas de relieve desactivados</string>
+    <string name="terrain_maps_stats_info">La altitud procede de los mapas de relieve de IGN/CNIG. Las zonas sin datos y las posiciones inciertas quedan vacías; la cobertura parcial puede reducir el ascenso y descenso calculados. La pendiente se suaviza con el movimiento reciente. Las alturas GPS originales siguen en el GPX. Gestiona las descargas en Ajustes → Mapas de relieve.</string>
+</resources>

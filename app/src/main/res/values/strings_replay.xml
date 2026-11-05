@@ -29,14 +29,14 @@
     <string name="replay_elevation">Elevation</string>
     <string name="replay_total_climbed">Total climbed</string>
     <string name="replay_total_descended">Total descended</string>
-    <string name="replay_profile_note">Elevation change from the first available GPS height. The line marks your replay position; gaps stay blank.</string>
-    <string name="replay_estimate_note">GPS estimates, without terrain correction. Climbed and descended totals ignore changes below 3 metres.</string>
+    <string name="replay_profile_note">Elevation change from the first available terrain-map height. The line marks your replay position; gaps stay blank.</string>
+    <string name="replay_estimate_note">Terrain-map estimates. Climbed and descended totals ignore changes below 3 metres.</string>
     <string name="replay_more_statistics">More statistics</string>
     <string name="replay_average_speed">Average speed</string>
     <string name="replay_peak_speed">Top GPS speed</string>
     <string name="replay_elapsed_time">Elapsed time</string>
     <string name="replay_observed_time">Recorded GPS time</string>
-    <string name="replay_current_altitude">GPS altitude at replay</string>
+    <string name="replay_current_altitude">Altitude here</string>
     <string name="replay_altitude_range">Lowest / highest altitude</string>
     <string name="replay_gps_samples">GPS samples</string>
     <string name="replay_splits">Splits</string>
@@ -45,5 +45,5 @@
     <string name="replay_last_split">Last %1$s km</string>
     <string name="replay_timing_note">Replay and splits use observed GPS intervals. Pauses and missing intervals are skipped; the active timer may be longer.</string>
     <string name="replay_no_elevation">No elevation data</string>
-    <string name="replay_profile_description">Elevation change from %1$s to %2$s metres relative to the first available GPS height. The vertical line marks the selected replay position.</string>
+    <string name="replay_profile_description">Elevation change from %1$s to %2$s metres relative to the first available mapped height. The vertical line marks the selected replay position.</string>
 </resources>

@@ -264,3 +264,5 @@ Post-run reviews use a short headline, recorded distance, two icon-led sections 
 The island labels the current state (Uphill/Downhill/Flat; Subida/Bajada/Llano) with a 260 ms vertical flip only when the state changes. Rapid changes settle to the latest value; pause, seek, detach and Remove animations leave no half-flipped text. The existing miniature profile eases across 280 ms. Unknown remains distinct from flat.
 
 Replay Details keeps a short title, 48 dp overflow and Close targets with 8 dp separation. The overflow uses the existing Tabler pencil and brain with theme-aware tint. Elevation is a full-width touch chart with a position dot, concise selected time/distance/relative height, terrain reading and native accessible slider. Horizontal gestures inspect; vertical gestures scroll. Gaps retain the observed clock.
+
+Terrain 0.14 adds one muted source/coverage line to the existing island and elevation details. Settings → Terrain maps follows the existing stable sheet, switch and Tabler icon patterns; no new visual system or navigation tab. Gaps stay empty while areas load or confidence is insufficient.

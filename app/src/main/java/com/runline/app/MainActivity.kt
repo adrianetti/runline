@@ -87,6 +87,7 @@ class MainActivity : AppCompatActivity() {
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
     private var appSettings: AppSettingsSheet? = null
+    private var terrainSettings: com.runline.app.ui.AiSheet? = null
     private var runnerProfile: RunnerProfileSheet? = null
     private var smartGoal: SmartGoalSheet? = null
     private var runReview: RunReviewSheet? = null
@@ -151,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         if (screen == "history") tabs.getTabAt(1)?.select()
         render()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
+        if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
         savedInstanceState?.getBundle("coachSheet")?.let { showCoach(it) }
         savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { AiActivityCompletion.onAppOpen(this) }.also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
@@ -173,7 +175,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); smartGoal?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); smartGoal?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("activityType", selectedActivity.storageValue)
@@ -185,6 +187,7 @@ class MainActivity : AppCompatActivity() {
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
         exporter.saveState(outState); super.onSaveInstanceState(outState)
         outState.putBoolean("appSettings", appSettings?.isShowing == true)
+        outState.putBoolean("terrainSettings", terrainSettings?.isShowing == true)
         coachSheet?.takeIf { it.isShowing }?.let { outState.putBundle("coachSheet", it.saveState()) }
         detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
         aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
@@ -365,7 +368,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showSettings() {
         appSettings?.close()
-        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }).also { it.show() }
+        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }, ::showTerrainSettings).also { it.show() }
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {
@@ -484,6 +487,7 @@ class MainActivity : AppCompatActivity() {
             }.show()
     }
     private fun showRunnerProfile() { runnerProfile?.close(); runnerProfile = RunnerProfileSheet(this).also { it.show() } }
+    private fun showTerrainSettings() { terrainSettings?.close(); terrainSettings = com.runline.app.ui.TerrainUi.show(this) }
     private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this) { AiActivityCompletion.onAppOpen(this) }.also { it.show() } }
     private fun showSmartGoal(state: Bundle? = null) {
         // Smart suggestions are preparation, never a replacement target during capture.

@@ -319,7 +319,7 @@ class CoachSpeech(context: Context,
             val sector = comparison?.slowerSector
             if (sector != null) {
                 append(" ").append(tr(R.string.coach_lap_sector, sector.number))
-                if ((sector.elevationChangeMeters ?: 0.0) >= 4) append(" ").append(tr(R.string.coach_lap_sector_climb))
+                // Lap pace remains useful; raw GPS height cannot corroborate a climb.
             } else if (comparison != null) append(" ").append(tr(when {
                 comparison.paceChangePercent >= 5 -> R.string.coach_lap_slower
                 comparison.paceChangePercent <= -5 -> R.string.coach_lap_faster

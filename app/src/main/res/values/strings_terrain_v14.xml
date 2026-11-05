@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terrain_maps_title">Terrain maps</string>
+    <string name="terrain_maps_download">Download nearby terrain</string>
+    <string name="terrain_maps_description">Terrain saved for offline use. Mainland Spain and the Balearic Islands. Uncertain slopes stay unknown. IGN receives area requests and your IP, never your run file or timestamps. Original GPS data stays unchanged.</string>
+    <string name="terrain_maps_clear">Clear downloaded terrain</string>
+    <string name="terrain_maps_cleared">Downloaded terrain cleared</string>
+    <string name="terrain_maps_credit">Derived from MDT05 · IGN/CNIG · CC BY 4.0. 5 m grid; source survey dates vary. Terrain models may miss bridges, stairs or recent changes.</string>
+    <string name="terrain_maps_source_link">Source and license</string>
+    <string name="terrain_map_source">Elevation · IGN/CNIG</string>
+    <string name="terrain_map_partial">IGN/CNIG · %1$d%% mapped</string>
+    <string name="terrain_maps_loading">Loading terrain…</string>
+    <string name="terrain_maps_unavailable">Terrain unavailable</string>
+    <string name="terrain_maps_off">Terrain maps off</string>
+    <string name="terrain_maps_stats_info">Elevation uses downloaded IGN/CNIG terrain maps. Missing areas and uncertain positions remain gaps; partial coverage can undercount ascent and descent. Grade is smoothed over recent movement. The original GPS heights remain in your GPX export. Manage downloads in Settings → Terrain maps.</string>
+</resources>

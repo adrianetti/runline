@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="coach_phrase_after_hill">
-        <item>GPS height is leveling out. Let your rhythm settle before chasing pace.</item>
+        <item>The path is leveling out. Let your rhythm settle before chasing pace.</item>
         <item>This stretch looks flatter. Ease back into a comfortable rhythm; no need to make up time.</item>
         <item>The slope appears to be easing. Give yourself a little time to settle.</item>
         <item>It looks more level here. Keep the effort comfortable as the terrain changes.</item>

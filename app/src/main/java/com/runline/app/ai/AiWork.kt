@@ -53,11 +53,13 @@ object AiWork {
             val runStore = RunStore(app)
             val elapsed = android.os.SystemClock.elapsedRealtime()
             val runDetails = runStore.details(run.id)
-            val history = runStore.list().filter { it.startedAtMs <= run.endedAtMs }.distinctBy { it.id }
+            val terrainMap = com.runline.app.terrain.TerrainRepository.get(app).snapshot
+            val verifiedRun = terrainMap.project(run)
+            val history = runStore.list().map(terrainMap::project).filter { it.startedAtMs <= run.endedAtMs }.distinctBy { it.id }
             val asOf = java.time.Instant.ofEpochMilli(run.endedAtMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-            val input = JSONObject().put("activity", AiRunSummary.of(run, runDetails, config.includeNotes))
+            val input = JSONObject().put("activity", AiRunSummary.of(verifiedRun, runDetails, config.includeNotes))
                 .put("coaching_context", AiCoachingContext.build(asOf, activeGoal = VoiceCoachSettings.load(app),
-                    activeRun = run, history = history, details = runStore::details, includeNotes = config.includeNotes,
+                    activeRun = verifiedRun, history = history, details = runStore::details, includeNotes = config.includeNotes,
                     profile = profile.profile, spoken = AiSpokenHistory.recent(run.id, elapsed), nowElapsedMs = elapsed, runnerGoal = runnerGoal.goal))
             ensureCurrent(app, config, revision, profile, runnerGoal)
             val card = ReviewAi.request(com.runline.app.diagnostics.Diagnostics.provider(app, "review", run.id),

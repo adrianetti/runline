@@ -1,6 +1,6 @@
-# Version 0.13 test checklist
+# Version 0.14 test checklist
 
-The checklist is not a blanket pass report. Current v0.12 and historical v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.14 and historical v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,19 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.14 independent terrain
+
+Recorded 5 November 2026. Personal GPX files, terrain fixtures and native-test backups stay outside Git.
+
+- Final signed debug/release build: **293 JVM tests, zero failures/errors; lint zero errors / 108 warnings**. Verified **517 bilingual resources**, **34 pinned icons**, 22 security-checker tests, workflow lint and seven Semgrep rules across 91 production Kotlin files. A fresh dependency inventory/query covered **236 Maven versions / 39 configurations**, with zero OSV findings. Applicable GitHub checks must pass on the exact PR head before merge.
+- Regressions cover independent projection control points, fractional ASCII interpolation/orientation, malformed/oversized/no-data responses, cache-area registration, missing/disabled/ambiguous terrain, a supported steep descent, incremental projection invalidation, raw-height exclusion from AI and local hill cues, EN/ES advice conflicts, and refusal to overwrite a saved GPS recording with derived elevations.
+- The restored private 10K GPX was checked against independently downloaded fractional IGN terrain using production projection, replay and trend code. All 2,963 positions had model heights under the test's explicitly assumed 3 m horizontal accuracy; the GPX itself contains no accuracy values. Grades were available at 2,408 positions, with **no estimates below −10%**. The suspect false-descent sections became unknown or a gentle mapped climb. Distance, replay duration and original heights were unchanged. This is retrospective evidence for this file, not ground-truth surveying, the original device's accuracy, or a reconstruction of spoken prompts.
+- Native API 34 checks verified a fresh online area download, offline cached replay, immediate invalidation when maps are disabled, horizontal chart scrubbing/replay synchronization, vertical gesture separation, accessible seeking, fixed-header edit/review actions and rapid/reduced-motion terrain labels. An offline foreground recording with no cached terrain accepted eight mock GPS fixes and persisted the original heights through Pause/Finish. No terrain-provider failure interrupted that recording.
+- Bounded visual checks covered English, Spanish at 1.3× text in dark mode, and a 2220×1080 wide emulator layout. The chart and source/status line remained usable. The confirmation corrected a harness scroll target and a stale GPS-altitude label; one wide-layout attempt overlapped configuration changes and timed out, then passed after the configuration settled. These are synthetic-session checks, not physical rotation or Samsung frame-rate evidence.
+- Exact artifact: **`dist/Runline-0.14.0.apk`**, **0.14.0 / code 16**, SHA-256 **`415667ba0ea79d1060c3772663c2d699cbe725c32e62cf4462eecb07d094b1e2`**. Signature matches prior releases. The final APK updated in place and cold-launched. All original recordings, recovery files, annotations, preferences and credentials remained byte-for-byte unchanged: **63/65** inspected originals matched; only map cache and Android's profile-install marker changed.
+- Removed owned synthetic sessions, test terrain, screenshots, mock-provider setup and the temporary harness. Restored the original preferences, phone-language selection, display/network settings and default mock-location permission; disabled emulator root access.
+- **Not revalidated:** physical Samsung field GPS, battery exhaustion, headphones/music, native corrupt-cache recovery or paid AI generations. Malformed terrain parsing is unit-tested; prompt/source guards are tested without an API call. Coverage is initially mainland Spain/Balearics, with no barometer fusion. Missing/ambiguous data remains unknown and partial coverage can undercount totals; see [Terrain](TERRAIN.md).
 
 ## Version 0.13 terrain confidence and open source
 

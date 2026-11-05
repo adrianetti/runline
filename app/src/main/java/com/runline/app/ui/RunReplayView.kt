@@ -63,7 +63,14 @@ class RunReplayView(
     private val handler = Handler(Looper.getMainLooper())
     private val panel = ElevationIsland(context)
     private val readout = RunReadoutView(context)
-    private val replayTerrain = ReplayTerrain(replay)
+    private val terrainRepository = com.runline.app.terrain.TerrainRepository.get(context)
+    private var elevationReplay = RunReplay(terrainRepository.snapshot.project(replay.session))
+    private var replayTerrain = ReplayTerrain(elevationReplay)
+    private var terrainRevision = -1L
+    private var terrainPending = false
+    private var terrainStatus = ""
+    private var terrainDetailsChanged: (() -> Unit)? = null
+    private val terrainListener: () -> Unit = { refreshTerrain() }
     private val play = control("", R.drawable.ic_play).apply {
         contentDescription = context.getString(R.string.replay_play)
         iconPadding = 0
@@ -91,7 +98,7 @@ class RunReplayView(
         map.setReplayMode()
         val displayPoints = replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } }
         map.setRoute(displayPoints)
-        panel.setReplay(replay)
+        panel.setReplay(elevationReplay)
         replay.at(0)?.point?.let { map.setCenter(it.latitude, it.longitude) }
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -203,10 +210,36 @@ class RunReplayView(
         setPlaybackSpeed(multiplier.takeIf { it in ReplayPresentation.speeds } ?: ReplayPresentation.defaultSpeed(replay.durationMs))
         setPosition(position.coerceIn(0L, replay.durationMs), smoothHeading = false)
     }
-    fun onHostResume() { resumed = true; map.onHostResume() }
+    fun onHostResume() { resumed = true; map.onHostResume(); terrainRepository.request(replay.session.points); refreshTerrain() }
     fun onHostPause() { resumed = false; playbackGeneration++; pausePlayback(); map.onHostPause() }
-    fun dispose() { disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; speedDialog?.dismiss(); speedDialog = null; statsDialog?.dismiss(); statsDialog = null; map.dispose() }
-    override fun onDetachedFromWindow() { pausePlayback(); super.onDetachedFromWindow() }
+    fun dispose() { terrainRepository.unlisten(terrainListener); disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; speedDialog?.dismiss(); speedDialog = null; statsDialog?.dismiss(); statsDialog = null; map.dispose() }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); terrainRepository.listen(terrainListener); terrainRepository.request(replay.session.points); refreshTerrain() }
+    override fun onDetachedFromWindow() { terrainRepository.unlisten(terrainListener); pausePlayback(); super.onDetachedFromWindow() }
+    private fun refreshTerrain() {
+        if (disposed) return
+        val snapshot = terrainRepository.snapshot
+        if (snapshot.revision != terrainRevision && !snapshot.hasTiles) {
+            elevationReplay = RunReplay(snapshot.project(replay.session)); replayTerrain = ReplayTerrain(elevationReplay)
+            terrainRevision = snapshot.revision; panel.setReplay(elevationReplay); terrainDetailsChanged?.invoke()
+        }
+        if (snapshot.revision != terrainRevision && !terrainPending) {
+            terrainPending = true
+            terrainRepository.replay(replay.session) { revision, resolved, terrain ->
+                terrainPending = false
+                if (!disposed) {
+                    if (revision == terrainRepository.snapshot.revision) {
+                        elevationReplay = resolved; replayTerrain = terrain; terrainRevision = revision
+                        panel.setReplay(elevationReplay); terrainDetailsChanged?.invoke()
+                    }
+                    refreshTerrain()
+                }
+            }
+        }
+        val status = TerrainUi.status(context, replay.session.points, elevationReplay.session.points, terrainRepository)
+        if (status != terrainStatus) { terrainStatus = status; terrainDetailsChanged?.invoke() }
+        readout.setTerrainSource(status)
+        setPosition(positionMs, smoothHeading = false)
+    }
 
     private fun startPlayback() {
         if (replay.durationMs <= 0L || !resumed || disposed) return
@@ -234,7 +267,7 @@ class RunReplayView(
         map.setReplayMarker(frame?.point, ReplayPresentation.bearing(replay, positionMs), smoothHeading)
         readout.update(frame?.paceSecondsPerKm, frame?.distanceMeters, positionMs,
             frame?.let { replayTerrain.at(positionMs, it.segmentIndex) } ?: TerrainEstimate(),
-            frame?.elevationGainMeters, frame?.elevationLossMeters, animate = animate,
+            elevationReplay.at(positionMs)?.elevationGainMeters, elevationReplay.at(positionMs)?.elevationLossMeters, animate = animate,
             profile = frame?.let { panel.slopeProfile(positionMs, it.segmentIndex) } ?: com.runline.app.core.SlopeProfile.EMPTY)
         setText(clock, duration(replay.durationMs))
         clock.contentDescription = context.getString(R.string.replay_time_of, duration(positionMs), duration(replay.durationMs))
@@ -311,28 +344,39 @@ class RunReplayView(
                 setOnClickListener { showStatsInfo() }
             }, LinearLayout.LayoutParams(dp(48), dp(48)))
         }, row(top = 16, bottom = 8))
-        val elevation = LinearLayout(context)
-        listOf(R.string.replay_total_climbed to summary.elevationGainMeters, R.string.replay_total_descended to summary.elevationLossMeters).forEachIndexed { index, (name, amount) ->
-            elevation.addView(LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(label(context.getString(name), 13, muted = true))
-                addView(label(context.getString(R.string.replay_metres, number(amount, 0)), 26, bold = true), row(top = 6))
-            }, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(12) })
-        }
-        content.addView(elevation)
+        val elevationContent = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(elevationContent)
         var selectedAltitude: TextView? = null
-        val profile = ElevationChartView(context, replay, replayTerrain, positionMs) { selected ->
-            setPosition(selected, smoothHeading = false)
-            selectedAltitude?.text = context.getString(R.string.replay_metres, number(replay.at(selected)?.point?.altitudeMeters, 0))
+        var altitudeRange: TextView? = null
+        fun rebuildElevation() {
+            elevationContent.removeAllViews()
+            elevationContent.addView(label(TerrainUi.status(context, run.points, elevationReplay.session.points, terrainRepository), 12, muted = true), row(bottom = 12))
+            val totals = LinearLayout(context)
+            val summary = elevationReplay.summary
+            listOf(R.string.replay_total_climbed to summary.elevationGainMeters, R.string.replay_total_descended to summary.elevationLossMeters).forEachIndexed { index, (name, amount) ->
+                totals.addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(label(context.getString(name), 13, muted = true))
+                    addView(label(context.getString(R.string.replay_metres, number(amount, 0)), 26, bold = true), row(top = 6))
+                }, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(12) })
+            }
+            elevationContent.addView(totals)
+            elevationContent.addView(ElevationChartView(context, elevationReplay, replayTerrain, positionMs) { selected ->
+                setPosition(selected, smoothHeading = false)
+                selectedAltitude?.text = context.getString(R.string.replay_metres, number(elevationReplay.at(selected)?.point?.altitudeMeters, 0))
+            }, row(top = 16))
+            selectedAltitude?.text = context.getString(R.string.replay_metres, number(elevationReplay.at(positionMs)?.point?.altitudeMeters, 0))
+            altitudeRange?.text = context.getString(R.string.replay_metres_range, number(summary.minAltitudeMeters, 0), number(summary.maxAltitudeMeters, 0))
         }
-        content.addView(profile, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
+        terrainDetailsChanged = ::rebuildElevation
+        rebuildElevation()
         content.addView(label(context.getString(R.string.replay_more_statistics), 22, bold = true), row(top = 24, bottom = 8))
         addDetail(content, R.string.replay_average_speed, context.getString(R.string.replay_kmh, number(summary.averageSpeedMetersPerSecond?.times(3.6), 1)))
         addDetail(content, R.string.replay_peak_speed, context.getString(R.string.replay_kmh, number(summary.maxSpeedMetersPerSecond?.times(3.6), 1)))
         addDetail(content, R.string.replay_elapsed_time, duration((run.endedAtMs - run.startedAtMs).coerceAtLeast(0)))
         addDetail(content, R.string.replay_observed_time, duration(replay.durationMs))
-        selectedAltitude = addDetail(content, R.string.replay_current_altitude, context.getString(R.string.replay_metres, number(frame?.point?.altitudeMeters, 0)))
-        addDetail(content, R.string.replay_altitude_range, context.getString(R.string.replay_metres_range, number(summary.minAltitudeMeters, 0), number(summary.maxAltitudeMeters, 0)))
+        selectedAltitude = addDetail(content, R.string.replay_current_altitude, context.getString(R.string.replay_metres, number(elevationReplay.at(positionMs)?.point?.altitudeMeters, 0)))
+        altitudeRange = addDetail(content, R.string.replay_altitude_range, context.getString(R.string.replay_metres_range, number(elevationReplay.summary.minAltitudeMeters, 0), number(elevationReplay.summary.maxAltitudeMeters, 0)))
         addDetail(content, R.string.replay_gps_samples, java.text.NumberFormat.getIntegerInstance(locale()).format(run.points.size))
         content.addView(label(context.getString(R.string.replay_splits), 22, bold = true), row(top = 24, bottom = 8))
         // Computed only when details open, never for each playback frame.
@@ -378,7 +422,7 @@ class RunReplayView(
                     }
                 }
             }
-            dialog.setOnDismissListener { actions?.dismiss(); actions = null; details = null }
+            dialog.setOnDismissListener { terrainDetailsChanged = null; actions?.dismiss(); actions = null; details = null }
             dialog.show()
         }
     }
@@ -386,7 +430,7 @@ class RunReplayView(
     private fun showStatsInfo() {
         if (disposed || statsDialog?.isShowing == true) return
         statsDialog = MaterialAlertDialogBuilder(context).setTitle(R.string.map_v8_stats_info)
-            .setMessage(listOf(R.string.replay_profile_note, R.string.replay_estimate_note,
+            .setMessage(listOf(R.string.terrain_maps_stats_info, R.string.replay_estimate_note,
                 R.string.replay_timing_note, R.string.v7_lap_note).joinToString("\n\n") { context.getString(it) })
             .setPositiveButton(R.string.map_close, null).create().also { dialog ->
                 dialog.setOnDismissListener { statsDialog = null }

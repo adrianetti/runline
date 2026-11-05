@@ -311,6 +311,7 @@ class TrackingService : Service(), LocationListener {
         current = current!!.copy(points = current!!.points + point)
         lastLocationElapsed = elapsed; lastSavedAt = System.currentTimeMillis()
         accuracy = location.accuracy; messageRes = null
+        com.runline.app.terrain.TerrainRepository.get(this).request(listOf(point))
         publish()
     }
 
@@ -368,7 +369,9 @@ class TrackingService : Service(), LocationListener {
             coachSpeech?.invalidatePending()
             if (next != coachConfig || coachEngine == null) {
                 coachConfig = next
-                coachEngine = CoachEngine(next, snapshotRun())
+                coachEngine = CoachEngine(next, snapshotRun(),
+                    terrainPoint = { point -> com.runline.app.terrain.TerrainRepository.get(this).snapshot.point(point) },
+                    terrainRevision = { com.runline.app.terrain.TerrainRepository.get(this).snapshot.revision })
                 coachSpeech?.reset()
             }
             if (next.enabled && mode == RecordingStatus.RECORDING) {

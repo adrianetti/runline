@@ -24,3 +24,7 @@ Runline uses [MapLibre Native Android 11.13.5](https://github.com/maplibre/mapli
 - Spain coverage geometry: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain. Extracted from `ne_10m_admin_0_countries.geojson`; this approximate national outline selects imagery, never changes the GPS recording.
 
 The map's visible attribution control links to these sources and license terms. Tile requests reveal the viewed map area and the requesting network address to the imagery providers; recording data and replay calculations remain on the phone. See [map coverage and technical details](docs/MAPS.md).
+
+## Terrain elevations
+
+Derived from **MDT05, IGN/CNIG**, [CC BY 4.0](https://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf), via the [official WCS coverage service](https://servicios.idee.es/wcs-inspire/mdt?request=GetCapabilities&service=WCS&version=2.0.1). Source survey dates vary. The app samples and smooths this 5 m bare-earth model; it is not a surveyed path or a sensor measurement. Attribution appears with elevations and in Settings → Terrain maps. Downloaded areas remain private local cache files and are not bundled in this repository.
