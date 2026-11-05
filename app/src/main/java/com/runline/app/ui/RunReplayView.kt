@@ -2,9 +2,6 @@ package com.runline.app.ui
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
@@ -259,6 +256,25 @@ class RunReplayView(
         }
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(label(context.getString(R.string.replay_activity_details), 24, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
+        var actions: androidx.appcompat.widget.PopupMenu? = null
+        header.addView(floating("", R.drawable.ic_more).apply {
+            contentDescription = context.getString(R.string.replay_options)
+            iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
+            setOnClickListener {
+                actions = androidx.appcompat.widget.PopupMenu(context, this).apply {
+                    menu.add(0, 1, 0, R.string.activity_action_edit).setIcon(R.drawable.ic_edit).icon?.mutate()?.setTint(context.getColor(R.color.on_surface))
+                    if (AiSettings.isReady(context) || com.runline.app.ai.AiReviewStore(context).get(run.id) != null)
+                        menu.add(0, 2, 1, R.string.activity_action_review).setIcon(R.drawable.ic_ai).icon?.mutate()?.setTint(context.getColor(R.color.on_surface))
+                    setForceShowIcon(true)
+                    setOnMenuItemClickListener { item ->
+                        details?.dismiss()
+                        if (item.itemId == 1) onEdit() else onReview()
+                        true
+                    }
+                    show()
+                }
+            }
+        }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(8) })
         header.addView(floating("", R.drawable.ic_close).apply {
             contentDescription = context.getString(R.string.replay_close_details)
             iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
@@ -283,14 +299,6 @@ class RunReplayView(
         notes?.photoIds?.takeIf { it.isNotEmpty() }?.let {
             content.addView(ActivityPhotosView(context, run.id, it), row(top = 8, bottom = 16))
         }
-        content.addView(control(context.getString(R.string.v7_edit_activity), R.drawable.ic_edit).apply {
-            setOnClickListener { details?.dismiss(); onEdit() }
-        }, row(bottom = 8))
-        if (AiSettings.isReady(context) || com.runline.app.ai.AiReviewStore(context).get(replay.session.id) != null) {
-            content.addView(control(context.getString(R.string.v7_run_review), R.drawable.ic_info).apply {
-                setOnClickListener { details?.dismiss(); onReview() }
-            }, row(bottom = 20))
-        }
         addDetail(content, R.string.replay_total_distance, context.getString(R.string.replay_kilometres, number(summary.distanceMeters / 1000, 2)))
         addDetail(content, R.string.replay_active_time, duration(run.activeDurationMs))
         addDetail(content, R.string.replay_average_pace, context.getString(R.string.replay_per_km, pace(RunMetrics.paceSecondsPerKm(summary.distanceMeters, run.activeDurationMs))))
@@ -312,14 +320,18 @@ class RunReplayView(
             }, LinearLayout.LayoutParams(0, -2, 1f).apply { if (index > 0) marginStart = dp(12) })
         }
         content.addView(elevation)
-        val profile = ElevationProfileView(context, replay).apply { selectedPositionMs = positionMs }
-        content.addView(profile, LinearLayout.LayoutParams(-1, dp(160)).apply { topMargin = dp(16) })
+        var selectedAltitude: TextView? = null
+        val profile = ElevationChartView(context, replay, replayTerrain, positionMs) { selected ->
+            setPosition(selected, smoothHeading = false)
+            selectedAltitude?.text = context.getString(R.string.replay_metres, number(replay.at(selected)?.point?.altitudeMeters, 0))
+        }
+        content.addView(profile, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
         content.addView(label(context.getString(R.string.replay_more_statistics), 22, bold = true), row(top = 24, bottom = 8))
         addDetail(content, R.string.replay_average_speed, context.getString(R.string.replay_kmh, number(summary.averageSpeedMetersPerSecond?.times(3.6), 1)))
         addDetail(content, R.string.replay_peak_speed, context.getString(R.string.replay_kmh, number(summary.maxSpeedMetersPerSecond?.times(3.6), 1)))
         addDetail(content, R.string.replay_elapsed_time, duration((run.endedAtMs - run.startedAtMs).coerceAtLeast(0)))
         addDetail(content, R.string.replay_observed_time, duration(replay.durationMs))
-        addDetail(content, R.string.replay_current_altitude, context.getString(R.string.replay_metres, number(frame?.point?.altitudeMeters, 0)))
+        selectedAltitude = addDetail(content, R.string.replay_current_altitude, context.getString(R.string.replay_metres, number(frame?.point?.altitudeMeters, 0)))
         addDetail(content, R.string.replay_altitude_range, context.getString(R.string.replay_metres_range, number(summary.minAltitudeMeters, 0), number(summary.maxAltitudeMeters, 0)))
         addDetail(content, R.string.replay_gps_samples, java.text.NumberFormat.getIntegerInstance(locale()).format(run.points.size))
         content.addView(label(context.getString(R.string.replay_splits), 22, bold = true), row(top = 24, bottom = 8))
@@ -366,7 +378,7 @@ class RunReplayView(
                     }
                 }
             }
-            dialog.setOnDismissListener { details = null }
+            dialog.setOnDismissListener { actions?.dismiss(); actions = null; details = null }
             dialog.show()
         }
     }
@@ -383,12 +395,14 @@ class RunReplayView(
     }
 
     private fun addDetail(parent: LinearLayout, resource: Int, amount: String) = addDetail(parent, context.getString(resource), amount)
-    private fun addDetail(parent: LinearLayout, name: String, amount: String) {
+    private fun addDetail(parent: LinearLayout, name: String, amount: String): TextView {
         val line = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, dp(10)) }
         line.addView(label(name, 14, muted = true), LinearLayout.LayoutParams(0, -2, 1f))
-        line.addView(label(amount, 16, bold = true).apply { gravity = Gravity.END }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
+        val value = label(amount, 16, bold = true).apply { gravity = Gravity.END }
+        line.addView(value, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
         parent.addView(line)
         parent.addView(View(context).apply { setBackgroundColor(context.getColor(R.color.surface_variant)) }, LinearLayout.LayoutParams(-1, dp(1)))
+        return value
     }
     private fun label(value: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(context).apply {
         text = value; textSize = size.toFloat(); includeFontPadding = false; fontFeatureSettings = "tnum"
@@ -418,73 +432,4 @@ class RunReplayView(
     private fun pace(value: Double?): String = if (value == null || !value.isFinite() || value < 0) context.getString(R.string.replay_unavailable) else value.roundToInt().let { String.format(locale(), "%d:%02d", it / 60, it % 60) }
     private fun duration(ms: Long): String { val s = ms.coerceAtLeast(0) / 1000; return if (s >= 3600) String.format(locale(), "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(locale(), "%02d:%02d", s / 60, s % 60) }
 
-}
-
-/** Relative elevation preserves climbs, descents and every missing-data boundary. */
-private class ElevationProfileView(context: Context, replay: RunReplay) : View(context) {
-    private data class Sample(val time: Long, val elevation: Double?, val segment: Int)
-    private val samples: List<Sample> = buildList {
-        var offset = 0L
-        val baseline = replay.segments.asSequence().flatten().mapNotNull { it.altitudeMeters?.takeIf(Double::isFinite) }.firstOrNull()
-        replay.segments.forEachIndexed { index, points ->
-            if (points.isNotEmpty()) {
-                val first = points.first().timestampMs
-                points.forEach { point -> add(Sample(offset + point.timestampMs - first,
-                    point.altitudeMeters?.takeIf(Double::isFinite)?.let { altitude -> baseline?.let { altitude - it } }, index)) }
-                offset += points.last().timestampMs - first
-            }
-        }
-    }
-    private val durationMs = replay.durationMs
-    private val heights = samples.mapNotNull { it.elevation }
-    private val low = heights.minOrNull()
-    private val high = heights.maxOrNull()
-    private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val path = Path()
-    var selectedPositionMs = 0L
-    init {
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        contentDescription = if (low == null || high == null) context.getString(R.string.replay_no_elevation)
-            else context.getString(R.string.replay_profile_description, signed(low), signed(high))
-    }
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        path.reset()
-        if (low == null || high == null) return
-        val d = resources.displayMetrics.density
-        val top = 24 * d; val bottom = h - 24 * d; val left = 2 * d; val right = w - 2 * d
-        val range = (high - low).coerceAtLeast(1.0)
-        var previous: Sample? = null
-        samples.forEach { sample ->
-            val elevation = sample.elevation
-            if (elevation == null) { previous = null; return@forEach }
-            val x = if (durationMs > 0) left + (sample.time.toDouble() / durationMs * (right - left)).toFloat() else left
-            val y = (bottom - (elevation - low) / range * (bottom - top)).toFloat()
-            if (previous == null || previous?.segment != sample.segment) path.moveTo(x, y) else path.lineTo(x, y)
-            previous = sample
-        }
-    }
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val d = resources.displayMetrics.density
-        ink.color = context.getColor(R.color.on_surface_variant)
-        ink.textSize = 12 * resources.displayMetrics.scaledDensity
-        ink.style = Paint.Style.FILL
-        if (low == null || high == null) {
-            ink.textAlign = Paint.Align.CENTER
-            canvas.drawText(context.getString(R.string.replay_no_elevation), width / 2f, height / 2f, ink)
-            return
-        }
-        val top = 24 * d; val bottom = height - 24 * d; val left = 2 * d; val right = width - 2 * d
-        ink.textAlign = Paint.Align.LEFT
-        canvas.drawText(context.getString(R.string.replay_metres, signed(high)), left, 16 * d, ink)
-        canvas.drawText(context.getString(R.string.replay_metres, signed(low)), left, height - 3 * d, ink)
-        ink.style = Paint.Style.STROKE; ink.strokeWidth = 2 * d; ink.strokeJoin = Paint.Join.ROUND
-        ink.color = context.getColor(R.color.primary); canvas.drawPath(path, ink)
-        val x = if (durationMs > 0L) left + (selectedPositionMs.toDouble() / durationMs * (right - left)).toFloat() else left
-        ink.color = context.getColor(R.color.outline); ink.strokeWidth = d
-        canvas.drawLine(x, top, x, bottom, ink)
-        ink.style = Paint.Style.FILL
-    }
-    private fun signed(value: Double): String = String.format(resources.configuration.locales[0], "%+.0f", value)
 }

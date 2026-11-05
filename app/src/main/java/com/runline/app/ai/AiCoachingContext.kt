@@ -94,6 +94,8 @@ object AiCoachingContext {
         val estimate = run.points.takeLast(180).map(trend::update).lastOrNull()
         return JSONObject().put("direction", estimate?.direction?.name ?: "UNKNOWN")
             .put("grade_percent", estimate?.gradePercent ?: JSONObject.NULL)
-            .put("window_m", estimate?.windowMeters ?: 0.0).put("source", "recent observed GPS altitude; estimated, uncorrected")
+            .put("window_m", estimate?.windowMeters ?: 0.0)
+            .put("vertical_accuracy_m", run.points.lastOrNull()?.verticalAccuracyMeters ?: JSONObject.NULL)
+            .put("source", "robust recent GPS altitude estimate, uncorrected; smooth altitude drift can still resemble a hill; absent vertical accuracy is unknown")
     }
 }

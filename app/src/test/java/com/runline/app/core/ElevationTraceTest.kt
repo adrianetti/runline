@@ -8,9 +8,11 @@ class ElevationTraceTest {
         RunPoint(40.0, -3.0, time, 3f, height, segment)
 
     @Test fun preservesMeasuredClimbAndDescentWithoutSyntheticSmoothing() {
-        val trace = ElevationTrace.from(listOf(point(0, 100.0), point(1_000, 108.0), point(2_000, 103.0)))
+        val trace = ElevationTrace.from(listOf(100.0, 108.0, 103.0).mapIndexed { index, height ->
+            point(index * 5_000L, height).copy(latitude = 40.0 + index * 20 / 111195.0802)
+        })
         assertEquals(listOf(100.0, 108.0, 103.0), trace.sections.single().map { it.heightMeters })
-        assertEquals(2_000L, trace.durationMs)
+        assertEquals(10_000L, trace.durationMs)
     }
 
     @Test fun missingHeightsAndGpsGapsAreSeparatePaths() {

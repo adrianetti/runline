@@ -18,3 +18,7 @@ __pycache__/
 *.py[cod]
 
 .kotlin/
+
+# Private activity exports and local diagnostics; use synthetic inline test fixtures.
+*.gpx
+*.jsonl

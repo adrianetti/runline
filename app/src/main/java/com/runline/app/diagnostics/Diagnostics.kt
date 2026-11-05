@@ -22,6 +22,7 @@ object Diagnostics {
             .put("terrain", situation.terrain.name).put("grade_percent", situation.gradePercent ?: JSONObject.NULL)
             .put("gps_fresh", fresh).put("fix_at_ms", fix?.timestampMs ?: JSONObject.NULL)
             .put("accuracy_m", fix?.accuracyMeters?.takeIf { it.isFinite() } ?: JSONObject.NULL)
+            .put("vertical_accuracy_m", fix?.verticalAccuracyMeters ?: JSONObject.NULL)
         if (fix != null && fix.hasValidCoordinates()) value.put("latitude", fix.latitude).put("longitude", fix.longitude)
         val app = context.applicationContext
         worker.execute { runCatching { log(app).append(run.id, value) } }

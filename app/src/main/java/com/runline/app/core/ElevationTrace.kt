@@ -17,7 +17,8 @@ data class ElevationTrace(val sections: List<List<Sample>>, val durationMs: Long
             for (point in points) {
                 val continuous = MarkerMotion.canInterpolate(previous, point)
                 if (continuous) clock += point.timestampMs - previous!!.timestampMs else finish()
-                val height = point.altitudeMeters?.takeIf(Double::isFinite)
+                if (continuous && !canJoinAltitude(previous, point)) finish()
+                val height = point.altitudeMeters?.takeIf { point.hasUsableAltitude() }
                 if (point.hasValidCoordinates() && point.timestampMs >= 0 &&
                     point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f) {
                     if (height != null) section += Sample(clock, height) else finish()

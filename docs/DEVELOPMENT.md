@@ -1,6 +1,6 @@
 # Development
 
-Runline uses Kotlin and Android Views. It is privately sideloaded; Play Store distribution is not configured.
+Runline uses Kotlin and Android Views. It is open source under MIT and distributed as signed GitHub APKs; Play Store distribution is deferred.
 
 ## Build
 
@@ -16,7 +16,7 @@ The development APK is `app/build/outputs/apk/debug/app-debug.apk`. Test/lint re
 
 ## Install and signing
 
-Use the APK from the private [Releases page](https://github.com/adrianetti/runline/releases/latest) for normal phone updates. Copy it to the phone and open it, or install over USB:
+Use the APK from the [Releases page](https://github.com/adrianetti/runline/releases/latest) for normal phone updates. Copy it to the phone and open it, or install over USB:
 
 ```sh
 adb install -r /path/to/Runline.apk
@@ -24,6 +24,6 @@ adb install -r /path/to/Runline.apk
 
 Official builds retain the dedicated per-app signing key used since v0.2, so Android can update them in place and preserve recordings. A fresh clone builds with a development key; it cannot replace an official build with a different signature. Do not uninstall or clear storage without exporting important activities first. The v0.1 build used a different key and also requires an export before migration.
 
-Local release signing is optional: `app/build.gradle.kts` reads an ignored `.signing/signing.properties` or `RUNLINE_STORE_FILE` / `RUNLINE_SIGNING_PASSWORD`. Without it, `assembleRelease` builds an unsigned APK. Keep keys and passwords outside Git. Pull requests never receive signing secrets; main-branch builds use repository secrets and upload signed APKs as private workflow artifacts.
+Local release signing is optional: `app/build.gradle.kts` reads an ignored `.signing/signing.properties` or `RUNLINE_STORE_FILE` / `RUNLINE_SIGNING_PASSWORD`. Without it, `assembleRelease` builds an unsigned APK. Keep keys and passwords outside Git. Pull requests never receive signing secrets; main-branch builds use repository secrets and upload signed APKs as workflow artifacts.
 
 A release is published only after source checks and the exact signed APK have been verified. [Release history](RELEASE-HISTORY.md) retains prior checksums and verification scope; [TESTING.md](TESTING.md) tracks device checks.

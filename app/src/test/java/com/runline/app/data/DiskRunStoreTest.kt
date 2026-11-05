@@ -18,6 +18,15 @@ class DiskRunStoreTest {
     private fun point(i: Int, segment: Int = 0) = RunPoint(37.0 + i * 0.0001, -3.6, 1_000_000L + i * 1000, 5f, segment = segment)
     private fun record(ms: Long, points: List<RunPoint> = emptyList()) = DraftRecord(base.copy(endedAtMs = base.startedAtMs + ms, activeDurationMs = ms, points = points), true, 7, 100_000 + ms)
 
+    @Test fun verticalAccuracySurvivesJournalRecoveryAndCompletedStorage() {
+        val dir = temporary.newFolder(); val store = DiskRunStore(dir); store.beginDraft(base)
+        val fix = point(1).copy(altitudeMeters = 100.0, verticalAccuracyMeters = 14f)
+        store.appendPoint(fix, record(1000))
+        assertEquals(fix, DiskRunStore(dir).loadDraftRecord()!!.run.points.single())
+        store.complete(record(1000, listOf(fix)).run)
+        assertEquals(fix, DiskRunStore(dir).get(base.id)!!.points.single())
+    }
+
     @Test fun initialSessionSurvivesBeforeAnyGpsFixOrTimerCheckpoint() {
         val dir = temporary.newFolder(); DiskRunStore(dir).beginDraft(base)
         val recovered = DiskRunStore(dir).loadDraftRecord()!!

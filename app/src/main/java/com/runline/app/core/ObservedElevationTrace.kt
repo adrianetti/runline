@@ -27,7 +27,7 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
                 path = mutableListOf()
             }
             fixes.forEachIndexed { index, fix ->
-                if (index > 0 && !MarkerMotion.canInterpolate(fixes[index - 1].point, fix.point)) finish()
+                if (index > 0 && !canJoinAltitude(fixes[index - 1].point, fix.point)) finish()
                 if (validHeight(fix.point)) path += index else finish()
             }
             finish()
@@ -52,7 +52,7 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         if (!a.drawable || !validHeight(a.point)) return null
         if (positionMs == a.positionMs) return Sample(positionMs, a.point.altitudeMeters!!)
         val b = fixes.getOrNull(low + 1) ?: return null
-        if (!b.drawable || !validHeight(b.point) || !MarkerMotion.canInterpolate(a.point, b.point)) return null
+        if (!b.drawable || !validHeight(b.point) || !canJoinAltitude(a.point, b.point)) return null
         val fraction = (positionMs - a.positionMs).toDouble() / (b.positionMs - a.positionMs)
         return Sample(positionMs, a.point.altitudeMeters!! + (b.point.altitudeMeters!! - a.point.altitudeMeters) * fraction)
     }
@@ -78,7 +78,7 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
             return ObservedElevationTrace(segments, segments.lastOrNull()?.lastOrNull() == points.lastOrNull())
         }
 
-        private fun validHeight(point: RunPoint) = point.altitudeMeters?.isFinite() == true &&
+        private fun validHeight(point: RunPoint) = point.hasUsableAltitude() &&
             point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
     }
 }

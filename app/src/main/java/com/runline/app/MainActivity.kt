@@ -412,7 +412,7 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.main_cancel, null).show()
     }
     private fun showAbout() {
-        MaterialAlertDialogBuilder(this).setTitle("Runline 0.12.0")
+        MaterialAlertDialogBuilder(this).setTitle("Runline ${packageManager.getPackageInfo(packageName, 0).versionName}")
             .setMessage(R.string.main_about_body).setPositiveButton(R.string.main_done, null)
             .setNeutralButton(R.string.main_icon_license) { _, _ ->
                 MaterialAlertDialogBuilder(this).setTitle("Tabler Icons · MIT")

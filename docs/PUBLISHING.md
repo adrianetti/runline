@@ -1,22 +1,18 @@
-# Open-source and Google Play readiness
+# Distribution
 
-Prepared 4 November 2026. This is a distribution plan, not a claim that Runline is published or Play-ready. The repository remains private. Version 0.12 continues the existing signed APK channel.
+Runline's source is published under [MIT](../LICENSE). Signed APKs are distributed through [GitHub Releases](https://github.com/adrianetti/runline/releases/latest). Install updates over the existing app; community builds use their own key and cannot replace the official installation without a deliberate signing arrangement.
 
 ## Open source
 
-The app can become an open-source project. Before changing visibility:
+The publication review covers remote Git branches/tags, release asset names, PR discussions, committed screenshots and secret scanning. Development credentials, signing material, actual GPX files and native test backups stay outside the repository. Screenshots use synthetic recordings. No telemetry is automatically sent to contributors.
 
-- Choose a source license. MIT is a simple permissive candidate; GPLv3 is a candidate if distributed derivatives should retain source-sharing obligations. No license is selected or granted by this plan. Review the actual [MIT](https://opensource.org/license/mit) and [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) texts before choosing.
-- Review the complete Git history, release assets, screenshots and documentation for personal routes, profile/health information, private examples and credentials. Keep the existing secret scan. The owner-only development key and app signing key remain outside source, CI logs and screenshots.
-- Confirm third-party licenses and map-provider terms. Tabler and MapLibre have attribution/license requirements; the global EOX imagery has noncommercial restrictions. A free app is not, by itself, proof that every use qualifies. See [MAPS.md](MAPS.md) and [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). Resolve permission or replace imagery before broader/commercial distribution.
-- Keep issue templates and reproduction bundles free of private coordinates by default. Diagnostics are local; developers receive a log only when a user explicitly shares it. Do not add automatic public telemetry or upload real runs to issue trackers.
-- Document a clean build without personal signing material. Community builds use their own key and cannot replace the owner's signed installation unless signing continuity is deliberately arranged.
+The source license does not relicense third-party libraries or imagery. Keep [third-party notices](../THIRD_PARTY_NOTICES.md), map attribution and provider terms. EOX global imagery has noncommercial restrictions; source publication is not permission for unrestricted imagery use. Resolve imagery rights or change providers before commercial distribution.
 
-Opening the source and publishing in Google Play are independent choices. Public visibility should be a deliberate final step after that review.
+Use [Contributing](../CONTRIBUTING.md) and [Security](../SECURITY.md) when reporting issues. Diagnostics remain local until explicitly shared. Inspect even coordinate-redacted exports for private text/timestamps.
 
 ## Google Play
 
-Publication is feasible, but requires a release-preparation pass and a developer account.
+Deferred at the owner’s request on 5 November 2026. No Play submission or account enrollment is part of this release. The following is a readiness checklist to revisit when the developer account exists; verify policy requirements again then.
 
 | Item | Current state / next action |
 | --- | --- |
