@@ -101,6 +101,7 @@ object AiCoachingContext {
             .put("window_m", estimate?.windowMeters ?: 0.0)
             .put("vertical_accuracy_m", run.points.lastOrNull()?.verticalAccuracyMeters ?: JSONObject.NULL)
             .put("source", estimate?.source?.name ?: "UNKNOWN")
+            .put("model", verified.points.lastOrNull()?.terrainModel?.name ?: "UNKNOWN")
             .put("hill_advice_allowed", estimate?.source == TerrainSource.TERRAIN_MAP && estimate.direction != TerrainDirection.UNKNOWN)
             .put("limits", "Independent terrain map only. Missing or ambiguous positions are unknown. A terrain map does not measure bridges, stairs, fatigue or effort.")
     }

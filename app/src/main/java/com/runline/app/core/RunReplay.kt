@@ -72,6 +72,7 @@ class RunReplay(val session: RunSession) {
             val segmentStart = clock
             var altitudeAnchor: Double? = null
             for ((index, point) in points.withIndex()) {
+                if (index > 0 && point.terrainModel != points[index - 1].terrainModel) altitudeAnchor = null
                 val altitude = point.altitudeMeters?.takeIf { it.isFinite() }
                 if (altitude != null) {
                     minimum = minimum?.let { minOf(it, altitude) } ?: altitude
@@ -157,7 +158,7 @@ class RunReplay(val session: RunSession) {
         val altitudeB = edge.b.altitudeMeters?.takeIf { it.isFinite() }
         val altitude = when {
             fraction == 0.0 -> altitudeA
-            altitudeA != null && altitudeB != null -> lerp(altitudeA, altitudeB, fraction)
+            edge.a.terrainModel == edge.b.terrainModel && altitudeA != null && altitudeB != null -> lerp(altitudeA, altitudeB, fraction)
             else -> null
         }
         val point = RunPoint(
@@ -167,6 +168,7 @@ class RunReplay(val session: RunSession) {
             accuracyMeters = maxOf(edge.a.accuracyMeters, edge.b.accuracyMeters),
             altitudeMeters = altitude,
             segment = edge.segmentIndex,
+            terrainModel = if (edge.a.terrainModel == edge.b.terrainModel) edge.a.terrainModel else null,
             verticalAccuracyMeters = if (edge.a.verticalAccuracyMeters != null && edge.b.verticalAccuracyMeters != null)
                 maxOf(edge.a.verticalAccuracyMeters, edge.b.verticalAccuracyMeters) else null,
         )

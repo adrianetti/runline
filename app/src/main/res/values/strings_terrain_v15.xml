@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terrain_offline_title">Offline terrain</string>
+    <string name="terrain_source_world">Elevation · Mapzen</string>
+    <string name="terrain_source_mixed">IGN/CNIG · Mapzen</string>
+    <string name="terrain_source_partial">%1$s · %2$d%% mapped</string>
+    <string name="terrain_prepare">Prepare your area</string>
+    <string name="terrain_prepare_hint">Download terrain before you go offline.</string>
+    <string name="terrain_use_location">Use current location</string>
+    <string name="terrain_locating">Finding your location…</string>
+    <string name="terrain_location_wait">A recent location is needed for your area.</string>
+    <string name="terrain_location_failed">Turn on location and try again outdoors.</string>
+    <string name="terrain_location_permission">Allow location to choose nearby terrain. You can still record without this download.</string>
+    <string name="terrain_area_preview">5 km around you</string>
+    <string name="terrain_area_size">Up to %1$d MB. Keep Runline open until ready.</string>
+    <string name="terrain_download_area">Download area</string>
+    <string name="terrain_downloading">Preparing offline terrain…</string>
+    <string name="terrain_area_progress">%1$d of %2$d files · %3$.1f MB saved</string>
+    <string name="terrain_ready">Saved area ready</string>
+    <string name="terrain_incomplete">Download incomplete</string>
+    <string name="terrain_not_ready">Area not ready</string>
+    <string name="terrain_retry">Resume download</string>
+    <string name="terrain_enabled">Use terrain maps</string>
+    <string name="terrain_storage_failed">Could not save this area. Check free storage and retry.</string>
+    <string name="terrain_polar_unavailable">Offline areas are not available beyond 85° latitude. Recording still works.</string>
+    <string name="terrain_offline_hint">Elevation data only; satellite images need internet. Recording works without this download. When you travel, prepare your new area.</string>
+    <string name="terrain_download_privacy">Nearby tiles come directly from public Mapzen/AWS and IGN services. They receive area requests and your IP, never your run file. Resolution varies; uncertain slopes stay unknown.</string>
+</resources>

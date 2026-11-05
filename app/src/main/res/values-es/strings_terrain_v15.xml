@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terrain_offline_title">Relieve sin conexión</string>
+    <string name="terrain_source_world">Relieve · Mapzen</string>
+    <string name="terrain_source_mixed">IGN/CNIG · Mapzen</string>
+    <string name="terrain_source_partial">%1$s · %2$d%% del recorrido</string>
+    <string name="terrain_prepare">Prepara tu zona</string>
+    <string name="terrain_prepare_hint">Descarga el relieve antes de salir sin conexión.</string>
+    <string name="terrain_use_location">Usar mi ubicación</string>
+    <string name="terrain_locating">Buscando tu ubicación…</string>
+    <string name="terrain_location_wait">Necesitamos tu ubicación actual para elegir la zona.</string>
+    <string name="terrain_location_failed">Activa la ubicación y vuelve a intentarlo al aire libre.</string>
+    <string name="terrain_location_permission">Permite la ubicación para elegir el relieve cercano. Puedes grabar sin esta descarga.</string>
+    <string name="terrain_area_preview">5 km a tu alrededor</string>
+    <string name="terrain_area_size">Hasta %1$d MB. Mantén Runline abierto hasta que termine.</string>
+    <string name="terrain_download_area">Descargar zona</string>
+    <string name="terrain_downloading">Preparando relieve sin conexión…</string>
+    <string name="terrain_area_progress">%1$d de %2$d archivos · %3$.1f MB guardados</string>
+    <string name="terrain_ready">Zona guardada lista</string>
+    <string name="terrain_incomplete">Descarga incompleta</string>
+    <string name="terrain_not_ready">Zona sin preparar</string>
+    <string name="terrain_retry">Reanudar descarga</string>
+    <string name="terrain_enabled">Usar mapas de relieve</string>
+    <string name="terrain_storage_failed">No se pudo guardar la zona. Revisa el espacio libre y reintenta.</string>
+    <string name="terrain_polar_unavailable">Las zonas sin conexión no están disponibles más allá de 85° de latitud. Puedes seguir grabando.</string>
+    <string name="terrain_offline_hint">Solo datos de relieve; las imágenes por satélite necesitan internet. Puedes grabar sin esta descarga. Si viajas, prepara la nueva zona.</string>
+    <string name="terrain_download_privacy">Los datos llegan de Mapzen/AWS e IGN. Reciben solicitudes de zonas y tu IP, nunca el archivo de tu actividad. La resolución varía; las pendientes inciertas quedan desconocidas.</string>
+</resources>

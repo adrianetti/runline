@@ -23,12 +23,15 @@ data class RunPoint(
     val segment: Int = 0,
     /** Android's reported 68% vertical uncertainty; absent in older recordings. */
     val verticalAccuracyMeters: Float? = null,
+    /** Analysis only; prevents joining heights with different vertical references. */
+    val terrainModel: TerrainModel? = null,
 )
 
 internal fun RunPoint.hasUsableAltitude(): Boolean = altitudeMeters?.isFinite() == true &&
     (verticalAccuracyMeters == null || (verticalAccuracyMeters.isFinite() && verticalAccuracyMeters in 0f..8f))
 
 internal fun canJoinAltitude(a: RunPoint?, b: RunPoint): Boolean = a != null &&
+    a.terrainModel == b.terrainModel &&
     MarkerMotion.canInterpolate(a, b) && a.hasUsableAltitude() && b.hasUsableAltitude() &&
     kotlin.math.abs(b.altitudeMeters!! - a.altitudeMeters!!) <= maxOf(4.0, RunMetrics.distanceMeters(listOf(a, b)) * .5)
 

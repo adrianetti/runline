@@ -79,10 +79,12 @@ class TerrainGrid private constructor(val columns: Int, val rows: Int, val west:
 }
 
 /** Immutable map snapshot. Missing/ambiguous cells stay missing; GPS heights are never substituted. */
-class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val grids: Map<TerrainTileKey, TerrainGrid>) {
-    val hasTiles get() = grids.isNotEmpty()
+class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val grids: Map<TerrainTileKey, TerrainGrid>,
+                         private val world: Map<WorldTileKey, WorldTerrainGrid> = emptyMap()) {
+    val hasTiles get() = grids.isNotEmpty() || world.isNotEmpty()
     fun point(original: RunPoint): RunPoint {
         var height: Double? = null
+        var model: TerrainModel? = null
         if (enabled && original.accuracyMeters.isFinite() && original.accuracyMeters in 0f..20f) {
             val xy = SpainTerrainProjection.project(original.latitude, original.longitude)
             val grid = TerrainTileKey.at(original)?.let(grids::get)
@@ -93,10 +95,20 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
                     radius * .707 to -radius * .707, -radius * .707 to -radius * .707)
                     .map { (dx, dy) -> grid.at(xy.first + dx, xy.second + dy) }
                 // Reject steep edges/ambiguous location footprints, not a park-specific grade.
-                if (values.all { it != null } && values.filterNotNull().let { it.max() - it.min() <= 3.0 }) height = values.first()
+                if (values.all { it != null } && values.filterNotNull().let { it.max() - it.min() <= 3.0 }) { height = values.first(); model = TerrainModel.IGN_MDT05 }
+            }
+            if (height == null) {
+                val radius = original.accuracyMeters.toDouble().coerceAtLeast(5.0)
+                // All uncertainty probes use the center's resolution, including at zoom-band boundaries.
+                val zoom = WorldTileKey.zoom(original.latitude)
+                val dLat = radius / 111195.08; val dLon = dLat / cos(Math.toRadians(original.latitude))
+                val values = listOf(0.0 to 0.0, dLat to 0.0, -dLat to 0.0, 0.0 to dLon, 0.0 to -dLon,
+                    dLat * .707 to dLon * .707, -dLat * .707 to dLon * .707, dLat * .707 to -dLon * .707, -dLat * .707 to -dLon * .707)
+                    .map { (lat, lon) -> sampleWorld(world, original.latitude + lat, ((original.longitude + lon + 540) % 360) - 180, zoom) }
+                if (values.all { it != null } && values.filterNotNull().let { it.max() - it.min() <= 3.0 }) { height = values.first(); model = TerrainModel.MAPZEN }
             }
         }
-        return original.copy(altitudeMeters = height, verticalAccuracyMeters = null)
+        return original.copy(altitudeMeters = height, verticalAccuracyMeters = null, terrainModel = model)
     }
     fun project(run: RunSession) = run.copy(points = run.points.map(::point), elevationSource = TerrainSource.TERRAIN_MAP)
 }
@@ -117,4 +129,4 @@ class TerrainProjector {
 
 /** Never send uncorroborated GPS elevation to an AI coach as terrain evidence. */
 fun RunSession.withTrustedElevation(): RunSession = if (elevationSource == TerrainSource.TERRAIN_MAP) this
-    else copy(points = points.map { it.copy(altitudeMeters = null, verticalAccuracyMeters = null) }, elevationSource = TerrainSource.UNKNOWN)
+    else copy(points = points.map { it.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = null) }, elevationSource = TerrainSource.UNKNOWN)

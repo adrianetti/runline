@@ -35,7 +35,7 @@ class ElevationProgress {
             anchor = null; previous = null; return
         }
         highWater = point.timestampMs
-        if (previous?.let { point.timestampMs - it.timestampMs > RunReplay.MAX_GPS_GAP_MS } == true) anchor = null
+        if (previous?.let { point.timestampMs - it.timestampMs > RunReplay.MAX_GPS_GAP_MS || point.terrainModel != it.terrainModel } == true) anchor = null
         previous = point
         val altitude = point.altitudeMeters?.takeIf { it.isFinite() }
         val prior = anchor

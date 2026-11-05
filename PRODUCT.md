@@ -91,3 +91,7 @@ Version 0.13 retains vertical accuracy in new fixes and GPX extensions, rejects 
 ## Independent terrain — 0.14
 
 This supersedes the earlier GPS-only elevation behavior above. Recording/replay islands and charts use independent IGN/CNIG MDT05 heights, with source/coverage labels, private bounded offline caching and a global Terrain maps setting. Initial coverage is mainland Spain and Balearics. Original GPS observations and exports remain untouched. Uncertain/missing terrain produces gaps and no hill-specific local/AI advice. AI summaries omit uncorroborated GPS heights; separate network/analysis workers keep terrain work off recording persistence. Details: docs/TERRAIN.md.
+
+## Offline terrain in 0.15
+
+Global public Mapzen/AWS tiles complement the IGN regional source. Optional in-app 5 km area preparation uses a recent foreground location and an explicit download action, with conservative transfer-size preview, progress and resume. No user file import, account, subscription or Runline backend is required. A saved area survives app restart; satellite imagery is separate. Latitude ±85° preparation limits and uncertain data remain explicit. Recording is independent of terrain availability.

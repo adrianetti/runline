@@ -45,7 +45,7 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         fun restart(): TerrainEstimate {
             reset(); previous = point; samples.addLast(Sample(point, 0.0)); return estimate
         }
-        if (prior == null || !MarkerMotion.canInterpolate(prior, point)) return restart()
+        if (prior == null || prior.terrainModel != point.terrainModel || !MarkerMotion.canInterpolate(prior, point)) return restart()
         val distance = RunMetrics.distanceMeters(listOf(prior, point))
         val elapsed = point.timestampMs - prior.timestampMs
         if (distance * 1_000 / elapsed > 12.0) return restart()
@@ -53,15 +53,16 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         if (abs(point.altitudeMeters!! - prior.altitudeMeters!!) > maxOf(4.0, distance * .5)) return restart()
         previous = point; traveled += distance
         samples.addLast(Sample(point, traveled))
-        while (samples.size > 1 && (traveled - samples.first().distance > 90.0 ||
-                point.timestampMs - samples.first().point.timestampMs > 120_000L || samples.size > 180)) samples.removeFirst()
+        val global = point.terrainModel == TerrainModel.MAPZEN
+        while (samples.size > 1 && (traveled - samples.first().distance > (if (global) 180.0 else 90.0) ||
+                point.timestampMs - samples.first().point.timestampMs > (if (global) 240_000L else 120_000L) || samples.size > 300)) samples.removeFirst()
         val first = samples.first()
         val span = traveled - first.distance
         fun unknown(): TerrainEstimate {
             direction = TerrainDirection.UNKNOWN; smoothedGrade = null
             return TerrainEstimate(windowMeters = span).also { estimate = it }
         }
-        if (samples.size < 8 || span < 55.0 || point.timestampMs - first.point.timestampMs < 20_000L ||
+        if (samples.size < 8 || span < (if (global) 120.0 else 55.0) || point.timestampMs - first.point.timestampMs < 20_000L ||
             RunMetrics.distanceMeters(listOf(first.point, point)) < 25.0) return unknown()
         val moving = samples.firstOrNull { point.timestampMs - it.point.timestampMs <= 10_000L } ?: return unknown()
         val seconds = (point.timestampMs - moving.point.timestampMs) / 1_000.0
@@ -73,7 +74,7 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         if (!fit.grade.isFinite() || abs(fit.grade) > 40.0 || fit.residual > 1.2) return unknown()
         // Opposite recent observations, a crest, or leveling invalidate the old
         // window immediately. Do not average a known reversal into the old sign.
-        val tail = bins.filter { traveled - it.distance <= 35.0 }
+        val tail = bins.filter { traveled - it.distance <= (if (global) 70.0 else 35.0) }
         val recent = fit(tail, 10.0) ?: return unknown()
         if (recent.residual > 1.2) return unknown()
         if (abs(fit.grade) >= 1.5 && (fit.grade * recent.grade < 0 || abs(recent.grade) < 1.0)) return unknown()

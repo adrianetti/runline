@@ -59,3 +59,5 @@ Automatic reviews are persisted with a 90-second delay after safe activity save,
 Provider calls record only bounded request metadata and reported usage; keys, prompts, response bodies, health notes and raw coordinates never enter usage logs. See [diagnostics](DIAGNOSTICS.md) for retention, export and list-price limitations.
 
 Version 0.14 withholds raw GPS elevation from AI summaries. Available mapped height is identified by source and coverage; absent data is unknown, and partial coverage can undercount totals. Live hill claims require an eligible map estimate and pass an English/Spanish direction check. Terrain-map generation changes invalidate pending live advice. No new paid requests or retries are introduced.
+
+Version 0.15 identifies the global or regional elevation model in summaries and live terrain context. Provider boundaries reset grade/height interpolation; raw GPS heights remain excluded from terrain advice.
