@@ -87,7 +87,8 @@ class MainActivity : AppCompatActivity() {
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
     private var appSettings: AppSettingsSheet? = null
-    private var terrainSettings: com.runline.app.ui.AiSheet? = null
+    private var terrainSettings: com.runline.app.ui.TerrainSettingsSheet? = null
+    private var terrainSummary: TextView? = null
     private var runnerProfile: RunnerProfileSheet? = null
     private var smartGoal: SmartGoalSheet? = null
     private var runReview: RunReviewSheet? = null
@@ -153,6 +154,8 @@ class MainActivity : AppCompatActivity() {
         render()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
+        savedInstanceState?.getBundle("terrainDraft")?.let { terrainSettings?.restoreState(it) }
+        if (savedInstanceState?.getBoolean("terrainLocating") == true) terrainSettings?.locate()
         savedInstanceState?.getBundle("coachSheet")?.let { showCoach(it) }
         savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { AiActivityCompletion.onAppOpen(this) }.also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
@@ -188,6 +191,8 @@ class MainActivity : AppCompatActivity() {
         exporter.saveState(outState); super.onSaveInstanceState(outState)
         outState.putBoolean("appSettings", appSettings?.isShowing == true)
         outState.putBoolean("terrainSettings", terrainSettings?.isShowing == true)
+        outState.putBoolean("terrainLocating", terrainSettings?.locating == true)
+        terrainSettings?.takeIf { it.isShowing }?.let { outState.putBundle("terrainDraft", it.saveState()) }
         coachSheet?.takeIf { it.isShowing }?.let { outState.putBundle("coachSheet", it.saveState()) }
         detailsEditor?.takeIf { it.isShowing }?.let { outState.putBundle("detailsEditor", it.saveState()) }
         aiSettings?.takeIf { it.isShowing }?.let { outState.putBundle("aiSettings", it.saveState()) }
@@ -204,7 +209,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun render() {
         route?.dispose(); replayView?.dispose(); replayView = null
-        body.removeAllViews(); route = null; activeRunView = null
+        body.removeAllViews(); route = null; activeRunView = null; terrainSummary = null
         val state = TrackingService.state(this)
         val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
         toolbar.visibility = if (live || screen == "detail") View.GONE else View.VISIBLE
@@ -275,6 +280,9 @@ class MainActivity : AppCompatActivity() {
             content.addView(text(VoiceCoachSheet.goalSummary(this, it), 14, muted = true), margin(top = 8))
         }
         if (selectedActivity == ActivityType.RUN) content.addView(button(getString(R.string.smart_goal_title), outlined = true, iconId = R.drawable.ic_speaker) { showSmartGoal() }, margin(top = 12))
+        content.addView(button(getString(R.string.terrain_offline_title), outlined = true, iconId = R.drawable.ic_download) { showTerrainSettings() }, margin(top = 12))
+        terrainSummary = text("", 13, muted = true).also { content.addView(it, margin(top = 8)) }
+        updateTerrainSummary()
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
@@ -301,7 +309,14 @@ class MainActivity : AppCompatActivity() {
         if (screen != "record") return
         if (state.status.name != renderedStatus) render() else updateMetrics()
     }
-    private fun updateMetrics() { activeRunView?.update(TrackingService.state(this)) }
+    private fun updateMetrics() { activeRunView?.update(TrackingService.state(this)); updateTerrainSummary() }
+    private fun updateTerrainSummary() {
+        val label = terrainSummary ?: return
+        val repo = com.runline.app.terrain.TerrainRepository.get(this); val state = repo.areaStatus()
+        val value = getString(when { !repo.enabled -> R.string.terrain_maps_off; state.loading -> R.string.terrain_downloading
+            state.ready -> R.string.terrain_ready; else -> R.string.terrain_prepare_hint })
+        if (label.text.toString() != value) label.text = value
+    }
     private fun renderHistory() {
         val content = scrollContent()
         val runs = try { store.list() } catch (e: Exception) { notice(getString(R.string.main_history_failed)); emptyList() }
@@ -458,6 +473,16 @@ class MainActivity : AppCompatActivity() {
             else MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_precise_title)).setMessage(getString(R.string.main_precise_body))
                 .setPositiveButton(getString(R.string.main_app_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }.setNegativeButton(getString(R.string.main_close), null).show()
         } else if (requestCode == 101) requestRecording(pendingAction)
+        else if (requestCode == 102) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) terrainSettings?.locate()
+            else {
+                terrainSettings?.permissionDenied()
+                MaterialAlertDialogBuilder(this).setMessage(R.string.terrain_location_permission)
+                    .setPositiveButton(R.string.main_app_settings) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+                    .setNegativeButton(R.string.main_cancel, null).show()
+            }
+        }
     }
     private fun command(action: String) {
         if (android.os.SystemClock.elapsedRealtime() < actionPendingUntil) return
@@ -487,7 +512,15 @@ class MainActivity : AppCompatActivity() {
             }.show()
     }
     private fun showRunnerProfile() { runnerProfile?.close(); runnerProfile = RunnerProfileSheet(this).also { it.show() } }
-    private fun showTerrainSettings() { terrainSettings?.close(); terrainSettings = com.runline.app.ui.TerrainUi.show(this) }
+    private fun showTerrainSettings() {
+        terrainSettings?.close()
+        terrainSettings = com.runline.app.ui.TerrainSettingsSheet(this) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 102)
+            else terrainSettings?.locate()
+        }.also { it.show() }
+    }
     private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this) { AiActivityCompletion.onAppOpen(this) }.also { it.show() } }
     private fun showSmartGoal(state: Bundle? = null) {
         // Smart suggestions are preparation, never a replacement target during capture.

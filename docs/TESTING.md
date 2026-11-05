@@ -1,6 +1,6 @@
-# Version 0.14 test checklist
+# Version 0.15 test checklist
 
-The checklist is not a blanket pass report. Current v0.14 and historical v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -29,6 +29,20 @@ Activity-type/persistence tests should cover all three types, legacy fallback to
 Notification-action unit tests should reject wrong/missing run IDs, stale Pause/Resume/Finish actions and Finish after recording has resumed. Heading tests should cover movement, stationary jitter, accuracy, turns, gaps/segments, invalid samples and date-line crossing. Unit tests do not establish lock-screen behavior.
 
 Replay tests should cover time/distance interpolation, explicit segments, gaps over 15 seconds, missing/non-finite altitude, elevation filtering, speed windows, isolated points, seek boundaries and date-line crossing. Check dependency/license notices for the pinned MapLibre SDK and map data. Successful HTTP tile requests alone are not evidence of native map rendering.
+
+## Version 0.15 global offline terrain
+
+Recorded 5 November 2026. Native fixtures use a synthetic Caracas route; personal GPX data and test backups remain outside Git.
+
+- Signed debug/release build: **302 JVM tests, zero failures/errors; lint zero errors / 116 warnings**. Verified **542 bilingual resources**, **34 pinned icons**, 22 security-checker tests, workflow lint and seven Semgrep rules across 92 production Kotlin files. The fresh dependency query covered **236 Maven versions / 39 configurations**, with zero OSV findings. Applicable GitHub checks must pass on the exact PR head before merge.
+- New regressions cover fractional/negative Terrarium decoding, malformed/transparent data, known Mercator points, polar limits, Venezuela selecting only global data, date-line interpolation, neighboring tiles and 5 km coverage across hemispheres/zoom bands. Uncertainty probes share one resolution at latitude-band boundaries. Source changes cannot invent ascent or interpolate mismatched heights, and real supported 15% climbs remain detectable with the longer global window.
+- Re-ran the private 10K against the same independent IGN fixture: **2,963/2,963** heights available under explicitly assumed 3 m horizontal accuracy, **2,408** grade estimates, **zero below −10%**. Original heights, distance and replay duration remained unchanged. This is retrospective consistency evidence, not ground-truth surveying.
+- Native API 34: fresh mock Caracas location produced a nine-file global preview with no Spanish requests. Preview and saved-area state survived Activity recreation; cancellation/resume completed a real public HTTPS download totaling about **0.5 MB**. The first attempt exposed emulator DNS timeouts; repairing emulator DNS allowed the real network path to pass without changing application networking.
+- After an in-place update to the final APK, cold offline reopening loaded validated files and the synthetic replay obtained mapped heights. English, Spanish at 1.3× text/dark mode and a 2220×1080 wide layout passed bounded inspection; primary preparation controls and the separate Start action remained usable. Offline corruption of a cached PNG changed readiness to incomplete rather than using invalid data; online Resume replaced it with a validated public tile.
+- Offline recording with no terrain for the simulated route accepted **eight fixes** and persisted original GPS heights through Pause/Finish. An initial harness used a fixed one-second save wait and stopped before finalization; reopening recovered all **seven accepted fixes** from that attempt and completed offline. The corrected harness waits for durable completion instead of a fixed sleep; the fresh recording then passed.
+- The final APK installed in place and cold-launched. **63/66 original non-cache files** were byte-for-byte unchanged; only the map database/journal and Android profile-install marker differed. Existing recordings, recovery data, annotations, preferences and credentials were unchanged. Removed all owned sessions, terrain files and screenshots; restored original preferences, language/display/network settings and default mock-location permission, removed both harnesses and disabled emulator root.
+- Exact artifact: **`dist/Runline-0.15.0.apk`**, **0.15.0 / code 17**, SHA-256 **`7cb2024f8e6530c777efd6dfc4d56347b79d69150ecc6a653ee1a9ba085776ad`**. Signature matches prior releases.
+- Limits: one saved preparation area, foreground download with manual resume after interruption, no offline satellite imagery or offline AI, and no polar terrain. Data resolution/age and confidence vary by source; unknown terrain remains unknown. Physical Samsung, field GPS, battery exhaustion and paid AI requests were not revalidated.
 
 ## Version 0.14 independent terrain
 

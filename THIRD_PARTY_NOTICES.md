@@ -28,3 +28,7 @@ The map's visible attribution control links to these sources and license terms. 
 ## Terrain elevations
 
 Derived from **MDT05, IGN/CNIG**, [CC BY 4.0](https://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf), via the [official WCS coverage service](https://servicios.idee.es/wcs-inspire/mdt?request=GetCapabilities&service=WCS&version=2.0.1). Source survey dates vary. The app samples and smooths this 5 m bare-earth model; it is not a surveyed path or a sensor measurement. Attribution appears with elevations and in Settings → Terrain maps. Downloaded areas remain private local cache files and are not bundled in this repository.
+
+## Global terrain (0.15)
+
+Mapzen/Tilezen Terrain Tiles are accessed directly from the public AWS Open Data dataset. These data have source-specific terms; the app’s MIT license does not replace them. Full required attributions and source links are bundled in [terrain.txt](app/src/main/assets/licenses/terrain.txt) and shown in the app’s Sources and licenses dialog. Runline interpolates and smooths these data; source agencies do not endorse those derived estimates.

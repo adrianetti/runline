@@ -91,7 +91,9 @@ object RunMetrics {
         var hasAltitudePair = false
         for (segment in continuousSegments(points)) {
             var anchor: Double? = null
+            var model: TerrainModel? = null
             for (point in segment) {
+                if (point.terrainModel != model) { anchor = null; model = point.terrainModel }
                 val altitude = point.altitudeMeters?.takeIf { it.isFinite() }
                 if (altitude == null) {
                     anchor = null

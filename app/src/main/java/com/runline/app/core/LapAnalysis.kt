@@ -96,7 +96,7 @@ class LapTracker {
         val sectors = (0..3).map { index ->
             val a = at(samples, index / 4.0); val b = at(samples, (index + 1) / 4.0)
             LapSector(index + 1, total / 4, b.timestampMs - a.timestampMs,
-                if (a.altitudeMeters != null && b.altitudeMeters != null) b.altitudeMeters - a.altitudeMeters else null)
+                if (a.terrainModel == b.terrainModel && a.altitudeMeters != null && b.altitudeMeters != null) b.altitudeMeters - a.altitudeMeters else null)
         }
         val elevation = ElevationProgress().apply { update(samples.map { it.point }) }
         val lap = DetectedLap(0, total, duration, elevation.climbedMeters, elevation.descendedMeters, sectors)
@@ -133,7 +133,7 @@ class LapTracker {
         return a.point.copy(latitude = a.point.latitude + (b.point.latitude - a.point.latitude) * share,
             longitude = a.point.longitude + (b.point.longitude - a.point.longitude) * share,
             timestampMs = a.point.timestampMs + ((b.point.timestampMs - a.point.timestampMs) * share).roundToLong(),
-            altitudeMeters = if (a.point.altitudeMeters?.isFinite() == true && b.point.altitudeMeters?.isFinite() == true)
+            altitudeMeters = if (a.point.terrainModel == b.point.terrainModel && a.point.altitudeMeters?.isFinite() == true && b.point.altitudeMeters?.isFinite() == true)
                 a.point.altitudeMeters + (b.point.altitudeMeters - a.point.altitudeMeters) * share else null)
     }
     private fun breakPath() { path.clear(); cells.clear(); prior = null; anchorIndex = null; departed = false; lapStart = 0; previous = null; priorWasConfirmed = false }

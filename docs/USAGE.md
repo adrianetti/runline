@@ -139,3 +139,9 @@ In replay Details, drag across Elevation or use its slider to inspect time, dist
 ### Terrain maps (0.14)
 
 Settings → Terrain maps controls independent elevation downloads and clears cached areas. Initial coverage is mainland Spain and the Balearic Islands. Areas already downloaded work offline. Recording and replay show IGN/CNIG attribution and partial coverage; missing or uncertain terrain stays unknown and produces no hill-specific coach cue. See [Terrain](TERRAIN.md).
+
+## Prepare terrain before going offline
+
+Open **Offline terrain** on Record (also in Settings → Terrain maps). Tap **Use current location**, review the 5 km area and maximum download size, then **Download area**. Keep Runline open until **Saved area ready**. Cancel/resume retains validated files; reopening the app checks the saved area from disk. If interrupted or a file is damaged, use **Resume download** with internet. When traveling, prepare the new area.
+
+This downloads elevation data, not satellite imagery. You can always start without it. Global Mapzen coverage includes Venezuela; Spain receives additional IGN detail. Polar caps are excluded. Missing or uncertain elevation stays unknown and does not justify hill coaching. Clearing app data/uninstalling removes downloads and recordings; ordinary updates preserve them.

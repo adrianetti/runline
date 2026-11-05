@@ -41,6 +41,7 @@ object AiRunSummary {
             .put("ascent_m", analysis.elevationGainMeters ?: JSONObject.NULL).put("descent_m", analysis.elevationLossMeters ?: JSONObject.NULL)
             .put("gps_observed_seconds", analysis.observedDurationMs / 1000.0).put("splits", splits).put("estimated_repeated_laps", lapData)
             .put("elevation_source", run.elevationSource.name)
+            .put("elevation_models", JSONArray(run.points.mapNotNull { it.terrainModel?.name }.distinct()))
             .put("elevation_coverage", if (run.points.isEmpty()) 0.0 else run.points.count { it.altitudeMeters != null }.toDouble() / run.points.size)
             .put("measurement_limits", "GPS estimates; missing or paused intervals are excluded from observed time. Compare pace_seconds_per_km, never raw split durations: the final split may cover less than one kilometre. Lower pace seconds means faster. Elevation is available only from an independent terrain map; incomplete coverage undercounts totals. Never infer hills from missing or uncorroborated elevation. No heart rate, cadence, pain or terrain surface data.")
         laps.latestComparison?.let { c -> result.put("lap_comparison", JSONObject().put("pace_change_percent", c.paceChangePercent).also { comparison -> c.slowerSector?.let { sector -> comparison.put("slower_quarter", sector.number).put("quarter_pace_change_percent", sector.paceChangePercent).put("quarter_elevation_change_m", sector.elevationChangeMeters ?: JSONObject.NULL) } }) }

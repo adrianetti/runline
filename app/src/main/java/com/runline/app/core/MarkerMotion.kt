@@ -40,8 +40,9 @@ object MarkerMotion {
             longitude = ((from.longitude + longitudeDelta * amount + 540.0) % 360.0) - 180.0,
             timestampMs = from.timestampMs + ((to.timestampMs - from.timestampMs) * amount).roundToLong(),
             accuracyMeters = maxOf(from.accuracyMeters, to.accuracyMeters),
-            altitudeMeters = if (altitudeA != null && altitudeB != null) altitudeA + (altitudeB - altitudeA) * amount else null,
+            altitudeMeters = if (from.terrainModel == to.terrainModel && altitudeA != null && altitudeB != null) altitudeA + (altitudeB - altitudeA) * amount else null,
             segment = to.segment,
+            terrainModel = if (from.terrainModel == to.terrainModel) from.terrainModel else null,
             verticalAccuracyMeters = if (from.verticalAccuracyMeters != null && to.verticalAccuracyMeters != null)
                 maxOf(from.verticalAccuracyMeters, to.verticalAccuracyMeters) else null,
         )
