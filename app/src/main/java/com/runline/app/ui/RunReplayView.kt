@@ -135,6 +135,7 @@ class RunReplayView(
             addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
         }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        val stackSpeed = resources.configuration.fontScale > 1.5f || resources.configuration.screenWidthDp < 360
         val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         controls.addView(play, LinearLayout.LayoutParams(dp(64), dp(48)))
         val speedColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -143,7 +144,8 @@ class RunReplayView(
         endpoints.addView(label(context.getString(R.string.replay_multiplier, 1), 12, muted = true), LinearLayout.LayoutParams(0, -2, 1f))
         endpoints.addView(label(context.getString(R.string.replay_multiplier, 480), 12, muted = true))
         speedColumn.addView(endpoints)
-        controls.addView(speedColumn, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
+        if (stackSpeed) controls.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+        else controls.addView(speedColumn, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
         controls.addView(speedValue, LinearLayout.LayoutParams(-2, -1).apply { marginStart = dp(4) })
         speedValue.gravity = Gravity.CENTER_VERTICAL
         controls.addView(control("", R.drawable.ic_info).apply {
@@ -152,6 +154,7 @@ class RunReplayView(
             setOnClickListener { showDetails() }
         }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) })
         panel.addView(controls, row(top = if (compact) 8 else 12))
+        if (stackSpeed) panel.addView(speedColumn, row())
         val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         timeline.addView(seek, LinearLayout.LayoutParams(0, dp(48), 1f))
         timeline.addView(clock, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })

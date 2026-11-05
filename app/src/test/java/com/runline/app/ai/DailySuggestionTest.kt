@@ -23,6 +23,9 @@ class DailySuggestionTest {
         repeat(20) { assertEquals(first, attempt()) }
         assertEquals(1, calls); assertNotNull(first.id); assertEquals(answer, disk!!.suggestion)
         assertEquals(answer.paceMaxSecondsPerKm, first.suggestion!!.paceMaxSecondsPerKm)
+        assertEquals(now, first.preparedAtMs)
+        assertEquals(now, attempt(time = now + 3_600_000).preparedAtMs)
+        assertEquals(1, calls)
     }
     @Test fun killedOrFailedProviderLeavesReservationAndNeedsExplicitRetry() {
         try { attempt(request = { throw AiFailure(AiFailure.Reason.NETWORK) }); fail() } catch (_: AiFailure) { }

@@ -1,4 +1,4 @@
-# Version 0.16 test checklist
+# Version 0.16.1 test checklist
 
 The checklist is not a blanket pass report. Current v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
@@ -416,3 +416,15 @@ The API 34 backend check successfully fetched the real public GitHub latest rele
 The final signed APK passed the confirmation batch after the speed endpoint labels/selection refresh. An offline update check reported failure while retaining its known release, rather than claiming a successful check. The in-place update from v0.15 used the existing signing certificate. All 55 original recording/annotation/review files remained byte-for-byte unchanged during native testing. Original emulator preferences/data were restored afterward; all 65 original non-cache files matched the backup, with test-only routes, cache and dummy credentials removed. Physical-phone installation remains user-driven through GitHub.
 
 Release APK: `Runline-0.16.0.apk`, version code 18, SHA-256 `1ffe5b9a518c8878c87822bfa167dbef477025dd6ae75bec01045d712aec51f8`. Signing certificate SHA-256 remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`.
+
+
+## Version 0.16.1 validation
+
+Recorded 6 November 2026. This patch groups the pace unit with its digits, explains the cached daily recommendation, and prefers GitHub Mobile for About links.
+
+- Debug/release builds and **330 JVM tests** passed with no failures; Android lint reported **zero errors / 150 warnings**. Verified **578 bilingual resources**, **37 pinned icons**, the 22 security-checker tests, workflow lint, seven Semgrep rule fixtures and the strict scan of 106 production Kotlin files. No dependencies or permissions changed.
+- API 34 native checks covered English/light, Spanish/1.3× text/dark/reduced motion, landscape and a narrow 2× text layout. Pace values `5:30`, `11:59`, `99:59` and unknown kept a 6dp gap, aligned baselines, single-line digits and a larger unit. Queued digit animation settled to the final reading. Narrow/large-text replay puts the speed slider on its own row; the final APK passed the confirmation check.
+- With an offline synthetic REST recommendation, Recommended/ Recomendado expanded the exact saved rationale and analysis time, survived recreation and collapsed again. Rest had no Use switch, disabled AI stayed hidden, and repeated refresh/viewing did not change the cached recommendation or create another request. The JVM regression also verifies that the original analysis timestamp survives later cache reads.
+- About's repository and release controls targeted `com.github.android`. Native fake handlers exercised app success, absent app → unrestricted external handler, no handler and security rejection. This verifies the intents/fallbacks, not the installed GitHub app's behavior on a physical Samsung.
+- The signed APK updated v0.16 in place. All **51 inspected original recording/review files** remained byte-identical during testing; after removing synthetic data and restoring preferences, all **65 original non-cache files** matched the private backup. Restored emulator display/language/network settings, removed the harness and disabled root. No paid AI request or new field/battery/audio test was performed.
+- Artifact: `Runline-0.16.1.apk`, **0.16.1 / code 19**, SHA-256 `5d2655221f8ce3168a7e85cbb6dbb219ee72fbf89dcc48ffa2474f1b31378d99`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.

@@ -32,4 +32,8 @@
     <string name="v16_terrain_cache">%1$s · límite de 64 MiB</string>
     <string name="v16_unit_pace">min/km</string>
     <string name="v16_session_goal_fixed">Objetivo de esta actividad</string>
+    <string name="v161_recommended">Recomendado</string>
+    <string name="v161_explain">¿Por qué esta recomendación?</string>
+    <string name="v161_prepared_at">Análisis de las %1$s</string>
+    <string name="v161_link_unavailable">Ninguna app puede abrir este enlace</string>
 </resources>

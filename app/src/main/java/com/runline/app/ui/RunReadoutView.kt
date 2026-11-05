@@ -14,7 +14,8 @@ import kotlin.math.roundToInt
 /** Shared visual hierarchy for live recording and playback: pace, distance, supporting data. */
 internal class RunReadoutView(context: Context) : LinearLayout(context) {
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
-    private val pace = RollingNumberView(context, if (compact) 40 else 56, 32)
+    private val paceReadout = PaceReadoutView(context, compact)
+    private val pace = paceReadout.number
     private val distance = RollingNumberView(context, if (compact) 24 else 32, 22)
     private val time = RollingNumberView(context, 20, 16)
     private val slope = SlopeIndicator(context)
@@ -25,12 +26,10 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
 
     init {
         orientation = VERTICAL
-        val primary = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        val paceRow = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
-        paceRow.addView(pace, LayoutParams(0, scaled(if (compact) 48 else 66), 1f))
-        paceRow.addView(label(context.getString(R.string.v16_unit_pace), 12), LayoutParams(-2, -2).apply { marginStart = dp(4); bottomMargin = dp(9) })
-        primary.addView(paceRow, LayoutParams(0, -2, 1f))
-        primary.addView(slope, LayoutParams(dp(88), -2).apply { marginStart = dp(12) })
+        val stacked = resources.configuration.fontScale > 1.5f || (!compact && resources.configuration.screenWidthDp < 360)
+        val primary = LinearLayout(context).apply { orientation = if (stacked) VERTICAL else HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        primary.addView(paceReadout, if (stacked) LayoutParams(-1, -2) else LayoutParams(0, -2, 1f))
+        primary.addView(slope, LayoutParams(dp(88), -2).apply { if (stacked) { topMargin = dp(8); gravity = Gravity.END } else marginStart = dp(12) })
         addView(primary, LayoutParams(-1, -2))
 
         val secondary = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
