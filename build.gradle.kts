@@ -8,7 +8,7 @@ buildscript {
             add("classpath", "com.google.guava:guava:33.7.2-jre") {
                 because("Patch the Guava version selected by Android build tools")
             }
-            add("classpath", "org.bitbucket.b_c:jose4j:0.9.6") {
+            add("classpath", "org.bitbucket.b_c:jose4j:0.9.7") {
                 because("Patch bundletool's transitive JOSE implementation")
             }
             add("classpath", "org.jdom:jdom2:2.0.6.1") {
