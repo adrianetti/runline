@@ -6,7 +6,7 @@ timestamps or device extensions), the ODbL licence element, and that distance an
 in the index match the GPX (same 3 m deadband as the app). Also refuses GPX files that
 the index does not list. `--fix-hashes` rewrites SHA-256 values and computed stats.
 """
-import argparse, hashlib, json, math, re, sys
+import argparse, hashlib, json, math, re, subprocess, sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -74,6 +74,11 @@ def main():
         if not entry.get("name", {}).get("en"): problems.append(f"{rid}: an English name is required")
         path = ROOT / f; listed.add(path.resolve())
         if not path.is_file(): problems.append(f"{rid}: missing {f}"); continue
+        # A file only on disk passes locally but is missing from the repository (e.g. ignored *.gpx).
+        tracked = subprocess.run(["git", "ls-files", "--error-unmatch", str(path)], cwd=ROOT, capture_output=True)
+        ignored = subprocess.run(["git", "check-ignore", "-q", str(path)], cwd=ROOT, capture_output=True)
+        if ignored.returncode == 0: problems.append(f"{rid}: {f} is git-ignored; it would not be published")
+        elif tracked.returncode != 0: problems.append(f"{rid}: {f} is not added to git")
         sha = hashlib.sha256(path.read_bytes()).hexdigest()
         points = check_gpx(path, problems)
         if points is None: continue
