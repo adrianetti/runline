@@ -133,6 +133,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private val followButton = mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
         imageTintList = null; visibility = GONE
     }
+    private var plannedRoute: List<RunPoint> = emptyList()
     private var progressiveRoute = false
     private var trailEnd = -1
     private var trailPublishedAt = 0L
@@ -262,6 +263,12 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             loaded.setStyle(Style.Builder().fromJson(BASE_STYLE)) { ready ->
                 if (disposed) return@setStyle
                 style = ready
+                // A planned route to follow sits under the recorded track: dashed, quieter.
+                ready.addSource(GeoJsonSource("planned"))
+                ready.addLayer(LineLayer("planned-outline", "planned").withProperties(
+                    lineColor(Color.BLACK), lineWidth(6f), lineOpacity(0.45f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
+                ready.addLayer(LineLayer("planned-line", "planned").withProperties(
+                    lineColor(Color.WHITE), lineWidth(3f), lineOpacity(0.9f), lineDasharray(arrayOf(2f, 1.5f)), lineJoin(Property.LINE_JOIN_ROUND)))
                 ready.addSource(GeoJsonSource("route"))
                 ready.addLayer(LineLayer("route-outline", "route").withProperties(
                     lineColor(Color.BLACK), lineWidth(7f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
@@ -426,6 +433,14 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
+    /** A route to follow, drawn under the recorded track. Pass the same list to skip redrawing. */
+    fun setPlannedRoute(points: List<RunPoint>?) {
+        val next = points ?: emptyList()
+        if (disposed || next === plannedRoute) return
+        plannedRoute = next
+        style?.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(next))
+    }
+
     /** Replay only: the route appears behind the arrow as it moves, not ahead of it. */
     fun setProgressiveRoute(enabled: Boolean) {
         if (disposed || progressiveRoute == enabled) return
@@ -587,6 +602,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val ready = style ?: return
         if (progressiveRoute) updateTrail(force = true)
         else { ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints)); trailHead = emptyList() }
+        ready.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(plannedRoute))
         val start = routePoints.firstOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         ready.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointCollection(start))
     }

@@ -151,6 +151,22 @@
       "sha256": "0dc8b74962e79d9e5aed2496bfe3542d87ab4eca21ca8a22c0c5579d0fffb740",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/file-zip.svg"
     },
+    "icons/outline/map-2.svg": {
+      "sha256": "42c520c32ac78185f95729b37a3d10f9eb753c2188f4c2a7c7a05566cc4b28d9",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/map-2.svg"
+    },
+    "icons/outline/alert-triangle.svg": {
+      "sha256": "25b1f0c39f34647017df84a0cdc9e691c697737094a5956c360ab448a7fd5bef",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/alert-triangle.svg"
+    },
+    "icons/outline/sunset.svg": {
+      "sha256": "cb1f1a38a21a0749933122ff0bdc78ad59cf5f5bd595ce58ba98920da13f625b",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/sunset.svg"
+    },
+    "icons/outline/trekking.svg": {
+      "sha256": "3dd6c58967c358f57af789b0a18731284a9a6297b02b2c10557ccbbc35701363",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/trekking.svg"
+    },
     "LICENSE": {
       "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/LICENSE"

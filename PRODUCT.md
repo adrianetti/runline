@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.18.0 (code 21) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.19.0 (code 22) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -124,3 +124,12 @@ This supersedes 0.17's unknown heights at structures.
 - **Replay trail.** The arrow draws the route as it moves; nothing is shown ahead of it.
 
 See docs/RELEASE-0.18-PLAN.md.
+
+## Hiking and open routes — 0.19
+
+Runline now plans as well as records.
+- **Routes tab.** An open, ODbL-licensed route catalog lives in `routes/`. It is bundled with the app and can be refreshed from GitHub with SHA-256 verification. Any GPX can be imported. Route details show distance, ascent and descent, highest and lowest point, Tobler moving time, effort-kilometre difficulty, an elevation profile, waypoints and today's sunset against the finish.
+- **Following.** Hike this route attaches the route to the next recording; it is saved with the session and survives restarts. The live map draws it dashed under the track. The island shows distance and ascent left, arrival (with a sunset warning) and the next waypoint. Leaving the path vibrates, updates the notification and, with voice on, says which side the path is on.
+- **First route.** A Granada loop rebuilt from OpenStreetMap paths, from photos of a route whose download was paywalled. Its geometry and wording are original, and its sources are credited.
+
+See docs/HIKING.md and docs/RELEASE-0.19-PLAN.md.

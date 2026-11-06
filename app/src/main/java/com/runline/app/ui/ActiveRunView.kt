@@ -45,6 +45,17 @@ class ActiveRunView(
     private var terrainLast: RunPoint? = null
     private var terrainEstimate = TerrainEstimate()
     private val elevation = ElevationProgress()
+    private val routeIcon = android.widget.ImageView(context).apply {
+        setImageResource(R.drawable.ic_route); imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val routeText = label("", 14).apply { maxLines = 3 }
+    private val routeRow = LinearLayout(context).apply {
+        gravity = Gravity.CENTER_VERTICAL; visibility = GONE
+        addView(routeIcon, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(8) })
+        addView(routeText, LinearLayout.LayoutParams(0, -2, 1f))
+        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
+    }
     private val heading = label(context.getString(when (initial.status) {
         RecordingStatus.PAUSED -> R.string.active_paused
         RecordingStatus.INTERRUPTED -> R.string.active_recovered
@@ -73,6 +84,7 @@ class ActiveRunView(
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         information.addView(heading, row(bottom = 4))
+        information.addView(routeRow, row(bottom = 6))
         information.addView(gps, row(bottom = if (compact) 6 else 12))
         information.addView(readout, row())
         panel.setChartContent(readout)
@@ -134,8 +146,10 @@ class ActiveRunView(
         val currentTerrain = if (state.status == RecordingStatus.RECORDING && fresh) terrainEstimate else TerrainEstimate()
         map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
         map.setLocationWaitingMessage(if (state.status == RecordingStatus.RECORDING) state.message else context.getString(if (state.status == RecordingStatus.PAUSED) R.string.active_paused_hint else R.string.active_recovered_hint))
+        map.setPlannedRoute(state.route?.points)
         map.setRoute(run.points)
         map.setMarker(run.points.lastOrNull())
+        showRoute(state.route, state.status == RecordingStatus.RECORDING)
         val meters = RunMetrics.distanceMeters(points)
         elevation.update(points)
         val stopped = state.status == RecordingStatus.RECORDING && state.stoppedSinceMs != null
@@ -166,6 +180,44 @@ class ActiveRunView(
         val routineStatus = state.messageRes in setOf(null, R.string.tracking_paused, R.string.tracking_recovered_hint)
         gps.visibility = if (compact && routineStatus) GONE else VISIBLE
         heading.contentDescription = "${heading.text}. $status"
+    }
+
+    /** Distance and ascent left, arrival against sunset, the next named place, or which way the path is. */
+    private fun showRoute(route: com.runline.app.tracking.LiveRoute?, recording: Boolean) {
+        routeRow.visibility = if (route == null) GONE else VISIBLE
+        if (route == null) return
+        val p = route.progress
+        val locale = resources.configuration.locales[0]
+        fun km(m: Double) = String.format(locale, "%.1f", m / 1000)
+        val off = p?.state == com.runline.app.core.RouteState.OFF_ROUTE
+        val text = when (p?.state) {
+            null -> route.name
+            com.runline.app.core.RouteState.APPROACHING -> context.getString(R.string.v19_island_approach, p.distanceFromRouteMeters.roundToInt())
+            com.runline.app.core.RouteState.OFF_ROUTE -> p.side?.let {
+                context.getString(R.string.v19_island_off, p.distanceFromRouteMeters.roundToInt(), context.getString(when (it) {
+                    com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
+                    com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead; com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
+                }))
+            } ?: context.getString(R.string.v19_island_off_plain, p.distanceFromRouteMeters.roundToInt())
+            com.runline.app.core.RouteState.FINISHED -> context.getString(R.string.v19_route_complete_short)
+            com.runline.app.core.RouteState.ON_ROUTE -> {
+                val arrival = System.currentTimeMillis() + (p.minutesRemaining * 60_000).toLong()
+                val time = { ms: Long -> java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT).withLocale(locale)
+                    .format(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault())) }
+                val clock = time(arrival)
+                val main = p.ascentRemainingMeters?.let { context.getString(R.string.v19_island_route, km(p.remainingMeters), it.roundToInt(), clock) }
+                    ?: context.getString(R.string.v19_island_route_no_ascent, km(p.remainingMeters), clock)
+                val sunset = route.sunsetMs?.takeIf { recording && arrival > it }?.let { "\n" + context.getString(R.string.v19_island_after_sunset, time(it)) }.orEmpty()
+                val next = p.nextWaypoint?.takeIf { it.name.isNotBlank() }?.let { w ->
+                    "\n" + context.getString(R.string.v19_island_next, w.name, km(p.nextWaypointMeters ?: 0.0))
+                }.orEmpty()
+                main + sunset + next
+            }
+        }
+        change(routeText, text)
+        routeText.typeface = Typeface.create(if (off) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
+        routeIcon.setImageResource(if (off) R.drawable.ic_warning else R.drawable.ic_route)
+        routeRow.contentDescription = "${route.name}. $text"
     }
 
     private fun label(textValue: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(context).apply {

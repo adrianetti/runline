@@ -2,13 +2,17 @@
 
 Runs, walks and hikes on Android 8.0+, with local history, maps, replay and optional coaching. English and Spanish are supported.
 
+## Follow a route
+
+Open **Routes** and pick an open route, or use **⋯ → Import GPX** to add your own. The route page shows distance, ascent, estimated time, difficulty, an elevation profile, waypoints and today's sunset. **Hike this route** puts it on the Record tab; tap Start as usual. While recording, the route is dashed on the map and the island shows what is left. If you stray from the path, the phone vibrates and tells you which way it is. Details: [Hiking and routes](HIKING.md).
+
 ## Record an activity
 
 1. Open **Record**, choose **Run**, **Walk** or **Hike**, then tap **Start**. On first use, grant precise location and allow notifications. Location must be enabled on the phone.
 2. A loading state stays over the map until a usable GPS fix arrives. Wait outdoors; the status explains disabled location or missing permission. You can lock the screen or switch apps while the independent foreground service records.
 3. Tap **Pause**, then **Resume** or **Finish**. The route is saved immediately, then an optional editor offers title, notes, effort, routine type and photos. Close the editor to keep the recording without extra details; edit it later from the saved activity’s **…** menu.
 
-The idle Record tab has an activity picker, a speaker toggle, an options icon and Start. The speaker changes voice guidance in one tap; **… → Voice settings** includes Test voice, while **… → Goal** sets a manual target. Record and Activities remain the only tabs. **Settings** opens Runner profile, AI, Terrain maps, Language, Recording protection and About. The activity choice is remembered and stored through recovery/export; old untyped recordings remain Run.
+The idle Record tab has an activity picker, a speaker toggle, an options icon and Start. The speaker changes voice guidance in one tap; **… → Voice settings** includes Test voice, while **… → Goal** sets a manual target. The tabs are Record, Activities and, since 0.19, Routes. **Settings** opens Runner profile, AI, Terrain maps, Language, Recording protection and About. The activity choice is remembered and stored through recovery/export; old untyped recordings remain Run.
 
 During recording, the satellite map fills the app content area. A bottom island leads with recent pace in min/km, a rolling terrain profile and signed grade and distance. Time and elevation totals are smaller; portrait retains average pace as supporting context. Pause stays fixed within reach. Paused and recovered sessions offer Resume and Finish. Activities and options float above the map. Landscape moves the island to the lower left. Icons use one [MIT-licensed Tabler outline set](../THIRD_PARTY_NOTICES.md), including the running figure, navigation arrow, controls and notification glyph.
 

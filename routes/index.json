@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "license": "ODbL-1.0",
+  "attribution": "Route geometry © OpenStreetMap contributors (ODbL 1.0). Elevation © IGN/CNIG MDT05 (CC BY 4.0).",
+  "routes": [
+    {
+      "id": "es-granada-alhambra-dehesa-genil",
+      "file": "es/granada/alhambra-dehesa-genil.gpx",
+      "sha256": "146b269185a8bf250c4a02e4d111e284e9e778d39b8e82cfbb0a7e42cf3e8d09",
+      "name": {
+        "en": "Alhambra, Dehesa del Generalife and the Genil river",
+        "es": "Alhambra, Dehesa del Generalife y río Genil"
+      },
+      "region": {
+        "en": "Granada, Spain",
+        "es": "Granada, España"
+      },
+      "activity": "hike",
+      "shape": "loop",
+      "distance_m": 14896,
+      "ascent_m": 296,
+      "descent_m": 316,
+      "min_elevation_m": 668,
+      "max_elevation_m": 927,
+      "start": [
+        37.176728,
+        -3.59589
+      ],
+      "bbox": [
+        37.15733,
+        -3.59589,
+        37.17673,
+        -3.54637
+      ],
+      "summary": {
+        "en": "Alhambra woods, the Acequia Real path across the Dehesa del Generalife, the Lancha del Genil badlands and the riverside back to the city.",
+        "es": "Bosque de la Alhambra, la vereda de la Acequia Real por la Dehesa del Generalife, las cárcavas de Lancha del Genil y la ribera del Genil de vuelta a la ciudad."
+      },
+      "sources": [
+        "OpenStreetMap paths (ODbL 1.0)",
+        "IGN/CNIG MDT05 elevation (CC BY 4.0)"
+      ],
+      "added": "2026-11-06"
+    }
+  ]
+}

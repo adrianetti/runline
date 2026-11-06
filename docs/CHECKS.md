@@ -20,6 +20,7 @@ Local checks:
 ```sh
 python3 tools/check_resources.py
 python3 tools/import_icons.py --check
+python3 tools/check_routes.py
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 python3 tools/security/test_dependency_advisories.py
 ./gradlew --no-daemon --no-configuration-cache --init-script tools/security/export_dependencies.init.gradle exportDependencyAudit

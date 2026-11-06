@@ -57,12 +57,18 @@ data class TrackingState(
     val messageRes: Int? = null,
     /** Live standstill start (GPS wall clock). Derived only; recording continues unchanged. */
     val stoppedSinceMs: Long? = null,
+    /** A followed route and the hiker's progress on it. Derived only. */
+    val route: LiveRoute? = null,
 ) {
     /** Resolve again when read so a language change also updates a paused/recovered state. */
     fun localized(context: Context): TrackingState = messageRes?.let {
         copy(message = AppLanguage.localizedContext(context).getString(it))
     } ?: this
 }
+
+/** A planned route being followed; [points] keeps one identity so the map draws it once. */
+data class LiveRoute(val id: String, val name: String, val points: List<com.runline.app.core.RunPoint>,
+                     val progress: com.runline.app.core.RouteProgress?, val sunsetMs: Long?)
 
 /** User-started foreground recorder. UI closure never stops it; force-stop and reboot never auto-start it. */
 class TrackingService : Service(), LocationListener {
@@ -92,6 +98,14 @@ class TrackingService : Service(), LocationListener {
     private var stillness = com.runline.app.core.StillnessTracker()
     private var autoPause = true
     private var notifiedStopped = false
+    private var routeFollower: com.runline.app.core.RouteFollower? = null
+    private var routeId: String? = null
+    private var routeName = ""
+    private var routePoints: List<com.runline.app.core.RunPoint> = emptyList()
+    private var routeProgress: com.runline.app.core.RouteProgress? = null
+    private var routeSunset: Long? = null
+    private var routeState: com.runline.app.core.RouteState? = null
+    private var lastRouteAlert = 0L
     @Volatile private var foreground = false
     @Volatile private var published = TrackingState()
 
@@ -253,6 +267,7 @@ class TrackingService : Service(), LocationListener {
                     setReferenceCounted(false); acquire(WAKE_LOCK_TIMEOUT_MS)
                 }
             reloadCoaching()
+            loadRoute()
             worker.removeCallbacks(ticker); worker.post(ticker)
             publish(); updateNotification()
         } catch (_: Exception) { fail(R.string.tracking_check_location_storage) }
@@ -274,7 +289,7 @@ class TrackingService : Service(), LocationListener {
         // The route is durable before optional editing or online analysis is scheduled.
         runCatching { getSharedPreferences("activity_completion", MODE_PRIVATE).edit().putString("pending_id", finished.id).apply() }
         runCatching { AiActivityCompletion.onSaved(this, finished) }
-        current = null; mode = RecordingStatus.IDLE
+        current = null; mode = RecordingStatus.IDLE; clearRoute()
         published = TrackingState(savedRunId = finished.id, lastSavedAtMs = System.currentTimeMillis()); cached = published
         stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
     }
@@ -283,7 +298,7 @@ class TrackingService : Service(), LocationListener {
         if (mode == RecordingStatus.RECOVERY_ERROR) { fail(R.string.tracking_preserve_damaged); return }
         freezeTimer(); mode = RecordingStatus.PAUSED; releaseRecordingResources()
         if (!safely { store.discardDraft() }) return
-        current = null; mode = RecordingStatus.IDLE; published = TrackingState(); cached = published
+        current = null; mode = RecordingStatus.IDLE; clearRoute(); published = TrackingState(); cached = published
         stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf()
     }
 
@@ -306,6 +321,7 @@ class TrackingService : Service(), LocationListener {
         // Every valid fix informs the standstill signal, including those too close to store.
         stillness.update(location.latitude, location.longitude, location.time, location.accuracy,
             if (location.hasSpeed() && location.speed.isFinite()) location.speed else null)
+        updateRoute(location.latitude, location.longitude, location.accuracy, location.time)
         val previous = current!!.points.lastOrNull()
         if (lastLocationElapsed > 0 && elapsed <= lastLocationElapsed) return
         val seconds = (elapsed - lastLocationElapsed) / 1000.0
@@ -353,7 +369,63 @@ class TrackingService : Service(), LocationListener {
         SystemClock.elapsedRealtime() - (lastLocationElapsed.takeIf { it > 0 } ?: activeSince) > 15_000
     private fun stoppedSince(): Long? = stillness.stoppedSinceMs?.takeIf { mode == RecordingStatus.RECORDING && !isGpsStale() }
     private fun publish() { published = TrackingState(mode, snapshotRun(), accuracy, lastSavedAtMs = lastSavedAt, gpsStale = isGpsStale(), messageRes = messageRes,
-        stoppedSinceMs = stoppedSince()).localized(this); cached = published }
+        stoppedSinceMs = stoppedSince(), route = routeId?.let { LiveRoute(it, routeName, routePoints, routeProgress, routeSunset) }).localized(this); cached = published }
+
+    /** The session's planned route, rebuilt from the recorded fixes after a restart. Optional: never in the storage path. */
+    private fun loadRoute() {
+        runCatching {
+            val session = current ?: return
+            val id = com.runline.app.data.SessionIntentStore(this).get(session.id)?.routeId
+            if (id == null) { clearRoute(); return }
+            if (id == routeId && routeFollower != null) return
+            val routes = com.runline.app.data.RouteStore(this)
+            val route = routes.load(id) ?: run { clearRoute(); return }
+            val follower = com.runline.app.core.RouteFollower(route)
+            var last: com.runline.app.core.RouteProgress? = null
+            session.points.forEach { last = follower.update(it.latitude, it.longitude, it.accuracyMeters, it.timestampMs) }
+            val language = AppLanguage.localizedContext(this).resources.configuration.locales[0].language
+            routeFollower = follower; routeId = id; routeProgress = last; routeState = last?.state
+            routeName = routes.entry(id, language)?.name ?: route.name
+            routePoints = route.runPoints()
+            routeSunset = com.runline.app.core.SunTimes.sunset(java.time.LocalDate.now().toEpochDay(), route.points.first().latitude, route.points.first().longitude)
+        }
+    }
+    private fun clearRoute() { routeFollower = null; routeId = null; routeProgress = null; routeState = null; routePoints = emptyList() }
+
+    private fun updateRoute(latitude: Double, longitude: Double, accuracyMeters: Float, timeMs: Long) {
+        val follower = routeFollower ?: return
+        runCatching {
+            val progress = follower.update(latitude, longitude, accuracyMeters, timeMs, snapshotRun()?.activeDurationMs?.div(60_000.0))
+            val previous = routeState
+            routeProgress = progress; routeState = progress.state
+            val now = SystemClock.elapsedRealtime()
+            val repeat = progress.state == com.runline.app.core.RouteState.OFF_ROUTE && now - lastRouteAlert >= 120_000
+            if (progress.changed || repeat) { lastRouteAlert = now; routeAlert(progress, previous); publish(); updateNotification() }
+        }
+    }
+
+    private fun routeAlert(progress: com.runline.app.core.RouteProgress, previous: com.runline.app.core.RouteState?) {
+        val meters = progress.distanceFromRouteMeters.roundToLong()
+        val (key, pattern, text) = when (progress.state) {
+            com.runline.app.core.RouteState.OFF_ROUTE -> Triple("off", longArrayOf(0, 400, 200, 400),
+                progress.side?.let { tr(R.string.v19_route_off_side, meters, tr(sideText(it))) } ?: tr(R.string.v19_route_off, meters))
+            com.runline.app.core.RouteState.ON_ROUTE -> if (previous == com.runline.app.core.RouteState.OFF_ROUTE)
+                Triple("back", longArrayOf(0, 150), tr(R.string.v19_route_back))
+                else Triple("joined", longArrayOf(0, 150), tr(R.string.v19_route_joined, progress.remainingMeters / 1000))
+            com.runline.app.core.RouteState.FINISHED -> Triple("done", longArrayOf(0, 300, 150, 300), tr(R.string.v19_route_finished))
+            else -> return
+        }
+        runCatching {
+            val vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(android.os.VibratorManager::class.java).defaultVibrator
+                else @Suppress("DEPRECATION") getSystemService(android.os.Vibrator::class.java)
+            vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1))
+        }
+        coachSpeech?.speakRoute(key, text) { published.status == RecordingStatus.RECORDING }
+    }
+    private fun sideText(side: com.runline.app.core.RouteSide) = when (side) {
+        com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
+        com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead; com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
+    }
     private fun safely(block: () -> Unit): Boolean = try { block(); true } catch (_: Exception) {
         fail(R.string.tracking_storage_paused); false
     }
@@ -440,7 +512,10 @@ class TrackingService : Service(), LocationListener {
         val elapsed = if (elapsedSeconds >= 3600)
             String.format(formatLocale, "%d:%02d:%02d", elapsedSeconds / 3600, elapsedSeconds / 60 % 60, elapsedSeconds % 60)
         else String.format(formatLocale, "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
+        val routeProgress = state.route?.progress
+        val offRoute = recording && routeProgress?.state == com.runline.app.core.RouteState.OFF_ROUTE
         val title = when {
+            offRoute -> tr(R.string.v19_notification_off_route, routeProgress!!.distanceFromRouteMeters.roundToLong())
             stopped && RecordingSettings.autoPause(this) -> tr(R.string.v17_stopped_auto_paused)
             recording -> tr(when (run?.activityType) {
                 ActivityType.WALK -> R.string.tracking_walking
@@ -452,7 +527,10 @@ class TrackingService : Service(), LocationListener {
             else -> tr(R.string.tracking_opening)
         }
         val detail = state.message.takeUnless { state.messageRes == R.string.tracking_paused }
-        val expanded = listOfNotNull(metrics, if (!recording) tr(R.string.tracking_active_time, elapsed) else null, detail).joinToString("\n")
+        val routeLine = routeProgress?.takeIf { it.state != com.runline.app.core.RouteState.APPROACHING }?.let {
+            if (it.state == com.runline.app.core.RouteState.FINISHED) tr(R.string.v19_route_complete_short) else tr(R.string.v19_route_left_short, it.remainingMeters / 1000)
+        }
+        val expanded = listOfNotNull(metrics, routeLine, if (!recording) tr(R.string.tracking_active_time, elapsed) else null, detail).joinToString("\n")
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_run)
             .setContentTitle(title).setContentText(if (run == null) tr(R.string.tracking_saved_on_phone) else metrics)
             .setContentIntent(open).setStyle(Notification.BigTextStyle().bigText(expanded))

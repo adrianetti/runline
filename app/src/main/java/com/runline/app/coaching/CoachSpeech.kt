@@ -128,6 +128,16 @@ class CoachSpeech(context: Context,
         prepareInternal()
         drainPendingSpeech()
     }
+    /** Route guidance (off route, back on route, finished). Shares the milestone slot and its timing. */
+    fun speakRoute(key: String, text: String, isValid: () -> Boolean = { true }) = onMain {
+        val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
+        if (closed || clean.isEmpty() || clean.length > 220) return@onMain
+        val offered = schedule.offer(CoachSpeechRequest("route-$key", CoachSpeechPriority.MILESTONE, advice = clean,
+            isValid = { situation.eligible && isValid() }), SystemClock.elapsedRealtime())
+        diagnostic(if (offered) "queued" else "rejected", clean, "LOCAL", "route-$key")
+        prepareInternal()
+        drainPendingSpeech()
+    }
     fun stop() = onMain { stopInternal() }
     fun close() = onMain {
         if (closed) return@onMain
@@ -276,8 +286,9 @@ class CoachSpeech(context: Context,
         val next = schedule.takeReady(SystemClock.elapsedRealtime(), initialized && !lease.isBusy && speakingInstance == null)
         if (next != null && runCatching(next.isValid).getOrDefault(false)) {
             val text = next.cue?.let(::cueText) ?: next.advice.orEmpty()
-            currentCue = next.cue?.toString() ?: "advice"
-            speakInternal(text, null, if (next.cue == null) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
+            val route = next.cue == null && next.key.startsWith("route-")
+            currentCue = next.cue?.toString() ?: if (route) next.key else "advice"
+            speakInternal(text, null, if (next.cue == null && !route) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
         }
         // At most three bounded slots; no polling or held focus after they expire.
         if (schedule.pendingCount > 0) main.postDelayed(retrySpeech, 1_000)
