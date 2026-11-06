@@ -169,3 +169,26 @@ No physical-phone field test, hardware battery-exhaustion test or Strava publica
 0.16.1 / code 19 places a larger min/km directly beside pace in shared live/replay islands, adds a Recommended brain disclosure with the saved rationale and analysis time, and prefers GitHub Mobile for About links with an external-handler fallback. Replay speed gets a full row at narrow widths/large text. Local checks passed 330 JVM tests, debug/release builds, lint (zero errors, 150 warnings), 578 bilingual resources, 37 icons and the source/workflow/security checks. [Testing](TESTING.md#version-0161-validation) records native layout, cache/disclosure, link fallback and data-retention evidence and its limits.
 
 APK SHA-256: `5d2655221f8ce3168a7e85cbb6dbb219ee72fbf89dcc48ffa2474f1b31378d99`. Signing identity is unchanged. No paid AI or physical-phone test was performed.
+
+## Version 0.17 source changes
+
+- **Stop detection and auto-pause.** Standstills are derived from saved fixes, plus a live signal from all valid fixes and Doppler speed. With auto-pause (default on), the timer, averages, splits, notification, kilometre cues and time goals use moving time. Fixes and exports are never edited.
+- **Structure-aware terrain.** In regional coverage, an ambiguous footprint (bridge, underpass, embankment) and 15 m either side stay unknown instead of falling back to global heights. The slope line keeps a true aspect, and the slope label holds briefly instead of flickering.
+- **Measured coach.**
+  - Silent while stopped.
+  - Kilometre splits are compared with the previous kilometre.
+  - Halfway, final stretch and goal reached carry measured numbers.
+  - Generic lines become progress checks.
+  - Hill recovery only follows a measured climb.
+- **Run data ZIP.** One activity's GPX, fixes with derived columns, stops, coach log, summary and review export as one ZIP. File options gained Tabler icons and clearer names.
+- **Runner profile.** A local training snapshot, plus an optional AI-maintained assessment kept in its own store. It updates after new runs, at most every 6 hours.
+
+## Version 0.17 verification
+
+Recorded 6 November 2026:
+- 353 JVM tests; lint 0 errors.
+- Retrospective replay of private runs: no model mixing near structures, 5 stops found on the street run, 0 on the 10K.
+- One real AI profile request per language.
+- API 34 signed update kept 65/66 non-cache originals; mock-GPS live auto-pause; complete ZIP export; emulator data restored 75/75.
+
+Details: [TESTING.md](TESTING.md#version-017-validation). Artifact `Runline-0.17.0.apk`, code 20, SHA-256 `5fbe4c063b42e3c0e8141514252a9d4e9cefa9991af553e52873cf17f2877859`, same signing certificate.

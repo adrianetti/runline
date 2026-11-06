@@ -46,3 +46,17 @@ Historical v0.5 API 34 checks confirmed direct bilingual GPX Downloads exports, 
 GPX 0.13 exports retain original heights and add optional `runline:horizontalAccuracyMeters` / `runline:verticalAccuracyMeters` extensions in `https://github.com/adrianetti/runline/xmlns/1`. Values are Android-reported metres, not corrected elevation or a guarantee. Legacy vertical accuracy remains absent. Standard GPX readers can ignore these extensions.
 
 Version 0.14 displays mapped elevation in recording/replay and supplies it to coaching, but GPX and archive exports retain the original GPS observations and GPS-derived totals. No corrected values silently replace measured heights. See [Terrain](TERRAIN.md) for source/coverage distinctions.
+
+## One activity: all data (0.17)
+
+**Share all data (ZIP)** and **Download all data (ZIP)** write `<activity name> - data.zip`:
+
+- `activity.gpx`: the original fixes.
+- `points.csv`: one row per fix, with GPS columns as recorded plus derived columns: terrain height, model, grade, direction, path distance and a stopped flag.
+- `stops.csv`: the detected standstills.
+- `summary.json`: moving and elapsed time, splits excluding stops, laps, elevation, and your title, notes and effort.
+- `coach-log.json`: the coach log, with coordinates.
+- `review.json`: the saved AI review, if any.
+- `README.txt`.
+
+The ZIP contains the exact route. Photos and the runner profile are never included. The all-activities CSV gains `moving_seconds`, `stop_count`, `stopped_seconds` and `moving_pace_seconds_per_km` as its last columns.

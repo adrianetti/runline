@@ -94,8 +94,14 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
                     radius * .707 to radius * .707, -radius * .707 to radius * .707,
                     radius * .707 to -radius * .707, -radius * .707 to -radius * .707)
                     .map { (dx, dy) -> grid.at(xy.first + dx, xy.second + dy) }
+                val known = values.filterNotNull()
+                val spread = if (known.size >= 2) known.max() - known.min() else 0.0
                 // Reject steep edges/ambiguous location footprints, not a park-specific grade.
-                if (values.all { it != null } && values.filterNotNull().let { it.max() - it.min() <= 3.0 }) { height = values.first(); model = TerrainModel.IGN_MDT05 }
+                if (values.all { it != null } && spread <= 3.0) { height = values.first(); model = TerrainModel.IGN_MDT05 }
+                // A bridge deck, the road below it, an underpass ramp or a wall share this
+                // footprint. Coarser global data would only blur them and mix references.
+                else if (values.first() != null && spread > 3.0)
+                    return original.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = TerrainModel.STRUCTURE)
             }
             if (height == null) {
                 val radius = original.accuracyMeters.toDouble().coerceAtLeast(5.0)
@@ -110,20 +116,74 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
         }
         return original.copy(altitudeMeters = height, verticalAccuracyMeters = null, terrainModel = model)
     }
-    fun project(run: RunSession) = run.copy(points = run.points.map(::point), elevationSource = TerrainSource.TERRAIN_MAP)
+    fun project(run: RunSession) = run.copy(points = TerrainStructureGuard.apply(run.points.map(::point)), elevationSource = TerrainSource.TERRAIN_MAP)
+}
+
+/**
+ * Heights next to an ambiguous structure may describe its deck, the road below or the
+ * slope between, so they stay unknown for a short distance on both sides. Display and
+ * analysis only; recorded GPS observations are never changed.
+ */
+object TerrainStructureGuard {
+    const val MARGIN_METERS = 15.0
+
+    fun apply(points: List<RunPoint>): List<RunPoint> {
+        if (points.none { it.terrainModel == TerrainModel.STRUCTURE }) return points
+        val along = DoubleArray(points.size)
+        val group = IntArray(points.size)
+        for (index in 1 until points.size) {
+            val joined = MarkerMotion.canInterpolate(points[index - 1], points[index])
+            group[index] = if (joined) group[index - 1] else group[index - 1] + 1
+            along[index] = if (joined) along[index - 1] + RunMetrics.distanceMeters(listOf(points[index - 1], points[index])) else 0.0
+        }
+        val hidden = BooleanArray(points.size)
+        points.forEachIndexed { index, point ->
+            if (point.terrainModel != TerrainModel.STRUCTURE) return@forEachIndexed
+            hidden[index] = true
+            var before = index - 1
+            while (before >= 0 && group[before] == group[index] && along[index] - along[before] <= MARGIN_METERS) hidden[before--] = true
+            var after = index + 1
+            while (after < points.size && group[after] == group[index] && along[after] - along[index] <= MARGIN_METERS) hidden[after++] = true
+        }
+        return points.mapIndexed { index, point ->
+            if (hidden[index] && point.terrainModel != TerrainModel.STRUCTURE)
+                point.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = TerrainModel.STRUCTURE)
+            else point
+        }
+    }
+
+    /** Causal form for live coaching: only the distance after a structure can be hidden. */
+    class Live {
+        private var previous: RunPoint? = null
+        private var traveled = 0.0
+        private var hiddenUntil = Double.NEGATIVE_INFINITY
+        fun reset() { previous = null; traveled = 0.0; hiddenUntil = Double.NEGATIVE_INFINITY }
+        fun apply(projected: RunPoint): RunPoint {
+            val prior = previous
+            if (prior == null || !MarkerMotion.canInterpolate(prior, projected)) { traveled = 0.0; hiddenUntil = Double.NEGATIVE_INFINITY }
+            else traveled += RunMetrics.distanceMeters(listOf(prior, projected))
+            previous = projected
+            if (projected.terrainModel == TerrainModel.STRUCTURE) { hiddenUntil = traveled + MARGIN_METERS; return projected }
+            return if (traveled <= hiddenUntil) projected.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = TerrainModel.STRUCTURE)
+                else projected
+        }
+    }
 }
 
 /** Retains point identity and only projects appended fixes until the map snapshot changes. */
 class TerrainProjector {
     private var revision = -1L; private var id: String? = null; private var originals = emptyList<RunPoint>()
     private var derived = emptyList<RunPoint>()
+    private var guarded = emptyList<RunPoint>()
     fun project(run: RunSession, map: TerrainMapSnapshot): RunSession {
         val reusable = id == run.id && revision == map.revision && run.points.size >= originals.size &&
             (originals.isEmpty() || run.points[originals.lastIndex] === originals.last())
-        derived = if (reusable && run.points.size == originals.size) derived
+        val unchanged = reusable && run.points.size == originals.size
+        derived = if (unchanged) derived
             else if (reusable) derived + run.points.drop(originals.size).map(map::point) else run.points.map(map::point)
+        if (!unchanged) guarded = TerrainStructureGuard.apply(derived)
         id = run.id; revision = map.revision; originals = run.points
-        return run.copy(points = derived, elevationSource = TerrainSource.TERRAIN_MAP)
+        return run.copy(points = guarded, elevationSource = TerrainSource.TERRAIN_MAP)
     }
 }
 

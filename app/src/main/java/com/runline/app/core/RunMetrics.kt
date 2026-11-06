@@ -30,7 +30,12 @@ object RunMetrics {
      * including stationary samples, but exclude pauses and periods without a GPS baseline.
      * They intentionally do not invent time to make their sum equal the run's timer.
      */
-    fun splits(run: RunSession): List<RunSplit> {
+    fun splits(run: RunSession, stops: List<StopInterval> = emptyList()): List<RunSplit> {
+        val ordered = stops.sortedBy { it.startMs }
+        // Time standing still inside a step is not running time when stops are excluded.
+        fun stoppedWithin(start: Long, end: Long): Double = ordered.sumOf { stop ->
+            (minOf(end, stop.endMs) - maxOf(start, stop.startMs)).coerceAtLeast(0L).toDouble()
+        }
         val splits = mutableListOf<RunSplit>()
         var splitDistance = 0.0
         var splitDuration = 0.0
@@ -49,7 +54,8 @@ object RunMetrics {
         for (segment in continuousSegments(run.points)) {
             for ((a, b) in segment.zipWithNext()) {
                 var remainingDistance = between(a, b)
-                var remainingDuration = b.timestampMs.toDouble() - a.timestampMs.toDouble()
+                var remainingDuration = (b.timestampMs.toDouble() - a.timestampMs.toDouble() -
+                    (if (ordered.isEmpty()) 0.0 else stoppedWithin(a.timestampMs, b.timestampMs))).coerceAtLeast(0.0)
                 if (remainingDistance <= EPSILON) {
                     splitDuration += remainingDuration
                     totalDuration += remainingDuration

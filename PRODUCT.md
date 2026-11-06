@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.16.0 (code 18) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.17.0 (code 20) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -104,3 +104,14 @@ This supersedes earlier preparation/menu descriptions. Record has the activity d
 Terrain prepares nearby small tiles automatically using an already-granted foreground location and bounded worker/cache work. Settings contains its automatic/Wi-Fi-only/manual preparation/clear controls; temporary files count toward 64 MiB. About reports measured app/terrain storage, repository and consolidated credits, plus cached public GitHub release checks with an amber icon for newer stable APK releases. It links to GitHub without installing anything.
 
 Shared islands use the large pace value with a smaller inline min/km unit, omitting the duplicate provider footer. Details/About retain source information and map attribution stays visible. Activities offers Share all/Export all in its heading menu. Replay uses a native stepped speed slider, with 1×/480× endpoints and retained approximately-30-second initial speed, position and recreation state. The map, profile, original GPS data and exports remain intact.
+
+## Stops, structures and measured coaching — 0.17
+
+This supersedes the earlier "active time includes standing still" behavior.
+- **Stops and auto-pause.** Standstills of 5 s or more are derived from saved fixes, plus a live signal from all valid fixes and Doppler speed. With Auto-pause at stops (default on), the timer, averages, splits, notification, kilometre cues and time goals use moving time. Fixes, timer history and exports are never edited.
+- **Terrain structures.** In regional terrain coverage, an ambiguous footprint (bridge, underpass, embankment, wall) and 15 m either side stay unknown instead of falling back to global heights. The slope line keeps a true aspect: at least a 12% grade over its drawn distance.
+- **Coach.** Silent while stopped. Kilometre splits are compared with the previous kilometre. Milestones carry measured time, distance and projections. Generic lines become short progress checks. Hill recovery only follows a measured climb.
+- **Run data ZIP.** One activity's run data exports as a single ZIP: GPX, fixes with derived columns, stops, coach log, summary and review.
+- **Runner profile.** It shows a local training snapshot. An optional, separately stored AI assessment (experience, summary, focus) updates after new runs.
+
+See docs/RELEASE-0.17-PLAN.md.

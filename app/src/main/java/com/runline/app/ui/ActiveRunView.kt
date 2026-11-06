@@ -138,11 +138,21 @@ class ActiveRunView(
         map.setMarker(run.points.lastOrNull())
         val meters = RunMetrics.distanceMeters(points)
         elevation.update(points)
+        val stopped = state.status == RecordingStatus.RECORDING && state.stoppedSinceMs != null
+        val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(context)
+        // Auto-pause: the clock and average stop at traffic lights; the GPS keeps recording.
+        val duration = if (autoPause) com.runline.app.core.StopDetection.movingDurationMs(run, openStopSinceMs = state.stoppedSinceMs) else run.activeDurationMs
+        change(heading, context.getString(when {
+            stopped -> if (autoPause) R.string.v17_stopped_auto_paused else R.string.v17_stopped
+            state.status == RecordingStatus.PAUSED -> R.string.active_paused
+            state.status == RecordingStatus.INTERRUPTED -> R.string.active_recovered
+            else -> R.string.active_recording
+        }))
         readout.update(
-            paceSeconds = if (state.status == RecordingStatus.RECORDING && !state.gpsStale) LivePace.secondsPerKm(points, System.currentTimeMillis()) else null,
-            distanceMeters = meters, durationMs = run.activeDurationMs, terrain = currentTerrain,
+            paceSeconds = if (state.status == RecordingStatus.RECORDING && !state.gpsStale && !stopped) LivePace.secondsPerKm(points, System.currentTimeMillis()) else null,
+            distanceMeters = meters, durationMs = duration, terrain = currentTerrain,
             climbedMeters = elevation.climbedMeters, descendedMeters = elevation.descendedMeters,
-            averagePace = RunMetrics.paceSecondsPerKm(meters, run.activeDurationMs),
+            averagePace = RunMetrics.paceSecondsPerKm(meters, duration),
             animate = state.status == RecordingStatus.RECORDING, profile = panel.slopeProfile(),
         )
         val status = when {

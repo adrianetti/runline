@@ -6,7 +6,7 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.16.1:** larger pace units directly beside the number, tap-to-explain daily recommendations, and GitHub app links from About.
+**New in 0.17:** auto-pause at traffic lights and other stops, with moving time and pace. Steadier slope readings at bridges and underpasses. A coach that speaks real splits and progress. One-tap ZIP with all of a run's data. An optional AI-maintained runner profile.
 
 **In 0.16:** a simpler Record screen, optional daily AI suggestion with a session-specific Use switch, automatic nearby terrain, GitHub update checks and storage usage in About, compact sharing controls, inline pace units and a replay-speed slider. [Using Runline](docs/USAGE.md).
 

@@ -5,7 +5,6 @@
     <string name="main_export_all">Exportar todo</string>
     <string name="main_save_to">Guardar en…</string>
     <string name="main_activity_file">Archivo de la actividad</string>
-    <string name="main_download_gpx">Descargar GPX</string>
     <string name="main_downloads">Descargas</string>
     <string name="main_summary_csv">Resumen · CSV</string>
     <string name="main_archive_zip">Todos los recorridos + resumen · ZIP</string>

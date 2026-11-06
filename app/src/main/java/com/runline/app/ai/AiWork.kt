@@ -60,7 +60,8 @@ object AiWork {
             val input = JSONObject().put("activity", AiRunSummary.of(verifiedRun, runDetails, config.includeNotes))
                 .put("coaching_context", AiCoachingContext.build(asOf, activeGoal = com.runline.app.data.SessionIntentStore(app).get(run.id)?.applyTo(com.runline.app.core.CoachConfig(enabled = true)),
                     activeRun = verifiedRun, history = history, details = runStore::details, includeNotes = config.includeNotes,
-                    profile = profile.profile, spoken = AiSpokenHistory.recent(run.id, elapsed), nowElapsedMs = elapsed, runnerGoal = runnerGoal.goal))
+                    profile = profile.profile, spoken = AiSpokenHistory.recent(run.id, elapsed), nowElapsedMs = elapsed, runnerGoal = runnerGoal.goal,
+                    insights = RunnerInsightsStore(app).load()))
             ensureCurrent(app, config, revision, profile, runnerGoal)
             input.put("session_intent", com.runline.app.data.SessionIntentStore(app).get(run.id)?.json() ?: JSONObject.NULL)
             val card = ReviewAi.request(com.runline.app.diagnostics.Diagnostics.provider(app, "review", run.id),
@@ -71,6 +72,37 @@ object AiWork {
                 if (run.id in deletedRuns || RunStore(app).get(run.id) == null) throw AiFailure(AiFailure.Reason.RESPONSE)
                 RunAiReview(card.text(), config.reviewModel, System.currentTimeMillis(), card).also { AiReviewStore(app).save(run.id, it) }
             }
+        }
+    }
+    /**
+     * Keeps the AI-maintained runner profile current. Due after new runs (at most every 6 h)
+     * unless [force]d from the profile screen. Sends coordinate-free activity summaries only;
+     * health notes go only with the separate profile-sharing consent.
+     */
+    fun updateProfile(context: Context, force: Boolean = false, callback: (Result<RunnerInsights?>) -> Unit = {}) {
+        val app = context.applicationContext
+        submit("profile", callback) {
+            val (config, key) = credentials(app)
+            val profile = RunnerProfileStore(app).load()
+            if (!profile.aiManaged) throw AiFailure(AiFailure.Reason.DISABLED)
+            val store = RunStore(app)
+            val runs = store.list()
+            val now = System.currentTimeMillis()
+            val insights = RunnerInsightsStore(app)
+            val previous = insights.load()
+            if (!force && !ProfileAi.due(previous, runs.size, now)) return@submit previous
+            val terrain = com.runline.app.terrain.TerrainRepository.get(app).snapshot
+            val input = JSONObject()
+                .put("training_snapshot", TrainingSnapshot.of(runs, store::details, now).json())
+                .put("recent_activities", AiRunSummary.history(runs.map(terrain::project), store::details, config.includeNotes))
+                .put("overall_goal", RunnerGoalStore(app).load().bounded().text.takeIf { it.isNotEmpty() } ?: JSONObject.NULL)
+                .put("self_report", profile.forAi() ?: JSONObject.NULL)
+                .put("previous_assessment", previous?.forAi() ?: JSONObject.NULL)
+            val result = ProfileAi.request(com.runline.app.diagnostics.Diagnostics.provider(app, "profile"), key, config.reviewModel,
+                language(app), input, runs.size, now)
+            // The user may have turned management off or cleared the profile while this ran.
+            if (!RunnerProfileStore(app).load().aiManaged || !AiSettings.load(app).enabled) throw AiFailure(AiFailure.Reason.DISABLED)
+            insights.save(result); result
         }
     }
     private fun ensureCurrent(context: Context, config: AiConfig, revision: Long, profile: RunnerProfileSnapshot, goal: RunnerGoalSnapshot) {
@@ -93,6 +125,8 @@ object AiActivityCompletion {
     fun onAppOpen(context: Context) {
         RunnerGoalStore(context.applicationContext).load(); SmartRunAi.snapshot(context.applicationContext)
         AutomaticReviews.reconcile(context.applicationContext)
+        // Opportunistic: only when due (a new run, at most every 6 h) and fully opted in.
+        if (AiSettings.isReady(context) && RunnerProfileStore(context).load().aiManaged) AiWork.updateProfile(context)
     }
     fun onDeleted(context: Context, id: String) {
         AiWork.deleted(context.applicationContext, id)

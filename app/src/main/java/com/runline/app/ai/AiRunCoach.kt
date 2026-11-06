@@ -73,7 +73,8 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
                 val input = JSONObject().put("run", AiRunSummary.of(verifiedRun)).put("coaching_context", AiCoachingContext.build(
                     LocalDate.now(), activeGoal = goal, activeRun = verifiedRun, history = runs.list().map(terrainMap::project), details = runs::details,
                     includeNotes = settings.includeNotes, profile = profile.profile,
-                    spoken = AiSpokenHistory.recent(run.id, requestedAt), nowElapsedMs = requestedAt, runnerGoal = runnerGoal.goal))
+                    spoken = AiSpokenHistory.recent(run.id, requestedAt), nowElapsedMs = requestedAt, runnerGoal = runnerGoal.goal,
+                    insights = RunnerInsightsStore(context).load()))
                 if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
                 if (!profileCurrent(profile)) throw AiFailure(AiFailure.Reason.DISABLED)
                 if (!goalCurrent(runnerGoal)) throw AiFailure(AiFailure.Reason.DISABLED)

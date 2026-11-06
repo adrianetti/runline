@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spoken coach. Kept short: heard once, mid-run, often over music. -->
+    <string name="v17_coach_split">Este ha sido en %1$d minutos %2$d segundos.</string>
+    <string name="v17_coach_split_faster">%1$d segundos más rápido que el anterior.</string>
+    <string name="v17_coach_split_slower">%1$d segundos más lento que el anterior.</string>
+    <string name="v17_coach_split_even">Mismo ritmo que el anterior.</string>
+    <string name="v17_coach_pace">%1$d minutos %2$d por kilómetro</string>
+    <plurals name="v17_coach_minutes">
+        <item quantity="one">%d minuto</item>
+        <item quantity="other">%d minutos</item>
+    </plurals>
+    <plurals name="v17_coach_hours">
+        <item quantity="one">%d hora</item>
+        <item quantity="other">%d horas</item>
+    </plurals>
+    <string name="v17_coach_km">%1$s kilómetros</string>
+    <string name="v17_coach_progress">%1$s, %2$s.</string>
+    <string name="v17_coach_trend_faster">Vas acelerando: ahora a %1$s.</string>
+    <string name="v17_coach_trend_slower">El ritmo ha bajado a %1$s. Relájate y mantenlo.</string>
+    <string name="v17_coach_trend_steady">Estable a %1$s.</string>
+    <string name="v17_coach_halfway_time">Mitad del objetivo. Llevas %1$s y %2$s. Vas camino de unos %3$s.</string>
+    <string name="v17_coach_halfway_distance">Mitad del objetivo. %1$s en %2$s. Vas camino de unos %3$s.</string>
+    <string name="v17_coach_final_time">Quedan unos %1$s. Llevas %2$s.</string>
+    <string name="v17_coach_final_distance">Quedan %1$d metros.</string>
+    <string name="v17_coach_summary">%1$s en %2$s, media de %3$s.</string>
+
+    <!-- Stops and auto-pause -->
+    <string name="v17_stopped">Parado</string>
+    <string name="v17_stopped_auto_paused">Parado · pausa automática</string>
+    <string name="v17_auto_pause">Pausa automática al parar</string>
+    <string name="v17_moving_time">Tiempo en movimiento</string>
+    <string name="v17_elapsed_time">Tiempo total</string>
+    <string name="v17_stops">Paradas</string>
+    <plurals name="v17_stops_value">
+        <item quantity="one">%1$d · %2$s</item>
+        <item quantity="other">%1$d · %2$s</item>
+    </plurals>
+
+    <!-- Runner profile -->
+    <string name="v17_profile_from_activities">Según tus actividades</string>
+    <string name="v17_profile_snapshot_volume">%1$d carreras en 28 días · %2$s km/semana</string>
+    <string name="v17_profile_snapshot_pace">Más larga %1$s km · ritmo típico %2$s/km</string>
+    <string name="v17_profile_snapshot_effort">Esfuerzo medio %1$s/10</string>
+    <string name="v17_profile_snapshot_empty">Aún no hay carreras.</string>
+    <string name="v17_profile_ai_managed">Que la IA mantenga mi perfil al día</string>
+    <string name="v17_profile_ai_needs_ai">Activa primero la IA en Ajustes.</string>
+    <string name="v17_profile_ai_hint">Se actualiza tras nuevas carreras. Usa tus actividades, no tus notas de salud.</string>
+    <string name="v17_profile_ai_updated">Actualizado %1$s</string>
+    <string name="v17_profile_ai_update_now">Actualizar ahora</string>
+    <string name="v17_profile_ai_updating">Actualizando…</string>
+    <string name="v17_profile_ai_failed">No se pudo actualizar. Inténtalo más tarde.</string>
+
+    <!-- Export -->
+    <string name="v17_download_gpx">Descargar GPX</string>
+    <string name="v17_share_gpx">Compartir GPX</string>
+    <string name="v17_save_gpx">Guardar GPX en…</string>
+    <string name="v17_share_data">Compartir todos los datos (ZIP)</string>
+    <string name="v17_download_data">Descargar todos los datos (ZIP)</string>
+    <string name="v17_export_data_suffix">datos</string>
+</resources>

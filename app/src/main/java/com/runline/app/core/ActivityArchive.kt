@@ -40,11 +40,13 @@ object ActivityArchive {
 
     /** Locale-independent headers, decimal points, ISO timestamps and RFC 4180 quoting. */
     fun summaryCsv(entries: List<Entry>, zone: ZoneId): String = buildString {
-        append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file,title,description,effort,routine\r\n")
+        append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file,title,description,effort,routine,moving_seconds,stop_count,stopped_seconds,moving_pace_seconds_per_km\r\n")
         for ((run, filename, details) in entries) {
             val analysis = RunReplay(run).summary
             val distance = RunMetrics.distanceMeters(run.points)
             val pace = RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)
+            val stops = StopDetection.detect(run.points, run.activityType)
+            val moving = StopDetection.movingDurationMs(run, stops)
             val speed = if (run.activeDurationMs > 0 && distance > 0) distance * 3_600.0 / run.activeDurationMs else null
             val fields = listOf(
                 run.id, run.activityType.storageValue,
@@ -56,6 +58,9 @@ object ActivityArchive {
                 run.points.size.toString(), continuousSegments(run.points).size.toString(), filename,
                 safeSpreadsheetText(details.title), safeSpreadsheetText(details.description),
                 details.effort?.toString() ?: "", details.routine.storageValue.takeUnless { details.routine == RoutineType.NONE } ?: "",
+                // Derived standstills (traffic lights, shoelaces); the GPX keeps every original fix.
+                number(moving / 1000.0), stops.size.toString(), number(StopDetection.totalMs(stops) / 1000.0),
+                number(RunMetrics.paceSecondsPerKm(distance, moving)),
             )
             append(fields.joinToString(",", transform = ::csvCell)).append("\r\n")
         }
@@ -88,7 +93,10 @@ object ActivityArchive {
         Distance is horizontal GPS distance in kilometres. Pace is seconds per kilometre;
         lower pace means faster. Average speed is kilometres per hour. Average pace and speed
         use active time, which includes standing still and waiting for GPS but excludes explicit
-        pauses. Elapsed time includes pauses. GPS observed time includes only continuous sample
+        pauses. moving_seconds also excludes detected standstills such as traffic lights;
+        stop_count and stopped_seconds describe them, and moving_pace_seconds_per_km uses
+        moving time. Stops are derived from the fixes and never remove them from the GPX.
+        Elapsed time includes pauses. GPS observed time includes only continuous sample
         intervals, skipping segment boundaries and gaps longer than 15 seconds. It may be shorter
         than active time. GPX segment count describes the segments present in the exported GPX.
 

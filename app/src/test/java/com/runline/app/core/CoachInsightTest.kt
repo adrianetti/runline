@@ -26,8 +26,13 @@ class CoachInsightTest {
             points += RunPoint(i * 10.0 / 111195.0, 0.0, 1000 + i * 5000L, 3f, 100.0)
             engine.update(session(i), true, true)?.let { cues += it }
         }
-        assertTrue(cues.contains(CoachCue.Encouragement(EncouragementKind.HALFWAY)))
-        assertTrue(cues.contains(CoachCue.Encouragement(EncouragementKind.FINAL_STRETCH)))
+        val halfway = cues.filterIsInstance<CoachCue.Encouragement>().single { it.kind == EncouragementKind.HALFWAY }
+        assertTrue(cues.any { it is CoachCue.Encouragement && it.kind == EncouragementKind.FINAL_STRETCH })
+        // Measured facts: time remains, a projection from the real average, no invented distance goal.
+        val facts = halfway.facts!!
+        assertNull(facts.remainingMeters)
+        assertTrue(facts.remainingMs!! in 0..6 * 60_000L)
+        assertEquals(1440.0, facts.projectedMeters!!, 60.0)
     }
     @Test fun scheduleReportsContextExpiryAndReplacementWithoutSpeakingThem() {
         val dropped = mutableListOf<String>()

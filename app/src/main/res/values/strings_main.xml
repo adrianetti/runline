@@ -33,7 +33,6 @@
     <string name="main_language">Language</string>
     <string name="main_about">About</string>
     <string name="main_export">Export GPX</string>
-    <string name="main_share_file">Share file</string>
     <string name="main_run_info">About these stats</string>
     <string name="main_delete_activity">Delete activity</string>
     <string name="main_run_info_body">Average pace uses active time. Replay and splits use GPS time, skipping pauses and gaps over 15 seconds. Speed is a five-second GPS estimate. Replay climb and descent use terrain maps with a 3 m noise threshold. Exports retain original GPS heights. Missing measurements show —.</string>

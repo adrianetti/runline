@@ -5,18 +5,35 @@ import kotlin.math.floor
 import kotlin.math.max
 
 sealed interface CoachCue {
-    data class Kilometre(val completed: Int, val averagePaceSeconds: Double?) : CoachCue
+    /** [splitPaceSeconds] covers only the kilometre just completed, in moving time. */
+    data class Kilometre(val completed: Int, val averagePaceSeconds: Double?, val splitPaceSeconds: Double? = null,
+                         val previousSplitPaceSeconds: Double? = null) : CoachCue
     data object OneKilometreRemaining : CoachCue
-    data class GoalReached(val withinTime: Boolean?) : CoachCue
+    data class GoalReached(val withinTime: Boolean?, val facts: CoachFacts? = null) : CoachCue
     data object SlowerThanTarget : CoachCue
     data object FasterThanTarget : CoachCue
     data object BackOnPace : CoachCue
-    data class Encouragement(val kind: EncouragementKind) : CoachCue
+    data class Encouragement(val kind: EncouragementKind, val facts: CoachFacts? = null) : CoachCue
     data class Terrain(val kind: CoachTerrain) : CoachCue
     data object EasingAfterHill : CoachCue
     data class LapCompleted(val number: Int, val comparison: LapComparison?) : CoachCue
 }
-enum class EncouragementKind { SETTLING_IN, STEADY, HALFWAY, FINAL_STRETCH, ENDURANCE, UPHILL, DOWNHILL, ON_TARGET, CONSISTENT }
+enum class EncouragementKind { SETTLING_IN, STEADY, HALFWAY, FINAL_STRETCH, ENDURANCE, UPHILL, DOWNHILL, ON_TARGET, CONSISTENT, PROGRESS }
+
+/**
+ * Measured numbers a cue may speak, captured when it is queued. Moving time excludes
+ * detected stops when auto-pause is on. Projections assume the current average holds.
+ */
+data class CoachFacts(
+    val distanceMeters: Double,
+    val movingMs: Long,
+    val averagePaceSeconds: Double? = null,
+    val recentPaceSeconds: Double? = null,
+    val remainingMs: Long? = null,
+    val remainingMeters: Double? = null,
+    val projectedMeters: Double? = null,
+    val projectedMs: Long? = null,
+)
 enum class CoachTerrain { UNKNOWN, LEVEL, UPHILL, DOWNHILL }
 
 /** Immutable delivery-time facts; a deferred prompt must still describe the current run. */
@@ -40,6 +57,9 @@ data class CoachSituation(
     val steadyPace: Boolean = false,
     val activeMs: Long = 0L,
     val terrainSource: TerrainSource = TerrainSource.UNKNOWN,
+    /** Only after a real climb, never after a gentle downhill or a GPS wobble. */
+    val climbRecovery: Boolean = false,
+    val stopped: Boolean = false,
 ) {
     fun allows(cue: CoachCue): Boolean {
         if (!eligible) return false
@@ -50,7 +70,7 @@ data class CoachSituation(
             CoachCue.OneKilometreRemaining -> distanceGoalMeters?.let { it - distanceMeters in 0.0..1000.0 && !goalReached } == true
             is CoachCue.LapCompleted -> cue.number == completedLaps
             is CoachCue.Terrain -> terrain == cue.kind
-            CoachCue.EasingAfterHill -> terrain == CoachTerrain.LEVEL && hillRecovery
+            CoachCue.EasingAfterHill -> terrain == CoachTerrain.LEVEL && climbRecovery
             is CoachCue.Encouragement -> !goalReached && when (cue.kind) {
                 EncouragementKind.UPHILL -> terrain == CoachTerrain.UPHILL
                 EncouragementKind.DOWNHILL -> terrain == CoachTerrain.DOWNHILL
@@ -97,7 +117,9 @@ internal object CoachPaceBand {
 /** Incremental, conservative decisions. Recovered history never becomes a backlog of cues. */
 class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = null,
                   private val terrainPoint: (RunPoint) -> RunPoint = { it.copy(altitudeMeters = null, verticalAccuracyMeters = null) },
-                  private val terrainRevision: () -> Long = { 0L }) {
+                  private val terrainRevision: () -> Long = { 0L },
+                  /** Exclude detected standstills from goal time, kilometre splits and averages. */
+                  private val autoPause: Boolean = true) {
     private var runId: String? = null
     private var count = 0
     private var lastPoint: RunPoint? = null
@@ -123,12 +145,22 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     private var finalStretch = false
     private var startedEncouragement = false
     private val terrainTrend = TerrainTrend(TerrainSource.TERRAIN_MAP)
+    private val structureGuard = TerrainStructureGuard.Live()
     private var terrainEstimate = TerrainEstimate()
     private var mapRevision = Long.MIN_VALUE
     private var lastHillMs: Long? = null
     private var hillRecoveryAnnounced = false
     private var paceAnchor: Double? = null
     private var steadySince = 0L
+    private var lastEnduranceMs = Long.MIN_VALUE / 2
+    private var climbMeters = 0.0
+    private var climbMaxGrade = 0.0
+    private var climbLastDistance: Double? = null
+    private var climbQualified = false
+    private var lastClimbMs: Long? = null
+    private var wasStopped = false
+    private var resumedAtMs = Long.MIN_VALUE
+    private val kilometreClock = mutableListOf<Long?>(0L)
     var situation = CoachSituation()
         private set
 
@@ -136,31 +168,42 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     fun pause() {
         recent.clear(); paceAnchor = null; steadySince = 0; previousPaceBand = null; candidateBand = null
         terrainCandidate = CoachTerrain.UNKNOWN; announcedTerrain = CoachTerrain.UNKNOWN
-        terrainTrend.reset(); terrainEstimate = TerrainEstimate(); situation = CoachSituation()
+        terrainTrend.reset(); structureGuard.reset(); terrainEstimate = TerrainEstimate(); situation = CoachSituation()
     }
 
-    fun update(run: RunSession, recording: Boolean, gpsFresh: Boolean): CoachCue? {
+    /** [stoppedSinceMs] is the recorder's live standstill signal, in GPS wall-clock time. */
+    fun update(run: RunSession, recording: Boolean, gpsFresh: Boolean, stoppedSinceMs: Long? = null): CoachCue? {
         if (runId != run.id || count > run.points.size || (count > 0 && run.points[count - 1] !== lastPoint)) {
             rebase(run); return null
         }
         if (mapRevision != terrainRevision()) {
-            mapRevision = terrainRevision(); terrainTrend.reset(); terrainEstimate = TerrainEstimate()
-            run.points.take(count).takeLast(180).forEach { terrainEstimate = terrainTrend.update(terrainPoint(it)) }
+            mapRevision = terrainRevision(); terrainTrend.reset(); structureGuard.reset(); terrainEstimate = TerrainEstimate()
+            TerrainStructureGuard.apply(run.points.take(count).takeLast(180).map(terrainPoint)).forEach { terrainEstimate = terrainTrend.update(it) }
+            structureGuard.reset()
             terrainCandidate = CoachTerrain.UNKNOWN; announcedTerrain = CoachTerrain.UNKNOWN
             lastHillMs = null; hillRecoveryAnnounced = false
         }
         append(run.points)
         if (!recording || !config.enabled || !config.isValid()) {
             recent.clear(); candidateBand = null; terrainCandidate = CoachTerrain.UNKNOWN
-            terrainTrend.reset(); terrainEstimate = TerrainEstimate(); situation = CoachSituation()
+            terrainTrend.reset(); structureGuard.reset(); terrainEstimate = TerrainEstimate(); situation = CoachSituation()
             return null
         }
-        val now = run.activeDurationMs
+        val now = clock(run, stoppedSinceMs)
         val goal = config.distanceGoalMeters
+        // Standing at a light or tying a shoe: say nothing, drop what was queued, and judge
+        // pace again only from fresh movement once running resumes.
+        if (stoppedSinceMs != null) {
+            if (!wasStopped) { wasStopped = true; recent.clear(); candidateBand = null; paceAnchor = null }
+            situation = CoachSituation(eligible = false, distanceMeters = distance, activeMs = now, stopped = true)
+            return null
+        }
+        if (wasStopped) { wasStopped = false; resumedAtMs = now }
+        val settled = resumedAtMs == Long.MIN_VALUE || now - resumedAtMs >= 20_000
         val timeGoal = config.durationGoalMs
         if (!gpsFresh) {
             recent.clear(); candidateBand = null; terrainCandidate = CoachTerrain.UNKNOWN
-            terrainTrend.reset(); terrainEstimate = TerrainEstimate()
+            terrainTrend.reset(); structureGuard.reset(); terrainEstimate = TerrainEstimate()
             val crossedTime = timeGoal != null && !goalAnnounced && now >= timeGoal
             if (crossedTime) goalAnnounced = true
             situation = CoachSituation(eligible = timeGoal != null, distanceMeters = distance,
@@ -169,6 +212,7 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         }
         val newKm = floor(distance / 1000.0).toInt()
         val crossedKm = newKm > crossedKilometre
+        while (kilometreClock.size <= newKm) kilometreClock += if (kilometreClock.size == newKm) now else null
         crossedKilometre = max(crossedKilometre, newKm)
         val crossedGoal = !goalAnnounced && ((goal != null && distance >= goal) || (timeGoal != null && now >= timeGoal))
         val crossedRemaining = goal != null && goal > 1000 && !remainingAnnounced && distance >= goal - 1000
@@ -179,10 +223,21 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         lapCount = report?.laps?.size ?: lapCount
         val pace = currentPace()
         val terrain = currentTerrain()
-        if (terrain == CoachTerrain.UPHILL || terrain == CoachTerrain.DOWNHILL) {
-            lastHillMs = now; hillRecoveryAnnounced = false
+        if (terrain == CoachTerrain.UPHILL || terrain == CoachTerrain.DOWNHILL) lastHillMs = now
+        // A meaningful climb: uphill distance actually measured as uphill (unknown gaps add
+        // nothing), at least 60 m reaching 3%, or 120 m of steady climbing. Only that earns a
+        // recovery cue; gentle 2% stretches and descents never do.
+        if (terrain == CoachTerrain.UPHILL) {
+            climbLastDistance?.let { climbMeters += (distance - it).coerceAtLeast(0.0) }
+            climbLastDistance = distance
+            climbMaxGrade = maxOf(climbMaxGrade, terrainEstimate.gradePercent ?: 0.0)
+            if ((climbMeters >= 60.0 && climbMaxGrade >= 3.0) || climbMeters >= 120.0) { climbQualified = true; lastClimbMs = now; hillRecoveryAnnounced = false }
+        } else {
+            climbLastDistance = null
+            if (terrain != CoachTerrain.UNKNOWN) { climbMeters = 0.0; climbMaxGrade = 0.0 }
         }
         val hillRecovery = lastHillMs?.let { now - it < 120_000 } == true
+        val climbRecovery = climbQualified && lastClimbMs?.let { now - it < 120_000 } == true
         if (pace == null || paceAnchor == null || abs(pace - paceAnchor!!) > paceAnchor!! * .06 || terrain != CoachTerrain.LEVEL) {
             paceAnchor = pace; steadySince = now
         }
@@ -191,12 +246,14 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         situation = CoachSituation(true, distance, goal, pace, config.targetPaceSeconds, terrain,
             hillRecovery, goalAnnounced, lapCount, config.paceTargetRange?.start, config.paceTargetRange?.endInclusive,
             gpsFresh = true, timeGoal = timeGoal != null, allowSpeedUp = config.effortIntent != SmartRunEffort.RECOVERY,
-            gradePercent = terrainEstimate.gradePercent, goalProgress = progress, steadyPace = steady, activeMs = now, terrainSource = terrainEstimate.source)
+            gradePercent = terrainEstimate.gradePercent, goalProgress = progress, steadyPace = steady, activeMs = now, terrainSource = terrainEstimate.source,
+            climbRecovery = climbRecovery)
         if (crossedGoal) return emit(CoachCue.GoalReached(
-            if (config.goal == CoachGoal.DISTANCE_TIME) now <= config.targetMinutes * 60_000 else null), now)
+            if (config.goal == CoachGoal.DISTANCE_TIME) now <= config.targetMinutes * 60_000 else null, facts(now, pace)), now)
         // Delivery, deferral and deduplication belong to the shared local/AI speech schedule.
         if (crossedRemaining) return emit(CoachCue.OneKilometreRemaining, now)
-        if (crossedKm && config.kilometreAnnouncements) return emit(CoachCue.Kilometre(newKm, RunMetrics.paceSecondsPerKm(distance, now)), now)
+        if (crossedKm && config.kilometreAnnouncements) return emit(CoachCue.Kilometre(newKm, RunMetrics.paceSecondsPerKm(distance, now),
+            splitPace(newKm), splitPace(newKm - 1)), now)
         if (newLap) return emit(CoachCue.LapCompleted(lapCount, report?.latestComparison), now)
         if (pace == null) { candidateBand = null; terrainCandidate = CoachTerrain.UNKNOWN; return null }
         if (terrain != terrainCandidate) { terrainCandidate = terrain; terrainSinceMs = now }
@@ -208,11 +265,12 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
             return emit(CoachCue.Terrain(terrain), now)
         }
         if (terrain == CoachTerrain.LEVEL && now - terrainSinceMs >= 30_000) announcedTerrain = CoachTerrain.UNKNOWN
-        if (config.terrainFeedback && terrain == CoachTerrain.LEVEL && hillRecovery && !hillRecoveryAnnounced &&
+        if (config.terrainFeedback && terrain == CoachTerrain.LEVEL && climbRecovery && !hillRecoveryAnnounced &&
             now - terrainSinceMs >= 30_000 && canSpeak(now, 85_000)) {
-            hillRecoveryAnnounced = true
+            hillRecoveryAnnounced = true; climbQualified = false
             return emit(CoachCue.EasingAfterHill, now)
         }
+        if (!settled) return null
         val paceCue = paceCue(now, pace, terrain)
         if (paceCue != null) return emit(paceCue, now)
         val progressMilestone = progress?.let { (!finalStretch && it >= .8) || (!halfway && it >= .5) } == true
@@ -227,11 +285,17 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
                 terrain == CoachTerrain.DOWNHILL -> EncouragementKind.DOWNHILL
                 terrain == CoachTerrain.LEVEL && config.paceTargetRange?.let { CoachPaceBand.classify(pace, it) == 0 } == true && !hillRecovery -> EncouragementKind.ON_TARGET
                 steady -> EncouragementKind.CONSISTENT
-                now >= 30 * 60_000 -> EncouragementKind.ENDURANCE
+                // Prefer a short measured check-in over a generic line, but not right before or
+                // after a kilometre announcement that already gives the numbers.
+                distance >= 500 && distance % 1000 in 150.0..850.0 -> EncouragementKind.PROGRESS
+                // A long-run nudge stays occasional; it must not replace the measured check-ins.
+                now >= 30 * 60_000 && now - lastEnduranceMs >= 15 * 60_000 -> { lastEnduranceMs = now; EncouragementKind.ENDURANCE }
+                distance >= 500 -> return null
                 else -> EncouragementKind.STEADY
             }
             lastMoraleMs = now
-            return emit(CoachCue.Encouragement(kind), now)
+            val withFacts = kind in setOf(EncouragementKind.HALFWAY, EncouragementKind.FINAL_STRETCH, EncouragementKind.PROGRESS)
+            return emit(CoachCue.Encouragement(kind, if (withFacts) facts(now, pace) else null), now)
         }
         return null
     }
@@ -251,27 +315,55 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         previousPaceBand = band; lastPaceSpeechMs = now
         return when (band) { 1 -> CoachCue.SlowerThanTarget; -1 -> CoachCue.FasterThanTarget; else -> CoachCue.BackOnPace }
     }
+    private fun clock(run: RunSession, stoppedSinceMs: Long?): Long =
+        if (!autoPause) run.activeDurationMs
+        else StopDetection.movingDurationMs(run, StopDetection.detect(run.points, run.activityType), stoppedSinceMs, run.endedAtMs)
+
+    /** Moving-time pace of one completed kilometre, when both of its boundaries were observed. */
+    private fun splitPace(kilometre: Int): Double? {
+        if (kilometre < 1) return null
+        val end = kilometreClock.getOrNull(kilometre) ?: return null
+        val start = kilometreClock.getOrNull(kilometre - 1) ?: return null
+        return ((end - start) / 1000.0).takeIf { it in 60.0..3600.0 }
+    }
+
+    private fun facts(now: Long, pace: Double?): CoachFacts {
+        val average = RunMetrics.paceSecondsPerKm(distance, now)
+        val distanceGoal = config.distanceGoalMeters
+        val timeGoal = config.durationGoalMs
+        return CoachFacts(distance, now, average, pace,
+            remainingMs = timeGoal?.let { (it - now).coerceAtLeast(0) },
+            remainingMeters = distanceGoal?.let { (it - distance).coerceAtLeast(0.0) },
+            projectedMeters = timeGoal?.takeIf { now >= 60_000 && distance > 0 }?.let { distance / now * it },
+            projectedMs = distanceGoal?.takeIf { distance >= 200 && now > 0 }?.let { (now / distance * it).toLong() })
+    }
+
     private fun canSpeak(now: Long, interval: Long) = lastSpeechMs == Long.MIN_VALUE || now - lastSpeechMs >= interval
     private fun emit(cue: CoachCue, now: Long): CoachCue { lastSpeechMs = now; return cue }
     private fun rebase(run: RunSession) {
         runId = run.id; count = 0; lastPoint = null; distance = 0.0; recent.clear()
-        terrainTrend.reset(); terrainEstimate = TerrainEstimate(); lastHillMs = null; hillRecoveryAnnounced = false; situation = CoachSituation()
+        terrainTrend.reset(); structureGuard.reset(); terrainEstimate = TerrainEstimate(); lastHillMs = null; hillRecoveryAnnounced = false; situation = CoachSituation()
         append(run.points); laps = LapTracker().apply { update(run.points) }; lapCount = laps.report().laps.size
-        recent.clear(); terrainTrend.reset(); terrainEstimate = TerrainEstimate(); baselineActiveMs = run.activeDurationMs
+        val moving = clock(run, null)
+        recent.clear(); terrainTrend.reset(); structureGuard.reset(); terrainEstimate = TerrainEstimate(); baselineActiveMs = moving
+        kilometreClock.clear(); kilometreClock += 0L
+        while (kilometreClock.size <= floor(distance / 1000.0).toInt()) kilometreClock += null
+        climbMeters = 0.0; climbMaxGrade = 0.0; climbLastDistance = null; climbQualified = false; lastClimbMs = null
+        wasStopped = false; resumedAtMs = Long.MIN_VALUE
         crossedKilometre = floor(distance / 1000.0).toInt()
         remainingAnnounced = config.distanceGoalMeters?.let { distance >= it - 1000 } ?: false
         goalAnnounced = config.distanceGoalMeters?.let { distance >= it } == true ||
-            config.durationGoalMs?.let { run.activeDurationMs >= it } == true
-        halfway = config.distanceGoalMeters?.let { distance >= it * .5 } ?: config.durationGoalMs?.let { run.activeDurationMs >= it * .5 } ?: false
-        finalStretch = config.distanceGoalMeters?.let { distance >= it * .8 } ?: config.durationGoalMs?.let { run.activeDurationMs >= it * .8 } ?: false
+            config.durationGoalMs?.let { moving >= it } == true
+        halfway = config.distanceGoalMeters?.let { distance >= it * .5 } ?: config.durationGoalMs?.let { moving >= it * .5 } ?: false
+        finalStretch = config.distanceGoalMeters?.let { distance >= it * .8 } ?: config.durationGoalMs?.let { moving >= it * .8 } ?: false
         lastSpeechMs = Long.MIN_VALUE; lastPaceSpeechMs = Long.MIN_VALUE; lastTerrainMs = Long.MIN_VALUE
-        lastMoraleMs = run.activeDurationMs; startedEncouragement = run.activeDurationMs > 180_000
+        lastMoraleMs = moving; startedEncouragement = moving > 180_000
         previousPaceBand = null; candidateBand = null; terrainCandidate = CoachTerrain.UNKNOWN; announcedTerrain = CoachTerrain.UNKNOWN
     }
     private fun append(points: List<RunPoint>) {
         for (index in count until points.size) {
             val point = points[index]
-            terrainEstimate = terrainTrend.update(terrainPoint(point))
+            terrainEstimate = terrainTrend.update(structureGuard.apply(terrainPoint(point)))
             val previous = lastPoint
             val span = previous?.let { point.timestampMs - it.timestampMs } ?: 0
             val usable = point.hasValidCoordinates() && point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
@@ -302,4 +394,28 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
             TerrainDirection.UNKNOWN -> CoachTerrain.UNKNOWN
         }
     }
+}
+
+/** Pure wording decisions, separate from Android resources so they stay testable. */
+object CoachNarration {
+    enum class Trend { FASTER, STEADY, SLOWER }
+
+    /** Signed whole seconds versus the previous split; 0 within a 4 s noise band; null when unknown. */
+    fun splitChange(split: Double?, previous: Double?): Int? {
+        if (split == null || previous == null) return null
+        val change = (split - previous).roundToIntSafely()
+        return if (kotlin.math.abs(change) < 5) 0 else change
+    }
+
+    /** Recent moving pace compared with the run average. Lower seconds per km is faster. */
+    fun trend(recent: Double?, average: Double?): Trend? {
+        if (recent == null || average == null) return null
+        return when {
+            recent <= average - 8 -> Trend.FASTER
+            recent >= average + 12 -> Trend.SLOWER
+            else -> Trend.STEADY
+        }
+    }
+
+    private fun Double.roundToIntSafely() = if (isFinite()) kotlin.math.round(this).toInt() else 0
 }

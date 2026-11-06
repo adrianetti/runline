@@ -1,6 +1,6 @@
-# Version 0.16.1 test checklist
+# Version 0.17 test checklist
 
-The checklist is not a blanket pass report. Current v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -428,3 +428,33 @@ Recorded 6 November 2026. This patch groups the pace unit with its digits, expla
 - About's repository and release controls targeted `com.github.android`. Native fake handlers exercised app success, absent app → unrestricted external handler, no handler and security rejection. This verifies the intents/fallbacks, not the installed GitHub app's behavior on a physical Samsung.
 - The signed APK updated v0.16 in place. All **51 inspected original recording/review files** remained byte-identical during testing; after removing synthetic data and restoring preferences, all **65 original non-cache files** matched the private backup. Restored emulator display/language/network settings, removed the harness and disabled root. No paid AI request or new field/battery/audio test was performed.
 - Artifact: `Runline-0.16.1.apk`, **0.16.1 / code 19**, SHA-256 `5d2655221f8ce3168a7e85cbb6dbb219ee72fbf89dcc48ffa2474f1b31378d99`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.
+
+## Version 0.17 validation
+
+Recorded 6 November 2026. The private 4.7 km street run, its coach log and the earlier 10K stayed outside Git. Regional terrain tiles were fetched to a local cache and used only for the retrospective checks below.
+
+- **Build and checks.**
+  - Debug/release builds passed **353 JVM tests**, with no failures or errors. Android lint reported **zero errors / 160 warnings**. The new warnings are Spanish plural-quantity and plurals-candidate notices of the same kind as existing strings.
+  - Verified **618 bilingual resources** and **39 pinned Tabler icons**: `folder` and `file-zip` were added at the pinned revision.
+  - Seven Semgrep rules found 0 issues across production Kotlin, including new files. Android surface tests and checks passed, and Gitleaks found no leaks. No dependencies or permissions changed.
+- **New regression coverage.**
+  - Stops: traffic-light and shoelace stops, steady jogging and walking are not stops, short hesitations are ignored, pause boundaries, overlap counting, open live stops, splits excluding stops.
+  - Live tracker: Doppler, position fallback, zero-speed providers.
+  - Terrain: structure ±15 m guard, gap-limited guard, live guard, a structure ending a trend instead of mixing models, true-aspect slope scale.
+  - Coach: silent while stopped, moving-time goals, kilometre splits and their comparison, measured progress instead of generic lines, auto-pause off.
+  - Run-data ZIP: entries, columns, structure rows, no photos.
+  - Profile: training snapshot, strict insight parsing, update cadence, consent separation, profile compatibility.
+- **Retrospective replay of the private runs** (local harness, not committed):
+  - **Street run.** Before the change, 28 fixes fell back to global heights and the height trace had 9 jumps of 1.5 m or more. After it, 63 fixes near a highway bridge and an underpass are unknown and no jumps remain. The 10K is unchanged: 0 structures, grades −2.8% to +2.4%.
+  - **Stops.** Five stops totalling 2 min 38 s on the street run, so moving pace was 6:23 /km against 6:57 elapsed. Zero stops on the 10K.
+  - **Coach.** The new coach spoke 15 cues on the street run. "Settling in" played before the traffic light, not during it. Halfway came at 12:30 moving time with a 3.8–4.0 km projection. Kilometre splits came with comparisons. One hill-recovery cue came after the real climb out of the underpass; the phone log had four after gentle downhills. On the 10K, generic endurance lines were replaced by progress checks.
+- **One real AI profile request** used the owner's development key with coordinate-free summaries of the two runs. Sonnet 5.5 returned a valid assessment in English and Spanish in about 4 s, roughly US$0.012 each. The prompt was then tightened so a short history alone is not grounds for STARTING; the model still chose it from the low recorded volume and said the history is short.
+- **Native API 34 checks**, with a 0.16.1 emulator and synthetic data backed up first:
+  - The signed APK installed in place and cold-launched. **65/66 original non-cache files were byte-identical**; only Android's profile-install marker changed. Nothing was missing.
+  - Mock GPS recording: after 45 s moving, a standstill showed **Stopped · auto-paused**, blanked pace and froze the timer at 00:49. Movement resumed the timer.
+  - The first pass found that emulator fixes report zero Doppler speed while moving, which made the whole run look stopped. Fixed: leaving GPS accuracy now counts as movement whatever the speed says. A regression test covers it.
+  - The saved activity showed moving 01:37, elapsed 02:42, 2 stops · 01:04 and 6:30 /km. **Download all data (ZIP)** saved one file with all expected entries.
+  - The activity file menu, settings and runner profile were checked in English and Spanish. The auto-pause row was realigned with the other settings rows. The whole-run elevation chart no longer stretches a 1 m wobble to full height.
+  - Afterwards the original app data was restored: **75/75 files identical** to the pre-test snapshot. The test ZIP was deleted, the app locale reset and root disabled.
+- **Not verified:** physical Samsung field GPS and Doppler behaviour at real traffic lights, battery, headphones, and the live coach on a phone. AI profile updates were not tested through the in-app job.
+- Artifact: `Runline-0.17.0.apk`, **0.17.0 / code 20**, SHA-256 `5fbe4c063b42e3c0e8141514252a9d4e9cefa9991af553e52873cf17f2877859`. A final clean rebuild of the natively tested source; it installed in place and cold-launched without crashes. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.

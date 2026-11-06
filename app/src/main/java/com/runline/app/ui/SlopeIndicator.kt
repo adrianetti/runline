@@ -41,7 +41,17 @@ internal class SlopeIndicator(context: Context) : LinearLayout(context) {
         addView(label, LayoutParams(-1, -2).apply { topMargin = dp(if (compact) 2 else 4) })
         update(TerrainEstimate(), false)
     }
-    fun update(estimate: TerrainEstimate, animate: Boolean = true, profile: SlopeProfile = SlopeProfile.EMPTY) {
+    private var held: TerrainEstimate? = null
+    private var heldAt = 0L
+    fun update(next: TerrainEstimate, animate: Boolean = true, profile: SlopeProfile = SlopeProfile.EMPTY) {
+        // A brief unknown between two estimates (a crest, one rejected fix) should not flip the
+        // label back and forth. Hold the last estimate for a few seconds while playing live.
+        val now = SystemClock.uptimeMillis()
+        val estimate = when {
+            next.direction != TerrainDirection.UNKNOWN -> { held = next; heldAt = now; next }
+            animate && held != null && now - heldAt <= UNKNOWN_HOLD_MS -> held!!
+            else -> { held = null; next }
+        }
         val grade = estimate.gradePercent?.takeIf { it.isFinite() && estimate.direction != TerrainDirection.UNKNOWN }
         val name = context.getString(when (estimate.direction.takeIf { grade != null }) {
             TerrainDirection.UPHILL -> R.string.map_v9_uphill
@@ -58,6 +68,7 @@ internal class SlopeIndicator(context: Context) : LinearLayout(context) {
     }
     fun settle() { line.settle(); label.settle() }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+    private companion object { const val UNKNOWN_HOLD_MS = 5_000L }
 }
 
 /** One short shared-axis flip per state change, never per GPS/render frame. */
@@ -105,7 +116,8 @@ private class SlopeLine(context: Context) : View(context) {
     fun setGrade(grade: Double?, profile: SlopeProfile, animate: Boolean) {
         val valid = profile.heights.filterNotNull()
         val low = valid.minOrNull() ?: 0.0
-        val range = ((valid.maxOrNull() ?: low) - low).coerceAtLeast(3.0)
+        // True-ish aspect: two metres over a long stretch must not fill the whole line.
+        val range = profile.drawRange()
         val middle = low + ((valid.maxOrNull() ?: low) - low) / 2
         val next = profile.heights.map { it?.let { ((it - middle) / range).toFloat() } }
         if (next == target && grade == targetGrade && animate) return

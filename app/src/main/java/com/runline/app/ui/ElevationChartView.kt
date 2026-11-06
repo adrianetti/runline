@@ -79,8 +79,12 @@ internal class ElevationChartView(
     private inner class Plot(context: Context) : View(context) {
         private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
         private val path = Path()
-        private val low = trace.sections.flatten().minOfOrNull { it.heightMeters }
-        private val high = trace.sections.flatten().maxOfOrNull { it.heightMeters }
+        private val observedLow = trace.sections.flatten().minOfOrNull { it.heightMeters }
+        private val observedHigh = trace.sections.flatten().maxOfOrNull { it.heightMeters }
+        // At least 10 m tall and centred, so a flat run reads as flat instead of a wall of 1 m bumps.
+        private val span = if (observedLow == null || observedHigh == null) 1.0 else maxOf(observedHigh - observedLow, MIN_SPAN_METERS)
+        private val low = observedLow?.let { it + (observedHigh!! - it) / 2 - span / 2 }
+        private val high = low?.let { it + span }
         private var downX = 0f
         private var downY = 0f
         private var dragging = false
@@ -90,7 +94,7 @@ internal class ElevationChartView(
         private val bottom get() = height - dp(28).toFloat()
         init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
         private fun x(position: Long) = pad + if (replay.durationMs > 0) (position.toDouble() / replay.durationMs * (width - 2 * pad)).toFloat() else 0f
-        private fun y(height: Double) = bottom - ((height - (low ?: height)) / ((high ?: height) - (low ?: height)).coerceAtLeast(1.0) * (bottom - top)).toFloat()
+        private fun y(height: Double) = bottom - ((height - (low ?: height)) / span * (bottom - top)).toFloat()
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
             path.reset()
             trace.sections.forEach { section -> section.forEachIndexed { index, sample ->
@@ -169,4 +173,5 @@ internal class ElevationChartView(
         else String.format(locale, "%02d:%02d", s / 60, s % 60)
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+    private companion object { const val MIN_SPAN_METERS = 10.0 }
 }
