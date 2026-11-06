@@ -9,6 +9,13 @@ import kotlin.math.*
  */
 enum class TerrainModel { IGN_MDT05, MAPZEN, STRUCTURE }
 
+/**
+ * Analysis only: where the runner was, at an ambiguous structure, relative to the
+ * detailed ground model. [GROUND] follows the model; [ABOVE] is a deck or overpass over
+ * lower modelled ground; [BELOW] is a passage under a bridge or embankment the model keeps.
+ */
+enum class TerrainLevel { GROUND, ABOVE, BELOW }
+
 /** Public, versioned cache identity. Mercator cannot represent the polar caps. */
 data class WorldTileKey(val zoom: Int, val x: Int, val y: Int) {
     init { require(zoom in 8..12 && x in 0 until (1 shl zoom) && y in 0 until (1 shl zoom)) }

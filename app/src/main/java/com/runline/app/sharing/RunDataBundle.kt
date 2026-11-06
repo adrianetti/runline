@@ -48,7 +48,7 @@ object RunDataBundle {
     /** One row per recorded fix. Terrain columns are derived; GPS columns are as recorded. */
     fun pointsCsv(run: RunSession, terrainRun: RunSession): String = buildString {
         append("time_utc,elapsed_s,segment,latitude,longitude,horizontal_accuracy_m,vertical_accuracy_m,gps_altitude_m,")
-        append("terrain_altitude_m,terrain_model,terrain_grade_percent,terrain_direction,distance_m,stopped\r\n")
+        append("terrain_altitude_m,terrain_model,terrain_grade_percent,terrain_direction,distance_m,stopped,terrain_level\r\n")
         val stops = StopDetection.detect(run.points, run.activityType)
         val trend = TerrainTrend(terrainRun.elevationSource)
         val start = run.points.firstOrNull()?.timestampMs ?: 0L
@@ -64,6 +64,7 @@ object RunDataBundle {
                 point.verticalAccuracyMeters?.let { number(it.toDouble(), 1) } ?: "", point.altitudeMeters?.let { number(it, 1) } ?: "",
                 terrain.altitudeMeters?.let { number(it, 1) } ?: "", terrain.terrainModel?.name ?: "",
                 estimate.gradePercent?.let { number(it, 1) } ?: "", estimate.direction.name, number(distance, 1), if (stopped) "1" else "0",
+                terrain.terrainLevel?.name?.lowercase(Locale.ROOT) ?: "",
             ).joinToString(",")).append("\r\n")
         }
     }
@@ -91,6 +92,10 @@ object RunDataBundle {
                         comes from the terrain map in use when this file was made; empty means
                         unknown (no data, or a bridge, underpass or embankment made it ambiguous).
                         stopped = 1 marks a detected standstill such as a traffic light.
+                        terrain_level is set where a structure made the ground model ambiguous:
+                        ground (the model was the surface), above (on a bridge or overpass) or
+                        below (under a bridge or embankment); there the height joins the clean
+                        heights on either side.
         stops.csv       Detected standstills with start, end and duration.
         summary.json    Distance, moving and elapsed time, splits excluding stops, laps,
                         elevation totals and your title, notes and effort.

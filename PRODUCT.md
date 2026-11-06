@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.17.0 (code 20) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.18.0 (code 21) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -115,3 +115,12 @@ This supersedes the earlier "active time includes standing still" behavior.
 - **Runner profile.** It shows a local training snapshot. An optional, separately stored AI assessment (experience, summary, focus) updates after new runs.
 
 See docs/RELEASE-0.17-PLAN.md.
+
+## Bridge levels and replay trail — 0.18
+
+This supersedes 0.17's unknown heights at structures.
+- **Structure levels.** Hidden stretches at bridges, underpasses and walls are resolved from clean regional heights on both sides. The model's own heights are used where they stay runnable (ground). Otherwise the height joins the clean sides: above a dipping model (bridge, overpass) or below a humping one (underpass). The slope line and elevation charts no longer break there. Long or unsupported stretches stay unknown.
+- **Map controls.** Recenter uses the marker's own arrow at the bottom right and appears only after panning. The credits are one small translucent pill.
+- **Replay trail.** The arrow draws the route as it moves; nothing is shown ahead of it.
+
+See docs/RELEASE-0.18-PLAN.md.

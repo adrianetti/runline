@@ -192,3 +192,18 @@ Recorded 6 November 2026:
 - API 34 signed update kept 65/66 non-cache originals; mock-GPS live auto-pause; complete ZIP export; emulator data restored 75/75.
 
 Details: [TESTING.md](TESTING.md#version-017-validation). Artifact `Runline-0.17.0.apk`, code 20, SHA-256 `5fbe4c063b42e3c0e8141514252a9d4e9cefa9991af553e52873cf17f2877859`, same signing certificate.
+
+## Version 0.18 source changes
+
+- **Bridge and underpass levels.** Hidden structure stretches are resolved from clean regional heights on both sides. Where the model stays runnable its heights are used (ground). A steep dip means a deck above it, a steep hump an underpass below it; either way the height joins the clean sides. The slope line and elevation charts no longer break at bridges and underpasses. Long or one-sided stretches stay unknown, live coaching keeps its forward-only guard, and `points.csv` gains `terrain_level`.
+- **Replay trail.** The arrow draws the route as it moves. The map line is re-published at most twice a second and a native overlay draws the last stretch to the arrow each frame.
+- **Map controls.** Recenter uses the marker's arrow at the bottom right and appears only after panning. The credits are one small translucent pill whose 48 dp row opens them. The unused location icon was removed.
+
+## Version 0.18 verification
+
+Recorded 6 November 2026:
+- 360 JVM tests; lint 0 errors / 160 warnings; Semgrep, surface checks and Gitleaks clean.
+- Retrospective replay of the private street run: all 63 hidden fixes resolved (above, below, above, ground), 0 unknown heights, 0 broken joins. The 10K is unchanged.
+- API 34: signed update from 0.17.0 kept 68/68 non-cache files; continuous slope and chart under the A-44; trail behind the arrow; recenter and credits on replay and live maps; data restored 77/77.
+
+Details: [TESTING.md](TESTING.md#version-018-validation). Artifact `Runline-0.18.0.apk`, code 21, SHA-256 `c6f87a2c52b0d57bbe442d3b720dbe0d25444a580d0d4b0f0084b9a04dbdd133`, same signing certificate.

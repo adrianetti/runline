@@ -83,10 +83,6 @@
       "sha256": "9350785360414c39450c3505f17d1745e55a7534edace8548e30cf49e3727d43",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/x.svg"
     },
-    "icons/outline/current-location.svg": {
-      "sha256": "6544294fef2281f29bd1c2aafb3307018048fbcfd42755d33e0eba56e418ecf9",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/current-location.svg"
-    },
     "icons/outline/navigation.svg": {
       "sha256": "30df2817b9f3667661422bd6a3e8b6a502f08a58be779f47769b23f29aa54402",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/navigation.svg"

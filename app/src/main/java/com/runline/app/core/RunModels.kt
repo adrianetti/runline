@@ -25,6 +25,8 @@ data class RunPoint(
     val verticalAccuracyMeters: Float? = null,
     /** Analysis only; prevents joining heights with different vertical references. */
     val terrainModel: TerrainModel? = null,
+    /** Analysis only; set where an ambiguous structure was resolved to a level. */
+    val terrainLevel: TerrainLevel? = null,
 )
 
 internal fun RunPoint.hasUsableAltitude(): Boolean = altitudeMeters?.isFinite() == true &&

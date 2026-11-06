@@ -25,7 +25,7 @@ ICONS = {
     "share": "share", "trash": "trash", "info": "info-circle", "battery": "battery",
     "shield_check": "shield-check", "back": "arrow-left", "more": "dots",
     "external_link": "external-link", "clock": "clock", "check": "check",
-    "settings": "settings", "close": "x", "location": "current-location", "navigation": "navigation", "speaker": "volume",
+    "settings": "settings", "close": "x", "navigation": "navigation", "speaker": "volume",
     "edit": "pencil", "photo": "photo", "calendar": "calendar-event",
     "language": "language", "ai": "brain", "user": "user", "effort": "gauge",
     "speaker_off": "volume-off", "update": "alert-circle", "refresh": "refresh",

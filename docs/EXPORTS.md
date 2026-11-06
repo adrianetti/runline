@@ -52,7 +52,7 @@ Version 0.14 displays mapped elevation in recording/replay and supplies it to co
 **Share all data (ZIP)** and **Download all data (ZIP)** write `<activity name> - data.zip`:
 
 - `activity.gpx`: the original fixes.
-- `points.csv`: one row per fix, with GPS columns as recorded plus derived columns: terrain height, model, grade, direction, path distance and a stopped flag.
+- `points.csv`: one row per fix, with GPS columns as recorded plus derived columns: terrain height, model, grade, direction, path distance, a stopped flag and, since 0.18, the `terrain_level` at bridges and underpasses (`ground`, `above` or `below`).
 - `stops.csv`: the detected standstills.
 - `summary.json`: moving and elapsed time, splits excluding stops, laps, elevation, and your title, notes and effort.
 - `coach-log.json`: the coach log, with coordinates.

@@ -59,3 +59,15 @@ See [Testing](TESTING.md) for measured evidence. Field fixtures, cached test are
 The regional model describes the ground: on a bridge it gives the road below, and over an underpass it gives the embankment top. Its 9-point footprint already rejects such ambiguous places. Before 0.17 each rejected fix fell back to coarser global heights, which can differ by 10 m or more nearby, so the mini profile zig-zagged.
 
 Now a rejected fix inside regional coverage is a **structure**: its height is unknown, along with 15 m on either side. Live coaching hides the 15 m after it. Charts show a gap there, and hill advice stays quiet. Global data is still used where regional tiles are missing. The 45-second slope line keeps a true aspect: its height range is at least a 12% grade over the distance drawn, so two metres over a long stretch looks gentle. Whole-run elevation charts use a centred minimum span of 10 m, so flat runs read as flat.
+
+## Bridge and underpass levels (0.18)
+
+Hiding structures left gaps that cut the slope line and the elevation chart, for example where a run crosses Granada's ring road. Each hidden stretch now gets a level from the clean regional heights on both sides:
+
+- **Ground.** The model's own heights through the stretch stay runnable, at most 15% over any 10 m: a ramp beside a wall, or a road under a viaduct. They are used as they are.
+- **Above.** The model dips steeply under the runner: lower ground under a bridge deck or overpass. The runner's height is the straight join between the clean sides.
+- **Below.** The model humps steeply over the runner: an embankment above an underpass. The height is the join as well.
+
+Stretches longer than 250 m, joins steeper than 30%, or stretches without clean heights on both sides stay unknown. Live coaching keeps the forward-only guard; a stretch being recorded fills in once its far side arrives. GPS heights are never substituted, and recorded fixes never change. `points.csv` names the level in `terrain_level`.
+
+On the 6 November street run this resolved all 4 hidden stretches (63 fixes): one above (the road over another road), one below (under the highway), one above (a ramp the model shows at 23%) and one ground (a ramp at 10%). No height gaps or chart breaks remain. A long viaduct over a flat valley is not handled: the flat floor is not ambiguous, so it is shown as the surface.

@@ -203,7 +203,7 @@ Effort uses a native 0–10 slider with a persistent value/intensity label; zero
 
 ## Motion and map behavior
 
-Cover navigation's initial world map with a loading-current-location state until a usable fix exists. Include the current permission/location status. Loading must not imply that saving waits for map tiles. Recenter restores close follow or explains that no usable position is available.
+Cover navigation's initial world map with a loading-current-location state until a usable fix exists. Include the current permission/location status. Loading must not imply that saving waits for map tiles. Recenter, the marker's own arrow at the bottom right, appears only after panning; it restores close follow or explains that no usable position is available.
 
 Follow uses zoom 18, a 46° tilt when heading is known and a screen-anchored white Tabler arrow near the unobscured center. The camera turns toward accepted GPS course using shortest-angle wall-time easing; the marker rotates relative to the camera. The initial marker is neutral until reliable movement establishes direction. Route-fit returns to a flat north-up overview, and system Remove animations disables extra steering/tilt and live interpolation. It is not a phone compass. Stationary periods retain the last course, while gaps/segments reset the baseline. Panning/pinching disengages follow; route-fit is an explicit alternative.
 
@@ -221,7 +221,7 @@ Pace and distance use native 280ms rolling-digit transitions with fixed tabular 
 
 Use native pressed/focus feedback and dialogs. Islands use 24dp corners and 3dp native elevation; flat history/detail rows use thin rules. Start uses a 16dp radius and at least 64dp height. Active actions use 60dp, or 48dp in landscape. Replay controls use 12dp corners and 48dp height. Floating map/export controls and credits use 48dp targets. No blur, decorative gradients or decorative motion.
 
-Raster road/place labels are omitted to keep the imagery clear. Compact attribution and its 48dp information target remain visible. Route geometry stays distinct from icons: the full white route with dark outline, circular start markers and movement-derived live/replay arrows remain available in follow and overview. Replay follows at zoom 18 and resets direction across observed gaps; stationary/isolated fixes do not invent direction. Explicit pauses and interruptions break the route. The native failure fallback is a neutral geometric trace. Real tile imagery and display interpolation never alter recordings.
+Raster road/place labels are omitted to keep the imagery clear. A small translucent attribution pill with an information icon remains visible; its whole 48dp row opens the credits. Route geometry stays distinct from icons: the white route with dark outline, circular start markers and movement-derived live/replay arrows remain available in follow and overview. Live recording shows the whole recorded route; replay shows only the path the arrow has covered. Replay follows at zoom 18 and resets direction across observed gaps; stationary/isolated fixes do not invent direction. Explicit pauses and interruptions break the route. The native failure fallback is a neutral geometric trace. Real tile imagery and display interpolation never alter recordings.
 
 ## Components
 
