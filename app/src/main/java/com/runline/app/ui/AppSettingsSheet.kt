@@ -34,6 +34,22 @@ class AppSettingsSheet(
         }
         item(activity.getString(R.string.v8_language_value, language), R.drawable.ic_language, onLanguage)
         item(activity.getString(R.string.terrain_maps_title), R.drawable.ic_slope_up, onTerrain)
+        // Derived only: stops never remove fixes, so this can be changed after a run too.
+        // Same button style as the other rows keeps icon and label on one start edge.
+        val autoPause = com.google.android.material.materialswitch.MaterialSwitch(activity).apply {
+            isChecked = com.runline.app.tracking.RecordingSettings.autoPause(activity)
+            contentDescription = activity.getString(R.string.v17_auto_pause)
+            setOnCheckedChangeListener { _, checked -> com.runline.app.tracking.RecordingSettings.setAutoPause(activity, checked) }
+        }
+        sheet.column.addView(android.widget.LinearLayout(activity).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(sheet.button(activity.getString(R.string.v17_auto_pause), R.drawable.ic_pause).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                setOnClickListener { autoPause.toggle() }
+            }, android.widget.LinearLayout.LayoutParams(0, -2, 1f))
+            addView(autoPause, android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginStart = sheet.dp(8) })
+        }, sheet.row(0, 8))
         item(activity.getString(R.string.main_protection), R.drawable.ic_shield_check, onProtection)
         item(activity.getString(R.string.diag_v12_title), R.drawable.ic_history, onDiagnostics)
         item(activity.getString(R.string.main_about), R.drawable.ic_info, onAbout)

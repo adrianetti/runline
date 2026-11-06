@@ -87,7 +87,9 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
         val minimum = heights.minOrNull()
         val high = heights.maxOrNull()
         if (width <= 0 || height <= 0 || minimum == null || high == null || trace.durationMs <= 0) { invalidate(); return }
-        low = minimum
+        // A subtle whole-run backdrop: at least 10 m tall, centred, so flat runs stay flat.
+        range = (high - minimum).coerceAtLeast(10.0)
+        low = minimum + (high - minimum) / 2 - range / 2
         val bounds = Rect()
         chartContent?.let {
             it.getDrawingRect(bounds); offsetDescendantRectToMyCoords(it, bounds)
@@ -102,7 +104,6 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
         chartBounds.set(bounds)
         baseline = if (bounds.height() > 0) bounds.bottom.toFloat() else height * .60f
         profileHeight = minOf(dp(64).toFloat(), (bounds.height().takeIf { it > 0 } ?: height) * .32f)
-        range = (high - low).coerceAtLeast(3.0)
         trace.sections.forEach { section ->
             val sectionArea = Path()
             var firstX = 0f

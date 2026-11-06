@@ -53,3 +53,9 @@ Diagnostic speech events include `terrain_source`. Original horizontal/vertical 
 Terrain models can miss bridges, stairs, elevated paths and recent terrain changes; global sources can include buildings or vegetation. Horizontal GPS error can still place a runner on the wrong feature; a confidence footprint is not a guarantee. Source date/resolution, missing coverage and the grade's trailing window all matter. Barometer fusion, polar terrain and managed download hosting are not implemented. No model is a medical or effort measurement.
 
 See [Testing](TESTING.md) for measured evidence. Field fixtures, cached test areas and developer credentials stay outside Git.
+
+## Bridges, underpasses and embankments (0.17)
+
+The regional model describes the ground: on a bridge it gives the road below, and over an underpass it gives the embankment top. Its 9-point footprint already rejects such ambiguous places. Before 0.17 each rejected fix fell back to coarser global heights, which can differ by 10 m or more nearby, so the mini profile zig-zagged.
+
+Now a rejected fix inside regional coverage is a **structure**: its height is unknown, along with 15 m on either side. Live coaching hides the 15 m after it. Charts show a gap there, and hill advice stays quiet. Global data is still used where regional tiles are missing. The 45-second slope line keeps a true aspect: its height range is at least a 12% grade over the distance drawn, so two metres over a long stretch looks gentle. Whole-run elevation charts use a centred minimum span of 10 m, so flat runs read as flat.

@@ -95,9 +95,13 @@ class ReviewJobService : JobService() {
         AiWork.review(this, run, automatic = true) { result ->
             q.finish(id, result.exceptionOrNull()?.let { (it as? AiFailure)?.reason?.name ?: "RESPONSE" })
             result.getOrNull()?.let { AutomaticReviews.notifyReady(this, id, it) }
-            if (!stopped) jobFinished(params, false)
-            // The completed job must leave the scheduler before scheduling the next one.
-            android.os.Handler(mainLooper).postDelayed({ AutomaticReviews.schedule(applicationContext) }, 1000)
+            fun done() {
+                if (!stopped) jobFinished(params, false)
+                // The completed job must leave the scheduler before scheduling the next one.
+                android.os.Handler(mainLooper).postDelayed({ AutomaticReviews.schedule(applicationContext) }, 1000)
+            }
+            // Still inside this network-constrained job: refresh the AI-maintained profile.
+            if (!stopped && RunnerProfileStore(this).load().aiManaged) AiWork.updateProfile(this) { done() } else done()
         }
         return true
     }

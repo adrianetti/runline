@@ -189,7 +189,7 @@ class TerrainRepository private constructor(context: Context) {
         val request = URL(key.url).openConnection() as HttpURLConnection; connection = request
         try {
             request.connectTimeout = 8_000; request.readTimeout = 12_000; request.instanceFollowRedirects = false
-            request.setRequestProperty("User-Agent", "Runline/0.16 (offline terrain)")
+            request.setRequestProperty("User-Agent", "Runline/0.17 (offline terrain)")
             require(request.responseCode == 200 && request.contentLengthLong <= key.maxBytes)
             return request.inputStream.use { readBounded(it, key.maxBytes, SystemClock.elapsedRealtime() + 20_000) }
         } finally { request.disconnect(); connection = null }

@@ -2,8 +2,12 @@ package com.runline.app.core
 
 import kotlin.math.*
 
-/** Analysis-only provenance; never persisted as an original GPS observation. */
-enum class TerrainModel { IGN_MDT05, MAPZEN }
+/**
+ * Analysis-only provenance; never persisted as an original GPS observation.
+ * [STRUCTURE] carries no height: a detailed model covers the place, but a bridge,
+ * underpass, embankment or wall makes the runner's level ambiguous there.
+ */
+enum class TerrainModel { IGN_MDT05, MAPZEN, STRUCTURE }
 
 /** Public, versioned cache identity. Mercator cannot represent the polar caps. */
 data class WorldTileKey(val zoom: Int, val x: Int, val y: Int) {

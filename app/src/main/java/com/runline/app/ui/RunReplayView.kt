@@ -338,8 +338,19 @@ class RunReplayView(
             content.addView(ActivityPhotosView(context, run.id, it), row(top = 8, bottom = 16))
         }
         addDetail(content, R.string.replay_total_distance, context.getString(R.string.replay_kilometres, number(summary.distanceMeters / 1000, 2)))
-        addDetail(content, R.string.replay_active_time, duration(run.activeDurationMs))
-        addDetail(content, R.string.replay_average_pace, context.getString(R.string.replay_per_km, pace(RunMetrics.paceSecondsPerKm(summary.distanceMeters, run.activeDurationMs))))
+        // Stops are derived from the saved fixes, so older activities gain moving time too.
+        val stops = com.runline.app.core.StopDetection.detect(run.points, run.activityType)
+        val moving = com.runline.app.core.StopDetection.movingDurationMs(run, stops)
+        val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(context)
+        if (stops.isEmpty()) addDetail(content, R.string.replay_active_time, duration(run.activeDurationMs))
+        else {
+            addDetail(content, R.string.v17_moving_time, duration(moving))
+            addDetail(content, R.string.v17_elapsed_time, duration(run.activeDurationMs))
+            addDetail(content, R.string.v17_stops, context.resources.getQuantityString(R.plurals.v17_stops_value, stops.size, stops.size,
+                duration(com.runline.app.core.StopDetection.totalMs(stops))))
+        }
+        addDetail(content, R.string.replay_average_pace, context.getString(R.string.replay_per_km,
+            pace(RunMetrics.paceSecondsPerKm(summary.distanceMeters, if (autoPause) moving else run.activeDurationMs))))
         content.addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(label(context.getString(R.string.replay_elevation), 22, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
@@ -385,7 +396,7 @@ class RunReplayView(
         addDetail(content, R.string.replay_gps_samples, java.text.NumberFormat.getIntegerInstance(locale()).format(run.points.size))
         content.addView(label(context.getString(R.string.replay_splits), 22, bold = true), row(top = 24, bottom = 8))
         // Computed only when details open, never for each playback frame.
-        val splits = RunMetrics.splits(run.copy(points = replay.segments.flatten()))
+        val splits = RunMetrics.splits(run.copy(points = replay.segments.flatten()), if (autoPause) stops else emptyList())
         if (splits.isEmpty()) content.addView(label(context.getString(R.string.replay_not_enough_gps), 14, muted = true))
         else splits.forEach { split ->
             val name = if (split.distanceMeters >= 999.5) context.getString(R.string.replay_km_split, split.index)

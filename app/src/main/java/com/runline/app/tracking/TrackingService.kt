@@ -55,6 +55,8 @@ data class TrackingState(
     val lastSavedAtMs: Long? = null,
     val gpsStale: Boolean = false,
     val messageRes: Int? = null,
+    /** Live standstill start (GPS wall clock). Derived only; recording continues unchanged. */
+    val stoppedSinceMs: Long? = null,
 ) {
     /** Resolve again when read so a language change also updates a paused/recovered state. */
     fun localized(context: Context): TrackingState = messageRes?.let {
@@ -87,6 +89,9 @@ class TrackingService : Service(), LocationListener {
     private var coachEngine: CoachEngine? = null
     private var coachSpeech: CoachSpeech? = null
     private var aiCoach: AiRunCoach? = null
+    private var stillness = com.runline.app.core.StillnessTracker()
+    private var autoPause = true
+    private var notifiedStopped = false
     @Volatile private var foreground = false
     @Volatile private var published = TrackingState()
 
@@ -114,7 +119,9 @@ class TrackingService : Service(), LocationListener {
             if (tickCount % 300 == 0) wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
             updateCoaching()
             publish()
-            if (tickCount % 5 == 0) updateNotification()
+            // A standstill (or moving again) should show on the lock screen without waiting.
+            val stoppedNow = published.stoppedSinceMs != null
+            if (tickCount % 5 == 0 || stoppedNow != notifiedStopped) { notifiedStopped = stoppedNow; updateNotification() }
             worker.postDelayed(this, 1000)
         }
     }
@@ -222,6 +229,7 @@ class TrackingService : Service(), LocationListener {
             store.beginDraft(run)
         }) return
         current = run; lastSavedAt = now; segment = 0
+        stillness = com.runline.app.core.StillnessTracker(activityType)
         resumeRun()
     }
 
@@ -236,6 +244,7 @@ class TrackingService : Service(), LocationListener {
             // Neither the timer nor the route connects across any process outage or pause.
             segment = (current!!.points.maxOfOrNull { it.segment } ?: -1) + 1
             activeSince = SystemClock.elapsedRealtime(); lastLocationElapsed = 0L; tickCount = 0
+            stillness = com.runline.app.core.StillnessTracker(current!!.activityType)
             mode = RecordingStatus.RECORDING; accuracy = null; messageRes = R.string.tracking_finding_gps
             persistCheckpoint()
             locations.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, this, thread.looper)
@@ -294,6 +303,9 @@ class TrackingService : Service(), LocationListener {
         }
         val elapsed = location.elapsedRealtimeNanos / 1_000_000
         if (elapsed < activeSince || location.time < 0) return // Never import a cached fix from before Start/Resume.
+        // Every valid fix informs the standstill signal, including those too close to store.
+        stillness.update(location.latitude, location.longitude, location.time, location.accuracy,
+            if (location.hasSpeed() && location.speed.isFinite()) location.speed else null)
         val previous = current!!.points.lastOrNull()
         if (lastLocationElapsed > 0 && elapsed <= lastLocationElapsed) return
         val seconds = (elapsed - lastLocationElapsed) / 1000.0
@@ -339,7 +351,9 @@ class TrackingService : Service(), LocationListener {
     private fun freezeTimer() { if (mode == RecordingStatus.RECORDING) { current = snapshotRun(); activeSince = SystemClock.elapsedRealtime() } }
     private fun isGpsStale() = mode == RecordingStatus.RECORDING &&
         SystemClock.elapsedRealtime() - (lastLocationElapsed.takeIf { it > 0 } ?: activeSince) > 15_000
-    private fun publish() { published = TrackingState(mode, snapshotRun(), accuracy, lastSavedAtMs = lastSavedAt, gpsStale = isGpsStale(), messageRes = messageRes).localized(this); cached = published }
+    private fun stoppedSince(): Long? = stillness.stoppedSinceMs?.takeIf { mode == RecordingStatus.RECORDING && !isGpsStale() }
+    private fun publish() { published = TrackingState(mode, snapshotRun(), accuracy, lastSavedAtMs = lastSavedAt, gpsStale = isGpsStale(), messageRes = messageRes,
+        stoppedSinceMs = stoppedSince()).localized(this); cached = published }
     private fun safely(block: () -> Unit): Boolean = try { block(); true } catch (_: Exception) {
         fail(R.string.tracking_storage_paused); false
     }
@@ -372,11 +386,13 @@ class TrackingService : Service(), LocationListener {
             }
             aiCoach?.refresh()
             coachSpeech?.invalidatePending()
-            if (next != coachConfig || coachEngine == null) {
+            if (next != coachConfig || coachEngine == null || autoPause != RecordingSettings.autoPause(this)) {
+                autoPause = RecordingSettings.autoPause(this)
                 coachConfig = next
                 coachEngine = CoachEngine(next, snapshotRun(),
                     terrainPoint = { point -> com.runline.app.terrain.TerrainRepository.get(this).snapshot.point(point) },
-                    terrainRevision = { com.runline.app.terrain.TerrainRepository.get(this).snapshot.revision })
+                    terrainRevision = { com.runline.app.terrain.TerrainRepository.get(this).snapshot.revision },
+                    autoPause = RecordingSettings.autoPause(this))
                 coachSpeech?.reset()
             }
             if (next.enabled && mode == RecordingStatus.RECORDING) {
@@ -396,10 +412,12 @@ class TrackingService : Service(), LocationListener {
         runCatching {
             val run = snapshotRun() ?: return
             val fresh = accuracy != null && lastLocationElapsed > 0 && !isGpsStale()
-            val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh)
+            val stopped = stoppedSince()
+            val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh, stopped)
             coachEngine?.situation?.let { coachSpeech?.updateSituation(it) }
             cue?.let { coachSpeech?.speak(it) }
-            if (coachConfig.enabled && mode == RecordingStatus.RECORDING) aiCoach?.update(run, fresh, coachConfig, coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN)
+            // A standstill is not a moment for advice; the AI coach waits for movement too.
+            if (coachConfig.enabled && mode == RecordingStatus.RECORDING && stopped == null) aiCoach?.update(run, fresh, coachConfig, coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN)
         }
     }
     private fun notification(): Notification {
@@ -411,7 +429,9 @@ class TrackingService : Service(), LocationListener {
         val run = state.run
         val recording = state.status == RecordingStatus.RECORDING
         val distance = run?.let { RunMetrics.distanceMeters(it.points) } ?: 0.0
-        val duration = run?.activeDurationMs ?: 0L
+        val stopped = recording && state.stoppedSinceMs != null
+        // With auto-pause, time and pace exclude standstills, matching the recording screen.
+        val duration = run?.let { if (RecordingSettings.autoPause(this)) com.runline.app.core.StopDetection.movingDurationMs(it, openStopSinceMs = state.stoppedSinceMs) else it.activeDurationMs } ?: 0L
         val formatLocale = AppLanguage.localizedContext(this).resources.configuration.locales[0]
         val paceSeconds = RunMetrics.paceSecondsPerKm(distance, duration)?.roundToLong()
         val pace = paceSeconds?.let { String.format(formatLocale, "%d:%02d", it / 60, it % 60) } ?: "—"
@@ -421,6 +441,7 @@ class TrackingService : Service(), LocationListener {
             String.format(formatLocale, "%d:%02d:%02d", elapsedSeconds / 3600, elapsedSeconds / 60 % 60, elapsedSeconds % 60)
         else String.format(formatLocale, "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
         val title = when {
+            stopped && RecordingSettings.autoPause(this) -> tr(R.string.v17_stopped_auto_paused)
             recording -> tr(when (run?.activityType) {
                 ActivityType.WALK -> R.string.tracking_walking
                 ActivityType.HIKE -> R.string.tracking_hiking
@@ -435,7 +456,7 @@ class TrackingService : Service(), LocationListener {
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_run)
             .setContentTitle(title).setContentText(if (run == null) tr(R.string.tracking_saved_on_phone) else metrics)
             .setContentIntent(open).setStyle(Notification.BigTextStyle().bigText(expanded))
-            .setWhen(System.currentTimeMillis() - duration).setShowWhen(recording).setUsesChronometer(recording)
+            .setWhen(System.currentTimeMillis() - duration).setShowWhen(recording && !stopped).setUsesChronometer(recording && !stopped)
             .setOngoing(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PUBLIC)
             .setCategory(Notification.CATEGORY_SERVICE)
         if (Build.VERSION.SDK_INT >= 31) builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)

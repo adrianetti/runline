@@ -30,6 +30,7 @@ ICONS = {
     "language": "language", "ai": "brain", "user": "user", "effort": "gauge",
     "speaker_off": "volume-off", "update": "alert-circle", "refresh": "refresh",
     "slope_up": "trending-up", "slope_down": "trending-down", "flat": "arrow-right",
+    "folder": "folder", "archive": "file-zip",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)

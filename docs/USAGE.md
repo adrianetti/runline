@@ -152,3 +152,15 @@ This downloads elevation data, not satellite imagery. You can always start witho
 **Settings → About** shows the installed version, measured app storage and terrain's share of that storage. A confirmed newer GitHub release adds an amber update icon; tap it to open the latest release and download the APK. Checks run asynchronously, cache successes for six hours and offer manual refresh with throttling. A failed check stays explicit. The app does not download or install updates automatically. Repository and complete Sources & licenses links stay available. Repository and release links try the installed GitHub Android app first; if it cannot handle the link, Android opens the normal external handler.
 
 Nearby terrain downloads automatically when a usable location is available while the app is open or recording. It uses existing location permission and small tiles, with a 64 MiB disk limit; it never downloads a whole country. **Settings → Terrain maps** controls automatic downloads, optional Wi-Fi only, manual area preparation and cache clearing. Clearing terrain preserves recordings and AI settings. Missing/offline terrain does not block capture. [Terrain coverage and limits](TERRAIN.md).
+
+## Stops and auto-pause (0.17)
+
+Runline notices when you stand still, for example at a traffic light or to tie a shoe, after about 5 seconds. With **Settings → Auto-pause at stops** (on by default), the island shows **Stopped · auto-paused**. The timer, average pace, splits and notification then count moving time only. Recording never stops and no GPS fix is removed, so turning the setting off later restores elapsed-time numbers for every activity. Activity details list moving time, elapsed time and the stops.
+
+## Share everything from one run (0.17)
+
+Open an activity's file menu:
+- **Download GPX**, **Share GPX** and **Save GPX to…** handle the route file.
+- **Share all data (ZIP)** and **Download all data (ZIP)** add every fix with derived terrain and stop columns, the stops, the coach log, a measured summary and any saved review.
+
+The ZIP includes your exact route; photos and your runner profile are never included.

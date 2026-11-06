@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spoken coach. Kept short: heard once, mid-run, often over music. -->
+    <string name="v17_coach_split">That one took %1$d minutes %2$d seconds.</string>
+    <string name="v17_coach_split_faster">%1$d seconds faster than the one before.</string>
+    <string name="v17_coach_split_slower">%1$d seconds slower than the one before.</string>
+    <string name="v17_coach_split_even">Same pace as the one before.</string>
+    <string name="v17_coach_pace">%1$d minutes %2$d per kilometre</string>
+    <plurals name="v17_coach_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="v17_coach_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <string name="v17_coach_km">%1$s kilometres</string>
+    <string name="v17_coach_progress">%1$s, %2$s.</string>
+    <string name="v17_coach_trend_faster">Picking up: %1$s now.</string>
+    <string name="v17_coach_trend_slower">Pace has eased to %1$s. Relax and hold it.</string>
+    <string name="v17_coach_trend_steady">Steady at %1$s.</string>
+    <string name="v17_coach_halfway_time">Halfway. %1$s and %2$s so far. On track for about %3$s.</string>
+    <string name="v17_coach_halfway_distance">Halfway. %1$s in %2$s. On track for about %3$s.</string>
+    <string name="v17_coach_final_time">About %1$s left, at %2$s.</string>
+    <string name="v17_coach_final_distance">%1$d metres to go.</string>
+    <string name="v17_coach_summary">%1$s in %2$s, average %3$s.</string>
+
+    <!-- Stops and auto-pause -->
+    <string name="v17_stopped">Stopped</string>
+    <string name="v17_stopped_auto_paused">Stopped · auto-paused</string>
+    <string name="v17_auto_pause">Auto-pause at stops</string>
+    <string name="v17_moving_time">Moving time</string>
+    <string name="v17_elapsed_time">Elapsed time</string>
+    <string name="v17_stops">Stops</string>
+    <plurals name="v17_stops_value">
+        <item quantity="one">%1$d · %2$s</item>
+        <item quantity="other">%1$d · %2$s</item>
+    </plurals>
+
+    <!-- Runner profile -->
+    <string name="v17_profile_from_activities">From your activities</string>
+    <string name="v17_profile_snapshot_volume">%1$d runs in 28 days · %2$s km/week</string>
+    <string name="v17_profile_snapshot_pace">Longest %1$s km · typical %2$s/km</string>
+    <string name="v17_profile_snapshot_effort">Average effort %1$s/10</string>
+    <string name="v17_profile_snapshot_empty">No runs yet.</string>
+    <string name="v17_profile_ai_managed">Let AI keep my profile up to date</string>
+    <string name="v17_profile_ai_needs_ai">Turn on AI in Settings first.</string>
+    <string name="v17_profile_ai_hint">Updates after new runs. Uses your activities, not your health notes.</string>
+    <string name="v17_profile_ai_updated">Updated %1$s</string>
+    <string name="v17_profile_ai_update_now">Update now</string>
+    <string name="v17_profile_ai_updating">Updating…</string>
+    <string name="v17_profile_ai_failed">Couldn\'t update. Try again later.</string>
+
+    <!-- Export -->
+    <string name="v17_download_gpx">Download GPX</string>
+    <string name="v17_share_gpx">Share GPX</string>
+    <string name="v17_save_gpx">Save GPX to…</string>
+    <string name="v17_share_data">Share all data (ZIP)</string>
+    <string name="v17_download_data">Download all data (ZIP)</string>
+    <string name="v17_export_data_suffix">data</string>
+</resources>

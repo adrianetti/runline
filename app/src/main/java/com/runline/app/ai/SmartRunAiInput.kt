@@ -23,12 +23,13 @@ object SmartRunAiInput {
     }.sortedWith(compareBy<SmartRunHistoryRun> { it.date }.thenBy { it.startedAtMs }.thenBy { it.id })
 
     fun build(today: LocalDate, runs: List<RunSession>, details: (String) -> ActivityDetails,
-              includeNotes: Boolean = false, profile: RunnerProfile = RunnerProfile(), goal: RunnerGoal = RunnerGoal()): JSONObject {
+              includeNotes: Boolean = false, profile: RunnerProfile = RunnerProfile(), goal: RunnerGoal = RunnerGoal(),
+              insights: RunnerInsights? = null): JSONObject {
         val history = history(runs, details).filter { it.date <= today }
         val validIds = history.map { it.id }.toSet()
         return JSONObject().put("today", today.toString())
             .put("coaching_context", AiCoachingContext.build(today, history = runs.filter { it.id in validIds },
-                details = details, includeNotes = includeNotes, profile = profile, runnerGoal = goal))
+                details = details, includeNotes = includeNotes, profile = profile, runnerGoal = goal, insights = insights))
             .put("goal_format", JSONObject()
                 .put("types", JSONArray(listOf("REST", "DISTANCE", "TIME", "DISTANCE_TIME")))
                 .put("distance_km_range", JSONArray(listOf(CoachConfig.DISTANCE_KM_RANGE.start, CoachConfig.DISTANCE_KM_RANGE.endInclusive)))

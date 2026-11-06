@@ -15,6 +15,7 @@ import com.runline.app.core.CoachTerrain
 import com.runline.app.core.EncouragementKind
 import com.runline.app.core.PhraseRotation
 import com.runline.app.core.CoachCue
+import com.runline.app.core.CoachNarration
 import com.runline.app.core.CoachSituation
 import com.runline.app.core.CoachSpeechPriority
 import com.runline.app.core.CoachSpeechRequest
@@ -288,19 +289,32 @@ class CoachSpeech(context: Context,
         is CoachCue.Kilometre -> {
             val local = AppLanguage.localizedContext(context)
             val km = local.resources.getQuantityString(R.plurals.coach_voice_kilometres, cue.completed, cue.completed)
+            val split = cue.splitPaceSeconds?.roundToInt()
             val pace = cue.averagePaceSeconds?.roundToInt()
-            if (pace == null) km else km + " " + tr(R.string.coach_voice_average_pace, pace / 60, pace % 60)
+            when {
+                // The kilometre just run says more than a whole-run average diluted by the start.
+                split != null -> buildString {
+                    append(km).append(' ').append(tr(R.string.v17_coach_split, split / 60, split % 60))
+                    when (val change = CoachNarration.splitChange(cue.splitPaceSeconds, cue.previousSplitPaceSeconds)) {
+                        null -> Unit
+                        0 -> append(' ').append(tr(R.string.v17_coach_split_even))
+                        else -> append(' ').append(tr(if (change < 0) R.string.v17_coach_split_faster else R.string.v17_coach_split_slower, kotlin.math.abs(change)))
+                    }
+                }
+                pace == null -> km
+                else -> km + " " + tr(R.string.coach_voice_average_pace, pace / 60, pace % 60)
+            }
         }
         CoachCue.OneKilometreRemaining -> tr(R.string.coach_voice_one_remaining)
-        is CoachCue.GoalReached -> tr(when (cue.withinTime) {
+        is CoachCue.GoalReached -> listOfNotNull(tr(when (cue.withinTime) {
             true -> R.string.coach_voice_goal_in_time
             false -> R.string.coach_voice_goal_over_time
             null -> R.string.coach_voice_goal_reached
-        })
+        }), cue.facts?.let(::summary)).joinToString(" ")
         CoachCue.SlowerThanTarget -> phrase(R.array.coach_phrase_slower)
         CoachCue.FasterThanTarget -> phrase(R.array.coach_phrase_faster)
         CoachCue.BackOnPace -> phrase(R.array.coach_phrase_on_pace)
-        is CoachCue.Encouragement -> phrase(when (cue.kind) {
+        is CoachCue.Encouragement -> cue.facts?.let { facts -> measured(cue.kind, facts) } ?: phrase(when (cue.kind) {
             EncouragementKind.SETTLING_IN -> R.array.coach_phrase_settling
             EncouragementKind.STEADY -> R.array.coach_phrase_steady
             EncouragementKind.HALFWAY -> R.array.coach_phrase_halfway
@@ -310,6 +324,7 @@ class CoachSpeech(context: Context,
             EncouragementKind.DOWNHILL -> R.array.coach_v12_downhill_support
             EncouragementKind.ON_TARGET -> R.array.coach_v12_on_target
             EncouragementKind.CONSISTENT -> R.array.coach_v12_consistent
+            EncouragementKind.PROGRESS -> R.array.coach_phrase_steady
         })
         is CoachCue.Terrain -> phrase(if (cue.kind == CoachTerrain.UPHILL) R.array.coach_phrase_uphill else R.array.coach_phrase_downhill)
         CoachCue.EasingAfterHill -> phrase(R.array.coach_phrase_after_hill)
@@ -325,6 +340,51 @@ class CoachSpeech(context: Context,
                 comparison.paceChangePercent <= -5 -> R.string.coach_lap_faster
                 else -> R.string.coach_lap_even
             }))
+        }
+    }
+
+    /** Numbers first, a few words of direction second. Null falls back to a phrase. */
+    private fun measured(kind: EncouragementKind, facts: com.runline.app.core.CoachFacts): String? = when (kind) {
+        EncouragementKind.HALFWAY -> when {
+            facts.projectedMeters != null -> tr(R.string.v17_coach_halfway_time, duration(facts.movingMs), kilometres(facts.distanceMeters), kilometres(facts.projectedMeters))
+            facts.projectedMs != null -> tr(R.string.v17_coach_halfway_distance, kilometres(facts.distanceMeters), duration(facts.movingMs), duration(facts.projectedMs))
+            else -> null
+        }
+        EncouragementKind.FINAL_STRETCH -> when {
+            facts.remainingMs != null && facts.remainingMs >= 60_000 -> tr(R.string.v17_coach_final_time, duration(facts.remainingMs), kilometres(facts.distanceMeters))
+            facts.remainingMeters != null && facts.remainingMeters >= 50 -> tr(R.string.v17_coach_final_distance, ((facts.remainingMeters / 50).roundToInt() * 50))
+            else -> null
+        }
+        EncouragementKind.PROGRESS -> {
+            val opening = tr(R.string.v17_coach_progress, duration(facts.movingMs), kilometres(facts.distanceMeters))
+            val recent = facts.recentPaceSeconds
+            val trend = CoachNarration.trend(recent, facts.averagePaceSeconds)
+            if (recent == null || trend == null) null
+            else opening + " " + tr(when (trend) {
+                CoachNarration.Trend.FASTER -> R.string.v17_coach_trend_faster
+                CoachNarration.Trend.SLOWER -> R.string.v17_coach_trend_slower
+                CoachNarration.Trend.STEADY -> R.string.v17_coach_trend_steady
+            }, pace(recent))
+        }
+        else -> null
+    }
+    private fun summary(facts: com.runline.app.core.CoachFacts): String? = facts.averagePaceSeconds?.let {
+        tr(R.string.v17_coach_summary, kilometres(facts.distanceMeters), duration(facts.movingMs), pace(it))
+    }
+    private fun pace(seconds: Double): String { val value = seconds.roundToInt(); return tr(R.string.v17_coach_pace, value / 60, value % 60) }
+    private fun kilometres(meters: Double): String {
+        val local = AppLanguage.localizedContext(context)
+        return tr(R.string.v17_coach_km, String.format(local.resources.configuration.locales[0], "%.1f", meters / 1000))
+    }
+    private fun duration(ms: Long): String {
+        val resources = AppLanguage.localizedContext(context).resources
+        val minutes = ((ms + 30_000) / 60_000).toInt()
+        val hours = minutes / 60
+        val rest = minutes % 60
+        return when {
+            hours == 0 -> resources.getQuantityString(R.plurals.v17_coach_minutes, minutes.coerceAtLeast(1), minutes.coerceAtLeast(1))
+            rest == 0 -> resources.getQuantityString(R.plurals.v17_coach_hours, hours, hours)
+            else -> resources.getQuantityString(R.plurals.v17_coach_hours, hours, hours) + " " + resources.getQuantityString(R.plurals.v17_coach_minutes, rest, rest)
         }
     }
 

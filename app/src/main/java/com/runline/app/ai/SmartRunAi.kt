@@ -61,7 +61,7 @@ object SmartRunAi {
                     catch (e: Exception) { if (!explicit) throw AiFailure(AiFailure.Reason.STORAGE) else null }
                 } else null
                 val runs = RunStore(app)
-                fun input() = SmartRunAiInput.build(today, runs.list(), runs::details, config.includeNotes, profile.profile, goal.goal)
+                fun input() = SmartRunAiInput.build(today, runs.list(), runs::details, config.includeNotes, profile.profile, goal.goal, RunnerInsightsStore(app).load())
                 val payload = input()
                 val inputKey = SmartRunAiInput.key(payload) + ":" + epoch
                 var key: String? = null

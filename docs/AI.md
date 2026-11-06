@@ -65,3 +65,20 @@ Provider calls record only bounded request metadata and reported usage; keys, pr
 Version 0.14 withholds raw GPS elevation from AI summaries. Available mapped height is identified by source and coverage; absent data is unknown, and partial coverage can undercount totals. Live hill claims require an eligible map estimate and pass an English/Spanish direction check. Terrain-map generation changes invalidate pending live advice. No new paid requests or retries are introduced.
 
 Version 0.15 identifies the global or regional elevation model in summaries and live terrain context. Provider boundaries reset grade/height interpolation; raw GPS heights remain excluded from terrain advice.
+
+## AI-managed runner profile (0.17)
+
+The runner profile shows a local training snapshot from saved runs:
+- runs in 28 days and km per week
+- longest run in 90 days
+- typical moving pace
+- average self-rated effort
+
+No model is called for it.
+
+With AI ready and **Let AI keep my profile up to date** on, the review model reads the snapshot, coordinate-free summaries of up to 16 recent activities, the optional overall goal and its own previous assessment. It returns:
+- an experience level
+- at most two sentences of summary
+- one focus
+
+Health notes are sent only with the separate profile-sharing consent. Updates run after an automatic review, or on app open when a new run exists (at most every 6 hours), and on **Update now**. The assessment is stored separately from the self-report, so an update never invalidates a running review. Smart goals, live advice and reviews receive it as `ai_maintained_profile`, and the manual experience choice is hidden while it is on. **Clear** removes both.

@@ -47,6 +47,7 @@ import com.runline.app.ui.VoiceCoachSheet
 import com.runline.app.ui.HistoryInsightsView
 import com.runline.app.ui.ActivityDetailsEditor
 import com.runline.app.ui.RunnerProfileSheet
+import com.runline.app.ui.IconChoices
 import com.runline.app.ui.AppSettingsSheet
 import com.runline.app.ai.AiSettings
 import com.runline.app.ui.AiSettingsSheet
@@ -365,14 +366,16 @@ class MainActivity : AppCompatActivity() {
             content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
             content.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { tabs.getTabAt(0)?.select() })
         } else {
+            val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(this)
             runs.forEach { run ->
                 val distance = RunMetrics.distanceMeters(run.points)
+                val time = if (autoPause) com.runline.app.core.StopDetection.movingDurationMs(run) else run.activeDurationMs
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL; setPadding(dp(4), dp(20), dp(4), dp(20)); minimumHeight = dp(80)
                     isClickable = true; isFocusable = true
                     val attrs = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)); background = attrs.getDrawable(0); attrs.recycle()
                     setOnClickListener { openRun(run) }
-                    contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(run.activeDurationMs))
+                    contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(time))
                 }
                 val details = runCatching { store.details(run.id) }.getOrNull()
                 details?.title?.takeIf { it.isNotBlank() }?.let { title ->
@@ -381,7 +384,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 row.addView(text(getString(R.string.main_activity_date, activityName(run.activityType), date(run.startedAtMs)), 14, muted = true))
                 row.addView(text(getString(R.string.main_distance_km, number(distance / 1000, 2)), 26, bold = true), margin(top = 6))
-                row.addView(text(getString(R.string.main_history_stats, duration(run.activeDurationMs), pace(RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs))), 14, muted = true), margin(top = 4))
+                row.addView(text(getString(R.string.main_history_stats, duration(time), pace(RunMetrics.paceSecondsPerKm(distance, time))), 14, muted = true), margin(top = 4))
                 content.addView(row); content.addView(divider())
             }
         }
@@ -518,21 +521,32 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton(getString(R.string.main_keep), null).show()
     }
     private fun showActivityTransfer(run: RunSession) {
-        MaterialAlertDialogBuilder(this).setTitle(R.string.main_activity_file)
-            .setItems(arrayOf(getString(R.string.main_download_gpx), getString(R.string.main_share_file), getString(R.string.main_save_to))) { _, which ->
-                when (which) { 0 -> exporter.start(run); 1 -> exporter.share(run); 2 -> exporter.saveAs(run) }
-            }.show()
+        // Say what each option produces: the GPX route, or every recorded detail in one ZIP.
+        IconChoices.show(this, R.string.main_activity_file, listOf(
+            IconChoices.Choice(getString(R.string.v17_download_gpx), R.drawable.ic_download),
+            IconChoices.Choice(getString(R.string.v17_share_gpx), R.drawable.ic_share),
+            IconChoices.Choice(getString(R.string.v17_save_gpx), R.drawable.ic_folder),
+            IconChoices.Choice(getString(R.string.v17_share_data), R.drawable.ic_archive),
+            IconChoices.Choice(getString(R.string.v17_download_data), R.drawable.ic_download),
+        )) { which ->
+            when (which) { 0 -> exporter.start(run); 1 -> exporter.share(run); 2 -> exporter.saveAs(run)
+                3 -> exporter.shareBundle(run); 4 -> exporter.startBundle(run) }
+        }
     }
     private fun showHistoryTransfer(runs: List<RunSession>, share: Boolean) {
-        MaterialAlertDialogBuilder(this).setTitle(if (share) R.string.main_share_all else R.string.main_export_all)
-            .setItems(arrayOf(getString(R.string.main_summary_csv), getString(R.string.main_archive_zip))) { _, format ->
-                if (share) { if (format == 0) exporter.shareSummary(runs) else exporter.shareArchive(runs) }
-                else MaterialAlertDialogBuilder(this).setTitle(R.string.main_export_all)
-                    .setItems(arrayOf(getString(R.string.main_downloads), getString(R.string.main_save_to))) { _, destination ->
-                        if (format == 0) { if (destination == 0) exporter.startSummary(runs) else exporter.saveSummaryAs(runs) }
-                        else { if (destination == 0) exporter.startArchive(runs) else exporter.saveArchiveAs(runs) }
-                    }.show()
-            }.show()
+        IconChoices.show(this, if (share) R.string.main_share_all else R.string.main_export_all, listOf(
+            IconChoices.Choice(getString(R.string.main_summary_csv), R.drawable.ic_history),
+            IconChoices.Choice(getString(R.string.main_archive_zip), R.drawable.ic_archive),
+        )) { format ->
+            if (share) { if (format == 0) exporter.shareSummary(runs) else exporter.shareArchive(runs) }
+            else IconChoices.show(this, R.string.main_export_all, listOf(
+                IconChoices.Choice(getString(R.string.main_downloads), R.drawable.ic_download),
+                IconChoices.Choice(getString(R.string.main_save_to), R.drawable.ic_folder),
+            )) { destination ->
+                if (format == 0) { if (destination == 0) exporter.startSummary(runs) else exporter.saveSummaryAs(runs) }
+                else { if (destination == 0) exporter.startArchive(runs) else exporter.saveArchiveAs(runs) }
+            }
+        }
     }
     private fun showRunnerProfile() { runnerProfile?.close(); runnerProfile = RunnerProfileSheet(this).also { it.show() } }
     private fun showTerrainSettings() {

@@ -27,7 +27,7 @@ internal object TerrainUi {
         if (!repository.enabled) return context.getString(R.string.terrain_maps_off)
         val count = mapped.count { it.altitudeMeters != null }
         if (count > 0) {
-            val models = mapped.mapNotNull { it.terrainModel }.distinct()
+            val models = mapped.mapNotNull { it.terrainModel }.filter { it != TerrainModel.STRUCTURE }.distinct()
             val source = context.getString(when {
                 models.size > 1 -> R.string.terrain_source_mixed
                 models.singleOrNull() == TerrainModel.MAPZEN -> R.string.terrain_source_world

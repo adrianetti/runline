@@ -7,6 +7,8 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
     val sections: List<List<Sample>>
     val durationMs: Long
     private val bySegment: List<List<Fix>>
+    /** Path distance per fix, so display scales can keep a true height/length aspect. */
+    private val alongBySegment: List<DoubleArray>
     val latestCursor: Sample?
     val latestSegmentIndex: Int get() = bySegment.lastIndex
 
@@ -35,6 +37,11 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
             fixes
         }
         sections = paths
+        alongBySegment = segments.map { points ->
+            DoubleArray(points.size).also { along ->
+                for (index in 1 until points.size) along[index] = along[index - 1] + RunMetrics.distanceMeters(listOf(points[index - 1], points[index]))
+            }
+        }
         durationMs = clock
         latestCursor = if (latestIsObserved) at(clock, bySegment.lastIndex) else null
     }
@@ -55,6 +62,22 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         if (!b.drawable || !validHeight(b.point) || !canJoinAltitude(a.point, b.point)) return null
         val fraction = (positionMs - a.positionMs).toDouble() / (b.positionMs - a.positionMs)
         return Sample(positionMs, a.point.altitudeMeters!! + (b.point.altitudeMeters!! - a.point.altitudeMeters) * fraction)
+    }
+
+    /** Interpolated path distance within one replay segment; null outside it. */
+    fun distanceAt(positionMs: Long, segmentIndex: Int): Double? {
+        val fixes = bySegment.getOrNull(segmentIndex) ?: return null
+        val along = alongBySegment.getOrNull(segmentIndex) ?: return null
+        if (fixes.isEmpty() || positionMs < fixes.first().positionMs || positionMs > fixes.last().positionMs) return null
+        var low = 0; var high = fixes.lastIndex
+        while (low < high) {
+            val middle = (low + high + 1) ushr 1
+            if (fixes[middle].positionMs <= positionMs) low = middle else high = middle - 1
+        }
+        val next = fixes.getOrNull(low + 1) ?: return along[low]
+        val span = next.positionMs - fixes[low].positionMs
+        if (span <= 0) return along[low]
+        return along[low] + (along[low + 1] - along[low]) * (positionMs - fixes[low].positionMs) / span
     }
 
     companion object {

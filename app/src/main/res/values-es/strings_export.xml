@@ -6,7 +6,7 @@
     <string name="export_finish_saving">Termina de preparar o guardar el archivo actual primero.</string>
     <string name="export_save_retry">No se pudo guardar el archivo. Abre la actividad y expórtala de nuevo.</string>
     <string name="export_saving">Guardando archivo…</string>
-    <string name="export_no_picker">No hay selector de archivos disponible. Usa Compartir archivo.</string>
+    <string name="export_no_picker">No hay selector de archivos disponible. Usa Compartir GPX.</string>
     <string name="export_picker_failed">No se pudo abrir el selector. Tus actividades siguen guardadas.</string>
     <string name="export_downloads_filename">Guardado en Descargas: %1$s</string>
     <string name="export_saved_filename">Guardado: %1$s</string>

@@ -58,6 +58,8 @@ class ActivityExporter(
     fun start(run: RunSession) = begin(listOf(run), ExportKind.GPX, ExportAction.DOWNLOAD)
     fun share(run: RunSession) = begin(listOf(run), ExportKind.GPX, ExportAction.SHARE)
     fun saveAs(run: RunSession) = begin(listOf(run), ExportKind.GPX, ExportAction.PICKER)
+    fun startBundle(run: RunSession) = begin(listOf(run), ExportKind.BUNDLE, ExportAction.DOWNLOAD)
+    fun shareBundle(run: RunSession) = begin(listOf(run), ExportKind.BUNDLE, ExportAction.SHARE)
     fun startArchive(runs: List<RunSession>) = begin(runs, ExportKind.ARCHIVE, ExportAction.DOWNLOAD)
     fun shareArchive(runs: List<RunSession>) = begin(runs, ExportKind.ARCHIVE, ExportAction.SHARE)
     fun saveArchiveAs(runs: List<RunSession>) = begin(runs, ExportKind.ARCHIVE, ExportAction.PICKER)
@@ -79,7 +81,11 @@ class ActivityExporter(
             com.runline.app.core.ActivityType.WALK to localized.getString(R.string.export_activity_walk),
             com.runline.app.core.ActivityType.HIKE to localized.getString(R.string.export_activity_hike),
         )
-        val base = localized.getString(if (kind == ExportKind.SUMMARY) R.string.export_summary_name else R.string.export_archive_name)
+        val base = localized.getString(when (kind) {
+            ExportKind.SUMMARY -> R.string.export_summary_name
+            ExportKind.BUNDLE -> R.string.v17_export_data_suffix
+            else -> R.string.export_archive_name
+        })
         model.prepare(activity.applicationContext, runs.toList(), kind, action, locale, zone, names, base)
     }
 
@@ -159,7 +165,7 @@ class ActivityExporter(
 }
 
 internal enum class ExportKind(val extension: String, val mimeType: String) {
-    GPX("gpx", "application/gpx+xml"), ARCHIVE("zip", "application/zip"), SUMMARY("csv", "text/csv")
+    GPX("gpx", "application/gpx+xml"), ARCHIVE("zip", "application/zip"), SUMMARY("csv", "text/csv"), BUNDLE("zip", "application/zip")
 }
 internal enum class ExportAction { DOWNLOAD, SHARE, PICKER }
 
@@ -211,8 +217,11 @@ class ActivityExportViewModel : ViewModel() {
                 val details = runs.associate { it.id to runCatching { detailsStore.details(it.id) }.getOrDefault(ActivityDetails()) }
                 val entries = ActivityArchive.entries(runs, locale, zone, details) { names.getValue(it) }
                 val stamp = Instant.now().atZone(zone).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm", Locale.ROOT))
-                val filename = if (kind == ExportKind.GPX) entries.single().filename.substringAfterLast('/')
-                    else "$base - $stamp.${kind.extension}"
+                val filename = when (kind) {
+                    ExportKind.GPX -> entries.single().filename.substringAfterLast('/')
+                    ExportKind.BUNDLE -> entries.single().filename.substringAfterLast('/').removeSuffix(".gpx") + " - $base.zip"
+                    else -> "$base - $stamp.${kind.extension}"
+                }
                 directory = File(context.cacheDir, "exports/${UUID.randomUUID()}")
                 check(directory.mkdirs()) { "Could not prepare an export directory." }
                 val file = File(directory, filename)
@@ -220,6 +229,19 @@ class ActivityExportViewModel : ViewModel() {
                     ExportKind.GPX -> file.bufferedWriter(Charsets.UTF_8).use { it.write(GpxExporter.export(entries.single().run, entries.single().details)) }
                     ExportKind.ARCHIVE -> file.outputStream().buffered().use { ActivityArchive.writeZip(entries, zone, it) }
                     ExportKind.SUMMARY -> file.bufferedWriter(Charsets.UTF_8).use { it.write(ActivityArchive.summaryCsv(entries, zone)) }
+                    ExportKind.BUNDLE -> {
+                        val entry = entries.single()
+                        val terrainRun = com.runline.app.terrain.TerrainRepository.get(context).snapshot.project(entry.run)
+                        val review = com.runline.app.ai.AiReviewStore(context).get(entry.run.id)?.let { saved ->
+                            org.json.JSONObject().put("model", saved.model).put("created_at", Instant.ofEpochMilli(saved.createdAtMs).toString())
+                                .put("text", saved.text).put("card", saved.card?.json() ?: org.json.JSONObject.NULL)
+                        }
+                        file.outputStream().buffered().use {
+                            RunDataBundle.write(it, entry.run, terrainRun, entry.details,
+                                com.runline.app.ai.AiRunSummary.of(terrainRun, entry.details, includeNotes = true),
+                                runCatching { com.runline.app.diagnostics.Diagnostics.log(context).read(entry.run.id) }.getOrDefault(emptyList()), review)
+                        }
+                    }
                 }
                 PreparedExport(file, filename, kind)
             } catch (_: Exception) {
