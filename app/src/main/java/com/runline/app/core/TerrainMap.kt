@@ -116,26 +116,52 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
         }
         return original.copy(altitudeMeters = height, verticalAccuracyMeters = null, terrainModel = model)
     }
-    fun project(run: RunSession) = run.copy(points = TerrainStructureGuard.apply(run.points.map(::point)), elevationSource = TerrainSource.TERRAIN_MAP)
+
+    /** The detailed model at the fix itself, without the footprint check. Structure levels only. */
+    fun ground(point: RunPoint): Double? {
+        if (!enabled) return null
+        val xy = SpainTerrainProjection.project(point.latitude, point.longitude) ?: return null
+        return TerrainTileKey.at(point)?.let(grids::get)?.at(xy.first, xy.second)
+    }
+
+    fun project(run: RunSession) = run.copy(points = TerrainStructureGuard.resolve(TerrainStructureGuard.apply(run.points.map(::point)), ::ground),
+        elevationSource = TerrainSource.TERRAIN_MAP)
 }
 
 /**
  * Heights next to an ambiguous structure may describe its deck, the road below or the
- * slope between, so they stay unknown for a short distance on both sides. Display and
+ * slope between, so [apply] hides them for a short distance on both sides, and [resolve]
+ * then finds the runner's level from the clean heights around them. Display and
  * analysis only; recorded GPS observations are never changed.
  */
 object TerrainStructureGuard {
     const val MARGIN_METERS = 15.0
+    /** Longer hidden stretches stay unknown: a straight join would be a guess. */
+    const val MAX_LEVEL_SPAN_METERS = 250.0
+    /** Steeper than this over [GRADE_WINDOW_METERS], the model is not the surface underfoot. */
+    const val RUNNABLE_GRADE = .15
+    const val GRADE_WINDOW_METERS = 10.0
+    const val MAX_JOIN_GRADE = .30
+    /** A model dip or hump beyond this, below or above the join, names the level. */
+    const val LEVEL_METERS = 1.5
+
+    private class Continuity(points: List<RunPoint>) {
+        val along = DoubleArray(points.size)
+        val group = IntArray(points.size)
+        init {
+            for (index in 1 until points.size) {
+                val joined = MarkerMotion.canInterpolate(points[index - 1], points[index])
+                group[index] = if (joined) group[index - 1] else group[index - 1] + 1
+                along[index] = if (joined) along[index - 1] + RunMetrics.distanceMeters(listOf(points[index - 1], points[index])) else 0.0
+            }
+        }
+    }
 
     fun apply(points: List<RunPoint>): List<RunPoint> {
         if (points.none { it.terrainModel == TerrainModel.STRUCTURE }) return points
-        val along = DoubleArray(points.size)
-        val group = IntArray(points.size)
-        for (index in 1 until points.size) {
-            val joined = MarkerMotion.canInterpolate(points[index - 1], points[index])
-            group[index] = if (joined) group[index - 1] else group[index - 1] + 1
-            along[index] = if (joined) along[index - 1] + RunMetrics.distanceMeters(listOf(points[index - 1], points[index])) else 0.0
-        }
+        val continuity = Continuity(points)
+        val along = continuity.along
+        val group = continuity.group
         val hidden = BooleanArray(points.size)
         points.forEachIndexed { index, point ->
             if (point.terrainModel != TerrainModel.STRUCTURE) return@forEachIndexed
@@ -150,6 +176,68 @@ object TerrainStructureGuard {
                 point.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = TerrainModel.STRUCTURE)
             else point
         }
+    }
+
+    /**
+     * Gives each hidden stretch from [apply] a level, using clean detailed heights on both
+     * sides. A runner's road never jumps: where the model's own heights through the
+     * stretch stay runnable, they are the surface (a ramp beside a wall, a road under a
+     * viaduct). Otherwise the model holds a different level than the runner's: lower
+     * ground under a deck ([TerrainLevel.ABOVE]) or an embankment over a passage
+     * ([TerrainLevel.BELOW]), and the runner's height is the join between the clean sides.
+     * Stretches without clean heights on both sides stay unknown. Display and analysis only.
+     */
+    fun resolve(points: List<RunPoint>, ground: (RunPoint) -> Double?): List<RunPoint> {
+        if (points.none { it.terrainModel == TerrainModel.STRUCTURE }) return points
+        val continuity = Continuity(points)
+        val result = points.toMutableList()
+        var start = 0
+        while (start < points.size) {
+            if (points[start].terrainModel != TerrainModel.STRUCTURE) { start++; continue }
+            var end = start
+            while (end + 1 < points.size && points[end + 1].terrainModel == TerrainModel.STRUCTURE &&
+                continuity.group[end + 1] == continuity.group[start]) end++
+            level(points, result, start, end, continuity, ground)
+            start = end + 1
+        }
+        return result
+    }
+
+    private fun level(points: List<RunPoint>, result: MutableList<RunPoint>, start: Int, end: Int, continuity: Continuity, ground: (RunPoint) -> Double?) {
+        val before = start - 1; val after = end + 1
+        if (before < 0 || after >= points.size) return
+        val group = continuity.group; val along = continuity.along
+        if (group[before] != group[start] || group[after] != group[start]) return
+        if (points[before].terrainModel != TerrainModel.IGN_MDT05 || points[after].terrainModel != TerrainModel.IGN_MDT05) return
+        val low = points[before].altitudeMeters?.takeIf { it.isFinite() } ?: return
+        val high = points[after].altitudeMeters?.takeIf { it.isFinite() } ?: return
+        val span = along[after] - along[before]
+        if (!(span > 0.0 && span <= MAX_LEVEL_SPAN_METERS)) return
+        fun join(index: Int) = low + (high - low) * (along[index] - along[before]) / span
+        val model = (start..end).map { ground(points[it])?.takeIf(Double::isFinite) }
+        val runnable = model.all { it != null } && runnable(
+            listOf(along[before] to low) + (start..end).map { along[it] to model[it - start]!! } + (along[after] to high))
+        if (runnable) {
+            for (index in start..end) result[index] = points[index].copy(altitudeMeters = model[index - start],
+                verticalAccuracyMeters = null, terrainModel = TerrainModel.IGN_MDT05, terrainLevel = TerrainLevel.GROUND)
+            return
+        }
+        if (abs(high - low) / span > MAX_JOIN_GRADE) return
+        val offset = (start..end).mapNotNull { index -> model[index - start]?.minus(join(index)) }.maxByOrNull(::abs) ?: 0.0
+        val level = when { offset < -LEVEL_METERS -> TerrainLevel.ABOVE; offset > LEVEL_METERS -> TerrainLevel.BELOW; else -> TerrainLevel.GROUND }
+        for (index in start..end) result[index] = points[index].copy(altitudeMeters = join(index),
+            verticalAccuracyMeters = null, terrainModel = TerrainModel.IGN_MDT05, terrainLevel = level)
+    }
+
+    private fun runnable(profile: List<Pair<Double, Double>>): Boolean {
+        var end = 0
+        for (from in profile.indices) {
+            if (end <= from) end = from + 1
+            while (end < profile.size && profile[end].first - profile[from].first < GRADE_WINDOW_METERS) end++
+            if (end >= profile.size) return true
+            if (abs(profile[end].second - profile[from].second) / (profile[end].first - profile[from].first) > RUNNABLE_GRADE) return false
+        }
+        return true
     }
 
     /** Causal form for live coaching: only the distance after a structure can be hidden. */
@@ -181,7 +269,7 @@ class TerrainProjector {
         val unchanged = reusable && run.points.size == originals.size
         derived = if (unchanged) derived
             else if (reusable) derived + run.points.drop(originals.size).map(map::point) else run.points.map(map::point)
-        if (!unchanged) guarded = TerrainStructureGuard.apply(derived)
+        if (!unchanged) guarded = TerrainStructureGuard.resolve(TerrainStructureGuard.apply(derived), map::ground)
         id = run.id; revision = map.revision; originals = run.points
         return run.copy(points = guarded, elevationSource = TerrainSource.TERRAIN_MAP)
     }

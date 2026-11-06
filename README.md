@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.17:** auto-pause at traffic lights and other stops, with moving time and pace. Steadier slope readings at bridges and underpasses. A coach that speaks real splits and progress. One-tap ZIP with all of a run's data. An optional AI-maintained runner profile.
+**New in 0.18:** no more slope or elevation cut-outs on bridges and in underpasses: Runline works out whether you were above or below the road. In replay, the arrow draws your route as it goes. A recenter arrow and smaller map credits.
+
+**In 0.17:** auto-pause at traffic lights and other stops, with moving time and pace. Steadier slope readings at bridges and underpasses. A coach that speaks real splits and progress. One-tap ZIP with all of a run's data. An optional AI-maintained runner profile.
 
 **In 0.16:** a simpler Record screen, optional daily AI suggestion with a session-specific Use switch, automatic nearby terrain, GitHub update checks and storage usage in About, compact sharing controls, inline pace units and a replay-speed slider. [Using Runline](docs/USAGE.md).
 

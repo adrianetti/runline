@@ -1,6 +1,6 @@
-# Version 0.17 test checklist
+# Version 0.18 test checklist
 
-The checklist is not a blanket pass report. Current v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -288,6 +288,8 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 - Test valid, absent, intermittent, flat and non-finite GPS altitude. Profile gaps must remain visible; missing altitude and segment breaks reset ascent/descent accumulation. Check the 3-metre deadband, first-available-height baseline, accumulated climb/descent, secondary raw altitude range and unavailable-value dashes. Do not label raw GPS estimates as terrain-corrected or display an unsupported grade percentage.
 - Check totals and kilometre/final partial splits against known samples. Replay metrics and the elevation-profile cursor should track seeking without persistent UI stalls. Route/profile geometry must not be rebuilt every frame on a long recording; playback has a 30-update-per-second target, not a hardware performance guarantee.
 - A no-route/one-point run keeps its saved time; unavailable playback controls must be disabled. Do not claim a video export: no MP4 is produced.
+- Since 0.18, nothing is drawn ahead of the arrow: the route grows behind it, ends exactly at it at every speed, shortens on a backward seek and is complete at the end. Pan away: the arrow recenter control appears at the bottom right and hides again once following. The credits pill opens the credits.
+- Bridges and underpasses: on a run crossing over and under roads, the slope line and elevation chart stay continuous. `points.csv` names `above`, `below` or `ground` for those fixes. A real underpass ramp should not be flattened; report one if it is.
 
 ## GPX file export
 
@@ -458,3 +460,29 @@ Recorded 6 November 2026. The private 4.7 km street run, its coach log and the e
   - Afterwards the original app data was restored: **75/75 files identical** to the pre-test snapshot. The test ZIP was deleted, the app locale reset and root disabled.
 - **Not verified:** physical Samsung field GPS and Doppler behaviour at real traffic lights, battery, headphones, and the live coach on a phone. AI profile updates were not tested through the in-app job.
 - Artifact: `Runline-0.17.0.apk`, **0.17.0 / code 20**, SHA-256 `5fbe4c063b42e3c0e8141514252a9d4e9cefa9991af553e52873cf17f2877859`. A final clean rebuild of the natively tested source; it installed in place and cold-launched without crashes. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.
+
+## Version 0.18 validation
+
+Recorded 6 November 2026. The private 6 November street run stayed outside Git; it was used for local replays and was briefly loaded into the emulator's app storage, then removed.
+
+- **Build and checks.** Debug/release builds passed **360 JVM tests** with no failures or errors. Android lint reported **zero errors / 160 warnings**, the same count as 0.17. Verified **618 bilingual resources** and **38 pinned Tabler icons**: the unused `current-location` icon was removed with its source and provenance. Seven Semgrep rules found 0 issues in 112 production Kotlin files. Android surface checks and their tests passed, and Gitleaks found no leaks in history or the working tree. No dependencies or permissions changed.
+- **New regression coverage.**
+  - Synthetic IGN tiles: a deck over a lower road, a passage under an embankment, a walled ramp kept at its model heights, an open end and an over-long stretch staying unknown. Incremental live projection matches the saved view, and recorded GPS heights are untouched.
+  - Replay trail: it ends at the arrow, shortens on a backward seek, is complete at the end and never joins across a pause.
+  - `points.csv` gains the `terrain_level` column.
+- **Retrospective replay of the private run** (local harness, not committed). 0.17 left 63 fixes unknown in 4 stretches. 0.18 resolves all of them, and **0 unknown heights and 0 broken height joins remain**:
+  - Above at 1.69 km: the road over another road. The model dipped 2.9 m at 26%.
+  - Below at 2.15 km: under the highway. The model humped 5.6 m at 44%.
+  - Above at 2.89 km: a ramp.
+  - Ground at 2.96 km: a 10% ramp kept at its model heights.
+
+  A Python prototype gave identical decisions. The 10K park loop has no structures and is unchanged.
+- **Native API 34 checks.** The 0.17.0 emulator data was backed up first.
+  - **Update.** The signed APK installed in place over 0.17.0. **68/68 non-cache files were byte-identical.**
+  - **Underpass.** With the private run loaded, replay under the A-44 highway showed a continuous slope line, "≈ −2% Downhill". The details elevation chart had no break and read 652 m there.
+  - **Trail.** It grew behind the arrow at 60× and nothing was drawn ahead. The first build left the last stretch undrawn while playing, because MapLibre did not render a GeoJSON source replaced every frame. It is now drawn natively and overlaps the map line, which is re-published twice a second. The fixed build was re-checked.
+  - **Controls.** Panning showed the arrow recenter control at the bottom right, level with the credits pill; tapping it resumed following and hid it. A mock-GPS recording showed the same layout on the live map.
+  - **Restore.** The app data was restored to the post-update snapshot: **77/77 files identical**. Android's profile-install marker changed on the next launch. SELinux labels were restored, the run list was confirmed readable and the backup was deleted.
+- **Final artifact.** A clean rebuild after two lint-only edits (equivalent visibility checks) installed in place over the tested build. It cold-launched with all 23 activities and opened a replay. Opening a synthetic activity added normal terrain and map cache files; recordings were unchanged. Root was disabled afterwards.
+- **Not verified:** a physical Samsung, real bridges and underpasses other than this run, frame rate on a phone, dark mode and landscape for the new controls.
+- Artifact: `Runline-0.18.0.apk`, **0.18.0 / code 21**, SHA-256 `c6f87a2c52b0d57bbe442d3b720dbe0d25444a580d0d4b0f0084b9a04dbdd133`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.

@@ -33,7 +33,7 @@ class ReleaseChecker private constructor(context: Context) {
                     request.connectTimeout = 8_000; request.readTimeout = 8_000; request.instanceFollowRedirects = false
                     request.setRequestProperty("Accept", "application/vnd.github+json")
                     request.setRequestProperty("X-GitHub-Api-Version", "2026-03-10")
-                    request.setRequestProperty("User-Agent", "Runline/0.17")
+                    request.setRequestProperty("User-Agent", "Runline/0.18")
                     prefs.getString("etag", null)?.let { request.setRequestProperty("If-None-Match", it) }
                     val code = request.responseCode
                     retryAt = ReleaseCheckPolicy.retryAt(now, code, request.getHeaderField("Retry-After"), request.getHeaderField("X-RateLimit-Reset"))

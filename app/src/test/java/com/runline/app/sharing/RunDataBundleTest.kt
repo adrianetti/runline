@@ -3,6 +3,7 @@ package com.runline.app.sharing
 import com.runline.app.core.ActivityDetails
 import com.runline.app.core.RunPoint
 import com.runline.app.core.RunSession
+import com.runline.app.core.TerrainLevel
 import com.runline.app.core.TerrainModel
 import com.runline.app.core.TerrainSource
 import org.json.JSONObject
@@ -33,6 +34,7 @@ class RunDataBundleTest {
         val original = run()
         val terrain = original.copy(points = original.points.mapIndexed { index, point ->
             if (index == 10) point.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = TerrainModel.STRUCTURE)
+            else if (index == 20) point.copy(altitudeMeters = 651.0, verticalAccuracyMeters = null, terrainModel = TerrainModel.IGN_MDT05, terrainLevel = TerrainLevel.ABOVE)
             else point.copy(altitudeMeters = 650.0, verticalAccuracyMeters = null, terrainModel = TerrainModel.IGN_MDT05)
         }, elevationSource = TerrainSource.TERRAIN_MAP)
         val output = ByteArrayOutputStream()
@@ -46,7 +48,9 @@ class RunDataBundleTest {
         // GPS columns stay as recorded; the structure point has no derived terrain height.
         assertTrue(rows[1].contains(",700.0,650.0,IGN_MDT05,"))
         assertTrue(rows[11].contains(",700.") && rows[11].contains(",,STRUCTURE,"))
-        assertTrue(rows.any { it.endsWith(",1") })
+        assertTrue(rows[0].endsWith(",stopped,terrain_level"))
+        assertTrue(rows.any { it.endsWith(",1,") })
+        assertTrue(rows[21].endsWith(",above"))
         assertEquals(2, files.getValue("stops.csv").trim().lines().size)
         assertEquals("Hola", JSONObject(files.getValue("coach-log.json")).getJSONArray("events").getJSONObject(0).getString("text"))
         assertTrue(files.getValue("activity.gpx").contains("Buscando mi ritmo"))

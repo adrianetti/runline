@@ -96,6 +96,7 @@ class RunReplayView(
 
     init {
         map.setReplayMode()
+        map.setProgressiveRoute(true)
         val displayPoints = replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } }
         map.setRoute(displayPoints)
         panel.setReplay(elevationReplay)

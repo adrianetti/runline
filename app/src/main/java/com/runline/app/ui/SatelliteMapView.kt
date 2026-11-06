@@ -21,12 +21,14 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
 import com.runline.app.core.GpsCourse
 import com.runline.app.core.FollowCamera
 import com.runline.app.core.MarkerMotion
 import com.runline.app.core.MarkerViewport
+import com.runline.app.core.ReplayTrail
 import com.runline.app.core.RunPoint
 import com.runline.app.core.continuousSegments
 import com.runline.app.core.hasValidCoordinates
@@ -101,16 +103,46 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         setBackgroundColor(Color.WHITE)
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
     }
+    // One small translucent pill; the whole 48 dp row around it opens the credits.
     private val creditText = TextView(context).apply {
         text = context.getString(R.string.map_v8_attribution)
-        textSize = 11f
+        textSize = 10f
+        includeFontPadding = false
         setTextColor(context.getColor(R.color.on_surface))
-        background = GradientDrawable().apply { setColor(context.getColor(R.color.surface)); cornerRadius = dp(4).toFloat() }
+        background = GradientDrawable().apply {
+            setColor((context.getColor(R.color.surface) and 0x00FFFFFF) or (0xD0 shl 24)); cornerRadius = dp(10).toFloat()
+        }
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(6), dp(3), dp(6), dp(3))
-        maxLines = 2
+        setPadding(dp(5), dp(3), dp(7), dp(3))
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.ic_info)?.mutate()?.let { info ->
+            info.setTint(context.getColor(R.color.on_surface_variant)); info.setBounds(0, 0, dp(12), dp(12))
+            setCompoundDrawablesRelative(info, null, null, null)
+        }
+        compoundDrawablePadding = dp(3)
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
-    private val credits = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+    private val credits = FrameLayout(context).apply {
+        contentDescription = context.getString(R.string.map_credits_accessibility)
+        isClickable = true; isFocusable = true
+        setOnClickListener { showCredits() }
+        addView(creditText, LayoutParams(-2, -2, Gravity.CENTER_VERTICAL or Gravity.START))
+    }
+    // The same arrow as the marker. Shown only once the camera has stopped following it.
+    private val followButton = mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
+        imageTintList = null; visibility = GONE
+    }
+    private var progressiveRoute = false
+    private var trailEnd = -1
+    private var trailPublishedAt = 0L
+    private var trailHead: List<RunPoint> = emptyList()
+    /** Recent trail publications (uptime, last index): MapLibre renders each after a delay. */
+    private val trailPublishes = ArrayDeque<Pair<Long, Int>>()
+    private val trailHeadView = TrailHeadView(context).apply {
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        isClickable = false; isFocusable = false
+    }
     private val fallback = RouteView(context).apply { visibility = GONE }
     // Follow uses the exact padded anchor; free camera projects this same native
     // overlay on motion frames. GeoJSON symbol uploads never delay the moving marker.
@@ -164,20 +196,18 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             .camera(CameraPosition.Builder().target(LatLng(15.0, 0.0)).zoom(1.0).build()))
         addView(mapView, LayoutParams(-1, -1))
         addView(fallback, LayoutParams(-1, -1))
+        addView(trailHeadView, LayoutParams(-1, -1))
         addView(followMarkerView, LayoutParams(dp(42), dp(42), Gravity.TOP or Gravity.LEFT))
         addView(waitingPanel, LayoutParams(-1, -1))
         addView(status, LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
             setMargins(dp(8), dp(8), dp(64), 0)
         })
-        credits.addView(creditText, LinearLayout.LayoutParams(-2, -2))
-        credits.addView(mapButton(R.drawable.ic_info, context.getString(R.string.map_credits_accessibility)) { showCredits() },
-            LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) })
-        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START))
+        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(8), 0, dp(64), dp(8)) })
         controls.addView(mapButton(R.drawable.ic_route, context.getString(R.string.map_fit_route)) { fitRoute() })
-        controls.addView(mapButton(R.drawable.ic_location, context.getString(R.string.map_follow_marker)) { setFollowing(true) })
         addView(controls, LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
             setMargins(0, dp(8), dp(8), 0)
         })
+        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(8), dp(8)) })
         mapView.contentDescription = context.getString(R.string.map_accessibility)
         var downX = 0f
         var downY = 0f
@@ -356,6 +386,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (disposed) return
         val changed = following != enabled
         following = enabled
+        updateFollowButton()
         if (!enabled) { if (changed) updateMarker(); return }
         if (changed) { followCamera.reset(); cameraCut = true }
         if (displayedMarker != null) followMarker()
@@ -390,8 +421,18 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         displayedMarker = target
         displayedBearing = bearing?.takeIf(Double::isFinite)?.let(FollowCamera::normalize)
         updateMarker()
+        if (progressiveRoute) updateTrail(force = !smoothHeading)
         if (following) followMarker()
         updateLocationPresentation()
+    }
+
+    /** Replay only: the route appears behind the arrow as it moves, not ahead of it. */
+    fun setProgressiveRoute(enabled: Boolean) {
+        if (disposed || progressiveRoute == enabled) return
+        progressiveRoute = enabled
+        trailEnd = -1
+        trailPublishes.clear()
+        updateRoute()
     }
 
     /** Live GPS uses an arrow once movement establishes a course. */
@@ -427,8 +468,12 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             status.layoutParams = this
         }
         (credits.layoutParams as LayoutParams).apply {
-            setMargins(next[0] + dp(8), 0, next[2] + dp(8), next[3] + dp(8))
+            setMargins(next[0] + dp(8), 0, next[2] + dp(64), next[3] + dp(8))
             credits.layoutParams = this
+        }
+        (followButton.layoutParams as LayoutParams).apply {
+            setMargins(0, 0, next[2] + dp(8), next[3] + dp(8))
+            followButton.layoutParams = this
         }
         creditText.maxWidth = (width - next[0] - next[2] - dp(80)).coerceAtLeast(dp(64))
         (controls.layoutParams as LayoutParams).apply {
@@ -540,14 +585,52 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     private fun updateRoute() {
         val ready = style ?: return
-        val paths = continuousSegments(routePoints).map { segment ->
-            segment.filter { abs(it.latitude) < 85.051129 }
-        }.filter { it.size >= 2 }.map { segment ->
-            Feature.fromGeometry(LineString.fromLngLats(segment.map { Point.fromLngLat(it.longitude, it.latitude) }))
-        }
-        ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(FeatureCollection.fromFeatures(paths))
+        if (progressiveRoute) updateTrail(force = true)
+        else { ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints)); trailHead = emptyList() }
         val start = routePoints.firstOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         ready.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointCollection(start))
+    }
+
+    private fun lines(points: List<RunPoint>) = FeatureCollection.fromFeatures(continuousSegments(points).map { segment ->
+        segment.filter { abs(it.latitude) < 85.051129 }
+    }.filter { it.size >= 2 }.map { segment ->
+        Feature.fromGeometry(LineString.fromLngLats(segment.map { Point.fromLngLat(it.longitude, it.latitude) }))
+    })
+
+    /**
+     * Draws only the path already covered, ending exactly at the arrow. The map trail is
+     * re-published at most a few times a second: replacing GeoJSON every frame starves
+     * its rendering. The short head from there to the arrow is drawn natively per frame.
+     */
+    private fun updateTrail(force: Boolean) {
+        val ready = style ?: return
+        val arrow = displayedMarker
+        val passed = ReplayTrail.passed(routePoints, arrow)
+        val now = SystemClock.uptimeMillis()
+        if (force || passed < trailEnd || (passed > trailEnd &&
+                (now - trailPublishedAt >= TRAIL_PUBLISH_MS || routePoints.getOrNull(trailEnd)?.segment != arrow?.segment))) {
+            if (passed < trailEnd) trailPublishes.clear()
+            trailEnd = passed; trailPublishedAt = now
+            trailPublishes.addLast(now to passed)
+            while (trailPublishes.size > 8) trailPublishes.removeFirst()
+            ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints.subList(0, passed + 1)))
+        }
+        // Start from a publication old enough to be on screen, so the head always overlaps it.
+        val shown = trailPublishes.lastOrNull { now - it.first >= TRAIL_RENDER_MS }?.second ?: trailPublishes.firstOrNull()?.second ?: trailEnd
+        trailHead = ReplayTrail.head(routePoints, minOf(shown, trailEnd), passed, arrow).let { head ->
+            if (head.size <= MAX_HEAD_POINTS) head
+            else { val step = (head.size + MAX_HEAD_POINTS - 1) / MAX_HEAD_POINTS; head.filterIndexed { index, _ -> index % step == 0 } + head.takeLast(2) }
+        }
+        drawTrailHead()
+    }
+
+    private fun drawTrailHead() {
+        val loaded = map
+        val head = trailHead
+        if (disposed || !progressiveRoute || loaded == null || style == null || mapFailed || head.size < 2) { trailHeadView.show(null); return }
+        trailHeadView.show(head.mapNotNull { point ->
+            runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()
+        })
     }
 
     private fun updateMarker() { updateMarkerPresentation(); requestMarkerFrame() }
@@ -559,6 +642,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
 
     private fun updateMarkerPresentation() {
+        if (progressiveRoute) drawTrailHead()
         val point = displayedMarker
         val loaded = map
         if (disposed || !resumed || mapFailed || style == null || point == null || loaded == null ||
@@ -620,9 +704,14 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         mapView.importantForAccessibility = if (waiting) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else IMPORTANT_FOR_ACCESSIBILITY_AUTO
         fallback.visibility = if (mapFailed && !waiting) VISIBLE else GONE
         credits.visibility = if (waiting) GONE else VISIBLE
+        updateFollowButton(waiting)
         status.text = tileMessage
         status.visibility = if (!waiting && tileMessage != null) VISIBLE else GONE
         updateMarkerPresentation()
+    }
+
+    private fun updateFollowButton(waiting: Boolean = waitingPanel.isVisible) {
+        followButton.isVisible = !disposed && !following && !waiting && displayedMarker != null && (navigationMode || replayMode)
     }
 
     private fun cameraInsets(): DoubleArray {
@@ -683,6 +772,9 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private fun mercatorY(latitude: Double) = (1.0 - asinh(tan(Math.toRadians(latitude))) / Math.PI) / 2.0
 
     companion object {
+        private const val TRAIL_PUBLISH_MS = 500L
+        private const val TRAIL_RENDER_MS = 1_500L
+        private const val MAX_HEAD_POINTS = 300
         private const val BASE_STYLE = """
         {"version":8,"sources":{
           "world":{"type":"raster","tiles":["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"],"tileSize":256,"minzoom":0,"maxzoom":14},
@@ -693,6 +785,29 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
           {"id":"spain-imagery","type":"raster","source":"spain","layout":{"visibility":"none"},"paint":{"raster-fade-duration":150}}
         ]}
         """
+    }
+}
+
+/** The few metres between the published replay trail and the arrow, matching the route line's style. */
+private class TrailHeadView(context: Context) : View(context) {
+    private val density = context.resources.displayMetrics.density
+    // Butt caps: the start sits on the map line's round end, the far end under the arrow.
+    private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE; color = Color.BLACK; strokeWidth = 7f * density; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.BUTT
+    }
+    private val line = Paint(outline).apply { color = Color.WHITE; strokeWidth = 4f * density }
+    private val path = android.graphics.Path()
+    private var visible = false
+    fun show(points: List<android.graphics.PointF>?) {
+        path.reset()
+        visible = points != null && points.size >= 2
+        if (visible) points!!.forEachIndexed { index, p -> if (index == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
+        invalidate()
+    }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (!visible) return
+        canvas.drawPath(path, outline); canvas.drawPath(path, line)
     }
 }
 
