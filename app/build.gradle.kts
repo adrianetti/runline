@@ -1,6 +1,20 @@
 import java.util.Properties
 
 plugins { id("com.android.application") }
+
+/** The open route repository (`routes/`) is packaged as assets: only the catalog and GPX files. */
+abstract class RouteAssets : DefaultTask() {
+    @get:InputDirectory abstract val source: DirectoryProperty
+    @get:OutputDirectory abstract val output: DirectoryProperty
+    @TaskAction fun copy() {
+        val from = source.get().asFile; val to = File(output.get().asFile, "routes")
+        output.get().asFile.deleteRecursively()
+        from.walkTopDown().filter { it.isFile && (it.name == "index.json" || it.extension == "gpx") }.forEach { file ->
+            file.copyTo(File(to, file.relativeTo(from).path), overwrite = true)
+        }
+    }
+}
+val routeAssets = tasks.register<RouteAssets>("routeAssets") { source.set(rootProject.layout.projectDirectory.dir("routes")) }
 val signingValues = Properties().apply {
     val config = rootProject.file(".signing/signing.properties")
     if (config.isFile) config.inputStream().use { load(it) }
@@ -12,7 +26,7 @@ val hasPersonalSigning = personalStore != null && personalPassword != null && ro
 android {
     namespace = "com.runline.app"
     compileSdk = 37
-    defaultConfig { applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 21; versionName = "0.18.0" }
+    defaultConfig { applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 22; versionName = "0.19.0" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     signingConfigs {
         if (hasPersonalSigning) create("personal") {
@@ -30,6 +44,7 @@ android {
         }
     }
 }
+androidComponents { onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(routeAssets, RouteAssets::output) } }
 dependencies {
     implementation("org.maplibre.gl:android-sdk:11.13.5")
     implementation("androidx.core:core-ktx:1.19.1")

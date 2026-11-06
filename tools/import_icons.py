@@ -31,6 +31,7 @@ ICONS = {
     "speaker_off": "volume-off", "update": "alert-circle", "refresh": "refresh",
     "slope_up": "trending-up", "slope_down": "trending-down", "flat": "arrow-right",
     "folder": "folder", "archive": "file-zip",
+    "map": "map-2", "warning": "alert-triangle", "sunset": "sunset", "hike": "trekking",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)

@@ -1,6 +1,6 @@
-# Version 0.18 test checklist
+# Version 0.19 test checklist
 
-The checklist is not a blanket pass report. Current v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -277,6 +277,13 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 - Background, rotate, navigate repeatedly between Record/Activities/detail, and reopen. Map lifecycle cleanup must avoid crashes, duplicate views or continued hidden rendering. No whole-region downloads should start.
 - Inspect map requests using disposable synthetic data: hosts receive requested tile areas, not a GPX, timestamps, run ID or metrics. Route overlays remain local; viewing a map can still reveal the visible area to its provider.
 
+## Routes and hiking
+
+- **Routes tab.** It lists the bundled open routes with distance, ascent, time, difficulty and shape. Import a real GPX from another app or service: track, route points and waypoints must be read, and timestamps and extensions ignored. Corrupt, oversized and DOCTYPE files must be refused with a message. Delete an imported route.
+- **Route details.** Check the map fit, the stats, the profile, the waypoints, Share GPX and Save GPX. Check the sunset line before and after sunset, and in landscape and Spanish.
+- **Hike this route.** Start from the Record row and walk the route. The island must show distance and ascent left, arrival and the next waypoint. Step 60 m off the path: within 15 s the phone vibrates, the notification title shows the distance, and with voice on the side is spoken. Rejoin: a short vibration and "Back on the route". On an out-and-back leg, progress must keep counting forward. Force-stop during a hike, then resume: the route progress returns.
+- **Check for new routes** needs network access. A changed or corrupted catalog file must be rejected by its SHA-256.
+
 ## Replay and statistics
 
 - Use a two-hour fixture with thousands of samples. Replay should occupy nearly the full content area, with a compact reachable island. Tap statistics/Details: playback pauses and a sheet exposes totals, prominent climb/descent, relative elevation profile, secondary raw altitude/range and splits. Close it and continue without losing position/speed. Check landscape and larger Spanish text.
@@ -486,3 +493,36 @@ Recorded 6 November 2026. The private 6 November street run stayed outside Git; 
 - **Final artifact.** A clean rebuild after two lint-only edits (equivalent visibility checks) installed in place over the tested build. It cold-launched with all 23 activities and opened a replay. Opening a synthetic activity added normal terrain and map cache files; recordings were unchanged. Root was disabled afterwards.
 - **Not verified:** a physical Samsung, real bridges and underpasses other than this run, frame rate on a phone, dark mode and landscape for the new controls.
 - Artifact: `Runline-0.18.0.apk`, **0.18.0 / code 21**, SHA-256 `c6f87a2c52b0d57bbe442d3b720dbe0d25444a580d0d4b0f0084b9a04dbdd133`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.
+
+## Version 0.19 validation
+
+Recorded 6–7 November 2026. The owner's route photos and private runs stayed outside Git.
+
+- **The first open route.** It was rebuilt without copying from the paywalled source.
+  - **Street labels.** Each zoomed photo was georeferenced from its street labels against named OpenStreetMap ways, with residuals of 15–26 px (about 20 m). Neighbouring photos were chained through shared markers.
+  - **Routing.** The orange line became ordered waypoints routed along OpenStreetMap paths with BRouter's hiking profile. Snapping waypoints that caused dead ends or back-and-forths were removed.
+  - **Shape.** Against the overview photo at about 6 m/px, 88% of route samples lie on the orange track. The rest are within about 40 m, where parallel riverside paths are a few metres apart.
+  - **Figures.** 14.90 km against the original's 15.24 km, which includes GPS wobble. The IGN MDT05 profile is 668–927 m against 674–920 m, with the same climb, plateau and descent.
+  - **Sources.** An early georeference was 445 m off: an image fit had locked onto a wrong draft route. Label anchoring found and fixed it.
+- **Build and checks.**
+  - **Tests.** Debug and release builds passed **371 JVM tests** (18 new) with no failures. They cover the GPX reader (entities, CDATA, namespaces, DOCTYPE/XXE refusal, malformed points), Tobler and difficulty, the real repository catalog and its hashes, catalog path and hash rejection, and sunset date and time.
+  - **Follower tests.** Through an out-and-back spur, off route after 10 s and rejoining, side detection at 3 m per fix, approaching the start, and pace adaptation.
+  - **Lint.** 0 errors / 165 warnings. The 5 new ones are 3 plural notices on values that are never 1, and the usual tools-constructor notices on new custom views. A byte-order-mark error found by lint was fixed.
+  - **Other checks.** Verified 694 bilingual resources, 42 pinned icons (`map-2`, `alert-triangle`, `sunset` and `trekking` added) and `tools/check_routes.py`, which now runs in CI. Seven Semgrep rules found 0 issues in 119 files; the Android surface checks passed and Gitleaks found no leaks. The only permission added is VIBRATE, a normal install-time permission. No dependencies changed.
+- **Native API 34 checks.** The signed update from 0.18.0 kept **70/70 non-cache files byte-identical**.
+  - **Screens.** The Routes tab, route details (stats, profile, waypoints, attribution) and Hike this route all worked; the last selects Hike and shows the route row on Record.
+  - **Mock-GPS hike.** The dashed planned route showed under the track. The island read "14.7 km left · ↑ 276 m · arrive …", warned of arrival after sunset, and showed the next waypoint. Stepping 120 m off gave "Off route · 123 m" in the island and the notification title. Walking back restored progress.
+  - **Restart.** Reinstalling mid-hike killed the app. After Resume, route progress was rebuilt from the saved fixes, and a later deviation reported "the path is to your left".
+  - **Import.** A GPX picked from Downloads imported with its metadata name, appeared under Imported and was deleted.
+  - **Bugs found and fixed.**
+    - Sunset was computed for the next day: the sunrise equation was given the noon Julian date. A regression test now checks the date.
+    - The details screen showed "One way" for a catalog loop.
+    - The list and details screens disagreed on ascent.
+    - The off-route side was missing whenever a fix moved less than 8 m.
+  - **Restore.** App data was restored to the post-update snapshot, **79/79 files identical**, with SELinux labels re-applied. The test GPX was removed and root disabled. The final artifact then installed in place and its Routes screens were smoke-tested.
+- **Not verified:**
+  - a physical Samsung on a real trail, with real GPS noise under trees or between walls;
+  - vibration and spoken alerts on a phone;
+  - Check for new routes, which needs `routes/` on `main` first;
+  - dark mode and landscape for the new screens.
+- Artifact: `Runline-0.19.0.apk`, **0.19.0 / code 22**, SHA-256 `a2d2f24e1fc2334f1218c868b5f24c3adcde35d62d162a26971192051b774a4f`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.

@@ -28,6 +28,8 @@ jobs:
         run: python3 tools/check_resources.py
       - name: Verify pinned icon sources
         run: python3 tools/import_icons.py --check
+      - name: Validate open routes
+        run: python3 tools/check_routes.py
       - name: Reject whitespace errors
         # Compare against Git’s empty tree, including every file in PR merge commits.
         run: git -c core.whitespace=trailing-space,space-before-tab,cr-at-eol diff --check 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD

@@ -32,3 +32,7 @@ Derived from **MDT05, IGN/CNIG**, [CC BY 4.0](https://www.ign.es/resources/licen
 ## Global terrain (0.15)
 
 Mapzen/Tilezen Terrain Tiles are accessed directly from the public AWS Open Data dataset. These data have source-specific terms; the app’s MIT license does not replace them. Full required attributions and source links are bundled in [terrain.txt](app/src/main/assets/licenses/terrain.txt) and shown in the app’s Sources and licenses dialog. Runline interpolates and smooths these data; source agencies do not endorse those derived estimates.
+
+## Open routes
+
+The route catalog in `routes/` (bundled in the app as assets) is licensed under the [Open Database License 1.0](routes/LICENSE.md). Route geometry © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), rebuilt along OpenStreetMap paths with the [BRouter](https://brouter.de) hiking profile; elevations from MDT05, IGN/CNIG (CC BY 4.0). Attribution is shown on each route and in Routes → About open routes. Imported GPX files remain the user's own and are never uploaded.

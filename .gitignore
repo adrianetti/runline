@@ -21,4 +21,6 @@ __pycache__/
 
 # Private activity exports and local diagnostics; use synthetic inline test fixtures.
 *.gpx
+# The open route catalog is public data; private recordings stay ignored everywhere else.
+!routes/**/*.gpx
 *.jsonl

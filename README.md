@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.18:** no more slope or elevation cut-outs on bridges and in underpasses: Runline works out whether you were above or below the road. In replay, the arrow draws your route as it goes. A recenter arrow and smaller map credits.
+**New in 0.19:** hiking routes. A Routes tab with open routes you can download and share, starting with a loop from the Alhambra across the Dehesa del Generalife and back along the Genil. Import any GPX, see distance, ascent, time and sunset, then follow it with off-route alerts. [Hiking and routes](docs/HIKING.md), [open routes](routes/README.md).
+
+**In 0.18:** no more slope or elevation cut-outs on bridges and in underpasses: Runline works out whether you were above or below the road. In replay, the arrow draws your route as it goes. A recenter arrow and smaller map credits.
 
 **In 0.17:** auto-pause at traffic lights and other stops, with moving time and pace. Steadier slope readings at bridges and underpasses. A coach that speaks real splits and progress. One-tap ZIP with all of a run's data. An optional AI-maintained runner profile.
 

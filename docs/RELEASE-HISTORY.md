@@ -207,3 +207,18 @@ Recorded 6 November 2026:
 - API 34: signed update from 0.17.0 kept 68/68 non-cache files; continuous slope and chart under the A-44; trail behind the arrow; recenter and credits on replay and live maps; data restored 77/77.
 
 Details: [TESTING.md](TESTING.md#version-018-validation). Artifact `Runline-0.18.0.apk`, code 21, SHA-256 `c6f87a2c52b0d57bbe442d3b720dbe0d25444a580d0d4b0f0084b9a04dbdd133`, same signing certificate.
+
+## Version 0.19 source changes
+
+- **Hiking routes.** The Routes tab offers the open catalog (bundled; refreshable from GitHub with SHA-256 checks) and imported GPX files. Route details show distance, ascent and descent, highest and lowest point, Tobler moving time, effort-kilometre difficulty, a profile, waypoints, sunset against the finish, Share GPX and Save GPX.
+- **Following.** Hike this route attaches the route to the session, which survives restarts. The planned route is dashed under the track. The island shows what is left, arrival against sunset and the next waypoint. Leaving the path vibrates, updates the notification and, with voice on, says which side the path is on. Progress is matched by expected position, so out-and-back legs and loops count correctly.
+- **Open route repository.** `routes/` is ODbL data with an `index.json` catalog, contribution rules and `tools/check_routes.py` in CI. The first route is a Granada loop rebuilt from OpenStreetMap paths with IGN elevations.
+
+## Version 0.19 verification
+
+Recorded 6–7 November 2026:
+- 371 JVM tests; lint 0 errors / 165 warnings; resource, icon, route, Semgrep, surface and Gitleaks checks clean.
+- **Route rebuild.** Matches the original's shape within about 40 m. Distance 14.90 vs 15.24 km; heights 668–927 vs 674–920 m.
+- **API 34.** The signed update from 0.18.0 kept 70/70 non-cache files. Checked: Routes, details, Hike this route, the mock-GPS hike with off-route and rejoin, restart recovery, GPX import and delete. Data restored 79/79.
+
+Details: [TESTING.md](TESTING.md#version-019-validation). Artifact `Runline-0.19.0.apk`, code 22, SHA-256 `a2d2f24e1fc2334f1218c868b5f24c3adcde35d62d162a26971192051b774a4f`, same signing certificate.
