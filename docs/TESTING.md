@@ -486,4 +486,3 @@ Recorded 6 November 2026. The private 6 November street run stayed outside Git; 
 - **Final artifact.** A clean rebuild after two lint-only edits (equivalent visibility checks) installed in place over the tested build. It cold-launched with all 23 activities and opened a replay. Opening a synthetic activity added normal terrain and map cache files; recordings were unchanged. Root was disabled afterwards.
 - **Not verified:** a physical Samsung, real bridges and underpasses other than this run, frame rate on a phone, dark mode and landscape for the new controls.
 - Artifact: `Runline-0.18.0.apk`, **0.18.0 / code 21**, SHA-256 `c6f87a2c52b0d57bbe442d3b720dbe0d25444a580d0d4b0f0084b9a04dbdd133`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.
-
