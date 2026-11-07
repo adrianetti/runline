@@ -540,12 +540,13 @@ Recorded 7 November 2026 on the API 34 emulator. Mock GPS walked the cleaned Gra
   - The route is now 14.0 km, +281/−301 m, 668–927 m.
   - On the 0.19 file, the spur check flags 11 spurs of 2 m or more, plus the deliberate detour. On the new file it finds only the detour, and accepts it because it ends at "Fin del desvío".
 - **Build and checks.**
-  - **Tests.** **395 JVM tests**, 24 new, with no failures. They cover:
+  - **Tests.** **396 JVM tests**, 25 new, with no failures. They cover:
     - manoeuvre kinds, merging, wiggles, retrace against hairpin, zig-zags, junction filtering and the real Granada route;
     - climbs with bumps, flats and thresholds;
     - cue timing, "then" turns, joins, stale cues and notes deferred behind turns;
     - the navigation and route speech priorities, the preview timeline and the catalog's notes and junctions;
-    - joining beside an earlier parallel leg.
+    - joining beside an earlier parallel leg;
+    - where the replay trail stops behind the arrow.
   - **Lint.** 0 errors / 172 warnings. The 7 new ones are 5 plural notices on metre values that are never 1, and the usual tools-constructor and KTX notices.
   - **Other checks.** Verified 736 bilingual resources, 53 pinned icons (11 added) and the route catalog. Seven Semgrep rules found 0 issues in 124 files. The surface checks passed, and Gitleaks found no leaks in 54 commits. No permissions or dependencies changed.
 - **Granada route data.**
@@ -569,10 +570,15 @@ Recorded 7 November 2026 on the API 34 emulator. Mock GPS walked the cleaned Gra
     - **Note during a turn.** A note could start just before a turn.
     - **Joining at 7.2 km.** It latched onto an earlier leg and gave a false "Off route · 100 m".
     - **Waypoint distance.** The next waypoint read "in 0.0 km".
-    - **Re-walk.** A re-walk from 7.2 km to 9.8 km with the fixes confirmed all four: no off-route on joining, both notes completed, and the turn spoken before the Genil note.
+    - **Replay trail.** The owner reported that the trail behind the arrow doubled or went wild. A 0.19 replay at 480× showed two lines splitting at turns, and long straight lines.
+      - **Doubling.** The map trail and the native head overlay drew the same stretch, the overlay with a newer camera than the map's last frame.
+      - **Straight lines.** Points behind the tilted camera were projected anyway.
+      - **Fix.** While playing, the map trail now stops 400 m behind the arrow, and the head skips points outside the visible region. With the head tinted red for diagnosis, it alone drew the stretch behind the arrow at 120×, through the acequia hairpins.
+      - **Emulator limit.** At 480× the emulator's renderer can freeze the map for about a second, so a frozen frame still shows stale lines then. A phone renders far faster.
+    - **Re-walk.** A re-walk from 7.2 km to 9.8 km with the fixes confirmed the first four: no off-route on joining, both notes completed, the turn spoken before the Genil note, and the next waypoint in metres.
   - **Update and restore.**
     - **Before the walks.** App data was backed up with root. The signed builds installed in place over 0.19.
-    - **Update.** The exact release artifact then updated a restored 0.19 in place and kept **80/80 non-cache files byte-identical**.
+    - **Update.** The exact final release artifact then updated a restored 0.19 in place and kept **80/80 non-cache files byte-identical**. A replay on it drew one trail behind the arrow.
     - **Restore.** The emulator was returned to 0.19 with its data, **80/80 files identical** and SELinux labels re-applied, and root was disabled.
 - **Not verified:**
   - a physical phone on a real trail;
@@ -580,4 +586,4 @@ Recorded 7 November 2026 on the API 34 emulator. Mock GPS walked the cleaned Gra
   - an imported GPX walk;
   - dark mode and landscape for the new island rows;
   - real headphones or music.
-- Artifact: `Runline-0.20.0.apk`, **0.20.0 / code 23**, SHA-256 `8ad15690d79aaf69623f00e1e32ad1f897354688fd834cd7dcc99226591ce71e`. The signing certificate is unchanged. Required GitHub checks gate merging the exact PR head.
+- Artifact: `Runline-0.20.0.apk`, **0.20.0 / code 23**, SHA-256 `6f6ca22fa32fcbda3aa5af75f2eb4ae24f0519480eb8b7632f8e75b5bb993566`. The signing certificate is unchanged. Required GitHub checks gate merging the exact PR head.

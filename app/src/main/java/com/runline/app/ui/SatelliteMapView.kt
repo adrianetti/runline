@@ -616,20 +616,25 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     /**
      * Draws only the path already covered, ending exactly at the arrow. The map trail is
      * re-published at most a few times a second: replacing GeoJSON every frame starves
-     * its rendering. The short head from there to the arrow is drawn natively per frame.
+     * its rendering. The head from there to the arrow is drawn natively per frame.
+     *
+     * While playing, the map trail stops 400 m behind the arrow and the head draws that stretch
+     * alone. The head is projected with the newest camera, and the map's last frame can still show
+     * an older one. Where both drew the same stretch, a turn split it into two lines (before 0.20).
      */
     private fun updateTrail(force: Boolean) {
         val ready = style ?: return
         val arrow = displayedMarker
         val passed = ReplayTrail.passed(routePoints, arrow)
+        val publish = if (force) passed else ReplayTrail.behind(routePoints, passed, TRAIL_HEAD_METERS)
         val now = SystemClock.uptimeMillis()
-        if (force || passed < trailEnd || (passed > trailEnd &&
-                (now - trailPublishedAt >= TRAIL_PUBLISH_MS || routePoints.getOrNull(trailEnd)?.segment != arrow?.segment))) {
-            if (passed < trailEnd) trailPublishes.clear()
-            trailEnd = passed; trailPublishedAt = now
-            trailPublishes.addLast(now to passed)
+        if (force || publish < trailEnd || (publish > trailEnd &&
+                (now - trailPublishedAt >= TRAIL_PUBLISH_MS || routePoints.getOrNull(trailEnd)?.segment != routePoints.getOrNull(publish)?.segment))) {
+            if (publish < trailEnd) trailPublishes.clear()
+            trailEnd = publish; trailPublishedAt = now
+            trailPublishes.addLast(now to publish)
             while (trailPublishes.size > 8) trailPublishes.removeFirst()
-            ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints.subList(0, passed + 1)))
+            ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints.subList(0, publish + 1)))
         }
         // Start from a publication old enough to be on screen, so the head always overlaps it.
         val shown = trailPublishes.lastOrNull { now - it.first >= TRAIL_RENDER_MS }?.second ?: trailPublishes.firstOrNull()?.second ?: trailEnd
@@ -644,8 +649,15 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val loaded = map
         val head = trailHead
         if (disposed || !progressiveRoute || loaded == null || style == null || mapFailed || head.size < 2) { trailHeadView.show(null); return }
-        trailHeadView.show(head.mapNotNull { point ->
-            runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()
+        // Under a tilted camera, points outside the visible ground (behind the camera) project to
+        // nonsense and drew lines across the screen. Such points break the line instead.
+        val bounds = runCatching { loaded.projection.visibleRegion.latLngBounds }.getOrNull()
+        val padLat = bounds?.let { (it.latitudeNorth - it.latitudeSouth) * 0.25 } ?: 0.0
+        val padLon = bounds?.let { (it.longitudeEast - it.longitudeWest) * 0.25 } ?: 0.0
+        trailHeadView.show(head.map { point ->
+            if (bounds != null && (point.latitude !in (bounds.latitudeSouth - padLat)..(bounds.latitudeNorth + padLat) ||
+                    point.longitude !in (bounds.longitudeWest - padLon)..(bounds.longitudeEast + padLon))) null
+            else runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()
         })
     }
 
@@ -791,6 +803,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         private const val TRAIL_PUBLISH_MS = 500L
         private const val TRAIL_RENDER_MS = 1_500L
         private const val MAX_HEAD_POINTS = 300
+        private const val TRAIL_HEAD_METERS = 400.0
         private const val BASE_STYLE = """
         {"version":8,"sources":{
           "world":{"type":"raster","tiles":["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"],"tileSize":256,"minzoom":0,"maxzoom":14},
@@ -814,10 +827,17 @@ private class TrailHeadView(context: Context) : View(context) {
     private val line = Paint(outline).apply { color = Color.WHITE; strokeWidth = 4f * density }
     private val path = android.graphics.Path()
     private var visible = false
-    fun show(points: List<android.graphics.PointF>?) {
+    /** Null entries break the line: the next point starts a new piece. */
+    fun show(points: List<android.graphics.PointF?>?) {
         path.reset()
-        visible = points != null && points.size >= 2
-        if (visible) points!!.forEachIndexed { index, p -> if (index == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
+        var previous: android.graphics.PointF? = null; var drawn = false
+        points?.forEach { p ->
+            if (p != null && p.x.isFinite() && p.y.isFinite()) {
+                if (previous == null) path.moveTo(p.x, p.y) else { path.lineTo(p.x, p.y); drawn = true }
+            }
+            previous = p?.takeIf { it.x.isFinite() && it.y.isFinite() }
+        }
+        visible = drawn
         invalidate()
     }
     override fun onDraw(canvas: Canvas) {

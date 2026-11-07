@@ -19,6 +19,22 @@ object ReplayTrail {
         return found
     }
 
+    /**
+     * Index of the last fix at least [meters] of track behind [passed], for the map trail during
+     * playback. It never reaches back past the start of the arrow's segment: there it is the
+     * previous segment's last fix (or -1), so an earlier segment is always drawn complete.
+     */
+    fun behind(route: List<RunPoint>, passed: Int, meters: Double): Int {
+        if (passed < 0 || passed > route.lastIndex) return passed
+        val segment = route[passed].segment
+        var index = passed; var covered = 0.0
+        while (index > 0 && route[index - 1].segment == segment && covered < meters) {
+            covered += RouteGeometry.meters(route[index - 1].latitude, route[index - 1].longitude, route[index].latitude, route[index].longitude)
+            index--
+        }
+        return if (covered >= meters) index else index - 1
+    }
+
     /** From the end of the drawn trail to the arrow itself, never across a segment break. */
     fun head(route: List<RunPoint>, trailEnd: Int, passed: Int, arrow: RunPoint?): List<RunPoint> {
         if (arrow == null || passed < 0 || passed > route.lastIndex) return emptyList()

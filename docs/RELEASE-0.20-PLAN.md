@@ -105,6 +105,9 @@ The timeline is the estimated moving time from Tobler's hiking function. The rou
 - **Joining mid-route.** 0.19 preferred the start of the route by weighting the distance along it. So joining at 7 km could latch onto an earlier leg nearby and report off route.
   - Joining now takes the earliest part of the route within reach.
   - During the first 300 m, a fix that would go backwards or off the route moves to a leg within reach that runs the way you are walking.
+- **Replay trail.** In replay, the line behind the arrow could double or fly across the screen. There were two causes.
+  - **Two lines over one stretch.** Since 0.18 the map trail and a native overlay drew the newest stretch together. The overlay is projected with the newest camera, but the map's last rendered frame can still show an older one, so on turns the two split apart. While playing, the map trail now stops 400 m behind the arrow, and only the overlay draws that stretch. Paused or seeking, the map trail is complete.
+  - **Points behind a tilted camera.** These projected to nonsense and drew long straight lines. The overlay now skips points outside the visible region and breaks the line there.
 
 ## Version
 
