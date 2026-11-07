@@ -32,6 +32,11 @@ ICONS = {
     "slope_up": "trending-up", "slope_down": "trending-down", "flat": "arrow-right",
     "folder": "folder", "archive": "file-zip",
     "map": "map-2", "warning": "alert-triangle", "sunset": "sunset", "hike": "trekking",
+    "turn_bear_left": "arrow-bear-left", "turn_bear_right": "arrow-bear-right",
+    "turn_left": "corner-up-left", "turn_right": "corner-up-right",
+    "turn_sharp_left": "arrow-sharp-turn-left", "turn_sharp_right": "arrow-sharp-turn-right",
+    "turn_around": "arrow-back-up", "turn_zigzag": "arrow-zig-zag", "straight": "arrow-up",
+    "preview": "drone", "climb": "mountain",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)

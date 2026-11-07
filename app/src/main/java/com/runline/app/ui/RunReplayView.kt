@@ -35,10 +35,14 @@ import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** Full-screen, display-only playback. Opening details never changes the saved activity. */
+/**
+ * Full-screen, display-only playback. Opening details never changes the saved activity.
+ * With [preview], it plays a planned route instead: no export, options or activity details.
+ */
 class RunReplayView(
     context: Context,
     private val replay: RunReplay,
+    private val preview: Boolean = false,
     onBack: () -> Unit = {},
     onExport: () -> Unit = {},
     onMore: (View) -> Unit = {},
@@ -103,11 +107,11 @@ class RunReplayView(
         replay.at(0)?.point?.let { map.setCenter(it.latitude, it.longitude) }
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        top.addView(floating(context.getString(R.string.replay_back), R.drawable.ic_back).apply {
-            contentDescription = context.getString(R.string.replay_back_to_activities)
+        top.addView(floating(context.getString(if (preview) R.string.v20_preview_back else R.string.replay_back), R.drawable.ic_back).apply {
+            contentDescription = context.getString(if (preview) R.string.v20_preview_back_description else R.string.replay_back_to_activities)
             setOnClickListener { pausePlayback(); onBack() }
         }, LinearLayout.LayoutParams(-2, dp(48)))
-        top.addView(floating("", R.drawable.ic_more).apply {
+        if (!preview) top.addView(floating("", R.drawable.ic_more).apply {
             contentDescription = context.getString(R.string.replay_options)
             iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
             setOnClickListener { pausePlayback(); onMore(this) }
@@ -115,7 +119,7 @@ class RunReplayView(
         addView(top, LayoutParams(-2, dp(48), Gravity.TOP or Gravity.START).apply {
             marginStart = dp(16); topMargin = dp(16)
         })
-        addView(floating("", R.drawable.ic_download).apply {
+        if (!preview) addView(floating("", R.drawable.ic_download).apply {
             contentDescription = context.getString(R.string.replay_export_file)
             iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
             isEnabled = replay.durationMs > 0L
@@ -127,7 +131,7 @@ class RunReplayView(
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setOnClickListener { showDetails() }
+            if (!preview) setOnClickListener { showDetails() }
         }
         information.addView(readout, row())
         panel.setChartContent(readout)
@@ -149,7 +153,7 @@ class RunReplayView(
         else controls.addView(speedColumn, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
         controls.addView(speedValue, LinearLayout.LayoutParams(-2, -1).apply { marginStart = dp(4) })
         speedValue.gravity = Gravity.CENTER_VERTICAL
-        controls.addView(control("", R.drawable.ic_info).apply {
+        if (!preview) controls.addView(control("", R.drawable.ic_info).apply {
             contentDescription = context.getString(R.string.replay_open_details)
             iconPadding = 0; setPadding(dp(12), 0, dp(12), 0)
             setOnClickListener { showDetails() }

@@ -222,3 +222,26 @@ Recorded 6–7 November 2026:
 - **API 34.** The signed update from 0.18.0 kept 70/70 non-cache files. Checked: Routes, details, Hike this route, the mock-GPS hike with off-route and rejoin, restart recovery, GPX import and delete. Data restored 79/79.
 
 Details: [TESTING.md](TESTING.md#version-019-validation). Artifact `Runline-0.19.0.apk`, code 22, SHA-256 `a2d2f24e1fc2334f1218c868b5f24c3adcde35d62d162a26971192051b774a4f`, same signing certificate.
+
+## Version 0.20 source changes
+
+- **Turn cues.** Manoeuvres are derived from route geometry: 35° over about 20 m, with close turns merged, wiggles ignored, switchbacks grouped and true reversals as "turn around". Open routes list OpenStreetMap junctions, so a bend in a single path stays quiet. Each turn is spoken about 80 m ahead and at 20 m, with a GPS-style arrow and distance in the island. A navigation speech priority waits 3 s instead of the milestone's 30 s and expires after 12 s.
+- **Climb ahead.** The next climb or descent shows in the island and is spoken once, about 200 m before. A profile shows the height from 300 m behind to 2 km ahead.
+- **Place notes.** The catalog takes per-waypoint English and Spanish notes, validated by `check_routes.py` and the app. The Granada loop has five sourced notes.
+- **Preview and start.** Route details keep Start and Preview fixed. Start records immediately. Preview plays the route like a recording. The selected route is ticked in the list.
+- **Granada route cleanup.** 13 dead-end spurs and a 150 m loop left over from routing were removed (14.9 → 14.0 km). `check_routes.py` now refuses such spurs.
+- **Fixes.**
+  - Rejoining a route spoke the "Back to routes" button label; it now says "Back on the route".
+  - Joining mid-route could latch onto an earlier leg nearby and report off route.
+  - The speech watchdog now allows for long notes, which also stops a long note from dropping a pending turn cue.
+  - In replay, the trail behind the arrow could double on turns or shoot across the screen. It is now drawn once near the arrow, and points outside the view are skipped.
+
+## Version 0.20 verification
+
+Recorded 7 November 2026:
+- 395 JVM tests; lint 0 errors / 172 warnings; resource, icon, route, Semgrep, surface and Gitleaks checks clean.
+- **API 34 mock-GPS walk of the Granada loop.** Turn, climb and place cues were seen in the island and recorded as spoken in the coach log. Three bugs found on the walk were fixed and re-walked: the long-note watchdog, a note starting before a turn, and a false off-route on a mid-route join.
+- **Replay trail.** The doubling was reproduced at 480× on a 0.19 build. With the overlay tinted for diagnosis, the stretch behind the arrow was drawn by the overlay alone at 120×, through the acequia hairpins, with no stray lines.
+- **Update.** The release kept 80/80 non-cache files when updating 0.19 in place. The emulator was restored to 0.19, 80/80, and root disabled.
+
+Details: [TESTING.md](TESTING.md#version-020-validation). Artifact `Runline-0.20.0.apk`, code 23, SHA-256 `6f6ca22fa32fcbda3aa5af75f2eb4ae24f0519480eb8b7632f8e75b5bb993566`, same signing certificate.

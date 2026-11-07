@@ -2,8 +2,10 @@
 """Validate the open route catalog in routes/ (CI and contributors).
 
 Checks the index schema, every file's SHA-256, GPX safety and privacy (no DOCTYPE, no
-timestamps or device extensions), the ODbL licence element, and that distance and ascent
-in the index match the GPX (same 3 m deadband as the app). Also refuses GPX files that
+timestamps or device extensions), the ODbL licence element, and that distance, ascent and
+height range in the index match the GPX (same 3 m deadband as the app). Place notes must
+name a GPX waypoint and carry short English and Spanish text; junctions must lie on the
+track. Retraced dead-end spurs (routing artefacts) are refused. Also refuses GPX files that
 the index does not list. `--fix-hashes` rewrites SHA-256 values and computed stats.
 """
 import argparse, hashlib, json, math, re, subprocess, sys
@@ -15,6 +17,58 @@ NS = "{http://www.topografix.com/GPX/1/1}"
 ID = re.compile(r"[a-z0-9][a-z0-9-]{2,79}")
 FILE = re.compile(r"[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*){0,4}\.gpx")
 MAX_BYTES = 5 * 1024 * 1024
+MAX_NOTE = 260
+SPUR_MIN_M = 50
+
+def write_index(path, index):
+    """Pretty JSON with each [lat, lon] pair kept on one line."""
+    text = json.dumps(index, indent=2, ensure_ascii=False)
+    text = re.sub(r"\[\s+(-?[\d.]+),\s+(-?[\d.]+)\s+\]", r"[\1, \2]", text)
+    path.write_text(text + "\n", encoding="utf-8")
+
+def waypoint_names(path):
+    root = ET.fromstring(path.read_bytes())
+    return [(w.findtext(NS + "name") or "").strip() for w in root.iter(NS + "wpt")], \
+        [(float(w.get("lat")), float(w.get("lon"))) for w in root.iter(NS + "wpt")]
+
+def spurs(points):
+    """Retraced dead ends: the track goes out along a line and comes straight back over it."""
+    out = []; k = 1
+    while k < len(points) - 1:
+        tip = k; far = k + 1
+        if far < len(points) and meters(points[tip], points[far]) <= 1: far += 1  # a doubled tip vertex
+        r = 1
+        while tip - r >= 0 and far + r - 1 < len(points) and meters(points[tip - r], points[far + r - 1]) <= 3: r += 1
+        r -= 1
+        if r >= 1:
+            one_way = sum(meters(points[q], points[q + 1]) for q in range(tip - r, tip))
+            if one_way >= 2: out.append((tip, one_way)); k = far + r; continue
+        k += 1
+    return out
+
+def check_places(rid, entry, names, problems):
+    places = entry.get("places", [])
+    if not isinstance(places, list) or len(places) > 50: problems.append(f"{rid}: places must be a list of at most 50"); return
+    seen = set()
+    for place in places:
+        name = place.get("waypoint", "")
+        if name not in names: problems.append(f"{rid}: place {name!r} is not a waypoint name in the GPX")
+        if name in seen: problems.append(f"{rid}: place {name!r} is listed twice")
+        seen.add(name)
+        note = place.get("note", {})
+        for lang in ("en", "es"):
+            text = note.get(lang, "") if isinstance(note, dict) else ""
+            if not (1 <= len(text.strip()) <= MAX_NOTE) or "<" in text or any(ord(c) < 32 for c in text):
+                problems.append(f"{rid}: place {name!r} needs a plain {lang} note of 1-{MAX_NOTE} characters")
+
+def check_junctions(rid, entry, points, problems):
+    junctions = entry.get("junctions")
+    if junctions is None: return
+    if not isinstance(junctions, list) or len(junctions) > 5000: problems.append(f"{rid}: junctions must be a list of at most 5000"); return
+    for j in junctions:
+        if not (isinstance(j, list) and len(j) == 2 and all(isinstance(v, (int, float)) for v in j)):
+            problems.append(f"{rid}: junction {j!r} must be [lat, lon]"); continue
+        if min(meters(j, p) for p in points) > 25: problems.append(f"{rid}: junction {j} is not on the track")
 
 def meters(a, b):
     la, lb = math.radians(a[0]), math.radians(b[0])
@@ -83,9 +137,23 @@ def main():
         points = check_gpx(path, problems)
         if points is None: continue
         dist, gain, loss = stats(points)
+        heights = [p[2] for p in points]
+        bbox = [round(min(p[0] for p in points), 5), round(min(p[1] for p in points), 5), round(max(p[0] for p in points), 5), round(max(p[1] for p in points), 5)]
         if args.fix_hashes:
             entry["sha256"] = sha; entry["distance_m"] = round(dist); entry["ascent_m"] = round(gain); entry["descent_m"] = round(loss)
             entry["start"] = [round(points[0][0], 6), round(points[0][1], 6)]
+            entry["min_elevation_m"] = round(min(heights)); entry["max_elevation_m"] = round(max(heights)); entry["bbox"] = bbox
+        if "min_elevation_m" in entry and (abs(entry["min_elevation_m"] - min(heights)) > 2 or abs(entry.get("max_elevation_m", 0) - max(heights)) > 2):
+            problems.append(f"{rid}: height range {entry['min_elevation_m']}-{entry.get('max_elevation_m')} vs GPX {min(heights):.0f}-{max(heights):.0f}")
+        if "bbox" in entry and any(abs(a - b) > 0.0002 for a, b in zip(entry["bbox"], bbox)): problems.append(f"{rid}: bbox does not match the track")
+        names, wpts = waypoint_names(path)
+        for tip, one_way in spurs(points):
+            near_name = any(n and meters(w, points[tip]) <= 30 for n, w in zip(names, wpts))
+            if one_way < SPUR_MIN_M or not near_name:
+                problems.append(f"{rid}: dead-end spur of {one_way:.0f} m each way at track point {tip} ({points[tip][0]:.6f}, {points[tip][1]:.6f}); "
+                                "remove it, or end a deliberate out-and-back at a named waypoint")
+        check_places(rid, entry, names, problems)
+        check_junctions(rid, entry, points, problems)
         if entry.get("sha256") != sha: problems.append(f"{rid}: sha256 does not match {f} (run with --fix-hashes)")
         if abs(entry.get("distance_m", 0) - dist) > max(20, dist * 0.01): problems.append(f"{rid}: distance_m {entry.get('distance_m')} vs GPX {dist:.0f}")
         if abs(entry.get("ascent_m", 0) - gain) > 5: problems.append(f"{rid}: ascent_m {entry.get('ascent_m')} vs GPX {gain:.0f}")
@@ -94,7 +162,7 @@ def main():
     for gpx in ROOT.rglob("*.gpx"):
         if gpx.resolve() not in listed: problems.append(f"{gpx.relative_to(ROOT)}: not listed in index.json")
     if args.fix_hashes:
-        index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        write_index(index_path, index)
     if problems:
         print("\n".join(problems), file=sys.stderr); return 1
     print(f"Verified {len(index.get('routes', []))} open routes")

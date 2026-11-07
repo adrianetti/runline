@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v20_turn_bear_left">gira ligeramente a la izquierda</string>
+    <string name="v20_turn_bear_right">gira ligeramente a la derecha</string>
+    <string name="v20_turn_left">gira a la izquierda</string>
+    <string name="v20_turn_right">gira a la derecha</string>
+    <string name="v20_turn_sharp_left">gira bruscamente a la izquierda</string>
+    <string name="v20_turn_sharp_right">gira bruscamente a la derecha</string>
+    <string name="v20_turn_around">da la vuelta</string>
+    <string name="v20_turn_zigzag">zigzags durante %1$d m</string>
+    <string name="v20_then_bear_left">ligeramente a la izquierda</string>
+    <string name="v20_then_bear_right">ligeramente a la derecha</string>
+    <string name="v20_then_left">a la izquierda</string>
+    <string name="v20_then_right">a la derecha</string>
+    <string name="v20_then_sharp_left">bruscamente a la izquierda</string>
+    <string name="v20_then_sharp_right">bruscamente a la derecha</string>
+    <string name="v20_then_around">da la vuelta</string>
+    <string name="v20_then_zigzag">zigzags</string>
+    <string name="v20_say_turn_in">En %1$d metros, %2$s.</string>
+    <string name="v20_say_turn_now">Ahora, %1$s.</string>
+    <string name="v20_say_turn_now_then">Ahora, %1$s, y después %2$s.</string>
+    <string name="v20_say_zigzag_in">En %1$d metros, zigzags durante %2$d metros.</string>
+    <string name="v20_say_zigzag_now">Ahora, zigzags durante %1$d metros.</string>
+    <string name="v20_say_climb">En %1$d metros, subida de %2$d metros en %3$s kilómetros, un %4$d por ciento de media.</string>
+    <string name="v20_say_descent">En %1$d metros, bajada de %2$d metros en %3$s kilómetros, un %4$d por ciento de media.</string>
+    <string name="v20_say_place">%1$s. %2$s</string>
+    <string name="v20_route_back_on">Vuelves a estar en la ruta.</string>
+    <string name="v20_island_meters">%1$d m</string>
+    <string name="v20_island_next_m">Siguiente: %1$s en %2$d m</string>
+    <string name="v20_island_km">%1$s km</string>
+    <string name="v20_island_climb">Subida: %1$d m en %2$s km, ~%3$d %%</string>
+    <string name="v20_island_descent">Bajada: %1$d m en %2$s km, ~%3$d %%</string>
+    <string name="v20_island_climbing">Subiendo: quedan %1$d m en %2$s km, ~%3$d %%</string>
+    <string name="v20_island_descending">Bajando: quedan %1$d m en %2$s km, ~%3$d %%</string>
+    <string name="v20_island_maneuver_description">%1$s en %2$s</string>
+    <string name="v20_ahead_description">Perfil por delante, de %1$d m a %2$d m</string>
+    <string name="v20_route_start">Empezar</string>
+    <string name="v20_route_start_description">Empezar a grabar y seguir %1$s</string>
+    <string name="v20_route_preview">Vista previa</string>
+    <string name="v20_route_preview_description">Ver la ruta en 3D</string>
+    <string name="v20_route_recording">Hay una grabación en curso</string>
+    <string name="v20_route_open_recording">Abrir grabación</string>
+    <string name="v20_routes_selected">Elegida para tu próxima actividad</string>
+    <string name="v20_preview_back">Ruta</string>
+    <string name="v20_preview_back_description">Volver a la ruta</string>
+</resources>

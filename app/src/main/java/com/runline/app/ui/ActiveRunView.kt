@@ -56,6 +56,20 @@ class ActiveRunView(
         addView(routeText, LinearLayout.LayoutParams(0, -2, 1f))
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
     }
+    /** GPS-style: arrow, distance and instruction for the next manoeuvre. */
+    private val turnArrow = android.widget.ImageView(context).apply {
+        imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface)); importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val turnDistance = label("", if (compact) 22 else 26, bold = true).apply { fontFeatureSettings = "tnum" }
+    private val turnText = label("", 15).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+    private val turnRow = LinearLayout(context).apply {
+        gravity = Gravity.CENTER_VERTICAL; visibility = GONE
+        addView(turnArrow, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(12) })
+        addView(turnDistance, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
+        addView(turnText, LinearLayout.LayoutParams(0, -2, 1f))
+        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
+    }
+    private val ahead = RouteAheadView(context).apply { visibility = GONE }
     private val heading = label(context.getString(when (initial.status) {
         RecordingStatus.PAUSED -> R.string.active_paused
         RecordingStatus.INTERRUPTED -> R.string.active_recovered
@@ -84,7 +98,9 @@ class ActiveRunView(
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         information.addView(heading, row(bottom = 4))
+        information.addView(turnRow, row(top = 4, bottom = 8))
         information.addView(routeRow, row(bottom = 6))
+        information.addView(ahead, LinearLayout.LayoutParams(-1, dp(if (compact) 36 else 44)).apply { bottomMargin = dp(8) })
         information.addView(gps, row(bottom = if (compact) 6 else 12))
         information.addView(readout, row())
         panel.setChartContent(readout)
@@ -185,6 +201,7 @@ class ActiveRunView(
     /** Distance and ascent left, arrival against sunset, the next named place, or which way the path is. */
     private fun showRoute(route: com.runline.app.tracking.LiveRoute?, recording: Boolean) {
         routeRow.visibility = if (route == null) GONE else VISIBLE
+        showGuidance(route)
         if (route == null) return
         val p = route.progress
         val locale = resources.configuration.locales[0]
@@ -209,15 +226,68 @@ class ActiveRunView(
                     ?: context.getString(R.string.v19_island_route_no_ascent, km(p.remainingMeters), clock)
                 val sunset = route.sunsetMs?.takeIf { recording && arrival > it }?.let { "\n" + context.getString(R.string.v19_island_after_sunset, time(it)) }.orEmpty()
                 val next = p.nextWaypoint?.takeIf { it.name.isNotBlank() }?.let { w ->
-                    "\n" + context.getString(R.string.v19_island_next, w.name, km(p.nextWaypointMeters ?: 0.0))
+                    val ahead = p.nextWaypointMeters ?: 0.0
+                    "\n" + if (ahead < 1000) context.getString(R.string.v20_island_next_m, w.name, ((ahead / 10).roundToInt() * 10).coerceAtLeast(10))
+                        else context.getString(R.string.v19_island_next, w.name, km(ahead))
                 }.orEmpty()
-                main + sunset + next
+                main + sunset + climbLine(route.guidance, p.doneMeters) + next
             }
         }
         change(routeText, text)
         routeText.typeface = Typeface.create(if (off) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
         routeIcon.setImageResource(if (off) R.drawable.ic_warning else R.drawable.ic_route)
         routeRow.contentDescription = "${route.name}. $text"
+    }
+
+    /** "Climb ahead: 110 m over 1.2 km, ~9%" from 2 km out, then the height still to climb. */
+    private fun climbLine(guidance: com.runline.app.core.RouteGuidanceView?, done: Double): String {
+        val climb = guidance?.climb ?: return ""
+        val locale = resources.configuration.locales[0]
+        val inside = (guidance.climbMeters ?: 0.0) <= 0
+        val height = if (inside) kotlin.math.abs(climb.heightMeters) * ((climb.endMeters - done) / climb.lengthMeters).coerceIn(0.0, 1.0) else kotlin.math.abs(climb.heightMeters)
+        val length = if (inside) (climb.endMeters - done).coerceAtLeast(0.0) else climb.lengthMeters
+        val res = when {
+            inside && climb.uphill -> R.string.v20_island_climbing; inside -> R.string.v20_island_descending
+            climb.uphill -> R.string.v20_island_climb; else -> R.string.v20_island_descent
+        }
+        return "\n" + context.getString(res, height.roundToInt(), String.format(locale, "%.1f", length / 1000), climb.gradePercent.roundToInt())
+    }
+
+    /** The arrow row and the elevation ahead, only while on the route. */
+    private fun showGuidance(route: com.runline.app.tracking.LiveRoute?) {
+        val p = route?.progress
+        val onRoute = p?.state == com.runline.app.core.RouteState.ON_ROUTE
+        val g = route?.guidance
+        val maneuver = g?.maneuver.takeIf { onRoute }
+        turnRow.visibility = if (maneuver == null) GONE else VISIBLE
+        if (maneuver != null) {
+            val meters = g?.maneuverMeters ?: 0.0
+            val locale = resources.configuration.locales[0]
+            val distance = when {
+                meters >= 1000 -> context.getString(R.string.v20_island_km, String.format(locale, "%.1f", meters / 1000))
+                meters >= 100 -> context.getString(R.string.v20_island_meters, (meters / 10).roundToInt() * 10)
+                else -> context.getString(R.string.v20_island_meters, (meters / 5).roundToInt() * 5)
+            }
+            val words = if (maneuver.kind == com.runline.app.core.TurnKind.ZIGZAG)
+                context.getString(R.string.v20_turn_zigzag, (maneuver.lengthMeters / 10).roundToInt() * 10)
+            else context.getString(when (maneuver.kind) {
+                com.runline.app.core.TurnKind.BEAR_LEFT -> R.string.v20_turn_bear_left; com.runline.app.core.TurnKind.BEAR_RIGHT -> R.string.v20_turn_bear_right
+                com.runline.app.core.TurnKind.LEFT -> R.string.v20_turn_left; com.runline.app.core.TurnKind.RIGHT -> R.string.v20_turn_right
+                com.runline.app.core.TurnKind.SHARP_LEFT -> R.string.v20_turn_sharp_left; com.runline.app.core.TurnKind.SHARP_RIGHT -> R.string.v20_turn_sharp_right
+                else -> R.string.v20_turn_around
+            })
+            val instruction = words.replaceFirstChar { it.titlecase(locale) }
+            turnArrow.setImageResource(when (maneuver.kind) {
+                com.runline.app.core.TurnKind.BEAR_LEFT -> R.drawable.ic_turn_bear_left; com.runline.app.core.TurnKind.BEAR_RIGHT -> R.drawable.ic_turn_bear_right
+                com.runline.app.core.TurnKind.LEFT -> R.drawable.ic_turn_left; com.runline.app.core.TurnKind.RIGHT -> R.drawable.ic_turn_right
+                com.runline.app.core.TurnKind.SHARP_LEFT -> R.drawable.ic_turn_sharp_left; com.runline.app.core.TurnKind.SHARP_RIGHT -> R.drawable.ic_turn_sharp_right
+                com.runline.app.core.TurnKind.TURN_AROUND -> R.drawable.ic_turn_around; com.runline.app.core.TurnKind.ZIGZAG -> R.drawable.ic_turn_zigzag
+            })
+            change(turnDistance, distance); change(turnText, instruction)
+            turnRow.contentDescription = context.getString(R.string.v20_island_maneuver_description, instruction, distance)
+        }
+        val model = route?.route
+        ahead.visibility = if (onRoute && model != null && ahead.set(model, p!!.doneMeters)) VISIBLE else GONE
     }
 
     private fun label(textValue: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(context).apply {

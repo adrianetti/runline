@@ -1,6 +1,6 @@
-# Version 0.19 test checklist
+# Version 0.20 test checklist
 
-The checklist is not a blanket pass report. Current v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -281,7 +281,11 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 - **Routes tab.** It lists the bundled open routes with distance, ascent, time, difficulty and shape. Import a real GPX from another app or service: track, route points and waypoints must be read, and timestamps and extensions ignored. Corrupt, oversized and DOCTYPE files must be refused with a message. Delete an imported route.
 - **Route details.** Check the map fit, the stats, the profile, the waypoints, Share GPX and Save GPX. Check the sunset line before and after sunset, and in landscape and Spanish.
-- **Hike this route.** Start from the Record row and walk the route. The island must show distance and ascent left, arrival and the next waypoint. Step 60 m off the path: within 15 s the phone vibrates, the notification title shows the distance, and with voice on the side is spoken. Rejoin: a short vibration and "Back on the route". On an out-and-back leg, progress must keep counting forward. Force-stop during a hike, then resume: the route progress returns.
+- **Start.** Start in route details must begin recording at once, with the route and its activity. During a recording it opens the recording instead. The Routes list ticks the selected route.
+- **Following.** Walk the route. The island must show distance and ascent left, arrival and the next waypoint. Step 60 m off the path: within 15 s the phone vibrates, the notification title shows the distance, and with voice on the side is spoken. Rejoin: a short vibration and "Back on the route". On an out-and-back leg, progress must keep counting forward. Force-stop during a hike, then resume: the route progress returns, and no cue already behind you is spoken.
+- **Turns.** With voice on, each turn is spoken about 80 m ahead and again at 20 m. Two turns within 60 m are named together. The end of an out-and-back leg says "turn around"; a ravine hairpin says sharp left or right. The island arrow and distance match the cue. With voice off, a short vibration marks each turn. On an imported GPX, every bend in the geometry is a cue.
+- **Climbs and places.** The island shows "Climb ahead" from 2 km out, then the height left inside the climb. The climb is spoken once, about 200 m before. The elevation-ahead profile moves with you. Place notes are spoken once, near their waypoint, in the app language.
+- **Preview.** Preview plays the route in 3D with playback speed and a timeline, and records nothing. Back returns to the route.
 - **Check for new routes** needs network access. A changed or corrupted catalog file must be rejected by its SHA-256.
 
 ## Replay and statistics
@@ -526,3 +530,60 @@ Recorded 6–7 November 2026. The owner's route photos and private runs stayed o
   - Check for new routes, which needs `routes/` on `main` first;
   - dark mode and landscape for the new screens.
 - Artifact: `Runline-0.19.0.apk`, **0.19.0 / code 22**, SHA-256 `a2d2f24e1fc2334f1218c868b5f24c3adcde35d62d162a26971192051b774a4f`. Signing certificate remains `fc4cf764f78b745c431a632e5769348ec6488e04b4ca92515a9f589564f900ab`. Required GitHub checks gate merging the exact PR head.
+
+## Version 0.20 validation
+
+Recorded 7 November 2026 on the API 34 emulator. Mock GPS walked the cleaned Granada route at 4 m/s near cues and 12 m/s between them. The emulator's mock fixes report no speed, so auto-pause timing on screen is not representative.
+
+- **Route cleanup.** Every route vertex was checked against current OpenStreetMap ways (Overpass).
+  - 13 retraced spurs (up to 104 m each way, two of them zero-length duplicate points) and a 154 m loop that a 28 m track crosses were removed. The real hairpins of the Sendero Acequia del Real and the 420 m out-and-back detour were kept.
+  - The route is now 14.0 km, +281/−301 m, 668–927 m.
+  - On the 0.19 file, the spur check flags 11 spurs of 2 m or more, plus the deliberate detour. On the new file it finds only the detour, and accepts it because it ends at "Fin del desvío".
+- **Build and checks.**
+  - **Tests.** **396 JVM tests**, 25 new, with no failures. They cover:
+    - manoeuvre kinds, merging, wiggles, retrace against hairpin, zig-zags, junction filtering and the real Granada route;
+    - climbs with bumps, flats and thresholds;
+    - cue timing, "then" turns, joins, stale cues and notes deferred behind turns;
+    - the navigation and route speech priorities, the preview timeline and the catalog's notes and junctions;
+    - joining beside an earlier parallel leg;
+    - where the replay trail stops behind the arrow.
+  - **Lint.** 0 errors / 172 warnings. The 7 new ones are 5 plural notices on metre values that are never 1, and the usual tools-constructor and KTX notices.
+  - **Other checks.** Verified 736 bilingual resources, 53 pinned icons (11 added) and the route catalog. Seven Semgrep rules found 0 issues in 124 files. The surface checks passed, and Gitleaks found no leaks in 54 commits. No permissions or dependencies changed.
+- **Granada route data.**
+  - **Cues.** With junctions there are 35 turn cues, against 72 from geometry alone. Exactly one is "turn around", at the detour's end.
+  - **Climbs.** +205 m over 2.7 km at 8%, and −211 m from 5.6 to 9.3 km at 6%. The flat riverside is not counted.
+- **Native API 34 checks.**
+  - **Screens.** Route details showed fixed Start and Preview. Preview played the route in 3D, 2:57:53 at 480×, with planned pace. Start began a Hike recording with the route in one tap.
+  - **Island.** It showed:
+    - the arrow, distance and instruction ("570 m · Bear left");
+    - "Climbing: 195 m left over 2.6 km, ~8%" and "Descent ahead: 211 m over 3.7 km, ~6%";
+    - the moving elevation-ahead profile;
+    - "Next: … in 80 m".
+  - **Speech, whole route.** The coach log over the whole route recorded:
+    - every turn spoken about 80 m ahead and again at 20 m, including "Turn right now, then left" at two street offsets and "Turn around now" at the detour's end;
+    - all five place notes, once each;
+    - the descent cue 200 m ahead;
+    - "Route complete".
+  - **First walk.** The host Mac slept twice during it, and the walk script then sent its backlog of positions too fast. The recorder rightly rejected those jumps, and the route follower raced ahead. That stretch (7.2 km to the end) was walked again with sleep prevented.
+  - **Bugs found and fixed.**
+    - **Watchdog.** The fixed 15 s speech watchdog cut the 240-character Genil note and dropped the pending "Turn right now".
+    - **Note during a turn.** A note could start just before a turn.
+    - **Joining at 7.2 km.** It latched onto an earlier leg and gave a false "Off route · 100 m".
+    - **Waypoint distance.** The next waypoint read "in 0.0 km".
+    - **Replay trail.** The owner reported that the trail behind the arrow doubled or went wild. A 0.19 replay at 480× showed two lines splitting at turns, and long straight lines.
+      - **Doubling.** The map trail and the native head overlay drew the same stretch, the overlay with a newer camera than the map's last frame.
+      - **Straight lines.** Points behind the tilted camera were projected anyway.
+      - **Fix.** While playing, the map trail now stops 400 m behind the arrow, and the head skips points outside the visible region. With the head tinted red for diagnosis, it alone drew the stretch behind the arrow at 120×, through the acequia hairpins.
+      - **Emulator limit.** At 480× the emulator's renderer can freeze the map for about a second, so a frozen frame still shows stale lines then. A phone renders far faster.
+    - **Re-walk.** A re-walk from 7.2 km to 9.8 km with the fixes confirmed the first four: no off-route on joining, both notes completed, the turn spoken before the Genil note, and the next waypoint in metres.
+  - **Update and restore.**
+    - **Before the walks.** App data was backed up with root. The signed builds installed in place over 0.19.
+    - **Update.** The exact final release artifact then updated a restored 0.19 in place and kept **80/80 non-cache files byte-identical**. A replay on it drew one trail behind the arrow.
+    - **Restore.** The emulator was returned to 0.19 with its data, **80/80 files identical** and SELinux labels re-applied, and root was disabled.
+- **Not verified:**
+  - a physical phone on a real trail;
+  - Spanish speech on the emulator (the strings pass the bilingual check);
+  - an imported GPX walk;
+  - dark mode and landscape for the new island rows;
+  - real headphones or music.
+- Artifact: `Runline-0.20.0.apk`, **0.20.0 / code 23**, SHA-256 `6f6ca22fa32fcbda3aa5af75f2eb4ae24f0519480eb8b7632f8e75b5bb993566`. The signing certificate is unchanged. Required GitHub checks gate merging the exact PR head.

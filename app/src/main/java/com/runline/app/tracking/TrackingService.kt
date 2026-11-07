@@ -68,7 +68,9 @@ data class TrackingState(
 
 /** A planned route being followed; [points] keeps one identity so the map draws it once. */
 data class LiveRoute(val id: String, val name: String, val points: List<com.runline.app.core.RunPoint>,
-                     val progress: com.runline.app.core.RouteProgress?, val sunsetMs: Long?)
+                     val progress: com.runline.app.core.RouteProgress?, val sunsetMs: Long?,
+                     val route: com.runline.app.core.HikingRoute? = null,
+                     val guidance: com.runline.app.core.RouteGuidanceView? = null)
 
 /** User-started foreground recorder. UI closure never stops it; force-stop and reboot never auto-start it. */
 class TrackingService : Service(), LocationListener {
@@ -105,6 +107,8 @@ class TrackingService : Service(), LocationListener {
     private var routeProgress: com.runline.app.core.RouteProgress? = null
     private var routeSunset: Long? = null
     private var routeState: com.runline.app.core.RouteState? = null
+    private var routeModel: com.runline.app.core.HikingRoute? = null
+    private var routeGuidance: com.runline.app.core.RouteGuidance? = null
     private var lastRouteAlert = 0L
     @Volatile private var foreground = false
     @Volatile private var published = TrackingState()
@@ -369,7 +373,8 @@ class TrackingService : Service(), LocationListener {
         SystemClock.elapsedRealtime() - (lastLocationElapsed.takeIf { it > 0 } ?: activeSince) > 15_000
     private fun stoppedSince(): Long? = stillness.stoppedSinceMs?.takeIf { mode == RecordingStatus.RECORDING && !isGpsStale() }
     private fun publish() { published = TrackingState(mode, snapshotRun(), accuracy, lastSavedAtMs = lastSavedAt, gpsStale = isGpsStale(), messageRes = messageRes,
-        stoppedSinceMs = stoppedSince(), route = routeId?.let { LiveRoute(it, routeName, routePoints, routeProgress, routeSunset) }).localized(this); cached = published }
+        stoppedSinceMs = stoppedSince(), route = routeId?.let { LiveRoute(it, routeName, routePoints, routeProgress, routeSunset, routeModel,
+            routeProgress?.let { p -> routeGuidance?.view(p.doneMeters) }) }).localized(this); cached = published }
 
     /** The session's planned route, rebuilt from the recorded fixes after a restart. Optional: never in the storage path. */
     private fun loadRoute() {
@@ -381,16 +386,24 @@ class TrackingService : Service(), LocationListener {
             val routes = com.runline.app.data.RouteStore(this)
             val route = routes.load(id) ?: run { clearRoute(); return }
             val follower = com.runline.app.core.RouteFollower(route)
-            var last: com.runline.app.core.RouteProgress? = null
-            session.points.forEach { last = follower.update(it.latitude, it.longitude, it.accuracyMeters, it.timestampMs) }
             val language = AppLanguage.localizedContext(this).resources.configuration.locales[0].language
+            // Catalog routes know their junctions and place notes; imported GPX uses geometry alone.
+            val catalog = runCatching { routes.catalog().routes.firstOrNull { it.id == id } }.getOrNull()
+            val guidance = runCatching {
+                com.runline.app.core.RouteGuidance(com.runline.app.core.RouteManeuvers.detect(route, catalog?.junctions),
+                    com.runline.app.core.RouteClimbs.detect(route), com.runline.app.core.RouteGuidance.places(route, catalog?.notes(language).orEmpty()))
+            }.getOrNull()
+            var last: com.runline.app.core.RouteProgress? = null
+            // Replaying the fixes also settles every cue already behind the hiker, so none is spoken late.
+            session.points.forEach { p -> last = follower.update(p.latitude, p.longitude, p.accuracyMeters, p.timestampMs).also { guidance?.update(it) } }
             routeFollower = follower; routeId = id; routeProgress = last; routeState = last?.state
+            routeModel = route; routeGuidance = guidance
             routeName = routes.entry(id, language)?.name ?: route.name
             routePoints = route.runPoints()
             routeSunset = com.runline.app.core.SunTimes.sunset(java.time.LocalDate.now().toEpochDay(), route.points.first().latitude, route.points.first().longitude)
         }
     }
-    private fun clearRoute() { routeFollower = null; routeId = null; routeProgress = null; routeState = null; routePoints = emptyList() }
+    private fun clearRoute() { routeFollower = null; routeId = null; routeProgress = null; routeState = null; routePoints = emptyList(); routeModel = null; routeGuidance = null }
 
     private fun updateRoute(latitude: Double, longitude: Double, accuracyMeters: Float, timeMs: Long) {
         val follower = routeFollower ?: return
@@ -401,18 +414,63 @@ class TrackingService : Service(), LocationListener {
             val now = SystemClock.elapsedRealtime()
             val repeat = progress.state == com.runline.app.core.RouteState.OFF_ROUTE && now - lastRouteAlert >= 120_000
             if (progress.changed || repeat) { lastRouteAlert = now; routeAlert(progress, previous); publish(); updateNotification() }
+            routeGuidance?.let { guidance -> guidance.update(progress)?.let { routeCue(guidance, it) } }
         }
+    }
+
+    /** Turns, climbs and place notes. Speech needs the voice coach on; the last turn cue also vibrates. */
+    private fun routeCue(guidance: com.runline.app.core.RouteGuidance, cue: com.runline.app.core.RouteCue) {
+        val (key, priority, text) = when (cue) {
+            is com.runline.app.core.RouteCue.Turn -> {
+                val m = cue.maneuver
+                val words = if (m.kind == com.runline.app.core.TurnKind.ZIGZAG) {
+                    val length = com.runline.app.core.RouteGuidance.roundTo(m.lengthMeters, 50)
+                    if (cue.now) tr(R.string.v20_say_zigzag_now, length) else tr(R.string.v20_say_zigzag_in, cue.meters, length)
+                } else if (!cue.now) tr(R.string.v20_say_turn_in, cue.meters, tr(turnText(m.kind)))
+                else cue.then?.let { tr(R.string.v20_say_turn_now_then, tr(turnText(m.kind)), tr(thenText(it.kind))) } ?: tr(R.string.v20_say_turn_now, tr(turnText(m.kind)))
+                Triple("turn-${m.alongMeters.toInt()}-${if (cue.now) "now" else "ahead"}", com.runline.app.core.CoachSpeechPriority.NAVIGATION,
+                    words.replaceFirstChar { it.titlecase(java.util.Locale.ROOT) })
+            }
+            is com.runline.app.core.RouteCue.Climb -> {
+                val c = cue.climb
+                val km = String.format(AppLanguage.localizedContext(this).resources.configuration.locales[0], "%.1f", c.lengthMeters / 1000)
+                Triple("climb-${c.startMeters.toInt()}", com.runline.app.core.CoachSpeechPriority.ROUTE,
+                    tr(if (c.uphill) R.string.v20_say_climb else R.string.v20_say_descent, cue.meters, kotlin.math.abs(c.heightMeters).roundToLong().toInt(), km, c.gradePercent.roundToLong().toInt()))
+            }
+            is com.runline.app.core.RouteCue.Place -> Triple("place-${cue.place.alongMeters.toInt()}", com.runline.app.core.CoachSpeechPriority.ROUTE,
+                tr(R.string.v20_say_place, cue.place.name, cue.place.note))
+        }
+        if (cue is com.runline.app.core.RouteCue.Turn && cue.now) runCatching {
+            val vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(android.os.VibratorManager::class.java).defaultVibrator
+                else @Suppress("DEPRECATION") getSystemService(android.os.Vibrator::class.java)
+            vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 60, 90, 60), -1))
+        }
+        coachSpeech?.speakRoute(key, text, priority) { published.status == RecordingStatus.RECORDING && guidance.stillAhead(cue) }
+    }
+    private fun turnText(kind: com.runline.app.core.TurnKind) = when (kind) {
+        com.runline.app.core.TurnKind.BEAR_LEFT -> R.string.v20_turn_bear_left; com.runline.app.core.TurnKind.BEAR_RIGHT -> R.string.v20_turn_bear_right
+        com.runline.app.core.TurnKind.LEFT -> R.string.v20_turn_left; com.runline.app.core.TurnKind.RIGHT -> R.string.v20_turn_right
+        com.runline.app.core.TurnKind.SHARP_LEFT -> R.string.v20_turn_sharp_left; com.runline.app.core.TurnKind.SHARP_RIGHT -> R.string.v20_turn_sharp_right
+        com.runline.app.core.TurnKind.TURN_AROUND -> R.string.v20_turn_around; com.runline.app.core.TurnKind.ZIGZAG -> R.string.v20_then_zigzag
+    }
+    private fun thenText(kind: com.runline.app.core.TurnKind) = when (kind) {
+        com.runline.app.core.TurnKind.BEAR_LEFT -> R.string.v20_then_bear_left; com.runline.app.core.TurnKind.BEAR_RIGHT -> R.string.v20_then_bear_right
+        com.runline.app.core.TurnKind.LEFT -> R.string.v20_then_left; com.runline.app.core.TurnKind.RIGHT -> R.string.v20_then_right
+        com.runline.app.core.TurnKind.SHARP_LEFT -> R.string.v20_then_sharp_left; com.runline.app.core.TurnKind.SHARP_RIGHT -> R.string.v20_then_sharp_right
+        com.runline.app.core.TurnKind.TURN_AROUND -> R.string.v20_then_around; com.runline.app.core.TurnKind.ZIGZAG -> R.string.v20_then_zigzag
     }
 
     private fun routeAlert(progress: com.runline.app.core.RouteProgress, previous: com.runline.app.core.RouteState?) {
         val meters = progress.distanceFromRouteMeters.roundToLong()
+        val navigation = com.runline.app.core.CoachSpeechPriority.NAVIGATION
+        val information = com.runline.app.core.CoachSpeechPriority.ROUTE
         val (key, pattern, text) = when (progress.state) {
-            com.runline.app.core.RouteState.OFF_ROUTE -> Triple("off", longArrayOf(0, 400, 200, 400),
+            com.runline.app.core.RouteState.OFF_ROUTE -> Triple("off" to navigation, longArrayOf(0, 400, 200, 400),
                 progress.side?.let { tr(R.string.v19_route_off_side, meters, tr(sideText(it))) } ?: tr(R.string.v19_route_off, meters))
             com.runline.app.core.RouteState.ON_ROUTE -> if (previous == com.runline.app.core.RouteState.OFF_ROUTE)
-                Triple("back", longArrayOf(0, 150), tr(R.string.v19_route_back))
-                else Triple("joined", longArrayOf(0, 150), tr(R.string.v19_route_joined, progress.remainingMeters / 1000))
-            com.runline.app.core.RouteState.FINISHED -> Triple("done", longArrayOf(0, 300, 150, 300), tr(R.string.v19_route_finished))
+                Triple("back" to navigation, longArrayOf(0, 150), tr(R.string.v20_route_back_on))
+                else Triple("joined" to information, longArrayOf(0, 150), tr(R.string.v19_route_joined, progress.remainingMeters / 1000))
+            com.runline.app.core.RouteState.FINISHED -> Triple("done" to information, longArrayOf(0, 300, 150, 300), tr(R.string.v19_route_finished))
             else -> return
         }
         runCatching {
@@ -420,7 +478,8 @@ class TrackingService : Service(), LocationListener {
                 else @Suppress("DEPRECATION") getSystemService(android.os.Vibrator::class.java)
             vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1))
         }
-        coachSpeech?.speakRoute(key, text) { published.status == RecordingStatus.RECORDING }
+        val state = progress.state
+        coachSpeech?.speakRoute(key.first, text, key.second) { published.status == RecordingStatus.RECORDING && routeState == state }
     }
     private fun sideText(side: com.runline.app.core.RouteSide) = when (side) {
         com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right

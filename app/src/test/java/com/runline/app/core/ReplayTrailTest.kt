@@ -27,6 +27,19 @@ class ReplayTrailTest {
         assertTrue(ReplayTrail.passed(route, replay.at(2_000)!!.point) < passed)
     }
 
+    @Test fun `while playing the map trail stops 400 m behind the arrow, within the arrow's segment`() {
+        val replay = RunReplay(run()); val route = route(replay)
+        // About 3 m between fixes: 400 m is further back than the whole first segment.
+        val mid = replay.at(25_000)!!.point
+        val passed = ReplayTrail.passed(route, mid)
+        assertEquals(-1, ReplayTrail.behind(route, passed, 400.0))
+        assertEquals(passed - 4, ReplayTrail.behind(route, passed, 10.0))
+        // In the second segment it never reaches back across the pause: the first is drawn whole.
+        val later = ReplayTrail.passed(route, replay.at(replay.durationMs)!!.point)
+        assertEquals(29, ReplayTrail.behind(route, later, 400.0))
+        assertEquals(-1, ReplayTrail.behind(route, -1, 400.0))
+    }
+
     @Test fun `the head never joins across a pause`() {
         val replay = RunReplay(run()); val route = route(replay)
         val after = replay.at(31_500)!!.point

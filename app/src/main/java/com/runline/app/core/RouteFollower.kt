@@ -50,6 +50,8 @@ class RouteFollower(val route: HikingRoute) {
     private var offCount = 0
     private var backCount = 0
     private var lastFix: Triple<Double, Double, Long>? = null
+    /** Metres walked since joining; a wrong leg is corrected silently within the first 300 m. */
+    private var sinceJoin = 0.0
     private var courseFrom: Pair<Double, Double>? = null
     /** Last direction of travel over at least 8 m; kept between fixes that move less. */
     private var course: Double? = null
@@ -75,6 +77,46 @@ class RouteFollower(val route: HikingRoute) {
 
     private fun threshold(accuracy: Float) = (accuracy * 1.5).coerceIn(35.0, 80.0)
 
+    /**
+     * Joining: the earliest part of the route within [limit], then the closest point on that leg.
+     * A loop starts at its start and an out-and-back on its way out, yet joining mid-route works
+     * however far along it is.
+     */
+    private fun joinMatch(px: Double, py: Double, limit: Double): Match? {
+        var first: Double? = null
+        for (k in 0 until xs.size - 1) {
+            val m = segment(k, px, py)
+            if (m.distance <= limit && (first == null || m.along < first)) first = m.along
+        }
+        val earliest = first ?: return null
+        var best: Match? = null
+        for (k in 0 until xs.size - 1) {
+            val m = segment(k, px, py)
+            if (m.distance <= limit && m.along in earliest..(earliest + 2 * limit) && (best == null || m.distance < best.distance)) best = m
+        }
+        return best
+    }
+    /** The closest point within [limit] on a segment heading within 60° of [course]. */
+    private fun alongCourse(px: Double, py: Double, limit: Double, course: Double): Match? {
+        var best: Match? = null
+        for (k in 0 until xs.size - 1) {
+            val m = segment(k, px, py)
+            if (m.distance > limit) continue
+            val direction = (Math.toDegrees(atan2(xs[k + 1] - xs[k], ys[k + 1] - ys[k])) + 360) % 360
+            if (abs(((direction - course + 540) % 360) - 180) > 60) continue
+            if (best == null || m.distance < best.distance) best = m
+        }
+        return best
+    }
+    private fun segment(k: Int, px: Double, py: Double): Match {
+        val ax = xs[k]; val ay = ys[k]; val dx = xs[k + 1] - ax; val dy = ys[k + 1] - ay
+        val len2 = dx * dx + dy * dy
+        val t = if (len2 <= 0) 0.0 else (((px - ax) * dx + (py - ay) * dy) / len2).coerceIn(0.0, 1.0)
+        val qx = ax + t * dx; val qy = ay + t * dy
+        val d = hypot(px - qx, py - qy)
+        return Match(route.points[k].distanceMeters + t * (route.points[k + 1].distanceMeters - route.points[k].distanceMeters), d, qx, qy, d)
+    }
+
     fun update(latitude: Double, longitude: Double, accuracyMeters: Float, timeMs: Long, movingMinutes: Double? = null): RouteProgress {
         val px = (longitude - lon0) * kx; val py = (latitude - lat0) * ky
         val limit = threshold(accuracyMeters)
@@ -89,13 +131,21 @@ class RouteFollower(val route: HikingRoute) {
         }
         val course = course
 
-        val match = when (state) {
+        var match = when (state) {
             RouteState.APPROACHING -> project(px, py, 0.0)
             else -> project(px, py, along + step)
         }
         when (state) {
-            RouteState.APPROACHING -> if (match.distance <= limit) { state = RouteState.ON_ROUTE; along = match.along; joinedAlong = match.along }
+            RouteState.APPROACHING -> joinMatch(px, py, limit)?.let { state = RouteState.ON_ROUTE; along = it.along; joinedAlong = it.along; sinceJoin = 0.0; match = it }
             RouteState.ON_ROUTE -> {
+                sinceJoin += step
+                // Joined on a neighbouring leg (near a junction, beside a parallel path): within the first
+                // 300 m, move to a leg within reach that runs the way you are walking.
+                if (sinceJoin < 300 && course != null && (match.distance > limit || match.along < along - 5)) {
+                    alongCourse(px, py, limit, course)?.takeIf { abs(it.along - match.along) > 2 * limit }?.let {
+                        match = it; joinedAlong = it.along; offCount = 0; offSince = null
+                    }
+                }
                 if (match.distance > limit) {
                     offCount++; if (offSince == null) offSince = timeMs
                     if (offCount >= 3 && timeMs - offSince!! >= 10_000) { state = RouteState.OFF_ROUTE; backCount = 0 }
