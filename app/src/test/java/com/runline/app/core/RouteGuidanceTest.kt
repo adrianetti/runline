@@ -89,7 +89,18 @@ class RouteGuidanceTest {
         assertEquals(1540, placeAt); assertEquals("Mirador", (placeCue as RouteCue.Place).place.name)
         // Joining inside the climb or past the place says nothing about them.
         val late = RouteGuidance(emptyList(), listOf(climb), listOf(place))
-        assertNull(late.update(progress(1700.0)))
+        assertNull(late.update(progress(1800.0)))
+    }
+
+    @Test fun `a place note at a turn waits until the turn is called`() {
+        val g = RouteGuidance(listOf(turn(1000.0)), emptyList(), listOf(RoutePlace("River", "A long note about the river.", 995.0)))
+        val cues = (900..1200 step 2).mapNotNull { d -> g.update(progress(d.toDouble()))?.let { d to it } }
+        assertEquals(listOf("turn", "turn", "place"), cues.map { (_, c) -> if (c is RouteCue.Place) "place" else "turn" })
+        assertTrue((cues[1].second as RouteCue.Turn).now)
+        assertTrue(cues[2].first > cues[1].first)
+        // Passing the place far behind without a chance to speak settles it for good.
+        val skipped = RouteGuidance(emptyList(), emptyList(), listOf(RoutePlace("Gone", "Behind.", 500.0)))
+        assertNull(skipped.update(progress(700.0)))
     }
 
     @Test fun `the island shows the next manoeuvre and the climb ahead or underway`() {

@@ -24,7 +24,7 @@ data class RouteGuidanceView(
 /**
  * Turns progress on a followed route into spoken cues: each turn about 80 m ahead and again
  * at 20 m, each climb or descent once about 200 m before it, and each place note once as you
- * reach it. A cue is never repeated, and nothing already behind you is spoken, including
+ * reach it, after any turn just ahead. A cue is never repeated, and nothing already behind you is spoken, including
  * after rejoining the route somewhere else. Only one cue per update; turns come first.
  */
 class RouteGuidance(
@@ -48,6 +48,7 @@ class RouteGuidance(
         maneuvers.forEachIndexed { i, m -> if (m.alongMeters < d - PASSED) { far[i] = true; near[i] = true } }
         climbs.forEachIndexed { i, c -> if (c.startMeters - d < CLIMB_MIN) climbSpoken[i] = true }
         places.forEachIndexed { i, p -> if (d > p.alongMeters + PLACE_AFTER) placeSpoken[i] = true }
+        var turnSoon = false
 
         val next = maneuvers.indexOfFirst { it.alongMeters >= d - PASSED }
         if (next >= 0) {
@@ -63,8 +64,10 @@ class RouteGuidance(
                 far[next] = true
                 return RouteCue.Turn(m, roundTo(ahead, 10), false, null)
             }
+            // A long note would hold back the "now" cue; read it once the turn is behind you.
+            turnSoon = ahead <= PLACE_CLEAR && !near[next]
         }
-        val place = places.indices.firstOrNull { !placeSpoken[it] && d >= places[it].alongMeters - PLACE_BEFORE }
+        val place = if (turnSoon) null else places.indices.firstOrNull { !placeSpoken[it] && d >= places[it].alongMeters - PLACE_BEFORE }
         if (place != null) { placeSpoken[place] = true; return RouteCue.Place(places[place]) }
         val climb = climbs.indices.firstOrNull { !climbSpoken[it] && climbs[it].startMeters - d <= CLIMB_AHEAD }
         if (climb != null) { climbSpoken[climb] = true; return RouteCue.Climb(climbs[climb], roundTo(climbs[climb].startMeters - d, 50)) }
@@ -93,8 +96,10 @@ class RouteGuidance(
         const val CLIMB_AHEAD = 220.0
         const val CLIMB_MIN = 50.0
         const val PLACE_BEFORE = 60.0
-        const val PLACE_AFTER = 30.0
-        const val PLACE_STALE = 150.0
+        const val PLACE_AFTER = 150.0
+        const val PLACE_STALE = 250.0
+        /** No place note starts while a turn's "now" cue is still to come within this distance. */
+        const val PLACE_CLEAR = 150.0
 
         fun roundTo(meters: Double, step: Int) = ((meters / step).roundToInt() * step).coerceAtLeast(step)
 

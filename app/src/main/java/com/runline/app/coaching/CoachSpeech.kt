@@ -260,8 +260,8 @@ class CoachSpeech(context: Context,
             }
         }
         timeout = guard
-        // Short prompts should take a few seconds. Never keep another app ducked.
-        main.postDelayed(guard, 15_000)
+        // Short prompts take a few seconds; a place note up to about 25 s. Never keep another app ducked.
+        main.postDelayed(guard, maxOf(15_000L, 6_000L + text.length * 90L))
     }
 
     private fun finish(id: String?, error: SpeechResult?) {

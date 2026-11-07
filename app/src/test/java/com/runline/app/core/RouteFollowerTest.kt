@@ -41,6 +41,34 @@ class RouteFollowerTest {
         assertEquals(0.0, p.remainingMeters, 30.0)
     }
 
+    /** North 600 m at x = 0, east 600 m, south 300 m, west back to x = [gap], then south 300 m parallel to the first leg. */
+    private fun parallel(gap: Double): HikingRoute {
+        val east = 1 / (111_195.0 * Math.cos(Math.toRadians(37.0)))
+        val pts = ArrayList<Triple<Double, Double, Double?>>()
+        for (i in 0..60) pts += Triple(37.0 + i * 10 * m, -3.6, 700.0)
+        for (i in 1..60) pts += Triple(37.0 + 600 * m, -3.6 + i * 10 * east, 700.0)
+        for (i in 1..30) pts += Triple(37.0 + (600 - i * 10) * m, -3.6 + 600 * east, 700.0)
+        val xs = generateSequence(590.0) { it - 10 }.takeWhile { it > gap }.toList() + gap
+        xs.forEach { x -> pts += Triple(37.0 + 300 * m, -3.6 + x * east, 700.0) }
+        for (i in 1..30) pts += Triple(37.0 + (300 - i * 10) * m, -3.6 + gap * east, 700.0)
+        return HikingRoute.of("p", "Parallel", pts)
+    }
+
+    @Test fun `joining mid-route next to an earlier leg joins the leg you are on`() {
+        val east = 1 / (111_195.0 * Math.cos(Math.toRadians(37.0)))
+        // 45 m from the first leg: only the last leg is within reach, however far along it is.
+        val far = parallel(45.0); val w = Walker(RouteFollower(far))
+        val joined = w.at(37.0 + 250 * m, -3.6 + 45 * east)
+        assertEquals(RouteState.ON_ROUTE, joined.state)
+        assertEquals(far.distanceMeters - 250, joined.doneMeters, 15.0)
+        // 25 m away, near where the two legs meet: it may join the first leg, but walking on
+        // corrects it silently instead of reporting off route.
+        val near = parallel(25.0); val v = Walker(RouteFollower(near))
+        val states = (0..20).map { v.at(37.0 + (280 - it * 10) * m, -3.6 + 25 * east) }
+        assertTrue(states.none { it.state == RouteState.OFF_ROUTE })
+        assertEquals(near.distanceMeters - 80, states.last().doneMeters, 20.0)
+    }
+
     @Test fun `leaving the path alerts once after ten seconds and rejoining clears it`() {
         val r = route(); val w = Walker(RouteFollower(r))
         val east = 1 / (111_195.0 * Math.cos(Math.toRadians(37.0)))

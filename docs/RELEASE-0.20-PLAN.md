@@ -100,6 +100,11 @@ The timeline is the estimated moving time from Tobler's hiking function. The rou
 ## 7. Fixes
 
 - **Back on route.** The 0.19 back-on-route alert spoke the "Back to routes" button label. It now says "Back on the route".
+- **Long speech.** Speech had a fixed 15 s watchdog. A 240-character place note hit it, which cut the note and dropped a pending turn cue. The watchdog now scales with the text: 6 s plus 90 ms per character, never under 15 s.
+- **Notes and turns.** A place note no longer starts while a turn's "now" cue is due within 150 m. It plays after the turn, up to 150 m past the place.
+- **Joining mid-route.** 0.19 preferred the start of the route by weighting the distance along it. So joining at 7 km could latch onto an earlier leg nearby and report off route.
+  - Joining now takes the earliest part of the route within reach.
+  - During the first 300 m, a fix that would go backwards or off the route moves to a leg within reach that runs the way you are walking.
 
 ## Version
 

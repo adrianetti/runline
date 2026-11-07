@@ -53,7 +53,8 @@ The route chosen for the next recording is ticked in the Routes list. It also sh
 - **Map.** The planned route is a dashed line under your recorded track.
 - **Live readout.** The island shows the distance and ascent left, your arrival time, and a warning when you would arrive after sunset. It also shows the next named waypoint.
 - **Approaching.** Before you reach the route, it shows the distance to its start.
-- **Matching.** Each fix is matched to the route by expected progress, not just the nearest point, so out-and-back legs and loops count correctly. You can join the route anywhere.
+- **Matching.** Each fix is matched to the route by expected progress, not just the nearest point, so out-and-back legs and loops count correctly.
+- **Joining.** You can join the route anywhere. Runline joins the earliest part of the route within reach, so a loop starts at its start. If that is a neighbouring leg (near a junction, or beside a parallel path), the first 300 m move you to the leg running the way you walk, without an off-route alert.
 - **Off route.** You are off route when 3 fixes over at least 10 s are further from the path than 1.5× the GPS accuracy, clamped to 35–80 m.
   - The phone vibrates and the notification title says **Off route · N m**.
   - When voice is on, Runline says how far away the path is, and on which side relative to your direction of travel.
@@ -94,7 +95,7 @@ Cues come from the route itself and work offline. They are spoken only when voic
 
 ### Place notes
 
-- **Speech.** When the route has a note for a named place, Runline reads it once, within about 60 m of the place.
+- **Speech.** When the route has a note for a named place, Runline reads it once, from about 60 m before the place. If a turn is coming within 150 m, the note waits until the turn has been called, so it never holds back "Turn left now".
 - **Format.** Notes live in the open catalog (see [the routes README](../routes/README.md)). Each one is a short, checked fact in English and Spanish.
 - **Queue.** They wait 8 s after other speech, and turns go first. They still play while you stand still.
 

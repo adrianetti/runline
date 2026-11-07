@@ -230,4 +230,7 @@ Details: [TESTING.md](TESTING.md#version-019-validation). Artifact `Runline-0.19
 - **Place notes.** The catalog takes per-waypoint English and Spanish notes, validated by `check_routes.py` and the app. The Granada loop has five sourced notes.
 - **Preview and start.** Route details keep Start and Preview fixed. Start records immediately. Preview plays the route like a recording. The selected route is ticked in the list.
 - **Granada route cleanup.** 13 dead-end spurs and a 150 m loop left over from routing were removed (14.9 → 14.0 km). `check_routes.py` now refuses such spurs.
-- **Fix.** Rejoining a route spoke the "Back to routes" button label; it now says "Back on the route".
+- **Fixes.**
+  - Rejoining a route spoke the "Back to routes" button label; it now says "Back on the route".
+  - Joining mid-route could latch onto an earlier leg nearby and report off route.
+  - The speech watchdog now allows for long notes, which also stops a long note from dropping a pending turn cue.
