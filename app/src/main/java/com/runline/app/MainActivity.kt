@@ -171,9 +171,9 @@ class MainActivity : AppCompatActivity() {
             intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING); screen = "record"
         }
         if (screen == "detail" && currentRun == null) screen = "history"
-        if (screen == "route" && routeId == null) screen = "routes"
+        if ((screen == "route" || screen == "routePreview") && routeId == null) screen = "routes"
         if (screen == "history") tabs.getTabAt(1)?.select()
-        if (screen == "routes" || screen == "route") { val keep = screen; tabs.getTabAt(2)?.select(); screen = keep }
+        if (screen == "routes" || screen == "route" || screen == "routePreview") { val keep = screen; tabs.getTabAt(2)?.select(); screen = keep }
         render()
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
@@ -226,6 +226,7 @@ class MainActivity : AppCompatActivity() {
     @Deprecated("Uses platform Back for this single-activity prototype")
     override fun onBackPressed() {
         if (screen == "detail") { screen = "history"; tabs.getTabAt(1)?.select(); render() }
+        else if (screen == "routePreview") { screen = "route"; render() }
         else if (screen == "route") { screen = "routes"; render() }
         else if (screen == "history" || screen == "routes") { tabs.getTabAt(0)?.select() }
         else super.onBackPressed()
@@ -237,7 +238,7 @@ class MainActivity : AppCompatActivity() {
         body.removeAllViews(); route = null; activeRunView = null
         val state = TrackingService.state(this)
         val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
-        val full = screen == "detail" || screen == "route"
+        val full = screen == "detail" || screen == "route" || screen == "routePreview"
         toolbar.visibility = if (live || full) View.GONE else View.VISIBLE
         toolbar.title = "Runline"
         tabs.visibility = if (full || live) View.GONE else View.VISIBLE
@@ -246,7 +247,7 @@ class MainActivity : AppCompatActivity() {
         toolbar.navigationContentDescription = getString(R.string.main_back_activities)
         configureMenu()
         toolbar.setNavigationOnClickListener { screen = "history"; tabs.getTabAt(1)?.select(); render() }
-        when (screen) { "history" -> renderHistory(); "detail" -> currentRun?.let { renderDetail(it) }; "routes" -> renderRoutes(); "route" -> renderRoute(); else -> renderRecord() }
+        when (screen) { "history" -> renderHistory(); "detail" -> currentRun?.let { renderDetail(it) }; "routes" -> renderRoutes(); "route" -> renderRoute(); "routePreview" -> renderRoutePreview(); else -> renderRecord() }
     }
     private fun scrollContent(): LinearLayout {
         val scroll = ScrollView(this).apply { isFillViewport = false; clipToPadding = false }
@@ -407,7 +408,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderRoutes() {
         val content = scrollContent()
         val entries = runCatching { routes.list(language()) }.getOrDefault(emptyList())
-        content.addView(com.runline.app.ui.RoutesView(this, entries,
+        content.addView(com.runline.app.ui.RoutesView(this, entries, followedRoute(),
             stats = { id -> runCatching { routes.load(id)?.stats }.getOrNull() },
             onOpen = { id -> routeId = id; screen = "route"; render() },
             onImport = { runCatching { importRoute.launch(arrayOf("application/gpx+xml", "application/octet-stream", "text/xml", "application/xml", "*/*")) } },
@@ -441,22 +442,38 @@ class MainActivity : AppCompatActivity() {
         val hiking = runCatching { routes.load(id) }.getOrNull()
         if (hiking == null) { notice(getString(R.string.v19_route_unavailable)); screen = "routes"; render(); return }
         val entry = runCatching { routes.entry(id, language()) }.getOrNull()
-        val summary = runCatching { routes.catalog().routes.firstOrNull { it.id == id }?.summary(language()) }.getOrNull()
-        val view = com.runline.app.ui.RouteDetailView(this, hiking, entry, summary,
+        val catalog = runCatching { routes.catalog().routes.firstOrNull { it.id == id } }.getOrNull()
+        val recording = TrackingService.state(this).run != null
+        val view = com.runline.app.ui.RouteDetailView(this, hiking, entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording,
             onBack = { screen = "routes"; render() },
             onMore = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
-            onHike = {
+            onStart = {
+                // One tap: choose the route and its activity, then start recording straight away.
                 getPreferences(0).edit { putString("followRoute", id) }
-                selectedActivity = if (entry?.activity == ActivityType.RUN) ActivityType.RUN else if (entry?.activity == ActivityType.WALK) ActivityType.WALK else ActivityType.HIKE
+                selectedActivity = entry?.activity ?: ActivityType.HIKE
                 getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
                 preparation.intent = null
                 screen = "record"; tabs.getTabAt(0)?.select(); render()
-            })
+                requestRecording(TrackingService.ACTION_START)
+            },
+            onPreview = { screen = "routePreview"; render() },
+            onOpenRecording = { screen = "record"; tabs.getTabAt(0)?.select(); render() })
         route = view.map
         body.addView(view, LinearLayout.LayoutParams(-1, -1))
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.map.onHostResume()
         // Heights for grades and coaching are ready before the hike, offline too.
         runCatching { com.runline.app.terrain.TerrainRepository.get(this).request(hiking.runPoints()) }
+    }
+    /** The route played like a recording: 3D camera, playback speed and timeline. Nothing is recorded. */
+    private fun renderRoutePreview() {
+        val id = routeId ?: run { screen = "routes"; render(); return }
+        val hiking = runCatching { routes.load(id) }.getOrNull() ?: run { screen = "routes"; render(); return }
+        val activity = runCatching { routes.entry(id, language())?.activity }.getOrNull() ?: ActivityType.HIKE
+        replayView = RunReplayView(this, RunReplay(com.runline.app.core.RoutePreview.session(hiking, activity)), preview = true,
+            onBack = { screen = "route"; render() }).also { view ->
+            body.addView(view, LinearLayout.LayoutParams(-1, -1))
+            if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
+        }
     }
     private fun showRouteOptions(anchor: View, id: String, imported: Boolean) {
         PopupMenu(this, anchor).apply {

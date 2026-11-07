@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.19.0 (code 22) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.20.0 (code 23) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -133,3 +133,14 @@ Runline now plans as well as records.
 - **First route.** A Granada loop rebuilt from OpenStreetMap paths, from photos of a route whose download was paywalled. Its geometry and wording are original, and its sources are credited.
 
 See docs/HIKING.md and docs/RELEASE-0.19-PLAN.md.
+
+## Navigation on a route — 0.20
+
+Following a route now guides you along it.
+- **Turns.** Manoeuvres come from the route geometry: a 35° change over about 20 m, with close turns merged, wiggles ignored and switchbacks grouped as zig-zags. Open routes list OpenStreetMap junctions, so only real choices are spoken. A turn is spoken about 80 m ahead and again at 20 m, under a navigation speech priority with a 3 s wait and a 12 s lifetime. The island shows a GPS-style arrow and the distance.
+- **Climbs.** The next climb or descent (30 m or more at 1.5% or more) shows in the island and is spoken once, about 200 m before. A small profile shows the height from 300 m behind to 2 km ahead.
+- **Place notes.** Short, sourced, bilingual notes per waypoint in the catalog, read as you reach each place. The Granada loop has five.
+- **Preview and start.** Route details keep Start and Preview fixed at the bottom. Start records immediately with the route. Preview plays the route like a recording, in 3D at up to 480×.
+- **Cleaner first route.** Dead-end spurs and a loop left over from routing were removed; `tools/check_routes.py` now refuses such spurs.
+
+See docs/HIKING.md and docs/RELEASE-0.20-PLAN.md.

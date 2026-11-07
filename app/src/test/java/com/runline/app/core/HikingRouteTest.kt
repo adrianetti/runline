@@ -86,6 +86,25 @@ class HikingRouteTest {
         assertTrue(runCatching { RouteCatalog.parse(good.replace(sha, sha.uppercase())) }.isFailure)
     }
 
+    @Test fun `place notes and junctions are read strictly`() {
+        val good = File(repo, "index.json").readText()
+        val granada = RouteCatalog.parse(good).routes.single { it.id == "es-granada-alhambra-dehesa-genil" }
+        assertEquals(5, granada.places.size)
+        assertTrue(granada.notes("es").getValue("Río Genil, Centro Hípico").startsWith("El Genil"))
+        assertTrue(granada.notes("en").getValue("Río Genil, Centro Hípico").startsWith("The Genil"))
+        assertEquals(granada.notes("en"), granada.notes("fr"))
+        assertTrue(granada.junctions!!.isNotEmpty())
+        val note = granada.places.first().notes.getValue("en")
+        listOf(note to "x".repeat(261), note to "<b>bold</b>", "\"Puerta de las Granadas\"" to "\"\"").forEach { (a, b) ->
+            assertTrue(b, runCatching { RouteCatalog.parse(good.replaceFirst(a, b)) }.isFailure)
+        }
+        assertTrue(runCatching { RouteCatalog.parse(good.replaceFirst("[37.", "[137.")) }.isFailure)
+        // Older catalogs without notes or junctions still parse.
+        val plain = RouteCatalog.parse(good.replace(Regex(",\\s*\"places\": \\[.*?\\n      \\]", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex(",\\s*\"junctions\": \\[.*?\\n      \\]", RegexOption.DOT_MATCHES_ALL), "")).routes.single()
+        assertTrue(plain.places.isEmpty()); assertNull(plain.junctions)
+    }
+
     @Test fun `sunset in Granada and polar night`() {
         val day = LocalDate.of(2026, 11, 6).toEpochDay()
         val sunset = SunTimes.sunset(day, 37.1773, -3.5986)!!

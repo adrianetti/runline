@@ -19,6 +19,7 @@ import kotlin.math.roundToInt
 class RoutesView(
     context: Context,
     entries: List<RouteEntry>,
+    private val selected: String?,
     private val stats: (String) -> com.runline.app.core.RouteStats?,
     onOpen: (String) -> Unit,
     onImport: () -> Unit,
@@ -76,9 +77,18 @@ class RoutesView(
             isClickable = true; isFocusable = true
             context.withStyledAttributes(attrs = intArrayOf(android.R.attr.selectableItemBackground)) { background = getDrawable(0) }
             setOnClickListener { onOpen(entry.id) }
-            contentDescription = context.getString(R.string.v19_route_row_description, entry.name, stats, meta)
+            contentDescription = context.getString(R.string.v19_route_row_description, entry.name, stats, meta) +
+                if (entry.id == selected) " " + context.getString(R.string.v20_routes_selected) else ""
         }
-        row.addView(text(entry.name, 20, bold = true).apply { maxLines = 2 })
+        row.addView(LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(text(entry.name, 20, bold = true).apply { maxLines = 2 }, LayoutParams(0, -2, 1f))
+            // The route chosen for the next recording; Record shows it too.
+            if (entry.id == selected) addView(android.widget.ImageView(context).apply {
+                setImageResource(R.drawable.ic_check); imageTintList = android.content.res.ColorStateList.valueOf(context.getColor(R.color.on_surface))
+                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LayoutParams(dp(24), dp(24)).apply { marginStart = dp(12) })
+        })
         row.addView(text(stats, 16, bold = true), margin(top = 6))
         row.addView(text(meta, 14, muted = true), margin(top = 4))
         addView(row)

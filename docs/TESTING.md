@@ -1,6 +1,6 @@
-# Version 0.19 test checklist
+# Version 0.20 test checklist
 
-The checklist is not a blanket pass report. Current v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -281,7 +281,11 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 
 - **Routes tab.** It lists the bundled open routes with distance, ascent, time, difficulty and shape. Import a real GPX from another app or service: track, route points and waypoints must be read, and timestamps and extensions ignored. Corrupt, oversized and DOCTYPE files must be refused with a message. Delete an imported route.
 - **Route details.** Check the map fit, the stats, the profile, the waypoints, Share GPX and Save GPX. Check the sunset line before and after sunset, and in landscape and Spanish.
-- **Hike this route.** Start from the Record row and walk the route. The island must show distance and ascent left, arrival and the next waypoint. Step 60 m off the path: within 15 s the phone vibrates, the notification title shows the distance, and with voice on the side is spoken. Rejoin: a short vibration and "Back on the route". On an out-and-back leg, progress must keep counting forward. Force-stop during a hike, then resume: the route progress returns.
+- **Start.** Start in route details must begin recording at once, with the route and its activity. During a recording it opens the recording instead. The Routes list ticks the selected route.
+- **Following.** Walk the route. The island must show distance and ascent left, arrival and the next waypoint. Step 60 m off the path: within 15 s the phone vibrates, the notification title shows the distance, and with voice on the side is spoken. Rejoin: a short vibration and "Back on the route". On an out-and-back leg, progress must keep counting forward. Force-stop during a hike, then resume: the route progress returns, and no cue already behind you is spoken.
+- **Turns.** With voice on, each turn is spoken about 80 m ahead and again at 20 m. Two turns within 60 m are named together. The end of an out-and-back leg says "turn around"; a ravine hairpin says sharp left or right. The island arrow and distance match the cue. With voice off, a short vibration marks each turn. On an imported GPX, every bend in the geometry is a cue.
+- **Climbs and places.** The island shows "Climb ahead" from 2 km out, then the height left inside the climb. The climb is spoken once, about 200 m before. The elevation-ahead profile moves with you. Place notes are spoken once, near their waypoint, in the app language.
+- **Preview.** Preview plays the route in 3D with playback speed and a timeline, and records nothing. Back returns to the route.
 - **Check for new routes** needs network access. A changed or corrupted catalog file must be rejected by its SHA-256.
 
 ## Replay and statistics

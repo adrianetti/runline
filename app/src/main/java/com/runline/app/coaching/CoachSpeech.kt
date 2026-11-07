@@ -99,7 +99,8 @@ class CoachSpeech(context: Context,
     }
     fun updateSituation(value: CoachSituation) = onMain {
         situation = value
-        if (!value.eligible) invalidatePendingInternal()
+        // A standstill silences coaching, not route guidance, which checks its own validity.
+        if (!value.eligible) { schedule.invalidateCoaching(); if (schedule.pendingCount == 0) main.removeCallbacks(retrySpeech) }
     }
     fun reset() = onMain { stopInternal(); schedule.reset() }
     fun invalidatePending() = onMain { invalidatePendingInternal() }
@@ -128,12 +129,16 @@ class CoachSpeech(context: Context,
         prepareInternal()
         drainPendingSpeech()
     }
-    /** Route guidance (off route, back on route, finished). Shares the milestone slot and its timing. */
-    fun speakRoute(key: String, text: String, isValid: () -> Boolean = { true }) = onMain {
+    /**
+     * Route guidance. Turns and leaving or rejoining the route use [CoachSpeechPriority.NAVIGATION];
+     * places, climbs and finishing use [CoachSpeechPriority.ROUTE]. Neither waits for the pace
+     * coach to consider the moment eligible: [isValid] says whether the cue still applies.
+     */
+    fun speakRoute(key: String, text: String, priority: CoachSpeechPriority = CoachSpeechPriority.ROUTE, isValid: () -> Boolean = { true }) = onMain {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
-        if (closed || clean.isEmpty() || clean.length > 220) return@onMain
-        val offered = schedule.offer(CoachSpeechRequest("route-$key", CoachSpeechPriority.MILESTONE, advice = clean,
-            isValid = { situation.eligible && isValid() }), SystemClock.elapsedRealtime())
+        if (closed || clean.isEmpty() || clean.length > 320) return@onMain
+        val offered = schedule.offer(CoachSpeechRequest("route-$key", priority, advice = clean,
+            isValid = isValid), SystemClock.elapsedRealtime())
         diagnostic(if (offered) "queued" else "rejected", clean, "LOCAL", "route-$key")
         prepareInternal()
         drainPendingSpeech()

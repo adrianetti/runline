@@ -153,7 +153,7 @@ class RouteStore(context: Context) {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 15_000; connection.readTimeout = 20_000
-            connection.setRequestProperty("User-Agent", "Runline/0.19 (open routes)")
+            connection.setRequestProperty("User-Agent", "Runline/0.20 (open routes)")
             if (connection.responseCode != 200) throw IOException("HTTP ${connection.responseCode}")
             return connection.inputStream.use { input ->
                 val out = java.io.ByteArrayOutputStream(); val buffer = ByteArray(32 * 1024); var total = 0

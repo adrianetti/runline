@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v20_turn_bear_left">bear left</string>
+    <string name="v20_turn_bear_right">bear right</string>
+    <string name="v20_turn_left">turn left</string>
+    <string name="v20_turn_right">turn right</string>
+    <string name="v20_turn_sharp_left">turn sharp left</string>
+    <string name="v20_turn_sharp_right">turn sharp right</string>
+    <string name="v20_turn_around">turn around</string>
+    <string name="v20_turn_zigzag">zig-zags for %1$d m</string>
+    <string name="v20_then_bear_left">bear left</string>
+    <string name="v20_then_bear_right">bear right</string>
+    <string name="v20_then_left">left</string>
+    <string name="v20_then_right">right</string>
+    <string name="v20_then_sharp_left">sharp left</string>
+    <string name="v20_then_sharp_right">sharp right</string>
+    <string name="v20_then_around">turn around</string>
+    <string name="v20_then_zigzag">zig-zags</string>
+    <string name="v20_say_turn_in">In %1$d metres, %2$s.</string>
+    <string name="v20_say_turn_now">%1$s now.</string>
+    <string name="v20_say_turn_now_then">%1$s now, then %2$s.</string>
+    <string name="v20_say_zigzag_in">In %1$d metres, zig-zags for %2$d metres.</string>
+    <string name="v20_say_zigzag_now">Zig-zags now, for %1$d metres.</string>
+    <string name="v20_say_climb">In %1$d metres, a climb of %2$d metres over %3$s kilometres, about %4$d percent.</string>
+    <string name="v20_say_descent">In %1$d metres, a descent of %2$d metres over %3$s kilometres, about %4$d percent.</string>
+    <string name="v20_say_place">%1$s. %2$s</string>
+    <string name="v20_route_back_on">Back on the route.</string>
+    <string name="v20_island_meters">%1$d m</string>
+    <string name="v20_island_next_m">Next: %1$s in %2$d m</string>
+    <string name="v20_island_km">%1$s km</string>
+    <string name="v20_island_climb">Climb ahead: %1$d m over %2$s km, ~%3$d%%</string>
+    <string name="v20_island_descent">Descent ahead: %1$d m over %2$s km, ~%3$d%%</string>
+    <string name="v20_island_climbing">Climbing: %1$d m left over %2$s km, ~%3$d%%</string>
+    <string name="v20_island_descending">Descending: %1$d m left over %2$s km, ~%3$d%%</string>
+    <string name="v20_island_maneuver_description">%1$s in %2$s</string>
+    <string name="v20_ahead_description">Elevation ahead, from %1$d m to %2$d m</string>
+    <string name="v20_route_start">Start</string>
+    <string name="v20_route_start_description">Start recording and follow %1$s</string>
+    <string name="v20_route_preview">Preview</string>
+    <string name="v20_route_preview_description">Preview the route in 3D</string>
+    <string name="v20_route_recording">A recording is in progress</string>
+    <string name="v20_route_open_recording">Open recording</string>
+    <string name="v20_routes_selected">Selected for your next activity</string>
+    <string name="v20_preview_back">Route</string>
+    <string name="v20_preview_back_description">Back to the route</string>
+</resources>

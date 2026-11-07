@@ -143,6 +143,68 @@ class CoachSpeechScheduleTest {
         assertEquals(0, schedule.pendingCount)
     }
 
+    private fun turn(text: String = "Turn left now.", valid: () -> Boolean = { true }) =
+        CoachSpeechRequest("route-turn", CoachSpeechPriority.NAVIGATION, advice = text, isValid = valid)
+    private fun place(text: String = "Puerta de las Granadas.") =
+        CoachSpeechRequest("route-place", CoachSpeechPriority.ROUTE, advice = text)
+
+    @Test fun `a turn waits only 3 s after other speech, where a milestone would wait 30 s`() {
+        val schedule = CoachSpeechSchedule()
+        schedule.offer(km(1), 0)
+        assertNotNull(schedule.takeReady(0, true))
+        schedule.finished(6_000)
+        schedule.offer(turn(), 7_000)
+        assertNull(schedule.takeReady(8_999, true))
+        assertEquals("Turn left now.", schedule.takeReady(9_000, true)?.advice)
+    }
+
+    @Test fun `a turn goes before a pending goal, which never drops it`() {
+        val schedule = CoachSpeechSchedule()
+        schedule.offer(turn(), 0)
+        assertTrue(schedule.offer(goal(), 100))
+        assertEquals(2, schedule.pendingCount)
+        assertEquals(CoachSpeechPriority.NAVIGATION, schedule.takeReady(200, true)?.priority)
+        schedule.finished(3_000)
+        assertTrue(schedule.takeReady(5_000, true)?.cue is CoachCue.GoalReached)
+    }
+
+    @Test fun `a late turn expires after 12 s and a newer instruction replaces an older one`() {
+        val schedule = CoachSpeechSchedule()
+        schedule.offer(turn("In 80 metres, turn left."), 0)
+        schedule.offer(turn("Turn left now."), 5_000)
+        assertEquals(1, schedule.pendingCount)
+        assertEquals("Turn left now.", schedule.takeReady(6_000, true)?.advice)
+        schedule.offer(turn(), 10_000)
+        assertNull(schedule.takeReady(22_000, false))
+        assertNull(schedule.takeReady(22_001, true))
+        var ahead = true
+        schedule.offer(turn { ahead }, 30_000)
+        ahead = false
+        assertNull(schedule.takeReady(31_000, true))
+    }
+
+    @Test fun `a standstill clears coaching but keeps route guidance`() {
+        val schedule = CoachSpeechSchedule()
+        schedule.offer(ai(), 0); schedule.offer(place(), 0); schedule.offer(turn(), 0)
+        schedule.invalidateCoaching()
+        assertEquals(2, schedule.pendingCount)
+        assertEquals(CoachSpeechPriority.NAVIGATION, schedule.takeReady(1_000, true)?.priority)
+        schedule.finished(4_000)
+        assertNull(schedule.takeReady(11_999, true))
+        assertEquals(CoachSpeechPriority.ROUTE, schedule.takeReady(12_000, true)?.priority)
+        schedule.offer(turn(), 20_000)
+        schedule.invalidate()
+        assertEquals(0, schedule.pendingCount)
+    }
+
+    @Test fun `route information keeps its slot against a kilometre report`() {
+        val schedule = CoachSpeechSchedule()
+        assertTrue(schedule.offer(place(), 0))
+        assertFalse(schedule.offer(km(1), 100))
+        assertEquals(CoachSpeechPriority.ROUTE, schedule.takeReady(200, true)?.priority)
+        assertTrue(schedule.offer(km(2), 300))
+    }
+
     @Test fun `revoked AI consent between TTS acceptance and start never enters spoken history`() {
         val history = SpokenCoachGate()
         var consent = true

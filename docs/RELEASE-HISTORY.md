@@ -222,3 +222,12 @@ Recorded 6–7 November 2026:
 - **API 34.** The signed update from 0.18.0 kept 70/70 non-cache files. Checked: Routes, details, Hike this route, the mock-GPS hike with off-route and rejoin, restart recovery, GPX import and delete. Data restored 79/79.
 
 Details: [TESTING.md](TESTING.md#version-019-validation). Artifact `Runline-0.19.0.apk`, code 22, SHA-256 `a2d2f24e1fc2334f1218c868b5f24c3adcde35d62d162a26971192051b774a4f`, same signing certificate.
+
+## Version 0.20 source changes
+
+- **Turn cues.** Manoeuvres are derived from route geometry: 35° over about 20 m, with close turns merged, wiggles ignored, switchbacks grouped and true reversals as "turn around". Open routes list OpenStreetMap junctions, so a bend in a single path stays quiet. Each turn is spoken about 80 m ahead and at 20 m, with a GPS-style arrow and distance in the island. A navigation speech priority waits 3 s instead of the milestone's 30 s and expires after 12 s.
+- **Climb ahead.** The next climb or descent shows in the island and is spoken once, about 200 m before. A profile shows the height from 300 m behind to 2 km ahead.
+- **Place notes.** The catalog takes per-waypoint English and Spanish notes, validated by `check_routes.py` and the app. The Granada loop has five sourced notes.
+- **Preview and start.** Route details keep Start and Preview fixed. Start records immediately. Preview plays the route like a recording. The selected route is ticked in the list.
+- **Granada route cleanup.** 13 dead-end spurs and a 150 m loop left over from routing were removed (14.9 → 14.0 km). `check_routes.py` now refuses such spurs.
+- **Fix.** Rejoining a route spoke the "Back to routes" button label; it now says "Back on the route".

@@ -30,7 +30,6 @@
     <string name="v19_route_row_description">%1$s. %2$s. %3$s. Open route.</string>
     <string name="v19_route_back">Back to routes</string>
     <string name="v19_route_options">Route options</string>
-    <string name="v19_route_hike">Hike this route</string>
     <string name="v19_route_distance">Distance</string>
     <string name="v19_route_time">Estimated time</string>
     <string name="v19_route_ascent">Ascent</string>

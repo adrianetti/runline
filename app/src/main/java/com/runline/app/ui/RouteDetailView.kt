@@ -27,15 +27,22 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import kotlin.math.roundToInt
 
-/** A route before the hike: where it goes, how hard it is, and whether there is daylight for it. */
+/**
+ * A route before the hike: where it goes, how hard it is, and whether there is daylight for it.
+ * Start and Preview stay fixed under the scrolling details, so starting never means hunting.
+ */
 class RouteDetailView(
     context: Context,
     val route: HikingRoute,
     entry: RouteEntry?,
     summary: String?,
+    notes: Map<String, String>,
+    recording: Boolean,
     onBack: () -> Unit,
     onMore: (View) -> Unit,
-    onHike: () -> Unit,
+    onStart: () -> Unit,
+    onPreview: () -> Unit,
+    onOpenRecording: () -> Unit,
 ) : FrameLayout(context) {
     val map = SatelliteMapView(context)
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
@@ -96,12 +103,6 @@ class RouteDetailView(
                 addView(text(line, 14), LinearLayout.LayoutParams(0, -2, 1f))
             }, row(top = 12))
         }
-        content.addView(MaterialButton(context).apply {
-            text = context.getString(R.string.v19_route_hike); isAllCaps = false; textSize = 16f
-            setIconResource(R.drawable.ic_hike); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; iconPadding = dp(8)
-            minHeight = dp(60); minimumHeight = dp(60); cornerRadius = dp(16)
-            setOnClickListener { onHike() }
-        }, row(top = 16))
         val places = route.waypoints.filter { it.name.isNotBlank() }
             .map { w -> w to route.points.minByOrNull { RouteGeometry.meters(it.latitude, it.longitude, w.latitude, w.longitude) }!!.distanceMeters }
             .sortedBy { it.second }
@@ -111,7 +112,11 @@ class RouteDetailView(
                 content.addView(LinearLayout(context).apply {
                     setPadding(0, dp(6), 0, dp(6))
                     addView(text(context.getString(R.string.v19_km, km(along)), 14, muted = true).apply { minWidth = dp(64) })
-                    addView(text(w.name, 14), LinearLayout.LayoutParams(0, -2, 1f))
+                    addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL
+                        addView(text(w.name, 14))
+                        notes[w.name]?.let { addView(text(it, 13, muted = true), row(top = 2)) }
+                    }, LinearLayout.LayoutParams(0, -2, 1f))
                 })
             }
         }
@@ -122,7 +127,24 @@ class RouteDetailView(
         panel.background = GradientDrawable().apply { setColor(context.getColor(R.color.surface)); cornerRadius = dp(24).toFloat() }
         panel.elevation = dp(3).toFloat()
         panel.setPadding(dp(20), dp(16), dp(20), dp(12))
-        panel.addView(ScrollView(context).apply { isFillViewport = false; addView(content) }, LinearLayout.LayoutParams(-1, -2))
+        panel.addView(ScrollView(context).apply { isFillViewport = false; addView(content) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        val actions = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        val name = entry?.name ?: route.name
+        actions.addView(MaterialButton(context).apply {
+            text = context.getString(if (recording) R.string.v20_route_open_recording else R.string.v20_route_start); isAllCaps = false; textSize = 16f
+            setIconResource(if (recording) R.drawable.ic_route else R.drawable.ic_play); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; iconPadding = dp(8)
+            minHeight = dp(56); minimumHeight = dp(56); insetTop = 0; insetBottom = 0; cornerRadius = dp(16)
+            contentDescription = if (recording) context.getString(R.string.v20_route_recording) else context.getString(R.string.v20_route_start_description, name)
+            setOnClickListener { if (recording) onOpenRecording() else onStart() }
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        actions.addView(MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = context.getString(R.string.v20_route_preview); isAllCaps = false; textSize = 16f
+            setIconResource(R.drawable.ic_preview); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; iconPadding = dp(8)
+            minHeight = dp(56); minimumHeight = dp(56); insetTop = 0; insetBottom = 0; cornerRadius = dp(16)
+            contentDescription = context.getString(R.string.v20_route_preview_description)
+            setOnClickListener { onPreview() }
+        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
+        panel.addView(actions, row(top = 12))
         addView(panel, LayoutParams(if (compact) dp(360) else -1, -2, Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(16), 0, dp(16), dp(16)) })
         panel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> insets() }
     }
