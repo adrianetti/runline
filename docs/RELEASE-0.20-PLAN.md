@@ -90,7 +90,7 @@ The timeline is the estimated moving time from Tobler's hiking function. The rou
 0.19's rebuilt route had short dead-end spurs and one small loop that led nowhere. They were artefacts of routing through intermediate points: the router went into a side path and came straight back.
 
 - **Removed.** Each piece was checked against current OpenStreetMap ways (Overpass). Removed were:
-  - 13 exactly retraced spurs, 1–104 m each way;
+  - 13 exactly retraced spurs, up to 104 m each way;
   - a 150 m loop near Lancha del Genil, where the track runs straight across in 28 m.
 - **Kept.** The real hairpins of the Sendero Acequia del Real were kept. No OSM path takes a shorter line there that stays on the acequia path. The deliberate 420 m out-and-back detour was kept too.
 - **Moved.** The "Cruce" waypoint moves to the junction where the detour actually leaves the loop.

@@ -234,3 +234,12 @@ Details: [TESTING.md](TESTING.md#version-019-validation). Artifact `Runline-0.19
   - Rejoining a route spoke the "Back to routes" button label; it now says "Back on the route".
   - Joining mid-route could latch onto an earlier leg nearby and report off route.
   - The speech watchdog now allows for long notes, which also stops a long note from dropping a pending turn cue.
+
+## Version 0.20 verification
+
+Recorded 7 November 2026:
+- 395 JVM tests; lint 0 errors / 172 warnings; resource, icon, route, Semgrep, surface and Gitleaks checks clean.
+- **API 34 mock-GPS walk of the Granada loop.** Turn, climb and place cues were seen in the island and recorded as spoken in the coach log. Three bugs found on the walk were fixed and re-walked: the long-note watchdog, a note starting before a turn, and a false off-route on a mid-route join.
+- **Update.** The release kept 80/80 non-cache files when updating 0.19 in place. The emulator was restored to 0.19, 80/80, and root disabled.
+
+Details: [TESTING.md](TESTING.md#version-020-validation). Artifact `Runline-0.20.0.apk`, code 23, SHA-256 `8ad15690d79aaf69623f00e1e32ad1f897354688fd834cd7dcc99226591ce71e`, same signing certificate.

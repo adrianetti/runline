@@ -50,7 +50,7 @@ Rules:
 The owner had photos of a route near Granada whose download was paywalled. The photos were used only to identify which public streets and paths it follows. The geometry was then rebuilt from OpenStreetMap with the open [BRouter](https://brouter.de) hiking profile, and elevations were sampled from IGN MDT05. The rebuilt route was checked against the photos for shape, distance and height range. No geometry, text or images were taken from the original service.
 
 In 0.20 the route was cleaned:
-- **Spurs.** 13 dead-end spurs, each a few metres to 104 m long, were removed. They came from routing through intermediate points.
+- **Spurs.** 13 dead-end spurs, up to 104 m long, were removed. They came from routing through intermediate points.
 - **Loop.** A 150 m loop near Lancha del Genil, where the track runs straight across, was removed.
 - **Kept.** The real hairpins of the Sendero Acequia del Real and the deliberate out-and-back detour stay.
 - **Notes.** Five place notes were added. Their facts come from the Patronato de la Alhambra, Spanish heritage records and encyclopaedias.
