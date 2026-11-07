@@ -14,7 +14,7 @@ buildscript {
             add("classpath", "org.jdom:jdom2:2.0.6.1") {
                 because("Patch Jetifier's transitive XML parser")
             }
-            add("classpath", "org.apache.commons:commons-lang3:3.18.0") {
+            add("classpath", "org.apache.commons:commons-lang3:3.21.0") {
                 because("Patch the recursive type parser used by Android build tools")
             }
         }
@@ -33,7 +33,7 @@ subprojects {
                 dependencyConstraints.add(project.dependencies.constraints.create("org.bouncycastle:$module:1.86"))
             }
             dependencyConstraints.add(project.dependencies.constraints.create("com.google.guava:guava:33.7.2-jre"))
-            dependencyConstraints.add(project.dependencies.constraints.create("org.apache.commons:commons-lang3:3.18.0"))
+            dependencyConstraints.add(project.dependencies.constraints.create("org.apache.commons:commons-lang3:3.21.0"))
             dependencyConstraints.add(project.dependencies.constraints.create("org.apache.httpcomponents:httpclient:4.5.14"))
         }
     }
