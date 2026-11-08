@@ -78,6 +78,57 @@ class TerrainGrid private constructor(val columns: Int, val rows: Int, val west:
     }
 }
 
+/**
+ * The ground a fix may stand on: its centre and eight probes at the GPS uncertainty radius.
+ * Heights spread over more than 3 m there are ambiguous at a bridge, wall or embankment,
+ * but not on an even hillside, where a path cut across the slope always has that spread.
+ */
+object TerrainFootprint {
+    /** Probes may stray this far from the best plane through them, or a tenth of the radius. */
+    const val PLANE_METERS = 1.0
+    /** No steeper than this: open hillside, not a cliff or a wall. */
+    const val HILLSIDE_GRADE = .7
+    /** How far up and down the slope the ground is checked to keep falling. */
+    const val REACH_METERS = 20.0
+    /** Over that reach the ground keeps at least this share of the local slope. */
+    const val SUSTAINED = .5
+
+    /** Metres (east, north): the centre first, then four sides and four diagonals. */
+    fun offsets(radius: Double): List<Pair<Double, Double>> = listOf(0.0 to 0.0, radius to 0.0, -radius to 0.0, 0.0 to radius, 0.0 to -radius,
+        radius * .707 to radius * .707, -radius * .707 to radius * .707, radius * .707 to -radius * .707, -radius * .707 to -radius * .707)
+
+    /**
+     * True when the footprint is an even hillside: one tilted plane explains every height
+     * within [PLANE_METERS] (more for a wide footprint, which spans more of the slope's natural
+     * curve), the plane is no steeper than [HILLSIDE_GRADE], and the ground
+     * [REACH_METERS] up and down the slope keeps falling. The bank of a bridge, underpass or
+     * embankment is a step a few metres high that flattens out on both sides, so it stays
+     * ambiguous. On a hillside the height at the fix is off by about the slope times the
+     * GPS error, which is far better than no height at all.
+     * [sample] gives the model height at metres (east, north) from the fix.
+     */
+    fun hillside(offsets: List<Pair<Double, Double>>, heights: List<Double>, sample: (Double, Double) -> Double?): Boolean {
+        if (offsets.size != heights.size || offsets.size < 4 || heights.any { !it.isFinite() }) return false
+        val mx = offsets.sumOf { it.first } / offsets.size; val my = offsets.sumOf { it.second } / offsets.size
+        val mz = heights.average()
+        var sxx = 0.0; var syy = 0.0; var sxy = 0.0; var sxz = 0.0; var syz = 0.0
+        offsets.forEachIndexed { i, (x0, y0) ->
+            val x = x0 - mx; val y = y0 - my; val z = heights[i] - mz
+            sxx += x * x; syy += y * y; sxy += x * y; sxz += x * z; syz += y * z
+        }
+        val det = sxx * syy - sxy * sxy
+        if (det <= 1e-9) return false
+        val east = (sxz * syy - syz * sxy) / det; val north = (syz * sxx - sxz * sxy) / det
+        val grade = hypot(east, north)
+        if (grade < 1e-3 || grade > HILLSIDE_GRADE) return false
+        val tolerance = maxOf(PLANE_METERS, offsets.maxOf { hypot(it.first, it.second) } * .1)
+        if (offsets.indices.any { i -> abs(heights[i] - (mz + east * (offsets[i].first - mx) + north * (offsets[i].second - my))) > tolerance }) return false
+        val up = sample(east / grade * REACH_METERS, north / grade * REACH_METERS)?.takeIf { it.isFinite() } ?: return false
+        val down = sample(-east / grade * REACH_METERS, -north / grade * REACH_METERS)?.takeIf { it.isFinite() } ?: return false
+        return up - down >= SUSTAINED * grade * 2 * REACH_METERS
+    }
+}
+
 /** Immutable map snapshot. Missing/ambiguous cells stay missing; GPS heights are never substituted. */
 class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val grids: Map<TerrainTileKey, TerrainGrid>,
                          private val world: Map<WorldTileKey, WorldTerrainGrid> = emptyMap()) {
@@ -90,14 +141,14 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
             val grid = TerrainTileKey.at(original)?.let(grids::get)
             if (xy != null && grid != null) {
                 val radius = original.accuracyMeters.toDouble().coerceAtLeast(5.0)
-                val values = listOf(0.0 to 0.0, radius to 0.0, -radius to 0.0, 0.0 to radius, 0.0 to -radius,
-                    radius * .707 to radius * .707, -radius * .707 to radius * .707,
-                    radius * .707 to -radius * .707, -radius * .707 to -radius * .707)
-                    .map { (dx, dy) -> grid.at(xy.first + dx, xy.second + dy) }
+                val offsets = TerrainFootprint.offsets(radius)
+                val values = offsets.map { (dx, dy) -> grid.at(xy.first + dx, xy.second + dy) }
                 val known = values.filterNotNull()
                 val spread = if (known.size >= 2) known.max() - known.min() else 0.0
                 // Reject steep edges/ambiguous location footprints, not a park-specific grade.
-                if (values.all { it != null } && spread <= 3.0) { height = values.first(); model = TerrainModel.IGN_MDT05 }
+                // An even hillside is not ambiguous: one tilted plane explains it.
+                if (values.all { it != null } && (spread <= 3.0 || TerrainFootprint.hillside(offsets, known) { dx, dy -> grid.at(xy.first + dx, xy.second + dy) }))
+                    { height = values.first(); model = TerrainModel.IGN_MDT05 }
                 // A bridge deck, the road below it, an underpass ramp or a wall share this
                 // footprint. Coarser global data would only blur them and mix references.
                 else if (values.first() != null && spread > 3.0)
@@ -108,10 +159,14 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
                 // All uncertainty probes use the center's resolution, including at zoom-band boundaries.
                 val zoom = WorldTileKey.zoom(original.latitude)
                 val dLat = radius / 111195.08; val dLon = dLat / cos(Math.toRadians(original.latitude))
-                val values = listOf(0.0 to 0.0, dLat to 0.0, -dLat to 0.0, 0.0 to dLon, 0.0 to -dLon,
-                    dLat * .707 to dLon * .707, -dLat * .707 to dLon * .707, dLat * .707 to -dLon * .707, -dLat * .707 to -dLon * .707)
-                    .map { (lat, lon) -> sampleWorld(world, original.latitude + lat, ((original.longitude + lon + 540) % 360) - 180, zoom) }
-                if (values.all { it != null } && values.filterNotNull().let { it.max() - it.min() <= 3.0 }) { height = values.first(); model = TerrainModel.MAPZEN }
+                // The same footprint in metres (east, north), so the hillside test reads it alike.
+                fun sample(east: Double, north: Double) =
+                    sampleWorld(world, original.latitude + north / radius * dLat, ((original.longitude + east / radius * dLon + 540) % 360) - 180, zoom)
+                val offsets = TerrainFootprint.offsets(radius)
+                val values = offsets.map { (east, north) -> sample(east, north) }
+                val known = values.filterNotNull()
+                if (values.all { it != null } && (known.max() - known.min() <= 3.0 || TerrainFootprint.hillside(offsets, known, ::sample)))
+                    { height = values.first(); model = TerrainModel.MAPZEN }
             }
         }
         return original.copy(altitudeMeters = height, verticalAccuracyMeters = null, terrainModel = model)

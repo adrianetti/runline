@@ -70,6 +70,20 @@ class GlobalTerrainTest {
         assertEquals(1, tiles.keys.map { it.zoom }.distinct().size)
         assertEquals(100.0, TerrainMapSnapshot(1, true, emptyMap(), tiles).point(point).altitudeMeters!!, .00001)
     }
+    @Test fun worldHillsideKeepsItsHeightButACliffDoesNot() {
+        val point = RunPoint(10.48, -66.90, 0, 10f)
+        val zoom = WorldTileKey.zoom(point.latitude)
+        val row = WorldTileKey.pixels(point.latitude, point.longitude, zoom)!!.second
+        val pixel = 40075016.686 * cos(Math.toRadians(point.latitude)) / ((1 shl zoom) * 256)
+        // Height rises to the north (lower pixel rows) at [grade].
+        fun slope(grade: Double) = WorldTileKey.needed(point).associateWith { key ->
+            WorldTerrainGrid.fromArgb(IntArray(65536) { i -> argb(2000 + (row - (key.y * 256 + i / 256 + .5)) * pixel * grade) })
+        }
+        val hillside = TerrainMapSnapshot(1, true, emptyMap(), slope(.3)).point(point)
+        assertEquals(TerrainModel.MAPZEN, hillside.terrainModel)
+        assertEquals(2000.0, hillside.altitudeMeters!!, 1.0)
+        assertNull(TerrainMapSnapshot(1, true, emptyMap(), slope(1.2)).point(point).altitudeMeters)
+    }
     @Test fun providerSwitchCannotInventGainOrInterpolateDifferentDatums() {
         val points = (0..150).map { i -> RunPoint(10.48 + i * 3.0 / 111195.08, -66.9, i * 1000L, 3f,
             if (i < 75) 100.0 else 140.0, terrainModel = if (i < 75) TerrainModel.IGN_MDT05 else TerrainModel.MAPZEN) }

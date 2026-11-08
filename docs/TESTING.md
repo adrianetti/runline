@@ -285,7 +285,7 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 - **Following.** Walk the route. The island must show distance and ascent left, arrival and the next waypoint. Step 60 m off the path: within 15 s the phone vibrates, the notification title shows the distance, and with voice on the side is spoken. Rejoin: a short vibration and "Back on the route". On an out-and-back leg, progress must keep counting forward. Force-stop during a hike, then resume: the route progress returns, and no cue already behind you is spoken.
 - **Turns.** With voice on, each turn is spoken about 80 m ahead and again at 20 m. Two turns within 60 m are named together. The end of an out-and-back leg says "turn around"; a ravine hairpin says sharp left or right. The island arrow and distance match the cue. With voice off, a short vibration marks each turn. On an imported GPX, every bend in the geometry is a cue.
 - **Climbs and places.** The island shows "Climb ahead" from 2 km out, then the height left inside the climb. The climb is spoken once, about 200 m before. The elevation-ahead profile moves with you. Place notes are spoken once, near their waypoint, in the app language.
-- **Preview.** Preview plays the route in 3D with playback speed and a timeline, and records nothing. Back returns to the route.
+- **Preview.** Preview plays the route in 3D with playback speed and a timeline, and records nothing. Its elevation chart follows the route's profile with no gaps, offline too. Back returns to the route.
 - **Check for new routes** needs network access. A changed or corrupted catalog file must be rejected by its SHA-256.
 
 ## Replay and statistics
@@ -300,6 +300,7 @@ Do not deliberately run down a phone that is needed for navigation or communicat
 - Check totals and kilometre/final partial splits against known samples. Replay metrics and the elevation-profile cursor should track seeking without persistent UI stalls. Route/profile geometry must not be rebuilt every frame on a long recording; playback has a 30-update-per-second target, not a hardware performance guarantee.
 - A no-route/one-point run keeps its saved time; unavailable playback controls must be disabled. Do not claim a video export: no MP4 is produced.
 - Since 0.18, nothing is drawn ahead of the arrow: the route grows behind it, ends exactly at it at every speed, shortens on a backward seek and is complete at the end. Pan away: the arrow recenter control appears at the bottom right and hides again once following. The credits pill opens the credits.
+- Hillsides: on a mountain path, the elevation chart and slope line keep their heights on steep slopes. Gaps are allowed only at real steps, such as bridges, walls, ravine bottoms and ridge crests, and are a few hundred metres at most.
 - Bridges and underpasses: on a run crossing over and under roads, the slope line and elevation chart stay continuous. `points.csv` names `above`, `below` or `ground` for those fixes. A real underpass ramp should not be flattened; report one if it is.
 
 ## GPX file export
@@ -587,3 +588,22 @@ Recorded 7 November 2026 on the API 34 emulator. Mock GPS walked the cleaned Gra
   - dark mode and landscape for the new island rows;
   - real headphones or music.
 - Artifact: `Runline-0.20.0.apk`, **0.20.0 / code 23**, SHA-256 `6f6ca22fa32fcbda3aa5af75f2eb4ae24f0519480eb8b7632f8e75b5bb993566`. The signing certificate is unchanged. Required GitHub checks gate merging the exact PR head.
+
+## Version 0.20.1 validation
+
+Recorded 8 November 2026.
+
+- **Cause.** The 0.20 terrain footprint check treated open hillside as a structure. With real IGN tiles over the Granada loop, fixes on the path lost their height on 660, 1316 and 1676 of 2136 samples at 5, 10 and 15 m accuracy. The longest gaps were 2.1, 5.1 and 5.9 km, all on the Dehesa climb.
+- **Fix, same data.** With the hillside test, the counts fall to 40, 47 and 187, with longest gaps of 266, 313 and 388 m. At 5 and 10 m the longest remaining gap is where the path crosses the Barranco del Olivar ravine. Shifting the whole walk 6 m off the path moved hillside heights by 0.5 m at the median, 2 m at the 90th percentile and 5 m at most.
+- **Build and checks.** **401 JVM tests**, 5 new, with no failures. The new tests cover:
+  - hillside, cliff, bank, ravine and ridge footprints;
+  - a contour path and a climb across a 40% IGN hillside;
+  - a global-terrain hillside against a cliff;
+  - preview heights.
+
+  The 0.17 and 0.18 bridge, underpass and walled-ramp fixtures pass unchanged. Lint: 0 errors / 172 warnings, unchanged. Verified 736 bilingual resources, 53 pinned icons and the route catalog. Seven Semgrep rules found 0 issues in 124 files. The surface checks passed and Gitleaks found no leaks.
+- **API 34 emulator.** Mock GPS walked 1.7 km of the Dehesa hillside, from 3.3 to 5.0 km along the route, at GPS ±5 m.
+  - **Recording replay.** Recorded on 0.20.0, the replay had IGN heights for 7% of the walk, 0 m climbed and an almost empty chart. After updating in place to 0.20.1, the same recording showed 81% mapped, 10 m climbed and 3 m descended. The chart was continuous except at the Barranco del Olivar crossing.
+  - **Route preview at 6.2 km.** 0.20.0 showed holes through the mountain section and 165 m climbed. 0.20.1 showed a continuous profile and 264 m.
+  - **Update and restore.** The update kept the recording. The emulator was restored to 0.19 with its data (80/80 files), and root was disabled.
+- Artifact: `Runline-0.20.1.apk`, **0.20.1 / code 24**, SHA-256 `0dbd86d0357b2acb458a16d40f4b5be792360c45a87418accd13306688b98566`. The signing certificate is unchanged.

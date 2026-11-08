@@ -67,7 +67,9 @@ class RunReplayView(
     private val panel = ElevationIsland(context)
     private val readout = RunReadoutView(context)
     private val terrainRepository = com.runline.app.terrain.TerrainRepository.get(context)
-    private var elevationReplay = RunReplay(terrainRepository.snapshot.project(replay.session))
+    /** A previewed route with its own heights shows them; terrain maps fill in only without. */
+    private val routeHeights = preview && com.runline.app.core.RoutePreview.hasHeights(replay.session)
+    private var elevationReplay = if (routeHeights) replay else RunReplay(terrainRepository.snapshot.project(replay.session))
     private var replayTerrain = ReplayTerrain(elevationReplay)
     private var terrainRevision = -1L
     private var terrainPending = false
@@ -215,13 +217,18 @@ class RunReplayView(
         setPlaybackSpeed(multiplier.takeIf { it in ReplayPresentation.speeds } ?: ReplayPresentation.defaultSpeed(replay.durationMs))
         setPosition(position.coerceIn(0L, replay.durationMs), smoothHeading = false)
     }
-    fun onHostResume() { resumed = true; map.onHostResume(); terrainRepository.request(replay.session.points); refreshTerrain() }
+    fun onHostResume() { resumed = true; map.onHostResume(); if (!routeHeights) terrainRepository.request(replay.session.points); refreshTerrain() }
     fun onHostPause() { resumed = false; playbackGeneration++; pausePlayback(); map.onHostPause() }
     fun dispose() { terrainRepository.unlisten(terrainListener); disposed = true; resumed = false; pausePlayback(); details?.dismiss(); details = null; statsDialog?.dismiss(); statsDialog = null; map.dispose() }
-    override fun onAttachedToWindow() { super.onAttachedToWindow(); terrainRepository.listen(terrainListener); terrainRepository.request(replay.session.points); refreshTerrain() }
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (!routeHeights) { terrainRepository.listen(terrainListener); terrainRepository.request(replay.session.points) }
+        refreshTerrain()
+    }
     override fun onDetachedFromWindow() { terrainRepository.unlisten(terrainListener); pausePlayback(); super.onDetachedFromWindow() }
     private fun refreshTerrain() {
         if (disposed) return
+        if (routeHeights) { setPosition(positionMs, smoothHeading = false); return }
         val snapshot = terrainRepository.snapshot
         if (snapshot.revision != terrainRevision && !snapshot.hasTiles) {
             elevationReplay = RunReplay(snapshot.project(replay.session)); replayTerrain = ReplayTerrain(elevationReplay)

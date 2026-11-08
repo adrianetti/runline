@@ -245,3 +245,17 @@ Recorded 7 November 2026:
 - **Update.** The release kept 80/80 non-cache files when updating 0.19 in place. The emulator was restored to 0.19, 80/80, and root disabled.
 
 Details: [TESTING.md](TESTING.md#version-020-validation). Artifact `Runline-0.20.0.apk`, code 23, SHA-256 `6f6ca22fa32fcbda3aa5af75f2eb4ae24f0519480eb8b7632f8e75b5bb993566`, same signing certificate.
+
+## Version 0.20.1 source changes
+
+- **Elevation on mountain paths.** The terrain check took any footprint with more than 3 m of height spread for a bridge or wall and hid its height. On a path across a steep hillside that is almost every fix, so replays, the elevation chart and the route preview went blank in the mountains. An even hillside is now told apart from a step: one tilted plane must fit the footprint, no steeper than 70%, and the slope must continue 20 m up and down. Bridges, underpasses and embankments stay hidden and levelled as in 0.18. The same test applies to global terrain. [Terrain](TERRAIN.md#hillsides-0201).
+- **Route preview heights.** A route preview shows the route's own heights when every point has one, as route details and the elevation ahead already do. It works offline and has no gaps. Routes without heights still use terrain maps.
+
+## Version 0.20.1 verification
+
+Recorded 8 November 2026:
+- 401 JVM tests; lint 0 errors / 172 warnings; resource, icon, route, Semgrep, surface and Gitleaks checks clean.
+- **Granada loop, real IGN tiles.** Fixes without height fell from 660, 1316 and 1676 of 2136 to 40, 47 and 187, at 5, 10 and 15 m accuracy. The longest gap fell from 2.1–5.9 km to 266–388 m.
+- **API 34.** The same mock-GPS hillside recording went from 7% mapped and 0 m climbed on 0.20.0 to 81% and 10 m on 0.20.1. The route preview's profile has no holes. The emulator was restored to 0.19, 80/80, and root disabled.
+
+Details: [TESTING.md](TESTING.md#version-0201-validation). Artifact `Runline-0.20.1.apk`, code 24, SHA-256 `0dbd86d0357b2acb458a16d40f4b5be792360c45a87418accd13306688b98566`, same signing certificate.

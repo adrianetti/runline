@@ -20,5 +20,18 @@ class RoutePreviewTest {
         assertEquals(1, replay.segments.size)
         assertEquals(route.distanceMeters, replay.summary.distanceMeters, route.distanceMeters * 0.01)
         assertEquals(session.activeDurationMs, replay.durationMs)
+        // The Granada route climbs about 200 m through the Dehesa: its own profile, gap-free.
+        assertTrue(RoutePreview.hasHeights(session))
+        assertTrue(replay.summary.maxAltitudeMeters!! - replay.summary.minAltitudeMeters!! > 200)
+        assertTrue(replay.summary.elevationGainMeters!! > 200)
+    }
+
+    @Test fun `a route without heights everywhere falls back to terrain maps`() {
+        val m = 1 / 110_574.0
+        val none = RoutePreview.session(HikingRoute.of("n", "None", (0..50).map { Triple(37.0 + it * 20 * m, -3.6, null as Double?) }))
+        assertFalse(RoutePreview.hasHeights(none))
+        assertFalse(RoutePreview.hasHeights(none.copy(points = emptyList())))
+        val with = RoutePreview.session(HikingRoute.of("w", "With", (0..50).map { Triple(37.0 + it * 20 * m, -3.6, 700.0 + it) }))
+        assertFalse(RoutePreview.hasHeights(with.copy(points = with.points.mapIndexed { i, p -> if (i == 3) p.copy(altitudeMeters = null) else p })))
     }
 }

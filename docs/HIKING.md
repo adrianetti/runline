@@ -28,7 +28,7 @@ You can also preview a route in 3D before you go.
 
 Two buttons stay fixed at the bottom of the details:
 - **Start** begins recording straight away, with the route attached and the route's activity (hike, walk or run). Location and notification permissions are asked for as usual. During a recording the button opens the recording instead.
-- **Preview** plays the route like a recorded activity: the tilted 3D satellite camera, playback speed from 1× to 480×, a timeline you can drag, and the planned pace, distance, time and climb. Time is Tobler's moving time. Nothing is recorded.
+- **Preview** plays the route like a recorded activity: the tilted 3D satellite camera, playback speed from 1× to 480×, a timeline you can drag, and the planned pace, distance, time and climb. Time is Tobler's moving time. The elevation is the route's own profile, so it works offline and has no gaps. Nothing is recorded.
 
 The route chosen for the next recording is ticked in the Routes list. It also shows on the Record tab, with a button to stop following it.
 

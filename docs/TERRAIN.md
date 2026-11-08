@@ -28,7 +28,7 @@ The regional enhancement is [IGN's WCS terrain service](https://servicios.idee.e
 
 - Transform WGS84 positions to ETRS89 / UTM 30N and request kilometre-aligned areas with a 50 m border. The provider receives area bounds and the network IP, never a GPX, route-point list, timestamp or API key.
 - Download bounded ASCII coverage responses over HTTPS. Use the service's fractional heights rather than integer-quantized TIFF values. Validate dimensions, resolution, finite values and geographic registration. No-data cells remain absent.
-- Bilinearly sample the model. Probe the position's horizontal uncertainty footprint (at least 5 m, at most 20 m); missing probes or more than 3 m of height disagreement reject the position. This is a conservative confidence gate, not proof of surveyed path elevation.
+- Bilinearly sample the model. Probe the position's horizontal uncertainty footprint (at least 5 m, at most 20 m); missing probes or more than 3 m of height disagreement reject the position, unless the footprint is an even hillside (see [Hillsides](#hillsides-0201)). This is a conservative confidence gate, not proof of surveyed path elevation.
 - Persist validated areas atomically in private app storage. Share the bounded cache described above. No package dependency, backend, API key or subscription is required.
 - Use separate network and analysis workers. Downloads and cache failures never block recording durability, alter its clock or supply recording points. Each request has bounded connection/read times, response size and a download deadline. Failed areas have a one-minute retry cooldown; queued work is bounded.
 
@@ -71,3 +71,27 @@ Hiding structures left gaps that cut the slope line and the elevation chart, for
 Stretches longer than 250 m, joins steeper than 30%, or stretches without clean heights on both sides stay unknown. Live coaching keeps the forward-only guard; a stretch being recorded fills in once its far side arrives. GPS heights are never substituted, and recorded fixes never change. `points.csv` names the level in `terrain_level`.
 
 On the 6 November street run this resolved all 4 hidden stretches (63 fixes): one above (the road over another road), one below (under the highway), one above (a ramp the model shows at 23%) and one ground (a ramp at 10%). No height gaps or chart breaks remain. A long viaduct over a flat valley is not handled: the flat floor is not ambiguous, so it is shown as the surface.
+
+## Hillsides (0.20.1)
+
+The footprint check also rejected open hillside. Within the footprint, a path cut across a slope spans more than 3 m of height wherever the slope is steeper than about 30% (5 m footprint) or 15% (10 m footprint). So on mountain paths most fixes had no height, and charts went blank. On the Granada loop's climb through the Dehesa del Generalife, 2 to 6 km of a walk had no height, and the route preview had a 2.1 km gap.
+
+A footprint with more than 3 m of disagreement is now kept as a **hillside** when all three of these hold:
+
+- One tilted plane fits all nine heights within 1 m, or a tenth of the radius when that is more.
+- The plane is no steeper than 70%.
+- 20 m up and 20 m down the slope, the ground keeps at least half that slope.
+
+The bank of a bridge, underpass or embankment is a step a few metres high that flattens out on both sides. It fails the last test and stays a structure, so the 0.17 and 0.18 fixtures behave as before. Ravine bottoms and ridge crests do not fit one plane, so they stay hidden too. Short ones are joined as described above. Global terrain uses the same test.
+
+On a hillside the height is the model's at the fix. Horizontal GPS error therefore becomes a height error of about the slope times the error. Walking the Granada loop 6 m off the path changed heights by 0.5 m at the median and 2 m at the 90th percentile, and 5 m at most.
+
+Measured on the Granada loop with IGN tiles, for fixes on the path at a given accuracy:
+
+| GPS accuracy | Fixes without height, 0.20 → 0.20.1 | Longest gap, 0.20 → 0.20.1 |
+|---|---|---|
+| 5 m | 660 → 40 of 2136 | 2.1 km → 266 m |
+| 10 m | 1316 → 47 | 5.1 km → 313 m |
+| 15 m | 1676 → 187 | 5.9 km → 388 m |
+
+A **route preview** uses the route's own heights when every point has one, as route details and the elevation ahead already do. It needs no download and has no gaps. Terrain maps are used only for routes without heights.
