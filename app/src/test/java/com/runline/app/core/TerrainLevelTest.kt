@@ -88,6 +88,21 @@ class TerrainLevelTest {
         assertTrue((40..60).all { joined[it].altitudeMeters == 655.0 && joined[it].terrainLevel == TerrainLevel.ABOVE })
     }
 
+    @Test fun `a path across or up an even hillside keeps the model's heights`() {
+        // A 40% mountainside rising to the north. A 10 m GPS footprint spans 8 m of height,
+        // which 0.20 took for a structure and left blank.
+        val terrain = map { _, n -> 700.0 + n * .4 }
+        val across = RunSession("contour", 0, 150_000, 150_000, (0 until 150).map {
+            RunPoint(start.latitude, start.longitude + it * 3.0 / (111320.0 * kotlin.math.cos(Math.toRadians(start.latitude))), it * 1000L, 10f)
+        })
+        // Only the synthetic tile has ground; the path leaves it eastwards after about 150 m.
+        val contour = terrain.project(across).points.filter { TerrainTileKey.at(it) == key }
+        assertTrue(contour.size > 40)
+        assertTrue(contour.all { it.terrainModel == TerrainModel.IGN_MDT05 && abs(it.altitudeMeters!! - (700.0 + north(it) * .4)) < .3 })
+        val up = terrain.project(run().let { r -> r.copy(points = r.points.map { it.copy(accuracyMeters = 10f) }) }).points
+        assertTrue(up.all { it.terrainModel == TerrainModel.IGN_MDT05 && abs(it.altitudeMeters!! - (700.0 + north(it) * .4)) < .3 })
+    }
+
     @Test fun `live projection fills a stretch once the clean side arrives and matches the saved view`() {
         val terrain = map { _, n -> band(n, 200.0, 6.0, 6.0, 652.0, 658.0) }
         val full = run()

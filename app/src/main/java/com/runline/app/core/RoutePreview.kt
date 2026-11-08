@@ -32,4 +32,12 @@ object RoutePreview {
         }
         return RunSession("preview-${route.id}", 0L, totalMs, totalMs, out, activity)
     }
+
+    /**
+     * True when every sample carries the route's own height. The preview then shows the
+     * profile the route was planned with, as route details and the elevation ahead do: offline,
+     * and without the gaps a terrain lookup leaves on steep ground.
+     */
+    fun hasHeights(session: RunSession): Boolean =
+        session.points.isNotEmpty() && session.points.all { it.altitudeMeters?.isFinite() == true }
 }
