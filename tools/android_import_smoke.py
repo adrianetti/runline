@@ -87,7 +87,7 @@ def main():
     adb("shell", "cmd", "uimode", "night", "no")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
-    adb("shell", "settings", "put", "system", "user_rotation", "0")
+    adb("shell", "wm", "user-rotation", "lock", "0")
     open_fixture()
     wait_for(ready)
     capture("phone-import-en.png")
@@ -140,7 +140,7 @@ def main():
     open_fixture()
     wait_for(lambda r: ready(r) and bool(matches(r, "Cancelar")))
     capture("phone-import-es-dark-large.png")
-    adb("shell", "settings", "put", "system", "user_rotation", "1")
+    adb("shell", "wm", "user-rotation", "lock", "1")
     def landscape(root):
         bounds = list(map(int, re.findall(r"\d+", next(root.iter("node")).get("bounds"))))
         return ready(root) and bool(matches(root, "Cancelar")) and bounds[2] > bounds[3]
