@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      evidence_run:
+        description: Stage review artifacts from an existing Android run without rebuilding
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -17,6 +23,7 @@ concurrency:
 jobs:
   build:
     name: Android tests, lint and APK
+    if: github.event_name != 'workflow_dispatch' || inputs.evidence_run == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
@@ -129,16 +136,20 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PACKAGE_VERSION: ${{ needs.build.outputs.version }}
+      EVIDENCE_RUN: ${{ inputs.evidence_run }}
     steps:
       - name: Stage review assets in a draft
         run: |
-          gh run download "$GITHUB_RUN_ID" --pattern 'Native-import-*' --dir native
+          source_run="${EVIDENCE_RUN:-$GITHUB_RUN_ID}"
+          [[ "$source_run" =~ ^[0-9]+$ ]]
+          source_sha=$(gh run view "$source_run" --json headSha --jq .headSha)
+          gh run download "$source_run" --pattern 'Native-import-*' --dir native
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             tag="v$PACKAGE_VERSION"
             title="Runline $PACKAGE_VERSION"
           else
-            tag="review-${GITHUB_SHA:0:8}"
-            title="Runline review ${GITHUB_SHA:0:8}"
+            tag="review-${source_sha:0:8}"
+            title="Runline review ${source_sha:0:8}"
           fi
           if gh release view "$tag" --json isDraft --jq .isDraft > draft-state 2>/dev/null; then
             if [ "$(cat draft-state)" != true ]; then
@@ -146,17 +157,19 @@ jobs:
               exit 0
             fi
           else
-            gh release create "$tag" --target "$GITHUB_SHA" --draft --title "$title" --notes 'Verification build. Native captures use synthetic data. Publication follows source checks and signed APK verification.'
+            gh release create "$tag" --target "$source_sha" --draft --title "$title" --notes "Verification build from Android run $source_run. Native captures use synthetic data. Publication follows source checks and signed APK verification."
           fi
-          mapfile -t images < <(rg --files --hidden native | rg '\.png$')
+          # ripgrep is not installed on the hosted runner image.
+          mapfile -t images < <(find native -type f -name '*.png')
           if [ "${#images[@]}" -gt 0 ]; then
             gh release upload "$tag" "${images[@]}" --clobber
           fi
-          if gh run download "$GITHUB_RUN_ID" --pattern 'Runline-*' --dir package; then
-            mapfile -t apks < <(rg --files --hidden package | rg '\.apk$')
+          if gh run download "$source_run" --pattern 'Runline-*' --dir package; then
+            mapfile -t apks < <(find package -type f -name '*.apk')
             test "${#apks[@]}" -eq 1
-            cp "${apks[0]}" "Runline-$PACKAGE_VERSION.apk"
-            gh release upload "$tag" "Runline-$PACKAGE_VERSION.apk" --clobber
+            package_name="Runline-${PACKAGE_VERSION:-review}.apk"
+            cp "${apks[0]}" "$package_name"
+            gh release upload "$tag" "$package_name" --clobber
           else
             test "$GITHUB_EVENT_NAME" != push
           fi
