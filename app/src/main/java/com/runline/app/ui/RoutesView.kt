@@ -103,11 +103,11 @@ class RoutesView(
 }
 
 object RouteFormat {
-    fun shape(context: Context, value: RouteImportNaming.Shape): String? = when (value) {
-        RouteImportNaming.Shape.LOOP -> context.getString(R.string.v19_shape_loop)
-        RouteImportNaming.Shape.OUT_AND_BACK -> context.getString(R.string.route_shape_out_back)
-        RouteImportNaming.Shape.ROUTE -> null
-    }
+    fun shape(context: Context, value: RouteImportNaming.Shape): String = context.getString(when (value) {
+        RouteImportNaming.Shape.LOOP -> R.string.v19_shape_loop
+        RouteImportNaming.Shape.OUT_AND_BACK -> R.string.route_shape_out_back
+        RouteImportNaming.Shape.ROUTE -> R.string.v19_shape_line
+    })
     fun duration(context: Context, minutes: Int): String = if (minutes >= 60)
         context.getString(R.string.v19_duration_hm, minutes / 60, minutes % 60) else context.getString(R.string.v19_duration_m, minutes)
     fun difficulty(context: Context, value: RouteDifficulty): String = context.getString(when (value) {

@@ -262,15 +262,18 @@ Details: [TESTING.md](TESTING.md#version-0201-validation). Artifact `Runline-0.2
 
 ## Version 0.20.2 source changes
 
-- **Add route.** Routes exposes a labeled action that opens Android Files. Compatible external Open with and GPX sharing use the same import flow, including when Runline is already open.
-- **Confirm the name.** A native dialog reads and validates the GPX, then offers an editable name before saving. It prefers the embedded name, then a useful filename, then an offline description from route shape, distance and nearby waypoint labels already in the GPX. Blank input accepts the suggestion; Cancel saves nothing. No place lookup or AI generation is involved.
-- **Import handling.** Reading and editing survive recreation; one confirmation saves one route and opens its details. Read/save failures have localized recovery messages. The chosen name lives in separate metadata, preserving the original GPX bytes.
+- **Add route.** Routes has a visible **Add route** button that opens Android Files. **Open with** and **Share** from other apps use the same flow, also when Runline is already open.
+- **Name it.** A dialog reads the GPX, shows shape · distance · ascent and an editable name, and saves only on **Add route**. A useful GPX title or filename wins. Otherwise the name reads “Granada, Los Pinos – Puente Romano loop 10.3K”: town, start and far point from nearby GPX waypoints or Android's built-in geocoder, then shape and distance. Offline it is “Loop 10.3K”. Default activity titles (“Morning Run”), IDs, dates and Runline's own export suffix are skipped. Blank input accepts the suggestion; Cancel saves nothing.
+- **Start an imported route.** It keeps the activity chosen on Record instead of always recording a hike.
+- **Import handling.** A namespace-aware GPX parser refuses malformed XML, DOCTYPE/entities, over 15 MB and over 100,000 points. Reading and edits survive rotation; one confirmation saves one route. Original GPX bytes are kept; the name is separate metadata.
+- **CI.** Every Android build also runs the seven GPX import tests on an API 34 emulator.
 
 ## Version 0.20.2 verification
 
 Recorded 9 November 2026:
 
-- Debug/release/test APK builds and **410 JVM tests** passed, including nine new naming/parser regressions. Lint reported **0 errors / 173 warnings**; **746 bilingual resources**, **53 pinned icons**, **one catalog route** and **22 security-checker tests** passed their checks.
-- All **seven native import tests** passed on an accelerated API 34 CI emulator, covering confirmation/cancellation, naming and recreation, repeated confirmation, original-byte retention, external intents and invalid GPX. Bounded local captures cover English/light, Spanish/dark at 1.3× text and an invalid file. System-wide display ANRs on the local software-rendered emulator prompted the move to accelerated CI.
+- **416 JVM tests** passed, lint **0 errors / 173 warnings**, 745 bilingual resources, 53 pinned icons, one catalog route and 22 security-checker tests. Debug, release and Android test APKs built.
+- **Seven native import tests** passed on a throwaway API 34 emulator (Google APIs image).
+- **By hand on that emulator:** synthetic GPX files in Downloads, opened with Runline and picked through **Add route → Files**. A Madrid out-and-back was named “Madrid, Callao – Paseo del Prado out and back 3.4K” and opened its route page; a Granada loop became “Granada, Callejon Viernes – Calle Eudoxia Piriz circular 1,7K” in Spanish. A readable filename beat a generic “Morning Run” title. Tapping the name selected it for replacement.
 
-See [TESTING.md](TESTING.md#version-0202-validation) for exact scope and limits. This record does not assert physical-device/field verification, landscape/keyboard checks, signed-update retention, independent final review or publication. Final CI, screenshot and signed-artifact evidence belongs to [PR #33](https://github.com/adrianetti/runline/pull/33) and the [v0.20.2 release page](https://github.com/adrianetti/runline/releases/tag/v0.20.2).
+Not verified: a physical phone, third-party download apps' Open with behaviour, and the signed update over 0.20.1.

@@ -182,7 +182,9 @@ class MainActivity : AppCompatActivity() {
             notice(getString(R.string.v19_routes_imported))
         }
         pendingRouteUri = savedInstanceState?.getString("pendingRouteUri")?.let(Uri::parse)
-            ?: if (savedInstanceState == null) com.runline.app.ui.RouteImportIntents.uri(intent) else null
+            // Recents relaunches with the original Open with/Share intent; that file was already handled.
+            ?: if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0)
+                com.runline.app.ui.RouteImportIntents.uri(intent) else null
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
@@ -462,8 +464,9 @@ class MainActivity : AppCompatActivity() {
             onMore = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
             onStart = {
                 // One tap: choose the route and its activity, then start recording straight away.
+                // An imported GPX has no activity of its own, so it keeps the one chosen on Record.
                 getPreferences(0).edit { putString("followRoute", id) }
-                selectedActivity = entry?.activity ?: ActivityType.HIKE
+                if (entry?.imported != true) selectedActivity = entry?.activity ?: ActivityType.HIKE
                 getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
                 preparation.intent = null
                 screen = "record"; tabs.getTabAt(0)?.select(); render()
@@ -481,7 +484,8 @@ class MainActivity : AppCompatActivity() {
     private fun renderRoutePreview() {
         val id = routeId ?: run { screen = "routes"; render(); return }
         val hiking = runCatching { routes.load(id) }.getOrNull() ?: run { screen = "routes"; render(); return }
-        val activity = runCatching { routes.entry(id, language())?.activity }.getOrNull() ?: ActivityType.HIKE
+        val entry = runCatching { routes.entry(id, language()) }.getOrNull()
+        val activity = if (entry?.imported == true) selectedActivity else entry?.activity ?: ActivityType.HIKE
         replayView = RunReplayView(this, RunReplay(com.runline.app.core.RoutePreview.session(hiking, activity)), preview = true,
             onBack = { screen = "route"; render() }).also { view ->
             body.addView(view, LinearLayout.LayoutParams(-1, -1))

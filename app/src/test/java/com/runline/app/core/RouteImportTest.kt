@@ -40,12 +40,78 @@ class RouteImportTest {
         assertEquals(RouteImportNaming.Shape.LOOP, RouteImportNaming.shape(route(outbound + returnPath + outbound.first())) )
     }
 
-    @Test fun `place labels must come from waypoints close to endpoints or turnaround`() {
-        val original = outBack
-        val named = HikingRoute(original.id, original.name, original.points, listOf(
-            RouteWaypoint(37.0, -3.6, "Gran Vía"), RouteWaypoint(37.01, -3.6, "Museo"), RouteWaypoint(40.0, -4.0, "Unrelated")))
-        assertEquals("Gran Vía – Museo", RouteImportNaming.places(named, RouteImportNaming.Shape.OUT_AND_BACK))
-        assertNull(RouteImportNaming.places(original, RouteImportNaming.Shape.OUT_AND_BACK))
+    private val en = RouteImportNaming.Words("loop", "out and back", "Route")
+    private val es = RouteImportNaming.Words("circular", "ida y vuelta", "Ruta")
+    private val spanish = java.util.Locale.forLanguageTag("es-ES")
+
+    @Test fun `suggestion reads town, start and far point, shape and distance`() {
+        val places = listOf(RouteImportNaming.Place("Madrid", "Gran Vía"), RouteImportNaming.Place("Madrid", "Museo del Prado"))
+        assertEquals("Madrid, Gran Vía – Museo del Prado out and back 2.2K",
+            RouteImportNaming.suggestion(outBack, RouteImportNaming.Shape.OUT_AND_BACK, places, en, java.util.Locale.UK))
+        assertEquals("Madrid, Gran Vía – Museo del Prado ida y vuelta 2,2K",
+            RouteImportNaming.suggestion(outBack, RouteImportNaming.Shape.OUT_AND_BACK, places, es, spanish))
+        val far = listOf(RouteImportNaming.Place("Granada", "Los Pinos"), RouteImportNaming.Place("Granada", "Puente Romano"))
+        assertEquals("Granada, Los Pinos – Puente Romano circular 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP, far, es, spanish))
+    }
+
+    @Test fun `suggestion drops what it does not know`() {
+        assertEquals("Loop 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP, emptyList(), en, java.util.Locale.UK))
+        assertEquals("Ruta 1,1K", RouteImportNaming.suggestion(route(outbound), RouteImportNaming.Shape.ROUTE, listOf(null, null), es, spanish))
+        // A town alone, a spot that is the town, and the same spot at both ends.
+        assertEquals("Granada loop 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP,
+            listOf(RouteImportNaming.Place("Granada", "Granada"), RouteImportNaming.Place("Granada", null)), en, java.util.Locale.UK))
+        assertEquals("Granada, Zaidín loop 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP,
+            listOf(RouteImportNaming.Place("Granada", "Zaidín"), RouteImportNaming.Place(null, "zaidín")), en, java.util.Locale.UK))
+        assertEquals("Alhambra – Sacromonte 1.1K", RouteImportNaming.suggestion(route(outbound), RouteImportNaming.Shape.ROUTE,
+            listOf(RouteImportNaming.Place(null, "Alhambra"), RouteImportNaming.Place(null, "Sacromonte")), en, java.util.Locale.UK))
+    }
+
+    @Test fun `named waypoints near the start or turnaround beat the geocoder`() {
+        val named = HikingRoute(outBack.id, outBack.name, outBack.points, listOf(
+            RouteWaypoint(37.0, -3.6, "Fuente"), RouteWaypoint(37.01, -3.6, "Mirador"), RouteWaypoint(40.0, -4.0, "Unrelated")))
+        val places = listOf(RouteImportNaming.Place("Granada", "Calle Real"), RouteImportNaming.Place("Granada", "Camino"))
+        assertEquals("Granada, Fuente – Mirador out and back 2.2K",
+            RouteImportNaming.suggestion(named, RouteImportNaming.Shape.OUT_AND_BACK, places, en, java.util.Locale.UK))
+    }
+
+    @Test fun `naming points are the start and the turnaround or farthest point`() {
+        assertEquals(37.01, RouteImportNaming.namingPoints(outBack, RouteImportNaming.Shape.OUT_AND_BACK)[1].latitude, 1e-9)
+        val far = RouteImportNaming.namingPoints(loop, RouteImportNaming.Shape.LOOP)[1]
+        assertEquals(37.01, far.latitude, 1e-9); assertEquals(-3.59, far.longitude, 1e-9)
+        assertEquals(outbound.last().first, RouteImportNaming.namingPoints(route(outbound), RouteImportNaming.Shape.ROUTE)[1].latitude, 1e-9)
+    }
+
+    @Test fun `geocoder results keep a specific label and skip numbers, plus codes and broad areas`() {
+        val street = RouteImportNaming.AddressParts(feature = "29", street = "Gran Vía", district = "Centro", town = "Madrid", area = "Madrid", region = "Comunidad de Madrid", country = "España")
+        assertEquals(RouteImportNaming.Place("Madrid", "Gran Vía"), RouteImportNaming.place(listOf(street)))
+        val poi = RouteImportNaming.AddressParts(feature = "Museo Nacional del Prado", street = "Paseo del Prado", town = "Madrid")
+        assertEquals("Museo Nacional del Prado", RouteImportNaming.place(listOf(poi))!!.spot)
+        val trail = RouteImportNaming.AddressParts(feature = "9F3W+X6", street = "Unnamed Road", town = "Güéjar Sierra", area = "Granada", region = "Andalucía")
+        assertEquals(RouteImportNaming.Place("Güéjar Sierra", null), RouteImportNaming.place(listOf(trail)))
+        assertEquals(RouteImportNaming.Place("Granada", "Zaidín"), RouteImportNaming.place(listOf(
+            RouteImportNaming.AddressParts(feature = "Granada", district = "Zaidín", town = "Granada"))))
+        assertEquals(RouteImportNaming.Place("Granada", null), RouteImportNaming.place(listOf(RouteImportNaming.AddressParts(feature = "s/n", area = "Granada"))))
+        assertNull(RouteImportNaming.place(emptyList()))
+    }
+
+    @Test fun `distance reads like race distances`() {
+        assertEquals("10.3K", RouteImportNaming.distance(10_290.0, java.util.Locale.UK))
+        assertEquals("10,3K", RouteImportNaming.distance(10_290.0, spanish))
+        assertEquals("5K", RouteImportNaming.distance(4_990.0, spanish))
+        assertEquals("21,1K", RouteImportNaming.distance(21_097.5, spanish))
+    }
+
+    @Test fun `default activity titles are not route names`() {
+        listOf("Morning Run", "Afternoon run", "Hike", "Run 3f2a9c1e-12ab-4cde-8f00-123456789abc", "Carrera de mañana",
+            "Carrera matutina", "Caminata por la tarde", "Senderismo", "Walk 2").forEach {
+            assertNull(it, RouteImportNaming.suppliedName(it, null))
+        }
+        assertEquals("Run Granada", RouteImportNaming.suppliedName("Run Granada", null))
+        assertEquals("Vereda de la Estrella", RouteImportNaming.suppliedName("Morning Run", "Vereda_de_la_Estrella.gpx"))
+        // Runline's own exports and download copies.
+        assertNull(RouteImportNaming.suppliedName("Walk 3f2a9c1e-12ab-4cde-8f00-123456789abc", "Caminata 8,42 km - 2026-11-01 10-30.gpx"))
+        assertEquals("Vuelta al parque", RouteImportNaming.suppliedName(null, "Vuelta al parque 10.05 km - 2026-11-04 09-15 (2).gpx"))
+        assertEquals("Alhambra", RouteImportNaming.suppliedName(null, "Alhambra (1).gpx"))
     }
 
     @Test fun `parser does not interpret GPX lookalikes inside extensions or foreign namespaces`() {

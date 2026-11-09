@@ -91,7 +91,7 @@ class RouteDetailView(
             R.string.v19_route_lowest to (stats.minElevationMeters?.let { context.getString(R.string.replay_metres, it.roundToInt().toString()) } ?: dash))
         pair(R.string.v19_route_difficulty to RouteFormat.difficulty(context, stats.difficulty),
             R.string.v19_route_shape to if (entry?.imported != false)
-                (RouteFormat.shape(context, RouteImportNaming.shape(route)) ?: dash)
+                RouteFormat.shape(context, RouteImportNaming.shape(route))
             else context.getString(if (entry.loop) R.string.v19_shape_loop else R.string.v19_shape_line))
         content.addView(grid)
         if (stats.maxElevationMeters != null) content.addView(RouteProfileView(context, route), LinearLayout.LayoutParams(-1, dp(88)).apply { topMargin = dp(16) })
