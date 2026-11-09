@@ -102,6 +102,7 @@ class MainActivity : AppCompatActivity() {
     private val routes by lazy { com.runline.app.data.RouteStore(this) }
     private var routeId: String? = null
     private var routesBusy = false
+    private var pendingRouteUri: Uri? = null
     private val importRoute = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) importRouteFrom(uri)
     }
@@ -175,6 +176,13 @@ class MainActivity : AppCompatActivity() {
         if (screen == "history") tabs.getTabAt(1)?.select()
         if (screen == "routes" || screen == "route" || screen == "routePreview") { val keep = screen; tabs.getTabAt(2)?.select(); screen = keep }
         render()
+        supportFragmentManager.setFragmentResultListener(com.runline.app.ui.RouteImportDialog.RESULT, this) { _, result ->
+            routeId = result.getString("id")
+            tabs.getTabAt(2)?.select(); screen = "route"; render()
+            notice(getString(R.string.v19_routes_imported))
+        }
+        pendingRouteUri = savedInstanceState?.getString("pendingRouteUri")?.let(Uri::parse)
+            ?: if (savedInstanceState == null) com.runline.app.ui.RouteImportIntents.uri(intent) else null
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
@@ -193,17 +201,23 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent)
+        pendingRouteUri = com.runline.app.ui.RouteImportIntents.uri(intent)
         openReviewIntent()
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
             intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING)
             screen = "record"; tabs.getTabAt(0)?.select(); render()
         }
     }
+    override fun onPostResume() {
+        super.onPostResume()
+        pendingRouteUri?.let { uri -> pendingRouteUri = null; importRouteFrom(uri) }
+    }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume(); prepareIdle() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
     override fun onDestroy() { about?.close(); dailySuggestion?.dispose(); terrainWarmup.stop(); terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { terrainWarmup.stop(); coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pendingRouteUri", pendingRouteUri?.toString())
         outState.putString("activityType", selectedActivity.storageValue)
         outState.putString("historyType", historyType?.storageValue)
         outState.putString("pendingAction", pendingAction)
@@ -411,7 +425,9 @@ class MainActivity : AppCompatActivity() {
         content.addView(com.runline.app.ui.RoutesView(this, entries, followedRoute(),
             stats = { id -> runCatching { routes.load(id)?.stats }.getOrNull() },
             onOpen = { id -> routeId = id; screen = "route"; render() },
-            onImport = { runCatching { importRoute.launch(arrayOf("application/gpx+xml", "application/octet-stream", "text/xml", "application/xml", "*/*")) } },
+            // Providers often label .gpx as binary/XML or omit its MIME type. Validate the contents after picking.
+            onImport = { runCatching { importRoute.launch(arrayOf("*/*")) }
+                .onFailure { notice(getString(R.string.route_import_picker_failed)) } },
             onRefresh = ::refreshRoutes,
             onAbout = {
                 MaterialAlertDialogBuilder(this).setTitle(R.string.v19_routes_about).setMessage(R.string.v19_routes_about_body)
@@ -428,14 +444,11 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
     private fun importRouteFrom(uri: Uri) {
-        val fallback = runCatching { contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } }.getOrNull() ?: "GPX"
-        Thread {
-            val entry = runCatching { routes.import(uri, fallback) }.getOrNull()
-            runOnUiThread {
-                if (entry == null) notice(getString(R.string.v19_routes_import_failed))
-                else { notice(getString(R.string.v19_routes_imported)); routeId = entry.id; screen = "route"; tabs.getTabAt(2)?.select(); screen = "route"; render() }
-            }
-        }.start()
+        if (supportFragmentManager.isStateSaved) { pendingRouteUri = uri; return }
+        if (supportFragmentManager.findFragmentByTag(com.runline.app.ui.RouteImportDialog.TAG) != null) {
+            notice(getString(R.string.route_import_busy)); return
+        }
+        com.runline.app.ui.RouteImportDialog.create(uri).showNow(supportFragmentManager, com.runline.app.ui.RouteImportDialog.TAG)
     }
     private fun renderRoute() {
         val id = routeId ?: run { screen = "routes"; render(); return }

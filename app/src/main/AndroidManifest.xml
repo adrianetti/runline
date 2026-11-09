@@ -20,8 +20,34 @@
         </intent>
     </queries>
     <application android:localeConfig="@xml/locale_config" android:theme="@style/Theme.Runline" android:label="Runline" android:icon="@drawable/ic_runline" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/gpx" />
+                <data android:mimeType="text/gpx" />
+            </intent-filter>
+            <!-- Some download providers use generic types but keep the .gpx suffix in their URI. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.gpx" />
+                <data android:pathPattern=".*\\..*\\.gpx" />
+                <data android:pathPattern=".*\\..*\\..*\\.gpx" />
+                <data android:pathPattern=".*\\.GPX" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/gpx" />
+                <data android:mimeType="text/gpx" />
+            </intent-filter>
         </activity>
         <service android:name=".tracking.TrackingService" android:exported="false" android:foregroundServiceType="location" android:stopWithTask="false" />
         <service android:name=".ai.ReviewJobService" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />

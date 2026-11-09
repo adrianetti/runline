@@ -35,17 +35,21 @@ class RoutesView(
             minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0)
             contentDescription = context.getString(R.string.v19_routes_options); tooltipText = contentDescription
             setOnClickListener { PopupMenu(context, this).apply {
-                menu.add(0, 1, 0, R.string.v19_routes_import).setIcon(R.drawable.ic_upload)
                 menu.add(0, 2, 1, R.string.v19_routes_refresh).setIcon(R.drawable.ic_refresh)
                 menu.add(0, 3, 2, R.string.v19_routes_about).setIcon(R.drawable.ic_info)
                 menu.forEach { it.icon?.mutate()?.setTint(context.getColor(R.color.on_surface)) }
                 setForceShowIcon(true)
-                setOnMenuItemClickListener { when (it.itemId) { 1 -> onImport(); 2 -> onRefresh(); else -> onAbout() }; true }
+                setOnMenuItemClickListener { when (it.itemId) { 2 -> onRefresh(); else -> onAbout() }; true }
                 show()
             } }
         }, LayoutParams(dp(48), dp(48)))
         addView(heading)
         addView(text(context.getString(R.string.v19_routes_intro), 14, muted = true), margin(top = 4, bottom = 8))
+        addView(MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = context.getString(R.string.route_import_add); isAllCaps = false; setIconResource(R.drawable.ic_upload)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; minHeight = dp(56); cornerRadius = dp(16)
+            setOnClickListener { onImport() }
+        }, margin(top = 8))
         val mine = entries.filter { it.imported }
         if (mine.isNotEmpty()) {
             addView(text(context.getString(R.string.v19_routes_imported_section), 16, bold = true), margin(top = 16, bottom = 4))
@@ -53,14 +57,6 @@ class RoutesView(
         }
         addView(text(context.getString(R.string.v19_routes_catalog_section), 16, bold = true), margin(top = 16, bottom = 4))
         entries.filter { !it.imported }.forEach { addRow(it, onOpen) }
-        if (mine.isEmpty()) {
-            addView(MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = context.getString(R.string.v19_routes_import); isAllCaps = false; setIconResource(R.drawable.ic_upload)
-                iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; minHeight = dp(56); cornerRadius = dp(16)
-                setOnClickListener { onImport() }
-            }, margin(top = 20))
-            addView(text(context.getString(R.string.v19_routes_empty_imported), 13, muted = true).apply { gravity = Gravity.CENTER }, margin(top = 8))
-        }
     }
 
     private fun addRow(entry: RouteEntry, onOpen: (String) -> Unit) {

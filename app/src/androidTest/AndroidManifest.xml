@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Synthetic test files only; this provider never ships in the app APK. -->
+        <provider android:name="com.runline.app.GpxFixtureProvider"
+            android:authorities="com.runline.app.test.gpx" android:exported="true" />
+    </application>
+</manifest>

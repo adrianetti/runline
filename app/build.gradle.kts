@@ -26,7 +26,10 @@ val hasPersonalSigning = personalStore != null && personalPassword != null && ro
 android {
     namespace = "com.runline.app"
     compileSdk = 37
-    defaultConfig { applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 24; versionName = "0.20.1" }
+    defaultConfig {
+        applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 25; versionName = "0.20.2"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     signingConfigs {
         if (hasPersonalSigning) create("personal") {
@@ -52,4 +55,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.8.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 }

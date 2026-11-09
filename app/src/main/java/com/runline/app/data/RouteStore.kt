@@ -9,13 +9,16 @@ import com.runline.app.core.GpxRouteReader
 import com.runline.app.core.HikingRoute
 import com.runline.app.core.RouteCatalog
 import com.runline.app.core.RouteCatalogIndex
+import com.runline.app.core.RouteImportNaming
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
-import java.util.UUID
+
+data class PreparedRouteImport(val id: String, val bytes: ByteArray, val route: HikingRoute,
+                               val suppliedName: String?)
 
 /** A route as listed in the Routes tab. */
 data class RouteEntry(
@@ -88,8 +91,15 @@ class RouteStore(context: Context) {
     private fun catalogEntry(id: String): CatalogRoute? = runCatching { catalog().routes.firstOrNull { it.id == id } }.getOrNull()
     private fun importedName(id: String) = runCatching { JSONObject(File(imported, "$id.json").readText()).getString("name") }.getOrNull()
 
-    /** Reads a GPX file the user picked. Off the main thread. */
-    fun import(uri: Uri, fallbackName: String): RouteEntry {
+    /** Reads and validates without saving anything. Off the main thread, including provider queries. */
+    fun prepareImport(uri: Uri, id: String): PreparedRouteImport {
+        require(uri.scheme == "content" && !uri.authority.isNullOrBlank())
+        require(IMPORTED_ID.matches(id))
+        val fileName = runCatching {
+            app.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                if (it.moveToFirst()) it.getString(0) else null
+            }
+        }.getOrNull()
         val bytes = app.contentResolver.openInputStream(uri)?.use { input ->
             val out = java.io.ByteArrayOutputStream(); val buffer = ByteArray(64 * 1024); var total = 0
             while (true) {
@@ -100,19 +110,33 @@ class RouteStore(context: Context) {
             out.toByteArray()
         } ?: throw IOException("unreadable")
         val parsed = GpxRouteReader.read(bytes)
-        val id = "import-" + UUID.randomUUID().toString()
-        val name = (parsed.name ?: fallbackName.substringBeforeLast('.')).filterNot { it.isISOControl() }.trim().take(120).ifBlank { "GPX" }
-        val route = HikingRoute.of(id, name, parsed.points, parsed.waypoints, parsed.description)
+        val route = HikingRoute.of(id, "GPX", parsed.points, parsed.waypoints, parsed.description)
+        return PreparedRouteImport(id, bytes, route, RouteImportNaming.suppliedName(parsed.name, fileName))
+    }
+
+    /** Confirmation commits one stable ID, so recreation/retry cannot add the same draft twice. */
+    fun commitImport(draft: PreparedRouteImport, requestedName: String): RouteEntry = synchronized(LOCK) {
+        val id = draft.id
+        require(IMPORTED_ID.matches(id))
+        entry(id, "en")?.let { return it }
+        val name = RouteImportNaming.clean(requestedName)
+        require(name.isNotBlank())
+        val route = HikingRoute(id, name, draft.route.points, draft.route.waypoints, draft.route.description)
         val stats = route.stats
-        synchronized(LOCK) {
-            check(imported.isDirectory || imported.mkdirs())
-            writePrivateAtomic(AtomicFile(File(imported, "$id.gpx")), bytes)
-            writePrivateAtomic(AtomicFile(File(imported, "$id.json")), JSONObject().put("version", 1).put("id", id).put("name", name)
+        check(imported.isDirectory || imported.mkdirs())
+        val gpx = AtomicFile(File(imported, "$id.gpx"))
+        val metadata = AtomicFile(File(imported, "$id.json"))
+        try {
+            writePrivateAtomic(gpx, draft.bytes)
+            writePrivateAtomic(metadata, JSONObject().put("version", 1).put("id", id).put("name", name)
                 .put("activity", "hike").put("distance_m", stats.distanceMeters).put("ascent_m", stats.ascentMeters ?: JSONObject.NULL)
                 .put("loop", stats.loop).put("imported_at", System.currentTimeMillis()).toString().toByteArray())
             cache[id] = route
+        } catch (error: Exception) {
+            metadata.delete(); gpx.delete()
+            throw error
         }
-        return RouteEntry(id, name, null, null, true, ActivityType.HIKE, stats.distanceMeters, stats.ascentMeters, stats.loop)
+        RouteEntry(id, name, null, null, true, ActivityType.HIKE, stats.distanceMeters, stats.ascentMeters, stats.loop)
     }
 
     fun delete(id: String) = synchronized(LOCK) {
