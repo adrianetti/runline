@@ -63,13 +63,22 @@ class RouteImportAndroidTest {
     }
 
     @Test fun sharedGpxOpensNamingStepInAnAlreadyRunningApp() {
-        ActivityScenario.launch<MainActivity>(Intent(context, MainActivity::class.java)).use { scenario ->
+        val launchIntent = Intent(context, MainActivity::class.java)
+        ActivityScenario.launch<MainActivity>(launchIntent).use { scenario ->
             scenario.onActivity {
                 it.startActivity(Intent(it, MainActivity::class.java).setAction(Intent.ACTION_SEND)
                     .putExtra(Intent.EXTRA_STREAM, uri("Afternoon.gpx")).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
             }
             ready(scenario)
-            scenario.onActivity { assertEquals("Afternoon", field(dialog(it)!!).text.toString()) }
+            scenario.onActivity {
+                val dialog = dialog(it)!!
+                assertEquals("Afternoon", field(dialog).text.toString())
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick()
+                // Scenario matches lifecycle events by Intent; MainActivity adopts the incoming SEND.
+                // Restore only the test launch intent so teardown can observe DESTROYED.
+                it.intent = launchIntent
+                it.finish()
+            }
         }
     }
 

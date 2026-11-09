@@ -259,3 +259,9 @@ Recorded 8 November 2026:
 - **API 34.** The same mock-GPS hillside recording went from 7% mapped and 0 m climbed on 0.20.0 to 81% and 10 m on 0.20.1. The route preview's profile has no holes. The emulator was restored to 0.19, 80/80, and root disabled.
 
 Details: [TESTING.md](TESTING.md#version-0201-validation). Artifact `Runline-0.20.1.apk`, code 24, SHA-256 `0dbd86d0357b2acb458a16d40f4b5be792360c45a87418accd13306688b98566`, same signing certificate.
+
+## Version 0.20.2 source changes
+
+- **Add route.** Routes exposes a labeled action that opens Android Files. Compatible external Open with and GPX sharing use the same import flow, including when Runline is already open.
+- **Confirm the name.** A native dialog reads and validates the GPX, then offers an editable name before saving. It prefers the embedded name, then a useful filename, then an offline description from route shape, distance and nearby waypoint labels already in the GPX. Blank input accepts the suggestion; Cancel saves nothing. No place lookup or AI generation is involved.
+- **Import handling.** Reading and editing survive recreation; one confirmation saves one route and opens its details. Read/save failures have localized recovery messages. The chosen name lives in separate metadata, preserving the original GPX bytes.
