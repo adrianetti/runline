@@ -13,7 +13,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/** Synthetic fixtures only. Java keeps this separate APK's provider independent of app libraries. */
+/** Synthetic fixtures only, in the instrumented process to avoid emulator provider-start deadlines. */
 public class GpxFixtureProvider extends ContentProvider {
     public static final String GPX = "<gpx><trk><trkseg><trkpt lat='0' lon='0'/><trkpt lat='0.01' lon='0'/><trkpt lat='0' lon='0'/></trkseg></trk></gpx>";
     @Override public boolean onCreate() { return true; }
