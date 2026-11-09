@@ -18,6 +18,7 @@ import com.google.android.material.button.MaterialButton
 import com.runline.app.R
 import com.runline.app.core.HikingRoute
 import com.runline.app.core.RouteGeometry
+import com.runline.app.core.RouteImportNaming
 import com.runline.app.core.SunTimes
 import com.runline.app.data.RouteEntry
 import java.time.Instant
@@ -89,7 +90,9 @@ class RouteDetailView(
         pair(R.string.v19_route_highest to (stats.maxElevationMeters?.let { context.getString(R.string.replay_metres, it.roundToInt().toString()) } ?: dash),
             R.string.v19_route_lowest to (stats.minElevationMeters?.let { context.getString(R.string.replay_metres, it.roundToInt().toString()) } ?: dash))
         pair(R.string.v19_route_difficulty to RouteFormat.difficulty(context, stats.difficulty),
-            R.string.v19_route_shape to context.getString(if (entry?.loop ?: stats.loop) R.string.v19_shape_loop else R.string.v19_shape_line))
+            R.string.v19_route_shape to if (entry?.imported != false)
+                (RouteFormat.shape(context, RouteImportNaming.shape(route)) ?: dash)
+            else context.getString(if (entry.loop) R.string.v19_shape_loop else R.string.v19_shape_line))
         content.addView(grid)
         if (stats.maxElevationMeters != null) content.addView(RouteProfileView(context, route), LinearLayout.LayoutParams(-1, dp(88)).apply { topMargin = dp(16) })
         content.addView(text(context.getString(R.string.v19_route_time_note), 12, muted = true), row(top = 8))

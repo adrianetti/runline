@@ -35,6 +35,7 @@ class RouteImportAndroidTest {
             assertArrayEquals(GpxFixtureProvider.GPX.toByteArray(), store.gpx(id))
             assertEquals(saved.id, store.commitImport(draft, "Duplicate tap").id)
             assertEquals("My route", store.entry(id, "en")!!.name)
+            assertEquals(com.runline.app.core.RouteImportNaming.Shape.OUT_AND_BACK, store.entry(id, "en")!!.shape)
             assertEquals(1, store.list("en").count { it.id == id })
         } finally { store.delete(id) }
     }

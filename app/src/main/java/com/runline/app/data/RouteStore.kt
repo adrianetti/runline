@@ -31,6 +31,7 @@ data class RouteEntry(
     val distanceMeters: Double,
     val ascentMeters: Double?,
     val loop: Boolean,
+    val shape: RouteImportNaming.Shape? = null,
 )
 
 /**
@@ -57,7 +58,8 @@ class RouteStore(context: Context) {
             runCatching {
                 val o = JSONObject(file.readText()); require(o.getInt("version") == 1)
                 RouteEntry(o.getString("id"), o.getString("name"), null, null, true, ActivityType.fromStorage(o.optString("activity", "hike")),
-                    o.getDouble("distance_m"), if (o.isNull("ascent_m")) null else o.getDouble("ascent_m"), o.getBoolean("loop"))
+                    o.getDouble("distance_m"), if (o.isNull("ascent_m")) null else o.getDouble("ascent_m"), o.getBoolean("loop"),
+                    RouteImportNaming.Shape.entries.firstOrNull { it.name == o.optString("shape") })
             }.getOrNull()
         }
         return mine + catalog
@@ -123,6 +125,7 @@ class RouteStore(context: Context) {
         require(name.isNotBlank())
         val route = HikingRoute(id, name, draft.route.points, draft.route.waypoints, draft.route.description)
         val stats = route.stats
+        val shape = RouteImportNaming.shape(route)
         check(imported.isDirectory || imported.mkdirs())
         val gpx = AtomicFile(File(imported, "$id.gpx"))
         val metadata = AtomicFile(File(imported, "$id.json"))
@@ -130,13 +133,13 @@ class RouteStore(context: Context) {
             writePrivateAtomic(gpx, draft.bytes)
             writePrivateAtomic(metadata, JSONObject().put("version", 1).put("id", id).put("name", name)
                 .put("activity", "hike").put("distance_m", stats.distanceMeters).put("ascent_m", stats.ascentMeters ?: JSONObject.NULL)
-                .put("loop", stats.loop).put("imported_at", System.currentTimeMillis()).toString().toByteArray())
+                .put("loop", stats.loop).put("shape", shape.name).put("imported_at", System.currentTimeMillis()).toString().toByteArray())
             cache[id] = route
         } catch (error: Exception) {
             metadata.delete(); gpx.delete()
             throw error
         }
-        RouteEntry(id, name, null, null, true, ActivityType.HIKE, stats.distanceMeters, stats.ascentMeters, stats.loop)
+        RouteEntry(id, name, null, null, true, ActivityType.HIKE, stats.distanceMeters, stats.ascentMeters, stats.loop, shape)
     }
 
     fun delete(id: String) = synchronized(LOCK) {

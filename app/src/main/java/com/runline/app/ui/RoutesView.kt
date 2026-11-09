@@ -12,6 +12,7 @@ import androidx.core.view.forEach
 import com.google.android.material.button.MaterialButton
 import com.runline.app.R
 import com.runline.app.core.RouteDifficulty
+import com.runline.app.core.RouteImportNaming
 import com.runline.app.data.RouteEntry
 import kotlin.math.roundToInt
 
@@ -67,7 +68,8 @@ class RoutesView(
         val stats = listOfNotNull(context.getString(R.string.v19_km, km),
             (computed?.ascentMeters ?: entry.ascentMeters)?.let { context.getString(R.string.v19_ascent_short, it.roundToInt()) }, time).joinToString(" · ")
         val meta = listOfNotNull(computed?.difficulty?.let { RouteFormat.difficulty(context, it) },
-            context.getString(if (entry.loop) R.string.v19_shape_loop else R.string.v19_shape_line), entry.region).joinToString(" · ")
+            if (entry.shape != null) RouteFormat.shape(context, entry.shape)
+            else context.getString(if (entry.loop) R.string.v19_shape_loop else R.string.v19_shape_line), entry.region).joinToString(" · ")
         val row = LinearLayout(context).apply {
             orientation = VERTICAL; setPadding(dp(4), dp(18), dp(4), dp(18)); minimumHeight = dp(80)
             isClickable = true; isFocusable = true
@@ -101,6 +103,11 @@ class RoutesView(
 }
 
 object RouteFormat {
+    fun shape(context: Context, value: RouteImportNaming.Shape): String? = when (value) {
+        RouteImportNaming.Shape.LOOP -> context.getString(R.string.v19_shape_loop)
+        RouteImportNaming.Shape.OUT_AND_BACK -> context.getString(R.string.route_shape_out_back)
+        RouteImportNaming.Shape.ROUTE -> null
+    }
     fun duration(context: Context, minutes: Int): String = if (minutes >= 60)
         context.getString(R.string.v19_duration_hm, minutes / 60, minutes % 60) else context.getString(R.string.v19_duration_m, minutes)
     fun difficulty(context: Context, value: RouteDifficulty): String = context.getString(when (value) {

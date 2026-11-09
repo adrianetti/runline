@@ -10,5 +10,6 @@
     <string name="route_import_busy">Finish adding the current route first.</string>
     <string name="route_import_loop">Loop route · %1$s km</string>
     <string name="route_import_out_back">Out-and-back route · %1$s km</string>
+    <string name="route_shape_out_back">Out and back</string>
     <string name="route_import_route">Route · %1$s km</string>
 </resources>

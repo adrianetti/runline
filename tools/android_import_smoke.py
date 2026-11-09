@@ -112,7 +112,8 @@ def main():
     assert matches(root, "Morning-walk"), "Filename was not suggested after the Files result"
     capture("phone-import-files.png")
     tap("Add route", button=True)
-    wait_for(lambda r: bool(matches(r, "Morning-walk")) and not ready(r))
+    wait_for(lambda r: bool(matches(r, "Morning-walk")) and bool(matches(r, "Out and back")) and not ready(r))
+    wait_for(lambda r: not matches(r, "Route imported") and not matches(r, "Loading satellite…"))
     capture("phone-route-added.png")
     # Inspect only our debug app's synthetic fixture, using its debuggable identity.
     files = adb("shell", "run-as", PACKAGE, "ls", "files/routes/imported").split()
@@ -126,6 +127,9 @@ def main():
     original = adb("exec-out", "run-as", PACKAGE, "cat", f"files/routes/imported/{saved[0]['id']}.gpx", binary=True)
     assert original == GPX, "Files import changed the original GPX bytes"
     print("Files picker → editable suggestion → one saved route with unchanged GPX: passed", flush=True)
+    tap("Routes")
+    wait_for(lambda r: bool(matches(r, "Morning-walk")) and any("Out and back" in n.get("text", "") for n in r.iter("node")))
+    capture("phone-routes-saved.png")
 
     open_fixture("invalid.gpx")
     root = wait_for(lambda r: bool(matches(r, "Close")))
