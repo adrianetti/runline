@@ -40,7 +40,10 @@ def wait_for(predicate):
         except (RuntimeError, ET.ParseError):
             pass
         time.sleep(1)
-    raise AssertionError("Android did not reach the expected import state")
+    OUT.mkdir(parents=True, exist_ok=True)
+    capture("smoke-failure.png")
+    (OUT / "smoke-failure.xml").write_text(adb("shell", "cat", "/sdcard/import-window.xml"))
+    raise AssertionError("Android did not reach the expected import state; see the captured screen")
 
 
 def matches(root, text):
@@ -65,8 +68,9 @@ def capture(name):
 
 def open_fixture(name="track.gpx"):
     adb("shell", "am", "force-stop", PACKAGE)
-    adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d",
-        f"content://com.runline.app.test.gpx/{name}", "-t", "application/gpx+xml", "-p", PACKAGE)
+    result = adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d",
+                 f"content://com.runline.app.test.gpx/{name}", "-t", "application/gpx+xml", "-p", PACKAGE)
+    assert "Error" not in result, result
 
 
 def ready(root):
@@ -77,6 +81,8 @@ def ready(root):
 def main():
     # This is a disposable emulator, not a connected physical phone.
     assert adb("shell", "getprop", "ro.kernel.qemu").strip() == "1"
+    # AGP's connected-test runner removes its APKs at teardown.
+    adb("install", "-r", "app/build/outputs/apk/debug/app-debug.apk")
     adb("shell", "cmd", "locale", "set-app-locales", PACKAGE, "--user", "0", "--locales", "en")
     adb("shell", "cmd", "uimode", "night", "no")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")

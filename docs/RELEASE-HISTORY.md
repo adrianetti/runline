@@ -265,3 +265,12 @@ Details: [TESTING.md](TESTING.md#version-0201-validation). Artifact `Runline-0.2
 - **Add route.** Routes exposes a labeled action that opens Android Files. Compatible external Open with and GPX sharing use the same import flow, including when Runline is already open.
 - **Confirm the name.** A native dialog reads and validates the GPX, then offers an editable name before saving. It prefers the embedded name, then a useful filename, then an offline description from route shape, distance and nearby waypoint labels already in the GPX. Blank input accepts the suggestion; Cancel saves nothing. No place lookup or AI generation is involved.
 - **Import handling.** Reading and editing survive recreation; one confirmation saves one route and opens its details. Read/save failures have localized recovery messages. The chosen name lives in separate metadata, preserving the original GPX bytes.
+
+## Version 0.20.2 verification
+
+Recorded 9 November 2026:
+
+- Debug/release/test APK builds and **410 JVM tests** passed, including nine new naming/parser regressions. Lint reported **0 errors / 173 warnings**; **745 bilingual resources**, **53 pinned icons**, **one catalog route** and **22 security-checker tests** passed their checks.
+- All **seven native import tests** passed on an accelerated API 34 CI emulator, covering confirmation/cancellation, naming and recreation, repeated confirmation, original-byte retention, external intents and invalid GPX. Bounded local captures cover English/light, Spanish/dark at 1.3× text and an invalid file. System-wide display ANRs on the local software-rendered emulator prompted the move to accelerated CI.
+
+See [TESTING.md](TESTING.md#version-0202-validation) for exact scope and limits. This record does not assert physical-device/field verification, full Files picker or landscape/keyboard checks, signed-update retention, independent final review or publication. Final CI, screenshot and signed-artifact evidence belongs to [PR #33](https://github.com/adrianetti/runline/pull/33) and the [v0.20.2 release page](https://github.com/adrianetti/runline/releases/tag/v0.20.2).

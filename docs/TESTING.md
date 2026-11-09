@@ -1,6 +1,6 @@
-# Version 0.20 test checklist
+# Version 0.20.2 test checklist
 
-The checklist is not a blanket pass report. Current v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.20.2 and earlier v0.20.1/v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -607,3 +607,12 @@ Recorded 8 November 2026.
   - **Route preview at 6.2 km.** 0.20.0 showed holes through the mountain section and 165 m climbed. 0.20.1 showed a continuous profile and 264 m.
   - **Update and restore.** The update kept the recording. The emulator was restored to 0.19 with its data (80/80 files), and root was disabled.
 - Artifact: `Runline-0.20.1.apk`, **0.20.1 / code 24**, SHA-256 `0dbd86d0357b2acb458a16d40f4b5be792360c45a87418accd13306688b98566`. The signing certificate is unchanged.
+
+## Version 0.20.2 validation
+
+Recorded 9 November 2026 for **0.20.2 / code 25**.
+
+- **Build and checks.** Debug, release and Android test APK builds passed. All **410 JVM tests**, including nine new import regressions, passed. Lint reported **0 errors / 173 warnings**. Checks passed for **745 bilingual resources**, **53 pinned icons**, **one catalog route** and **22 security-checker tests**. The new JVM cases cover supplied-name precedence and cleanup, generic filenames, loop/out-and-back geometry, nearby waypoint labels, namespace/extension isolation, malformed XML and external entities, literal CDATA and parser size/point limits.
+- **Native import tests.** All **seven Android tests** passed on the accelerated API 34 runner in [CI run 42544845919](https://github.com/adrianetti/runline/actions/runs/42544845919/job/128927487521). They cover preparation without saving, unchanged original GPX bytes and stable import IDs, content-URI restrictions, Open with intent matching, sharing into an already running app, edited-name retention through recreation and cancellation, blank-name fallback, repeated confirmation and invalid GPX rejection. The sharing test's ActivityScenario cleanup was corrected to restore its launch intent before teardown; the corrected local rerun also passed.
+- **Bounded visual evidence.** Local captures cover English/light Routes and the naming dialog, Spanish/dark at 1.3× text, and the invalid-GPX state. The local software-rendered emulator developed system-wide display ANRs involving SystemUI and other services; the Runline trace was blocked in Android window removal during display recreation. The complete native test suite therefore ran on the accelerated CI emulator.
+- **Scope.** The native tests use a synthetic content provider. These results do not establish the complete Files picker flow, third-party provider behavior, landscape/keyboard layouts, an exact signed-update retention check or physical-device/field operation. Independent final review and publication are not asserted by this record. [PR #33](https://github.com/adrianetti/runline/pull/33) and the [v0.20.2 release page](https://github.com/adrianetti/runline/releases/tag/v0.20.2) are the records for final CI, screenshot and signed-artifact evidence.

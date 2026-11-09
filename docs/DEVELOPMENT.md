@@ -27,3 +27,5 @@ Official builds retain the dedicated per-app signing key used since v0.2, so And
 Local release signing is optional: `app/build.gradle.kts` reads an ignored `.signing/signing.properties` or `RUNLINE_STORE_FILE` / `RUNLINE_SIGNING_PASSWORD`. Without it, `assembleRelease` builds an unsigned APK. Keep keys and passwords outside Git. Pull requests never receive signing secrets; main-branch builds use repository secrets and upload signed APKs as workflow artifacts.
 
 A release is published only after source checks and the exact signed APK have been verified. [Release history](RELEASE-HISTORY.md) retains prior checksums and verification scope; [TESTING.md](TESTING.md) tracks device checks.
+
+Successful main builds stage the signed APK and synthetic native captures in a draft release for verification. Manual Android workflow runs stage review drafts. Publication is a separate step, and the workflow never replaces assets on a published release.

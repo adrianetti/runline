@@ -19,11 +19,21 @@ jobs:
     name: Android tests, lint and APK
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.package_version.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Read package version
+        id: package_version
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import pathlib, re
+          source = pathlib.Path('app/build.gradle.kts').read_text()
+          print('version=' + re.search(r'versionName = "([0-9.]+)"', source).group(1))
+          PY
       - name: Prepare stable app signing
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -82,8 +92,11 @@ jobs:
           path: |
             .impeccable/review/
             app/build/outputs/androidTest-results/
+            ${{ runner.temp }}/emulator.log
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
+
       - name: Upload APK
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -101,3 +114,49 @@ jobs:
             app/build/test-results/
           if-no-files-found: ignore
           retention-days: 14
+
+  draft:
+    name: Prepare draft release for verification
+    needs: build
+    # Manual review builds can expose diagnostic captures even when the smoke check fails.
+    # Signed release candidates require a successful main-branch build and stay unpublished.
+    if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'))
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PACKAGE_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Stage review assets in a draft
+        run: |
+          gh run download "$GITHUB_RUN_ID" --pattern 'Native-import-*' --dir native
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            tag="v$PACKAGE_VERSION"
+            title="Runline $PACKAGE_VERSION"
+          else
+            tag="review-${GITHUB_SHA:0:8}"
+            title="Runline review ${GITHUB_SHA:0:8}"
+          fi
+          if gh release view "$tag" --json isDraft --jq .isDraft > draft-state 2>/dev/null; then
+            if [ "$(cat draft-state)" != true ]; then
+              echo 'A published release already exists; keeping its assets unchanged.'
+              exit 0
+            fi
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --draft --title "$title" --notes 'Verification build. Native captures use synthetic data. Publication follows source checks and signed APK verification.'
+          fi
+          mapfile -t images < <(rg --files --hidden native | rg '\.png$')
+          if [ "${#images[@]}" -gt 0 ]; then
+            gh release upload "$tag" "${images[@]}" --clobber
+          fi
+          if gh run download "$GITHUB_RUN_ID" --pattern 'Runline-*' --dir package; then
+            mapfile -t apks < <(rg --files --hidden package | rg '\.apk$')
+            test "${#apks[@]}" -eq 1
+            cp "${apks[0]}" "Runline-$PACKAGE_VERSION.apk"
+            gh release upload "$tag" "Runline-$PACKAGE_VERSION.apk" --clobber
+          else
+            test "$GITHUB_EVENT_NAME" != push
+          fi
