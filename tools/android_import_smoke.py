@@ -86,6 +86,7 @@ def main():
     adb("shell", "cmd", "locale", "set-app-locales", PACKAGE, "--user", "0", "--locales", "en")
     adb("shell", "cmd", "uimode", "night", "no")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "1")
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
     adb("shell", "wm", "user-rotation", "lock", "0")
     open_fixture()
@@ -157,6 +158,18 @@ def main():
     while "mInputShown=true" not in adb("shell", "dumpsys", "input_method"):
         assert time.monotonic() < deadline, "The native keyboard did not open"
         time.sleep(1)
+    # InputShown is set before the keyboard window has rendered its first frame.
+    # Wait for the actual visible surface, not just the request to show it.
+    while True:
+        windows = adb("shell", "dumpsys", "window", "windows")
+        keyboard = next((block for block in re.split(r"\n  Window #", windows)
+                         if re.match(r"\d+ Window\{[^\n]* InputMethod\}", block)), "")
+        if "mHasSurface=true" in keyboard and "mDrawState=HAS_DRAWN" in keyboard and "isOnScreen=true" in keyboard:
+            break
+        assert time.monotonic() < deadline, "The keyboard window did not render"
+        time.sleep(1)
+    # Let SurfaceFlinger present the frame after WindowManager marks it drawn.
+    time.sleep(1)
     capture("phone-import-es-keyboard.png")
 
 
