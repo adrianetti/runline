@@ -54,7 +54,7 @@ dependencies {
     implementation("com.google.android.material:material:1.14.0")
     implementation("androidx.appcompat:appcompat:1.8.0")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20240303")
+    testImplementation("org.json:json:20260814")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
 }
