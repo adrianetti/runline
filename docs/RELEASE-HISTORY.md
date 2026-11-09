@@ -259,3 +259,21 @@ Recorded 8 November 2026:
 - **API 34.** The same mock-GPS hillside recording went from 7% mapped and 0 m climbed on 0.20.0 to 81% and 10 m on 0.20.1. The route preview's profile has no holes. The emulator was restored to 0.19, 80/80, and root disabled.
 
 Details: [TESTING.md](TESTING.md#version-0201-validation). Artifact `Runline-0.20.1.apk`, code 24, SHA-256 `0dbd86d0357b2acb458a16d40f4b5be792360c45a87418accd13306688b98566`, same signing certificate.
+
+## Version 0.20.2 source changes
+
+- **Add route.** Routes has a visible **Add route** button that opens Android Files. **Open with** and **Share** from other apps use the same flow, also when Runline is already open.
+- **Name it.** A dialog reads the GPX, shows shape · distance · ascent and an editable name, and saves only on **Add route**. A useful GPX title or filename wins. Otherwise the name reads “Granada, Los Pinos – Puente Romano loop 10.3K”: town, start and far point from nearby GPX waypoints or Android's built-in geocoder, then shape and distance. Offline it is “Loop 10.3K”. Default activity titles (“Morning Run”), IDs, dates and Runline's own export suffix are skipped. Blank input accepts the suggestion; Cancel saves nothing.
+- **Start an imported route.** It keeps the activity chosen on Record instead of always recording a hike.
+- **Import handling.** A namespace-aware GPX parser refuses malformed XML, DOCTYPE/entities, over 15 MB and over 100,000 points. Reading and edits survive rotation; one confirmation saves one route. Original GPX bytes are kept; the name is separate metadata.
+- **CI.** Every Android build also runs the seven GPX import tests on an API 34 emulator.
+
+## Version 0.20.2 verification
+
+Recorded 9 November 2026:
+
+- **416 JVM tests** passed, lint **0 errors / 173 warnings**, 745 bilingual resources, 53 pinned icons, one catalog route and 22 security-checker tests. Debug, release and Android test APKs built.
+- **Seven native import tests** passed on a throwaway API 34 emulator (Google APIs image).
+- **By hand on that emulator:** synthetic GPX files in Downloads, opened with Runline and picked through **Add route → Files**. A Madrid out-and-back was named “Madrid, Callao – Paseo del Prado out and back 3.4K” and opened its route page; a Granada loop became “Granada, Callejon Viernes – Calle Eudoxia Piriz circular 1,7K” in Spanish. A readable filename beat a generic “Morning Run” title. Tapping the name selected it for replacement.
+
+Not verified: a physical phone, third-party download apps' Open with behaviour, and the signed update over 0.20.1.

@@ -1,6 +1,6 @@
-# Version 0.20 test checklist
+# Version 0.20.2 test checklist
 
-The checklist is not a blanket pass report. Current v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
+The checklist is not a blanket pass report. Current v0.20.2 and earlier v0.20.1/v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
 ## Build and unit checks
 
@@ -607,3 +607,12 @@ Recorded 8 November 2026.
   - **Route preview at 6.2 km.** 0.20.0 showed holes through the mountain section and 165 m climbed. 0.20.1 showed a continuous profile and 264 m.
   - **Update and restore.** The update kept the recording. The emulator was restored to 0.19 with its data (80/80 files), and root was disabled.
 - Artifact: `Runline-0.20.1.apk`, **0.20.1 / code 24**, SHA-256 `0dbd86d0357b2acb458a16d40f4b5be792360c45a87418accd13306688b98566`. The signing certificate is unchanged.
+
+## Version 0.20.2 validation
+
+Recorded 9 November 2026 for **0.20.2 / code 25**.
+
+- **Build and checks.** 416 JVM tests, lint 0 errors / 173 warnings, 745 bilingual resources, 53 pinned icons, one catalog route and 22 security-checker tests passed. The import tests cover name precedence and generic titles, Runline export filenames, loop/out-and-back geometry, naming points, geocoder label filtering (house numbers, plus codes, unnamed roads, broad areas), “10,3K” distances, namespace isolation, malformed XML, external entities and size/point limits.
+- **Native import tests.** Seven Android tests passed on a throwaway API 34 Google APIs emulator: preparation without saving, original bytes and stable IDs, content-URI-only intents, Open with matching, sharing into a running app, edits surviving recreation, cancellation, blank-name fallback, double confirmation and invalid GPX. CI runs the same tests on every build.
+- **Manual, same emulator.** Open with and **Add route → Files** both opened the naming dialog. Geocoded suggestions in English and Spanish, wrapping long names, select-all on tap, saving and opening route details all worked.
+- **Not tested.** Physical phone, third-party download/file apps, landscape, signed update retention over 0.20.1, and geocoder quality outside Granada and Madrid.

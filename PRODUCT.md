@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.20.0 (code 23) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.20.2 (code 25) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -144,3 +144,9 @@ Following a route now guides you along it.
 - **Cleaner first route.** Dead-end spurs and a loop left over from routing were removed; `tools/check_routes.py` now refuses such spurs.
 
 See docs/HIKING.md and docs/RELEASE-0.20-PLAN.md.
+
+## GPX import — 0.20.2
+
+Routes has a visible Add route action that opens Android Files. Compatible external apps can also open or share a GPX with Runline. Both paths read the file, show an editable suggested name and require Add route before saving. Cancel saves nothing; successful import opens route details without starting a recording. Invalid or unreadable files and save failures have localized recovery messages. Imported GPX bytes remain unchanged in private storage; the chosen name is separate route metadata.
+
+Names prefer a useful GPX title, then a readable filename; default activity titles, IDs and dates are skipped. Otherwise the suggestion reads “Granada, Los Pinos – Puente Romano loop 10.3K”: town, start and far point, shape and distance. Nearby named waypoints beat map labels; places come from Android's built-in geocoder for two points only, and offline the suggestion falls back to shape and distance. Names are editable, limited to 120 characters, and blank input accepts the suggestion. Starting an imported route keeps the activity chosen on Record.

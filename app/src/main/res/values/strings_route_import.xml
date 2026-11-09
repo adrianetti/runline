@@ -1,0 +1,14 @@
+<resources>
+    <string name="route_import_add">Add route</string>
+    <string name="route_import_name">Route name</string>
+    <string name="route_import_reading">Reading GPX…</string>
+    <string name="route_import_saving">Adding route…</string>
+    <string name="route_import_invalid">Couldn\'t read this route. Choose a GPX file with a track or route, up to 15 MB.</string>
+    <string name="route_import_save_failed">Couldn\'t save the route. Check free space and try again.</string>
+    <string name="route_import_picker_failed">Couldn\'t open Files. Try opening the GPX with Runline from your file manager.</string>
+    <string name="route_import_busy">Finish adding the current route first.</string>
+    <string name="route_shape_out_back">Out and back</string>
+    <string name="route_name_loop">loop</string>
+    <string name="route_name_out_back">out and back</string>
+    <string name="route_name_route">Route</string>
+</resources>

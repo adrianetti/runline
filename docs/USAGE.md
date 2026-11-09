@@ -4,7 +4,7 @@ Runs, walks and hikes on Android 8.0+, with local history, maps, replay and opti
 
 ## Follow a route
 
-Open **Routes** and pick an open route, or use **⋯ → Import GPX** to add your own. The route page shows distance, ascent, estimated time, difficulty, an elevation profile, waypoints and today's sunset. **Hike this route** puts it on the Record tab; tap Start as usual. While recording, the route is dashed on the map and the island shows what is left. If you stray from the path, the phone vibrates and tells you which way it is. Details: [Hiking and routes](HIKING.md).
+Open **Routes** and pick an open route, or tap **Add route** to add your own GPX (you can also open or share a GPX with Runline). The route page shows distance, ascent, estimated time, difficulty, an elevation profile, waypoints and today's sunset. **Hike this route** puts it on the Record tab; tap Start as usual. While recording, the route is dashed on the map and the island shows what is left. If you stray from the path, the phone vibrates and tells you which way it is. Details: [Hiking and routes](HIKING.md).
 
 ## Record an activity
 
