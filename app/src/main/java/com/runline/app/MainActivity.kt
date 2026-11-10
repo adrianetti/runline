@@ -22,7 +22,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.ArrayAdapter
-import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputLayout
 import com.runline.app.core.ActivityType
 import com.runline.app.i18n.AppLanguage
@@ -300,12 +299,14 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(text(getString(R.string.main_ready), 30, bold = true), margin(bottom = 24))
         val types = ActivityType.entries
-        val field = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedExposedDropdownMenuStyle).apply {
+        // The picker opens only on a tap: on some phones the rebuilt Record screen opened it by itself.
+        var picker: com.runline.app.ui.TapDropdown? = null
+        val field = com.runline.app.ui.TapDropdown.field(this) { picker }.apply {
             hint = getString(R.string.main_activity_type)
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
             endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
         }
-        val choice = MaterialAutoCompleteTextView(field.context).apply {
+        val choice = com.runline.app.ui.TapDropdown(field.context).apply {
             inputType = android.text.InputType.TYPE_NULL
             setAdapter(ArrayAdapter(context, android.R.layout.simple_list_item_1, types.map(::activityName)))
             setText(activityName(selectedActivity), false)
@@ -316,6 +317,7 @@ class MainActivity : AppCompatActivity() {
                 preparation.intent = null; render(); prepareIdle()
             }
         }
+        picker = choice
         field.addView(choice, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, margin(bottom = 16))
         val controls = LinearLayout(this).apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }

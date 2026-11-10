@@ -282,6 +282,7 @@ Not verified: a physical phone, third-party download apps' Open with behaviour, 
 
 - **Open with finds Runline.** Android has no MIME type for `.gpx`, so Chrome downloads, Files and My Files pass it as `application/octet-stream` or XML with an opaque URI. Open with and Share now accept those types (and `application/x-gpx`); the import still checks the file and refuses anything that isn't a GPX route.
 - **+ to add.** Routes adds a GPX from a **+** beside ⋯ instead of a full-width button.
+- **Activity picker.** On Record, the Run/Walk/Hike list no longer opens by itself when you come back to the tab (seen on a Samsung). It opens only after a tap or an accessibility click.
 - **Names.** A filename that is a provider ID glued to words (“1448280673GRANADAPINOSGENIL…”) is skipped, so the place-based suggestion is used.
 
 Verified 10 November 2026: 416 JVM tests, lint 0 errors, resource, icon (53), route and security checks. Seven import tests on a throwaway API 34 emulator. There, a `.gpx` pushed to Downloads was stored as `application/octet-stream`; Runline resolved for it as octet-stream, XML and GPX types but not PDF, opened it, and suggested “Madrid, Callao – Paseo del Prado out and back 3.4K”. **+** opened the Files picker. Not tested on a physical phone or in Chrome's own download list.
