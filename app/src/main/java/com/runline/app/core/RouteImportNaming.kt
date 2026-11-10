@@ -46,7 +46,10 @@ object RouteImportNaming {
             // Download copies ("Alhambra (1)") and Runline's own export suffix ("Caminata 8,42 km - 2026-11-01 10-30").
             .replace(Regex("\\s*\\(\\d+\\)$"), "")
             .replace(Regex("\\s+\\d+[.,]\\d+ km - \\d{4}-\\d{2}-\\d{2} \\d{2}-\\d{2}$"), "")
-        return clean(file).takeUnless(::isGeneric)
+            // Provider IDs glued to the front, as in "1448280673GRANADAPINOSGENIL".
+            .replace(Regex("^\\d{6,}[\\s.-]*"), "")
+        // A long run of letters with no spaces ("GRANADAPINOSGENILGUEJAR") is not readable as a name.
+        return clean(file).takeUnless { isGeneric(it) || (' ' !in it && it.length > 18) }
     }
 
     fun shape(route: HikingRoute): Shape {

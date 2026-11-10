@@ -12,7 +12,7 @@ You can also preview a route in 3D before you go.
 ## Routes tab
 
 - **Open routes.** The catalog in [`routes/`](../routes/README.md) is bundled with the app. **Routes → ⋯ → Check for new routes** downloads newer routes from GitHub. Every file must match the SHA-256 in the catalog, and the bundled copy stays in use until a download is complete and verified.
-- **Add route.** Tap **Routes → Add route**, then choose a `.gpx` file from Files or a connected document provider. You can also download a GPX elsewhere and choose **Open with → Runline**, or share a GPX attachment to Runline. Providers must grant access to a content URI; if a download app does not recognize GPX, use the in-app picker.
+- **Add route.** Tap **+** at the top of Routes, then choose a `.gpx` file from Files or a connected document provider. You can also download a GPX elsewhere and choose **Open with → Runline**, or share a GPX attachment to Runline. Android has no MIME type for `.gpx`, so Chrome, Files and My Files pass it as a binary or XML file; Runline accepts those and checks the contents before saving. Providers must grant access to a content URI; if an app still does not offer Runline, use **+**.
 - **Name, then add.** Keep or edit the suggested name and tap **Add route**. Tapping the name selects it, so typing replaces it; a blank name uses the suggestion; Cancel saves nothing. A useful GPX title wins, then a readable filename. Default activity titles (“Morning Run”, “Carrera de mañana”), IDs, dates and Runline's own export suffix don't count. Otherwise Runline builds a name from the town, the start, the far point (finish, turnaround, or the point of a loop farthest from the start), the shape and the distance: “Granada, Los Pinos – Puente Romano loop 10.3K”, “Madrid, Gran Vía – Museo del Prado out and back 5K”. Named waypoints within 100 m of those points beat map labels. Places come from Android's built-in geocoder for just those two points, in the app language; offline or without a geocoder the suggestion is shape and distance only (“Loop 10.3K”). Shape is a conservative geometry estimate.
 - **GPX contents.** Runline reads track points (or route points when there is no track) and named waypoints, and ignores timestamps and device extensions. The parser refuses malformed XML, DOCTYPE/entity declarations, files over 15 MB and more than 100,000 points. Multiple tracks/segments are read in file order as one planned route, so check its preview before following it. Original GPX bytes are retained for export; the chosen name is stored separately. Imports stay on the phone and never become recorded activities.
 - Each route lists its distance, ascent, estimated moving time, difficulty and shape.
@@ -55,20 +55,22 @@ The route chosen for the next recording is ticked in the Routes list. It also sh
 
 - **Map.** The planned route is a dashed line under your recorded track.
 - **Live readout.** The island shows the distance and ascent left, your arrival time, and a warning when you would arrive after sunset. It also shows the next named waypoint.
-- **Approaching.** Before you reach the route, it shows the distance to its start.
+- **Getting to the start.** Until you reach the route, the island says where its start is, as the crow flies: "Start 450 m to your left", or a compass point ("to the north-east") before you are moving. A thin dotted line on the map joins you to the start.
+  - Runline says it too, when following begins, at about 1 km, 500, 200, 100 and 50 m, when the start falls behind you, and every 3 minutes otherwise.
+  - For street directions, tap the signpost in the island, or **⋯ → Directions to start** on the route page. Google Maps opens in walking navigation (any maps app otherwise); recording keeps running, and Runline takes over once you are on the route.
 - **Matching.** Each fix is matched to the route by expected progress, not just the nearest point, so out-and-back legs and loops count correctly.
 - **Joining.** You can join the route anywhere. Runline joins the earliest part of the route within reach, so a loop starts at its start. If that is a neighbouring leg (near a junction, or beside a parallel path), the first 300 m move you to the leg running the way you walk, without an off-route alert.
 - **Off route.** You are off route when 3 fixes over at least 10 s are further from the path than 1.5× the GPS accuracy, clamped to 35–80 m.
-  - The phone vibrates and the notification title says **Off route · N m**.
-  - When voice is on, Runline says how far away the path is, and on which side relative to your direction of travel.
+  - The phone vibrates, Runline says how far away the path is and on which side, and a **Route alerts** notification pops up, so it reaches a locked phone or one showing another app. It clears when you are back on the route.
   - The alert repeats every 2 minutes while you stay off route.
   - Two fixes well inside the threshold put you back on route, with a short vibration and "Back on the route".
+- **Wrong way.** On the route but going backwards along it for 60 m (you turned round, or set off round a loop the other way): three vibrations, "Wrong way. The route goes the other way." and the same pop-up. About 20 m the right way clears it. Wobble while standing still does not count, and neither does the way back along an out-and-back leg.
 - **Finishing.** The route is complete within 30 m of its end, once at least half of it is behind you.
 - **Restarts.** The route is saved with the session. After an app restart, progress is rebuilt from the recorded fixes, and every cue already behind you stays silent.
 
 ## Navigation
 
-Cues come from the route itself and work offline. They are spoken only when voice is on. Without voice, the island still shows them, and the phone vibrates briefly at each turn.
+Cues come from the route itself and work offline. They are spoken whenever you follow a route, even with the voice coach off; the coach switch only controls pace and AI coaching. The island shows them too, and the phone vibrates briefly at each turn.
 
 ### Turns
 

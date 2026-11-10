@@ -50,10 +50,20 @@ class ActiveRunView(
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private val routeText = label("", 14).apply { maxLines = 3 }
+    /** Street directions to the start, handed to the phone's maps app; only while still on the way there. */
+    private var routeStart: Pair<Double, Double>? = null
+    private val directions = com.google.android.material.button.MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+        setIconResource(R.drawable.ic_directions); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
+        minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0); visibility = GONE
+        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+        contentDescription = context.getString(R.string.v21_directions); tooltipText = contentDescription
+        setOnClickListener { routeStart?.let { (lat, lon) -> RouteDirections.open(context, lat, lon) } }
+    }
     private val routeRow = LinearLayout(context).apply {
         gravity = Gravity.CENTER_VERTICAL; visibility = GONE
         addView(routeIcon, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(8) })
         addView(routeText, LinearLayout.LayoutParams(0, -2, 1f))
+        addView(directions, LinearLayout.LayoutParams(dp(48), dp(48)))
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
     }
     /** GPS-style: arrow, distance and instruction for the next manoeuvre. */
@@ -206,10 +216,20 @@ class ActiveRunView(
         val p = route.progress
         val locale = resources.configuration.locales[0]
         fun km(m: Double) = String.format(locale, "%.1f", m / 1000)
-        val off = p?.state == com.runline.app.core.RouteState.OFF_ROUTE
-        val text = when (p?.state) {
-            null -> route.name
-            com.runline.app.core.RouteState.APPROACHING -> context.getString(R.string.v19_island_approach, p.distanceFromRouteMeters.roundToInt())
+        val wrongWay = p?.wrongWay == true && p.state == com.runline.app.core.RouteState.ON_ROUTE
+        val off = p?.state == com.runline.app.core.RouteState.OFF_ROUTE || wrongWay
+        val approaching = p?.state == com.runline.app.core.RouteState.APPROACHING
+        routeStart = route.points.firstOrNull()?.let { it.latitude to it.longitude }
+        directions.visibility = if (approaching && recording && (p?.distanceFromRouteMeters ?: 0.0) > 150 && routeStart != null) VISIBLE else GONE
+        val here = lastState.run?.points?.lastOrNull()
+        val start = routeStart
+        if (approaching && here != null && start != null) map.setApproachLine(here.latitude, here.longitude, start.first, start.second)
+        else map.clearApproachLine()
+        val text = when {
+            p == null -> route.name
+            wrongWay -> context.getString(R.string.v21_island_wrong_way)
+            else -> when (p.state) {
+            com.runline.app.core.RouteState.APPROACHING -> approachText(p)
             com.runline.app.core.RouteState.OFF_ROUTE -> p.side?.let {
                 context.getString(R.string.v19_island_off, p.distanceFromRouteMeters.roundToInt(), context.getString(when (it) {
                     com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
@@ -232,11 +252,28 @@ class ActiveRunView(
                 }.orEmpty()
                 main + sunset + climbLine(route.guidance, p.doneMeters) + next
             }
-        }
+        } }
         change(routeText, text)
         routeText.typeface = Typeface.create(if (off) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
         routeIcon.setImageResource(if (off) R.drawable.ic_warning else R.drawable.ic_route)
         routeRow.contentDescription = "${route.name}. $text"
+    }
+
+    /** "Start 450 m to your left", or a compass point before you are moving; as the crow flies. */
+    private fun approachText(p: com.runline.app.core.RouteProgress): String {
+        val meters = com.runline.app.core.RouteApproach.round(p.distanceFromRouteMeters)
+        val distance = if (meters >= 1000) context.getString(R.string.v20_island_km, String.format(resources.configuration.locales[0], "%.1f", meters / 1000.0))
+            else context.getString(R.string.v20_island_meters, meters)
+        val where = p.side?.let { context.getString(when (it) {
+            com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
+            com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead; com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
+        }) } ?: p.bearingToRouteDegrees?.let { context.getString(when (com.runline.app.core.Compass.of(it)) {
+            com.runline.app.core.Compass.NORTH -> R.string.v21_compass_n; com.runline.app.core.Compass.NORTH_EAST -> R.string.v21_compass_ne
+            com.runline.app.core.Compass.EAST -> R.string.v21_compass_e; com.runline.app.core.Compass.SOUTH_EAST -> R.string.v21_compass_se
+            com.runline.app.core.Compass.SOUTH -> R.string.v21_compass_s; com.runline.app.core.Compass.SOUTH_WEST -> R.string.v21_compass_sw
+            com.runline.app.core.Compass.WEST -> R.string.v21_compass_w; com.runline.app.core.Compass.NORTH_WEST -> R.string.v21_compass_nw
+        }) }
+        return where?.let { context.getString(R.string.v21_island_start, distance, it) } ?: context.getString(R.string.v21_island_start_plain, distance)
     }
 
     /** "Climb ahead: 110 m over 1.2 km, ~9%" from 2 km out, then the height still to climb. */

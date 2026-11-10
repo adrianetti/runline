@@ -58,7 +58,6 @@
     <string name="v19_island_route_no_ascent">Quedan %1$s km · llegada %2$s</string>
     <string name="v19_island_after_sunset">Llegada después del anochecer (%1$s)</string>
     <string name="v19_island_next">Siguiente: %1$s en %2$s km</string>
-    <string name="v19_island_approach">%1$d m hasta el inicio de la ruta</string>
     <string name="v19_island_off">Fuera de ruta · %1$d m · el camino está %2$s</string>
     <string name="v19_island_off_plain">Fuera de ruta · a %1$d m del camino</string>
     <string name="v19_side_left">a tu izquierda</string>

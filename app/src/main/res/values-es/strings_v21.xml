@@ -1,0 +1,22 @@
+<resources>
+    <string name="v21_say_m">%1$d metros</string>
+    <string name="v21_say_km">%1$s kilómetros</string>
+    <string name="v21_say_start_where">El inicio de la ruta está a %1$s %2$s.</string>
+    <string name="v21_say_start">El inicio de la ruta está a %1$s.</string>
+    <string name="v21_compass_n">al norte</string>
+    <string name="v21_compass_ne">al noreste</string>
+    <string name="v21_compass_e">al este</string>
+    <string name="v21_compass_se">al sureste</string>
+    <string name="v21_compass_s">al sur</string>
+    <string name="v21_compass_sw">al suroeste</string>
+    <string name="v21_compass_w">al oeste</string>
+    <string name="v21_compass_nw">al noroeste</string>
+    <string name="v21_route_wrong_way">Vas en sentido contrario. La ruta sigue por el otro lado.</string>
+    <string name="v21_route_alert_channel">Avisos de ruta</string>
+    <string name="v21_route_alert_channel_description">Fuera de ruta y sentido contrario, también con la pantalla apagada.</string>
+    <string name="v21_island_start">Inicio a %1$s %2$s</string>
+    <string name="v21_island_start_plain">Inicio a %1$s</string>
+    <string name="v21_island_wrong_way">Sentido contrario · da la vuelta</string>
+    <string name="v21_directions">Cómo llegar al inicio</string>
+    <string name="v21_directions_failed">No hay ninguna app de mapas para abrir la ruta</string>
+</resources>

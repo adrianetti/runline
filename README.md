@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.20.2:** add your own routes. **Routes → Add route** opens Files, or open/share any downloaded GPX with Runline. It suggests a name like “Granada, Los Pinos – Puente Romano loop 10.3K” from the route's town, places, shape and distance; keep it or type your own. [Hiking and routes](docs/HIKING.md#routes-tab).
+**New in 0.21:** guidance to the route start. The island and voice say where it is ("Start 450 m to your left"), a dotted line on the map points the way, and one tap opens Google Maps walking directions. Directions are spoken even with the voice coach off. Off route and wrong way also pop up as a notification. Runline appears in **Open with** for downloaded GPX files, and Routes adds one with **+**. [Hiking and routes](docs/HIKING.md#following-a-route).
+
+**In 0.20.2:** add your own routes. **Routes → Add route** opens Files, or open/share any downloaded GPX with Runline. It suggests a name like “Granada, Los Pinos – Puente Romano loop 10.3K” from the route's town, places, shape and distance; keep it or type your own. [Hiking and routes](docs/HIKING.md#routes-tab).
 
 **In 0.20.1:** elevation on mountain paths. Replays, the elevation chart and the route preview no longer go blank on steep hillsides; only bridges, underpasses and other real steps stay hidden. [Terrain](docs/TERRAIN.md#hillsides-0201).
 

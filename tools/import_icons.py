@@ -21,7 +21,7 @@ SOURCE = ROOT / "third_party/tabler-icons"
 DESTINATION = ROOT / "app/src/main/res/drawable"
 ICONS = {
     "run": "run", "play": "player-play", "pause": "player-pause", "stop": "player-stop",
-    "history": "history", "route": "route", "upload": "upload", "download": "download",
+    "history": "history", "route": "route", "download": "download",
     "share": "share", "trash": "trash", "info": "info-circle", "battery": "battery",
     "shield_check": "shield-check", "back": "arrow-left", "more": "dots",
     "external_link": "external-link", "clock": "clock", "check": "check",
@@ -36,7 +36,7 @@ ICONS = {
     "turn_left": "corner-up-left", "turn_right": "corner-up-right",
     "turn_sharp_left": "arrow-sharp-turn-left", "turn_sharp_right": "arrow-sharp-turn-right",
     "turn_around": "arrow-back-up", "turn_zigzag": "arrow-zig-zag", "straight": "arrow-up",
-    "preview": "drone", "climb": "mountain",
+    "preview": "drone", "climb": "mountain", "add": "plus", "directions": "directions",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)

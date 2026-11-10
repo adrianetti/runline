@@ -110,6 +110,8 @@ class TrackingService : Service(), LocationListener {
     private var routeModel: com.runline.app.core.HikingRoute? = null
     private var routeGuidance: com.runline.app.core.RouteGuidance? = null
     private var lastRouteAlert = 0L
+    private val routeApproach = com.runline.app.core.RouteApproach()
+    private var routeWrongWay = false
     @Volatile private var foreground = false
     @Volatile private var published = TrackingState()
 
@@ -270,8 +272,9 @@ class TrackingService : Service(), LocationListener {
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Runline:recording").apply {
                     setReferenceCounted(false); acquire(WAKE_LOCK_TIMEOUT_MS)
                 }
-            reloadCoaching()
+            // The route first: following one turns on spoken directions even with the voice coach off.
             loadRoute()
+            reloadCoaching()
             worker.removeCallbacks(ticker); worker.post(ticker)
             publish(); updateNotification()
         } catch (_: Exception) { fail(R.string.tracking_check_location_storage) }
@@ -397,13 +400,17 @@ class TrackingService : Service(), LocationListener {
             // Replaying the fixes also settles every cue already behind the hiker, so none is spoken late.
             session.points.forEach { p -> last = follower.update(p.latitude, p.longitude, p.accuracyMeters, p.timestampMs).also { guidance?.update(it) } }
             routeFollower = follower; routeId = id; routeProgress = last; routeState = last?.state
+            routeApproach.reset(); routeWrongWay = last?.wrongWay == true
             routeModel = route; routeGuidance = guidance
             routeName = routes.entry(id, language)?.name ?: route.name
             routePoints = route.runPoints()
             routeSunset = com.runline.app.core.SunTimes.sunset(java.time.LocalDate.now().toEpochDay(), route.points.first().latitude, route.points.first().longitude)
         }
     }
-    private fun clearRoute() { routeFollower = null; routeId = null; routeProgress = null; routeState = null; routePoints = emptyList(); routeModel = null; routeGuidance = null }
+    private fun clearRoute() {
+        routeFollower = null; routeId = null; routeProgress = null; routeState = null; routePoints = emptyList(); routeModel = null; routeGuidance = null
+        routeApproach.reset(); routeWrongWay = false; cancelRouteAlert()
+    }
 
     private fun updateRoute(latitude: Double, longitude: Double, accuracyMeters: Float, timeMs: Long) {
         val follower = routeFollower ?: return
@@ -414,6 +421,11 @@ class TrackingService : Service(), LocationListener {
             val now = SystemClock.elapsedRealtime()
             val repeat = progress.state == com.runline.app.core.RouteState.OFF_ROUTE && now - lastRouteAlert >= 120_000
             if (progress.changed || repeat) { lastRouteAlert = now; routeAlert(progress, previous); publish(); updateNotification() }
+            if (progress.wrongWay != routeWrongWay) {
+                routeWrongWay = progress.wrongWay
+                if (progress.wrongWay) wrongWayAlert() else if (progress.state == com.runline.app.core.RouteState.ON_ROUTE) cancelRouteAlert()
+            }
+            routeApproach.update(progress, System.currentTimeMillis())?.let(::approachCue)
             routeGuidance?.let { guidance -> guidance.update(progress)?.let { routeCue(guidance, it) } }
         }
     }
@@ -480,6 +492,59 @@ class TrackingService : Service(), LocationListener {
         }
         val state = progress.state
         coachSpeech?.speakRoute(key.first, text, key.second) { published.status == RecordingStatus.RECORDING && routeState == state }
+        if (state == com.runline.app.core.RouteState.OFF_ROUTE) showRouteAlert(text) else cancelRouteAlert()
+    }
+
+    /** "The start of the route is 450 metres to your left." As the crow flies; Directions hands off to a maps app. */
+    private fun approachCue(cue: com.runline.app.core.ApproachCue) {
+        val distance = if (cue.meters >= 1000) tr(R.string.v21_say_km, String.format(AppLanguage.localizedContext(this).resources.configuration.locales[0], "%.1f", cue.meters / 1000.0))
+            else tr(R.string.v21_say_m, cue.meters)
+        val where = cue.side?.let { tr(sideText(it)) } ?: cue.compass?.let { tr(compassText(it)) }
+        val text = where?.let { tr(R.string.v21_say_start_where, distance, it) } ?: tr(R.string.v21_say_start, distance)
+        coachSpeech?.speakRoute("approach", text, com.runline.app.core.CoachSpeechPriority.NAVIGATION) {
+            published.status == RecordingStatus.RECORDING && routeState == com.runline.app.core.RouteState.APPROACHING
+        }
+    }
+
+    private fun wrongWayAlert() {
+        runCatching {
+            val vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(android.os.VibratorManager::class.java).defaultVibrator
+                else @Suppress("DEPRECATION") getSystemService(android.os.Vibrator::class.java)
+            vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 250, 150, 250, 150, 250), -1))
+        }
+        val text = tr(R.string.v21_route_wrong_way)
+        coachSpeech?.speakRoute("wrong-way", text, com.runline.app.core.CoachSpeechPriority.NAVIGATION) {
+            published.status == RecordingStatus.RECORDING && routeWrongWay
+        }
+        showRouteAlert(text)
+    }
+
+    /** A heads-up that reaches a locked or busy phone; one at a time, replaced and cleared as the route state changes. */
+    private fun showRouteAlert(text: String) {
+        runCatching {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(ROUTE_ALERT_CHANNEL, tr(R.string.v21_route_alert_channel), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = tr(R.string.v21_route_alert_channel_description)
+                // Runline vibrates and speaks itself; the channel only makes it pop up.
+                setSound(null, null); enableVibration(false); setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            })
+            val open = PendingIntent.getActivity(this, 1, packageManager.getLaunchIntentForPackage(packageName)!!
+                .putExtra(EXTRA_OPEN_RECORDING, true).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            manager.notify(ROUTE_ALERT, Notification.Builder(this, ROUTE_ALERT_CHANNEL).setSmallIcon(R.drawable.ic_warning)
+                .setContentTitle(routeName.ifBlank { tr(R.string.v21_route_alert_channel) }).setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .apply { if (Build.VERSION.SDK_INT >= 28) setCategory(Notification.CATEGORY_NAVIGATION) }
+                .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(false).build())
+        }
+    }
+    private fun cancelRouteAlert() { runCatching { getSystemService(NotificationManager::class.java).cancel(ROUTE_ALERT) } }
+    private fun compassText(compass: com.runline.app.core.Compass) = when (compass) {
+        com.runline.app.core.Compass.NORTH -> R.string.v21_compass_n; com.runline.app.core.Compass.NORTH_EAST -> R.string.v21_compass_ne
+        com.runline.app.core.Compass.EAST -> R.string.v21_compass_e; com.runline.app.core.Compass.SOUTH_EAST -> R.string.v21_compass_se
+        com.runline.app.core.Compass.SOUTH -> R.string.v21_compass_s; com.runline.app.core.Compass.SOUTH_WEST -> R.string.v21_compass_sw
+        com.runline.app.core.Compass.WEST -> R.string.v21_compass_w; com.runline.app.core.Compass.NORTH_WEST -> R.string.v21_compass_nw
     }
     private fun sideText(side: com.runline.app.core.RouteSide) = when (side) {
         com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
@@ -497,7 +562,7 @@ class TrackingService : Service(), LocationListener {
         if (current == null) { stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf() }
     }
     private fun releaseRecordingResources() {
-        coachEngine?.pause(); coachSpeech?.stop(); aiCoach?.pause()
+        coachEngine?.pause(); coachSpeech?.stop(); aiCoach?.pause(); cancelRouteAlert()
         worker.removeCallbacks(ticker); runCatching { locations.removeUpdates(this) }
         wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
     }
@@ -526,7 +591,8 @@ class TrackingService : Service(), LocationListener {
                     autoPause = RecordingSettings.autoPause(this))
                 coachSpeech?.reset()
             }
-            if (next.enabled && mode == RecordingStatus.RECORDING) {
+            // Pace and AI coaching stay silent unless the coach is on; a followed route still gets its directions.
+            if ((next.enabled || routeFollower != null) && mode == RecordingStatus.RECORDING) {
                 if (coachSpeech == null) coachSpeech = CoachSpeech(this, onDiagnostic = { event, text, source, cue, situation ->
                     published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.speech(
                         this, observed, event, text, source, cue, situation, !published.gpsStale) }
@@ -661,7 +727,9 @@ class TrackingService : Service(), LocationListener {
         const val EXTRA_OPEN_RECORDING = "com.runline.app.OPEN_RECORDING"
         private const val EXTRA_NOTIFICATION_RUN_ID = "com.runline.app.NOTIFICATION_RUN_ID"
         private const val CHANNEL = "run_recording"
+        private const val ROUTE_ALERT_CHANNEL = "route_alerts"
         private const val NOTIFICATION = 1001
+        private const val ROUTE_ALERT = 1002
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
         @Volatile private var instance: TrackingService? = null
         @Volatile private var cached: TrackingState? = null

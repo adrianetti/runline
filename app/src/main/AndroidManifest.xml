@@ -29,6 +29,13 @@
                 <data android:mimeType="application/gpx+xml" />
                 <data android:mimeType="application/gpx" />
                 <data android:mimeType="text/gpx" />
+                <data android:mimeType="application/x-gpx+xml" />
+                <data android:mimeType="application/x-gpx" />
+                <!-- Android has no MIME type for .gpx, so Files, My Files and browser downloads label it
+                     binary or XML. Accept those; the import validates the contents before saving. -->
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
             </intent-filter>
             <!-- Some download providers use generic types but keep the .gpx suffix in their URI. -->
             <intent-filter>
@@ -48,6 +55,13 @@
                 <data android:mimeType="application/gpx+xml" />
                 <data android:mimeType="application/gpx" />
                 <data android:mimeType="text/gpx" />
+                <data android:mimeType="application/x-gpx+xml" />
+                <data android:mimeType="application/x-gpx" />
+                <!-- Android has no MIME type for .gpx, so Files, My Files and browser downloads label it
+                     binary or XML. Accept those; the import validates the contents before saving. -->
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
             </intent-filter>
         </activity>
         <service android:name=".tracking.TrackingService" android:exported="false" android:foregroundServiceType="location" android:stopWithTask="false" />

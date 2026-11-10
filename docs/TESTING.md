@@ -1,4 +1,4 @@
-# Version 0.20.2 test checklist
+# Version 0.21.0 test checklist
 
 The checklist is not a blanket pass report. Current v0.20.2 and earlier v0.20.1/v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
@@ -616,3 +616,14 @@ Recorded 9 November 2026 for **0.20.2 / code 25**.
 - **Native import tests.** Seven Android tests passed on a throwaway API 34 Google APIs emulator: preparation without saving, original bytes and stable IDs, content-URI-only intents, Open with matching, sharing into a running app, edits surviving recreation, cancellation, blank-name fallback, double confirmation and invalid GPX. CI runs the same tests on every build.
 - **Manual, same emulator.** Open with and **Add route → Files** both opened the naming dialog. Geocoded suggestions in English and Spanish, wrapping long names, select-all on tap, saving and opening route details all worked.
 - **Not tested.** Physical phone, third-party download/file apps, landscape, signed update retention over 0.20.1, and geocoder quality outside Granada and Madrid.
+
+## Version 0.21.0 validation
+
+Recorded 10 November 2026 for **0.21.0 / code 26**.
+
+- **Build and checks.** 416 JVM tests, lint 0 errors, 745 bilingual resources, 53 pinned icons, one catalog route and 22 security-checker tests passed.
+- **Native.** Seven import tests passed on a throwaway API 34 emulator, now including Open with for opaque URIs typed `application/octet-stream`, `application/xml` and `text/xml`. `cmd package query-activities` for a Downloads `.gpx` (MediaStore type `application/octet-stream`) listed Runline for octet-stream, XML and GPX types and not for PDF. The glued-ID filename fell back to the geocoded name; **+** opened DocumentsUI's picker.
+- **Not tested.** Chrome's download list and Samsung My Files on a physical phone.
+- **0.21 additions.** 424 JVM tests (new: approach cues by distance band, compass and turn-away; wrong way after 60 m backwards, cleared by ~20 m forward, not triggered by an out-and-back spur or standing wobble). Eight Android tests, including the Record activity picker ignoring open requests without a tap. Lint 0 errors.
+- **Mock GPS on a throwaway API 34 emulator, voice coach off.** Starting an imported Madrid route 600 m north of its start: the island read "Start 550 m ahead" with the signpost button and a dotted line to the start; speech diagnostics queued "The start of the route is 600 metres to the south", then 450, 150 and 60 m, "On the route. 3.4 kilometres to go", and "Off route. The path is 123 metres behind you". Off route posted a high-importance Route alerts notification. The emulator had no TTS voice or DNS, so speech was queued but not heard, and place names fell back to "Out and back 3.4K".
+- **Not tested.** Google Maps handoff (not installed on the emulator), audible speech, wrong way on the emulator, and the activity picker on the Samsung where it opened by itself.

@@ -134,6 +134,8 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         imageTintList = null; visibility = GONE
     }
     private var plannedRoute: List<RunPoint> = emptyList()
+    /** From the current fix to a route's start, while still on the way there. */
+    private var approachLine: Pair<Point, Point>? = null
     private var progressiveRoute = false
     private var trailEnd = -1
     private var trailPublishedAt = 0L
@@ -269,6 +271,11 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                     lineColor(Color.BLACK), lineWidth(6f), lineOpacity(0.45f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
                 ready.addLayer(LineLayer("planned-line", "planned").withProperties(
                     lineColor(Color.WHITE), lineWidth(3f), lineOpacity(0.9f), lineDasharray(arrayOf(2f, 1.5f)), lineJoin(Property.LINE_JOIN_ROUND)))
+                // Getting to the route: straight and thin, so it never reads as a path to follow.
+                ready.addSource(GeoJsonSource("approach"))
+                ready.addLayer(LineLayer("approach-line", "approach").withProperties(
+                    lineColor(Color.WHITE), lineWidth(2f), lineOpacity(0.85f), lineDasharray(arrayOf(0.5f, 2f)), lineCap(Property.LINE_CAP_ROUND)))
+                approachLine?.let { (from, to) -> ready.getSourceAs<GeoJsonSource>("approach")?.setGeoJson(LineString.fromLngLats(listOf(from, to))) }
                 ready.addSource(GeoJsonSource("route"))
                 ready.addLayer(LineLayer("route-outline", "route").withProperties(
                     lineColor(Color.BLACK), lineWidth(7f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
@@ -439,6 +446,18 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (disposed || next === plannedRoute) return
         plannedRoute = next
         style?.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(next))
+    }
+
+    /** A straight dashed line to the start of a route not yet joined; null clears it. */
+    fun setApproachLine(fromLatitude: Double, fromLongitude: Double, toLatitude: Double, toLongitude: Double) =
+        showApproach(Point.fromLngLat(fromLongitude, fromLatitude) to Point.fromLngLat(toLongitude, toLatitude))
+    fun clearApproachLine() = showApproach(null)
+    private fun showApproach(next: Pair<Point, Point>?) {
+        if (disposed || next == approachLine) return
+        approachLine = next
+        val source = style?.getSourceAs<GeoJsonSource>("approach") ?: return
+        if (next == null) source.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+        else source.setGeoJson(LineString.fromLngLats(listOf(next.first, next.second)))
     }
 
     /** Replay only: the route appears behind the arrow as it moves, not ahead of it. */

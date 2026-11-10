@@ -27,10 +27,6 @@
       "sha256": "383e4d1290ea525748767973343b3f20ea979b3638f9b3896b417e032c6ebe6f",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/route.svg"
     },
-    "icons/outline/upload.svg": {
-      "sha256": "8e6f247503da3f943a6751c2859c63cac81d8f2f6b66cf3baac6beb57a33ca01",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/upload.svg"
-    },
     "icons/outline/download.svg": {
       "sha256": "c13f6f9cf87deee99e331622169efd59cd764b376994540347e50d6bb5e2e0ef",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/download.svg"
@@ -210,6 +206,14 @@
     "icons/outline/mountain.svg": {
       "sha256": "a015c6e2b1d9fa1a7750ecbc64347826b41f98af2bc86d62f81eab0a7a68192e",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/mountain.svg"
+    },
+    "icons/outline/plus.svg": {
+      "sha256": "9cc497d4cc1eb38cf9daae18f41ffdc1a5e2a8431d70247b0854978f303f28d6",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/plus.svg"
+    },
+    "icons/outline/directions.svg": {
+      "sha256": "4da4ed630189729c0da013d380bdd2f62c119b824f01193b83dd880e21781de9",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/directions.svg"
     },
     "LICENSE": {
       "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
