@@ -57,6 +57,10 @@ class RouteImportAndroidTest {
                 .any { it.activityInfo.name == MainActivity::class.java.name }
         }
         assertTrue(matches("opaque-document-id", "application/gpx+xml"))
+        // Android has no .gpx MIME type: Files, My Files and browser downloads pass opaque IDs as binary or XML.
+        assertTrue(matches("1000012345", "application/octet-stream"))
+        assertTrue(matches("msf:42", "application/xml"))
+        assertTrue(matches("opaque-document-id", "text/xml"))
         assertTrue(matches("route.gpx", "application/octet-stream"))
         assertTrue(matches("morning.walk.gpx", "application/xml"))
         assertTrue(matches("ROUTE.GPX", "application/octet-stream"))

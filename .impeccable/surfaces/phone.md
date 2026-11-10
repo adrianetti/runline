@@ -55,7 +55,7 @@ Settings owns automatic terrain, Wi-Fi-only and manual area preparation. About o
 
 ## Routes and GPX import — 0.20.2
 
-The idle navigation now includes Record, Activities and Routes, superseding the two-tab description above. Routes keeps its existing flat imported/catalog lists and trailing 48dp options target. Add route is a visible full-width outlined Material action below the introduction, with the pinned Tabler upload icon, 16dp corners and a 56dp minimum height. The options menu retains catalog refresh and About routes.
+The idle navigation now includes Record, Activities and Routes, superseding the two-tab description above. Routes keeps its existing flat imported/catalog lists and trailing 48dp options target. 0.20.3: Add route is a 48dp borderless **+** (pinned Tabler `plus`) in the header, left of the 48dp ⋯ options target, with an “Add route” label for accessibility and tooltip. No full-width button. The options menu retains catalog refresh and About routes.
 
 Add route opens Android's document picker. An external Open with or compatible GPX share opens the same native naming dialog. Reading GPX shows an indeterminate indicator; confirmation is disabled until validated route data is ready. Then show a muted one-line summary (shape · km · ascent) and a persistent Route name label with an editable suggestion; tapping it selects all. No helper text. Prefer a useful GPX title, then a useful filename, then “Town, Start – Far point shape distanceK” from nearby waypoint labels or Android's geocoder; offline, shape and distance only. Blank input uses the suggestion.
 

@@ -112,6 +112,10 @@ class RouteImportTest {
         assertNull(RouteImportNaming.suppliedName("Walk 3f2a9c1e-12ab-4cde-8f00-123456789abc", "Caminata 8,42 km - 2026-11-01 10-30.gpx"))
         assertEquals("Vuelta al parque", RouteImportNaming.suppliedName(null, "Vuelta al parque 10.05 km - 2026-11-04 09-15 (2).gpx"))
         assertEquals("Alhambra", RouteImportNaming.suppliedName(null, "Alhambra (1).gpx"))
+        // Provider IDs and words glued together fall back to the route's own description.
+        assertNull(RouteImportNaming.suppliedName(null, "1448280673GRANADAPINOSGENILGUEJAR.gpx"))
+        assertEquals("Pinos Genil", RouteImportNaming.suppliedName(null, "1448280673-Pinos_Genil.gpx"))
+        assertEquals("PinosGenilLoop", RouteImportNaming.suppliedName(null, "PinosGenilLoop.gpx"))
     }
 
     @Test fun `parser does not interpret GPX lookalikes inside extensions or foreign namespaces`() {

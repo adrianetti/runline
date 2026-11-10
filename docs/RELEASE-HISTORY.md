@@ -277,3 +277,12 @@ Recorded 9 November 2026:
 - **By hand on that emulator:** synthetic GPX files in Downloads, opened with Runline and picked through **Add route → Files**. A Madrid out-and-back was named “Madrid, Callao – Paseo del Prado out and back 3.4K” and opened its route page; a Granada loop became “Granada, Callejon Viernes – Calle Eudoxia Piriz circular 1,7K” in Spanish. A readable filename beat a generic “Morning Run” title. Tapping the name selected it for replacement.
 
 Not verified: a physical phone, third-party download apps' Open with behaviour, and the signed update over 0.20.1.
+
+## Version 0.20.3
+
+- **Open with finds Runline.** Android has no MIME type for `.gpx`, so Chrome downloads, Files and My Files pass it as `application/octet-stream` or XML with an opaque URI. Open with and Share now accept those types (and `application/x-gpx`); the import still checks the file and refuses anything that isn't a GPX route.
+- **+ to add.** Routes adds a GPX from a **+** beside ⋯ instead of a full-width button.
+- **Names.** A filename that is a provider ID glued to words (“1448280673GRANADAPINOSGENIL…”) is skipped, so the place-based suggestion is used.
+
+Verified 10 November 2026: 416 JVM tests, lint 0 errors, resource, icon (53), route and security checks. Seven import tests on a throwaway API 34 emulator. There, a `.gpx` pushed to Downloads was stored as `application/octet-stream`; Runline resolved for it as octet-stream, XML and GPX types but not PDF, opened it, and suggested “Madrid, Callao – Paseo del Prado out and back 3.4K”. **+** opened the Files picker. Not tested on a physical phone or in Chrome's own download list.
+
