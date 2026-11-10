@@ -54,7 +54,7 @@ class AiSettingsSheet(
     private val key: Pair<TextInputLayout, TextInputEditText>
     private val liveModel: ModelPicker
     private val reviewModel: ModelPicker
-    private var intervalMinutes = state?.getString("interval")?.toIntOrNull()?.takeIf { it in 3..10 } ?: config.intervalMinutes
+    private var intervalMinutes = state?.getString("interval")?.toIntOrNull()?.takeIf { it in AiConfig.INTERVAL_MINUTES } ?: config.intervalMinutes
     private var privacyExpanded = state?.getBoolean("privacyExpanded") ?: false
     private val status = sheet.text("").apply {
         visibility = View.GONE
@@ -167,8 +167,8 @@ class AiSettingsSheet(
         sheet.column.addView(allFeatures, sheet.row(0, 12))
         sheet.column.addView(live, sheet.row(0, 4))
         sheet.column.addView(sheet.text(activity.getString(R.string.ai_v8_live_hint), 14), sheet.row(0, 12))
-        dropdown(R.string.ai_v8_interval, (3..10).map { activity.getString(R.string.ai_v8_minutes, it) }, intervalMinutes - 3) { index ->
-            intervalMinutes = index + 3
+        dropdown(R.string.ai_v8_interval, AiConfig.INTERVAL_MINUTES.map { activity.getString(R.string.ai_v8_minutes, it) }, intervalMinutes - AiConfig.INTERVAL_MINUTES.first) { index ->
+            intervalMinutes = index + AiConfig.INTERVAL_MINUTES.first
         }
         listOf(daily, reviews, notes).forEach { sheet.column.addView(it, sheet.row(0, 8)) }
         sheet.primaryAction(sheet.button(activity.getString(R.string.coach_ui_save), filled = true).apply {

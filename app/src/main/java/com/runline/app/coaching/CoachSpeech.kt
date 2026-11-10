@@ -122,7 +122,7 @@ class CoachSpeech(context: Context,
     /** One fresh AI slot shares local speech timing. It never reserves audio focus while waiting. */
     fun speakAdvice(text: String, isValid: () -> Boolean = { true }) = onMain {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
-        if (closed || clean.isEmpty() || clean.length > 220 || clean.split(' ').size > 30) return@onMain
+        if (closed || clean.isEmpty() || clean.length > com.runline.app.ai.LiveAiAdvice.MAX_CHARS || clean.split(' ').size > com.runline.app.ai.LiveAiAdvice.MAX_WORDS) return@onMain
         val offered = schedule.offer(CoachSpeechRequest("ai", CoachSpeechPriority.AI, advice = clean,
             isValid = { situation.eligible && isValid() }), SystemClock.elapsedRealtime())
         diagnostic(if (offered) "queued" else "rejected", clean, "AI", "advice")
@@ -178,7 +178,7 @@ class CoachSpeech(context: Context,
                                     }
                                     completePreview(SpeechResult.READY)
                                     spokenGate.started(id, SystemClock.elapsedRealtime())?.let {
-                                        diagnostic("started"); runCatching { onSpoken(it) }
+                                        diagnostic("started"); runCatching { onSpoken(it.copy(cue = currentCue)) }
                                     }
                                 }
                             } }
@@ -352,8 +352,8 @@ class CoachSpeech(context: Context,
                 append(" ").append(tr(R.string.coach_lap_sector, sector.number))
                 // Lap pace remains useful; raw GPS height cannot corroborate a climb.
             } else if (comparison != null) append(" ").append(tr(when {
-                comparison.paceChangePercent >= 5 -> R.string.coach_lap_slower
-                comparison.paceChangePercent <= -5 -> R.string.coach_lap_faster
+                comparison.paceChangePercent >= 3 -> R.string.coach_lap_slower
+                comparison.paceChangePercent <= -3 -> R.string.coach_lap_faster
                 else -> R.string.coach_lap_even
             }))
         }

@@ -3,104 +3,124 @@ package com.runline.app.ai
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.runline.app.core.RunSession
 import com.runline.app.core.CoachConfig
+import com.runline.app.core.CoachTerrain
 import com.runline.app.coaching.VoiceCoachSettings
 import com.runline.app.i18n.AppLanguage
 import com.runline.app.data.RunStore
+import com.runline.app.terrain.TerrainRepository
 import org.json.JSONObject
 import java.time.LocalDate
 import java.util.concurrent.Executors
 
-/** Monotonic-active-time schedule; failed requests count toward a hard per-run cost cap. */
-class LiveAiSchedule(initialAttempts: Int = 0) {
-    private var nextAt = 0L
-    var attempts = initialAttempts.coerceIn(0, 24)
-        private set
-    fun due(activeMs: Long, intervalMinutes: Int): Boolean {
-        val interval = intervalMinutes.coerceIn(3, 10) * 60_000L
-        if (nextAt == 0L) nextAt = activeMs + interval
-        if (activeMs < nextAt || attempts >= 24) return false
-        nextAt = activeMs + interval; attempts++; return true
-    }
-}
-
 data class AiCoachPrompt(val text: String, val isValid: () -> Boolean)
 
-class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit) {
+/**
+ * The live coach during a recording. [LiveCoachPlan] picks the moments; each request carries
+ * the run so far, the runner's recent training and everything already said, and the answer is
+ * offered to the shared speech schedule. [onEvent] records every request's outcome in the
+ * activity's coach log, so a quiet run can be explained afterwards.
+ */
+class AiRunCoach(context: Context, private val onEvent: (event: String, detail: String, latencyMs: Long?) -> Unit = { _, _, _ -> },
+                 private val onPrompt: (AiCoachPrompt) -> Unit) {
     private val context = context.applicationContext
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var runId: String? = null
-    private var schedule = LiveAiSchedule()
+    private var plan = LiveCoachPlan()
     private var generation = 0L
     private var active = false
     private var fresh = false
     private var busy = false
     private var closed = false
-    private var spokenGeneration = 0L
-    private var currentTerrain = com.runline.app.core.CoachTerrain.UNKNOWN
-    @Synchronized fun onSpoken(text: String, source: String, elapsedRealtimeMs: Long) {
+    private var activeMs = 0L
+    private var currentTerrain = CoachTerrain.UNKNOWN
+
+    /** True while the live coach is on and answering: the local coach then leaves routine encouragement to it. */
+    val leading: Boolean @Synchronized get() = !closed && active && plan.healthy && enabled()
+
+    private fun enabled(): Boolean {
+        val settings = AiSettings.load(context)
+        return settings.enabled && settings.liveEnabled && AiSettings.hasKey(context) && VoiceCoachSettings.load(context).enabled
+    }
+
+    /** [cue] names the spoken line: a local cue such as "Kilometre(...)", a route key, or "advice". */
+    @Synchronized fun onSpoken(text: String, source: String, elapsedRealtimeMs: Long, cue: String = "") {
         val id = runId ?: return
         if (closed) return
         AiSpokenHistory.record(id, text, source, elapsedRealtimeMs)
-        spokenGeneration++
+        plan.spoken(activeMs, ai = source == "AI", moment = if (source == "LOCAL") LiveMoment.of(cue) else null)
     }
-    @Synchronized fun update(run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig = VoiceCoachSettings.load(context), terrain: com.runline.app.core.CoachTerrain = com.runline.app.core.CoachTerrain.UNKNOWN) {
+
+    @Synchronized fun update(run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig = VoiceCoachSettings.load(context), terrain: CoachTerrain = CoachTerrain.UNKNOWN) {
         if (closed) return
-        if (run.id != runId) { generation++; spokenGeneration++; runId = run.id; schedule = LiveAiSchedule(context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).getInt(run.id, 0)) }
+        if (run.id != runId) {
+            generation++; runId = run.id
+            plan = LiveCoachPlan(context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).getInt(run.id, 0))
+        }
         if (fresh && !gpsFresh) generation++
-        active = true; fresh = gpsFresh; currentTerrain = terrain
+        active = true; fresh = gpsFresh; currentTerrain = terrain; activeMs = run.activeDurationMs
         val settings = AiSettings.load(context)
         if (!settings.enabled || !settings.liveEnabled || !AiSettings.hasKey(context) || !VoiceCoachSettings.load(context).enabled) { generation++; return }
-        if (!gpsFresh || busy || !schedule.due(run.activeDurationMs, settings.intervalMinutes)) return
-        val token = generation; val settingsRevision = AiSettings.revision(); val requestedAt = android.os.SystemClock.elapsedRealtime(); busy = true
-        val speechToken = spokenGeneration
-        val terrainRevision = com.runline.app.terrain.TerrainRepository.get(context).snapshot.revision
-        val attempt = schedule.attempts
+        if (!gpsFresh || busy) return
+        val call = plan.next(run.activeDurationMs, settings.intervalMinutes) ?: return
+        val token = generation; val settingsRevision = AiSettings.revision(); val requestedAt = SystemClock.elapsedRealtime(); busy = true
+        val terrainRevision = TerrainRepository.get(context).snapshot.revision
+        val attempt = plan.attempts
+        val requestActiveMs = run.activeDurationMs
+        val label = call.trigger.name + (call.moment?.let { ":" + it.name } ?: if (call.trigger == LiveTrigger.CADENCE) ":" + call.focus.name else "")
+        onEvent("ai_requested", label, null)
         worker.execute {
+            var failure: String? = null
             val result = runCatching {
                 if (!context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).edit().putInt(run.id, attempt).commit()) throw AiFailure(AiFailure.Reason.STORAGE)
                 if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
                 val key = AiSettings.readKey(context) ?: throw AiFailure(AiFailure.Reason.KEY)
                 val language = AppLanguage.localizedContext(context).resources.configuration.locales[0].language
-                val goal = goalConfig
                 val profile = RunnerProfileStore(context).snapshot()
                 val runnerGoal = RunnerGoalStore(context).snapshot()
                 val runs = RunStore(context)
-                val terrainMap = com.runline.app.terrain.TerrainRepository.get(context).snapshot
+                val terrainMap = TerrainRepository.get(context).snapshot
                 val verifiedRun = terrainMap.project(run)
                 val input = JSONObject().put("run", AiRunSummary.of(verifiedRun)).put("coaching_context", AiCoachingContext.build(
-                    LocalDate.now(), activeGoal = goal, activeRun = verifiedRun, history = runs.list().map(terrainMap::project), details = runs::details,
+                    LocalDate.now(), activeGoal = goalConfig, activeRun = verifiedRun, history = runs.list().map(terrainMap::project), details = runs::details,
                     includeNotes = settings.includeNotes, profile = profile.profile,
                     spoken = AiSpokenHistory.recent(run.id, requestedAt), nowElapsedMs = requestedAt, runnerGoal = runnerGoal.goal,
                     insights = RunnerInsightsStore(context).load()))
                 if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
-                if (!profileCurrent(profile)) throw AiFailure(AiFailure.Reason.DISABLED)
-                if (!goalCurrent(runnerGoal)) throw AiFailure(AiFailure.Reason.DISABLED)
+                if (!profileCurrent(profile) || !goalCurrent(runnerGoal)) throw AiFailure(AiFailure.Reason.DISABLED)
                 synchronized(this) {
-                    if (closed || !active || !fresh || token != generation || speechToken != spokenGeneration || runId != run.id)
-                        throw AiFailure(AiFailure.Reason.DISABLED)
+                    if (closed || !active || !fresh || token != generation || runId != run.id) throw AiFailure(AiFailure.Reason.DISABLED)
                 }
-                Triple(LiveAiAdvice.request(com.runline.app.diagnostics.Diagnostics.provider(context, "live", run.id), key, settings.liveModel, if (language == "es") "Spanish" else "English", input), profile, runnerGoal)
-            }.getOrNull()
+                Triple(LiveAiAdvice.request(com.runline.app.diagnostics.Diagnostics.provider(context, "live", run.id), key, settings.liveModel,
+                    if (language == "es") "Spanish" else "English", input, call), profile, runnerGoal)
+            }.onFailure { failure = (it as? AiFailure)?.reason?.name ?: it.javaClass.simpleName }.getOrNull()
             main.post {
                 synchronized(this) {
                     busy = false
-                    val advice = result?.first
-                    val profile = result?.second
-                    val runnerGoal = result?.third
+                    val latency = SystemClock.elapsedRealtime() - requestedAt
+                    if (result == null) {
+                        // Switched off or superseded is not a provider problem.
+                        if (failure != AiFailure.Reason.DISABLED.name) plan.failed(activeMs.coerceAtLeast(requestActiveMs))
+                        onEvent("ai_failed", "$label ${failure.orEmpty()}".trim(), latency); return@synchronized
+                    }
+                    val (advice, profile, runnerGoal) = result
+                    plan.answered(activeMs.coerceAtLeast(requestActiveMs), advice != null)
+                    if (advice == null) { onEvent("ai_silent", label, latency); return@synchronized }
+                    val aboutGround = LiveAiAdvice.mentionsTerrain(advice)
                     val valid = { synchronized(this) {
                         val now = AiSettings.load(context)
-                        !closed && active && fresh && com.runline.app.terrain.TerrainRepository.get(context).snapshot.revision == terrainRevision && currentTerrain == terrain && token == generation && speechToken == spokenGeneration && runId == run.id &&
+                        !closed && active && fresh && token == generation && runId == run.id &&
+                            // A line about the ground must still describe the ground under the runner.
+                            (!aboutGround || (TerrainRepository.get(context).snapshot.revision == terrainRevision && currentTerrain == terrain)) &&
                             now.enabled && now.liveEnabled && now == settings && AiSettings.revision() == settingsRevision &&
-                            VoiceCoachSettings.load(context).enabled && profile != null && profileCurrent(profile) &&
-                            runnerGoal != null && goalCurrent(runnerGoal) &&
-                            android.os.SystemClock.elapsedRealtime() - requestedAt in 0..105_000
+                            VoiceCoachSettings.load(context).enabled && profileCurrent(profile) && goalCurrent(runnerGoal) &&
+                            SystemClock.elapsedRealtime() - requestedAt in 0..SPEAK_WITHIN_MS
                     } }
-                    if (advice != null && android.os.SystemClock.elapsedRealtime() - requestedAt <= 30_000 && valid()) {
-                        onPrompt(AiCoachPrompt(advice, valid))
-                    }
+                    if (latency <= ARRIVE_WITHIN_MS && valid()) { onEvent("ai_ready", label, latency); onPrompt(AiCoachPrompt(advice, valid)) }
+                    else onEvent("ai_discarded", "$label ${if (latency > ARRIVE_WITHIN_MS) "late" else "context_changed"}", latency)
                 }
             }
         }
@@ -113,6 +133,9 @@ class AiRunCoach(context: Context, private val onPrompt: (AiCoachPrompt) -> Unit
     private fun goalCurrent(snapshot: RunnerGoalSnapshot) = RunnerGoalStore.revision() == snapshot.revision &&
         RunnerGoalStore(context).load() == snapshot.goal
     companion object {
+        /** A line written for a moment is not spoken once the moment has passed. */
+        const val ARRIVE_WITHIN_MS = 15_000L
+        const val SPEAK_WITHIN_MS = 50_000L
         fun cleanAdvice(raw: String): String? = LiveAiAdvice.clean(raw)
     }
 }

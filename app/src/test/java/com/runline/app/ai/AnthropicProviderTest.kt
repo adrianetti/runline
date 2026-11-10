@@ -64,15 +64,8 @@ class AnthropicProviderTest {
             catch (e: AiFailure) { assertEquals(AiFailure.Reason.RESPONSE, e.reason) }
         }
     }
-    @Test fun scheduleDoesNotCatchUpOrExceed24Calls() {
-        val schedule = LiveAiSchedule()
-        assertFalse(schedule.due(60_000, 3)); assertFalse(schedule.due(239_999, 3)); assertTrue(schedule.due(240_000, 3))
-        assertFalse(schedule.due(240_001, 3))
-        repeat(23) { assertTrue(schedule.due(500_000L + it * 200_000L, 3)) }
-        assertFalse(schedule.due(Long.MAX_VALUE / 2, 3))
-    }
     @Test fun unsafeLongOrStructuredSpeechIsDropped() {
-        assertNull(AiRunCoach.cleanAdvice("x".repeat(221))); assertNull(AiRunCoach.cleanAdvice("{\"message\":\"hello\"}"))
+        assertNull(AiRunCoach.cleanAdvice("x".repeat(LiveAiAdvice.MAX_CHARS + 1))); assertNull(AiRunCoach.cleanAdvice("{\"message\":\"hello\"}"))
         assertEquals("You have found a steady rhythm.", AiRunCoach.cleanAdvice("  You have found a steady rhythm.  "))
     }
 }

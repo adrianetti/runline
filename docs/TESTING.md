@@ -1,4 +1,4 @@
-# Version 0.21.0 test checklist
+# Version 0.22.0 test checklist
 
 The checklist is not a blanket pass report. Current v0.20.2 and earlier v0.20.1/v0.20, v0.19, v0.18, v0.17, v0.16, v0.15 and historical v0.14/v0.13/v0.12/v0.11/v0.10.2/v0.10.1/v0.10 evidence are recorded below; historical v0.8/v0.7/v0.6/v0.5/v0.4/v0.3 evidence is retained separately and in [release history](RELEASE-HISTORY.md). Record the build/commit, phone model, Android version, battery settings and pass/fail/not-tested outcome. Use disposable synthetic recordings for destructive and fault-injection cases; keep real route files private.
 
@@ -627,3 +627,13 @@ Recorded 10 November 2026 for **0.21.0 / code 26**.
 - **0.21 additions.** 424 JVM tests (new: approach cues by distance band, compass and turn-away; wrong way after 60 m backwards, cleared by ~20 m forward, not triggered by an out-and-back spur or standing wobble). Eight Android tests, including the Record activity picker ignoring open requests without a tap. Lint 0 errors.
 - **Mock GPS on a throwaway API 34 emulator, voice coach off.** Starting an imported Madrid route 600 m north of its start: the island read "Start 550 m ahead" with the signpost button and a dotted line to the start; speech diagnostics queued "The start of the route is 600 metres to the south", then 450, 150 and 60 m, "On the route. 3.4 kilometres to go", and "Off route. The path is 123 metres behind you". Off route posted a high-importance Route alerts notification. The emulator had no TTS voice or DNS, so speech was queued but not heard, and place names fell back to "Out and back 3.4K".
 - **Not tested.** Google Maps handoff (not installed on the emulator), audible speech, wrong way on the emulator, and the activity picker on the Samsung where it opened by itself.
+
+## Version 0.22.0 validation
+
+Recorded 10 November 2026 for **0.22.0 / code 27**.
+
+- **Build and checks.** 434 JVM tests passed, 1 skipped (`LiveCoachReplayTest`, which needs a provider key). Lint 0 errors, 764 bilingual resources, 54 pinned icons, one catalog route. Debug, release and Android-test APKs assembled.
+- **New unit coverage.** The live plan: opening at 40 s, no welcome on a recovered recording, a follow-up per spoken milestone, a lap deferring to the kilometre after it, the quiet time measured from the coach's last line, angle rotation, silence retry, failure back-off and hand-back to the local coach, the 80-request ceiling. Facts as minutes:seconds with faster as negative and partial kilometres excluded. The quick request (thinking disabled, medium effort) and its plain retry on HTTP 400. Written paces converted to spoken ones, long answers trimmed to whole sentences, echoes detected and asked for again once. Speech timing: 8 s after other speech for the live coach, 85 s still for local routine cues.
+- **Replay against the provider.** The 3.03 km, 23-minute run exported from the phone that day (time goal 30 minutes, easy effort, no history in the replay) through `CoachEngine`, `LiveCoachPlan` and `LiveAiAdvice` with `claude-haiku-5-5`, in Spanish and in English: 13 live lines and 6 local ones, 13 requests, median 0.95 s, slowest 1.3 s. On the phone the same run had 11 local lines and none from the model. Lines named the 7:21 third kilometre as the fastest, the near-identical first two, the 3.9 km projection and the halfway point, with technique and effort cues between.
+- **Seen in replays and not fixed.** A few lines still open with the same word as an earlier one, an image can be strained, and a time and a pace were confused once before lap times were relabelled.
+- **Not tested.** On a phone; audible speech and its timing over music; the coach log entries on a device; runs with recorded history, a pace goal, hills or a route; a provider outage mid-run.

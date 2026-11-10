@@ -28,6 +28,15 @@ object Diagnostics {
         val app = context.applicationContext
         worker.execute { runCatching { log(app).append(run.id, value) } }
     }
+    /** The live coach's requests and their outcomes, beside the speech they led to. Never the prompt or the key. */
+    fun live(context: Context, run: RunSession, event: String, detail: String, latencyMs: Long?) {
+        if (!enabled(context)) return
+        val value = JSONObject().put("version", 1).put("event", event).put("at_ms", System.currentTimeMillis()).put("source", "AI")
+            .put("text", "").put("cue", detail.take(120)).put("active_ms", run.activeDurationMs)
+            .put("latency_ms", latencyMs ?: JSONObject.NULL)
+        val app = context.applicationContext
+        worker.execute { runCatching { log(app).append(run.id, value) } }
+    }
     fun provider(context: Context, operation: String, runId: String? = null): AnthropicProvider {
         val app = context.applicationContext
         return AnthropicProvider(onMetric = { m ->

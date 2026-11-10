@@ -571,7 +571,9 @@ class TrackingService : Service(), LocationListener {
         runCatching {
             val preferences = VoiceCoachSettings.load(this)
             val next = current?.id?.let { com.runline.app.data.SessionIntentStore(this).get(it)?.applyTo(preferences) } ?: preferences
-            if (aiCoach == null) aiCoach = AiRunCoach(this) { advice ->
+            if (aiCoach == null) aiCoach = AiRunCoach(this, onEvent = { event, detail, latency ->
+                published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.live(this, observed, event, detail, latency) }
+            }) { advice ->
                 // AI callbacks arrive on main; published is the recorder's volatile snapshot.
                 if (published.status == RecordingStatus.RECORDING && VoiceCoachSettings.load(this).enabled) {
                     coachSpeech?.speakAdvice(advice.text) {
@@ -597,7 +599,7 @@ class TrackingService : Service(), LocationListener {
                     published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.speech(
                         this, observed, event, text, source, cue, situation, !published.gpsStale) }
                 }) { spoken ->
-                    aiCoach?.onSpoken(spoken.text, spoken.source.name, spoken.elapsedRealtimeMs)
+                    aiCoach?.onSpoken(spoken.text, spoken.source.name, spoken.elapsedRealtimeMs, spoken.cue)
                 }
                 coachSpeech?.prepare()
             } else {
@@ -612,7 +614,10 @@ class TrackingService : Service(), LocationListener {
             val stopped = stoppedSince()
             val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh, stopped)
             coachEngine?.situation?.let { coachSpeech?.updateSituation(it) }
-            cue?.let { coachSpeech?.speak(it) }
+            // While the live coach is answering, routine encouragement is its job: it knows the run
+            // and what was already said. Milestones, pace and terrain cues stay local and instant.
+            cue?.takeUnless { it is com.runline.app.core.CoachCue.Encouragement && it.kind !in LOCAL_ENCOURAGEMENT && aiCoach?.leading == true }
+                ?.let { coachSpeech?.speak(it) }
             // A standstill is not a moment for advice; the AI coach waits for movement too.
             if (coachConfig.enabled && mode == RecordingStatus.RECORDING && stopped == null) aiCoach?.update(run, fresh, coachConfig, coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN)
         }
@@ -716,6 +721,8 @@ class TrackingService : Service(), LocationListener {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        /** Goal-progress lines carry measured numbers at an exact moment; they stay local even with the live coach on. */
+        private val LOCAL_ENCOURAGEMENT = setOf(com.runline.app.core.EncouragementKind.HALFWAY, com.runline.app.core.EncouragementKind.FINAL_STRETCH)
         const val ACTION_START = "com.runline.app.START"
         const val ACTION_PAUSE = "com.runline.app.PAUSE"
         const val ACTION_RESUME = "com.runline.app.RESUME"

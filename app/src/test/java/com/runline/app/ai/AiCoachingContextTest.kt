@@ -63,16 +63,16 @@ class AiCoachingContextTest {
         assertTrue(AiSpokenHistory.recent(id, 100).isEmpty())
         AiSpokenHistory.record(id, "not spoken", "GENERATED", 100)
         assertTrue(AiSpokenHistory.recent(id, 100).isEmpty())
-        repeat(9) { AiSpokenHistory.record(id, "Actual cue $it", if (it % 2 == 0) "LOCAL" else "AI", 100L + it) }
+        repeat(19) { AiSpokenHistory.record(id, "Actual cue $it", if (it % 2 == 0) "LOCAL" else "AI", 100L + it) }
         val recent = AiSpokenHistory.recent(id, 200)
-        assertEquals(6, recent.size); assertEquals("Actual cue 3", recent.first().text)
+        assertEquals(AiSpokenHistory.LIMIT, recent.size); assertEquals("Actual cue 3", recent.first().text)
         val data = AiCoachingContext.build(today, spoken = recent, nowElapsedMs = 200).getJSONArray("recent_spoken_feedback")
-        assertEquals(6, data.length()); assertEquals("AI", data.getJSONObject(0).getString("source"))
-        assertTrue(AiSpokenHistory.recent(id, 1_000_000).isEmpty()); AiSpokenHistory.clear(id)
+        assertEquals(AiSpokenHistory.LIMIT, data.length()); assertEquals("AI", data.getJSONObject(0).getString("source"))
+        assertTrue(AiSpokenHistory.recent(id, 200 + AiSpokenHistory.WINDOW_MS).isEmpty()); AiSpokenHistory.clear(id)
     }
     @Test fun liveResponseCanBeSilentAndRemainsOneBoundedUnstructuredThought() {
         assertNull(LiveAiAdvice.clean("  NONE  ")); assertNull(LiveAiAdvice.clean("none"))
-        assertNull(LiveAiAdvice.clean("word ".repeat(27))); assertNull(LiveAiAdvice.clean("{\"speech\":\"slow down\"}"))
+        assertNull(LiveAiAdvice.clean("word ".repeat(LiveAiAdvice.MAX_WORDS + 1))); assertNull(LiveAiAdvice.clean("{\"speech\":\"slow down\"}"))
         assertEquals("Let this easy section stay comfortable.", LiveAiAdvice.clean("Let this easy section stay comfortable."))
     }
     @Test fun profileCodecDefaultsUnknownExperienceAndConsentToPrivate() {

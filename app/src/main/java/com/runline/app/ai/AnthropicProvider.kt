@@ -12,6 +12,12 @@ interface CoachAiProvider {
     fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
                           maxTokens: Int, timeoutMs: Int = 45_000): String =
         message(key, model, system, data, maxTokens, timeoutMs)
+    /**
+     * A short answer wanted within a second or two (live coaching): providers that can should
+     * skip extended reasoning. The default is an ordinary message.
+     */
+    fun quickMessage(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int = 12_000): String =
+        message(key, model, system, data, maxTokens, timeoutMs)
     fun checkModel(key: String, model: String)
 }
 
@@ -31,15 +37,27 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport(), 
     override fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int): String {
         return sendMessage(key, model, system, data, null, maxTokens, timeoutMs)
     }
+    /**
+     * Thinking off, medium effort: about a second on Haiku 5.5, measured on replayed runs
+     * (low effort was no faster and wrote flatter lines; thinking on overran short answers).
+     * A custom model that rejects those options (HTTP 400) gets the plain request once.
+     */
+    override fun quickMessage(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int): String =
+        try { sendMessage(key, model, system, data, null, maxTokens, timeoutMs, quick = true) }
+        catch (e: AiFailure) {
+            if (e.reason != AiFailure.Reason.MODEL) throw e
+            sendMessage(key, model, system, data, null, maxOf(maxTokens, 1536), timeoutMs)
+        }
     override fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
                                    maxTokens: Int, timeoutMs: Int): String {
         return sendMessage(key, model, system, data, schema, maxTokens, timeoutMs)
     }
     private fun sendMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject?,
-                            maxTokens: Int, timeoutMs: Int): String {
+                            maxTokens: Int, timeoutMs: Int, quick: Boolean = false): String {
         require(AiConfig.validModel(model)); require(maxTokens in 100..16_000)
         val body = JSONObject().put("model", model).put("max_tokens", maxTokens).put("stream", false)
             .put("system", system).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", data.toString())))
+        if (quick) body.put("thinking", JSONObject().put("type", "disabled")).put("output_config", JSONObject().put("effort", "medium"))
         if (schema != null) body.put("output_config", JSONObject().put("format", JSONObject()
             .put("type", "json_schema").put("schema", schema)))
         val response = tracked("POST", "/v1/messages", key, model, body.toString(), timeoutMs)
