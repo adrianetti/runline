@@ -156,4 +156,3 @@ In 0.21, Open with and Share also accept `application/octet-stream`, `applicatio
 ## Getting to and staying on a route — 0.21
 
 Before you reach a route, the island and voice give the distance and direction to its start as the crow flies, with a dotted line on the map; street directions are a tap away in the phone's maps app. Route directions are spoken whenever a route is followed, independent of the voice coach. Off route and wrong way (60 m backwards along the route) vibrate, speak and post a high-importance Route alerts notification that clears on return. The Record activity picker opens only on a tap.
-
