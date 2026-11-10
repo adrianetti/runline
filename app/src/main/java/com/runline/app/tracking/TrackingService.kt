@@ -97,6 +97,7 @@ class TrackingService : Service(), LocationListener {
     private var coachEngine: CoachEngine? = null
     private var coachSpeech: CoachSpeech? = null
     private var aiCoach: AiRunCoach? = null
+    private var music: com.runline.app.music.RunMusic? = null
     private var stillness = com.runline.app.core.StillnessTracker()
     private var autoPause = true
     private var notifiedStopped = false
@@ -138,6 +139,7 @@ class TrackingService : Service(), LocationListener {
             if (isGpsStale()) { accuracy = null; messageRes = R.string.tracking_gps_lost }
             if (tickCount % 300 == 0) wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
             updateCoaching()
+            updateMusic()
             publish()
             // A standstill (or moving again) should show on the lock screen without waiting.
             val stoppedNow = published.stoppedSinceMs != null
@@ -275,6 +277,7 @@ class TrackingService : Service(), LocationListener {
             // The route first: following one turns on spoken directions even with the voice coach off.
             loadRoute()
             reloadCoaching()
+            runCatching { (music ?: com.runline.app.music.RunMusic(this).also { music = it }).onRecording(current!!) }
             worker.removeCallbacks(ticker); worker.post(ticker)
             publish(); updateNotification()
         } catch (_: Exception) { fail(R.string.tracking_check_location_storage) }
@@ -284,6 +287,7 @@ class TrackingService : Service(), LocationListener {
         if (current == null) { stopSelf(); return }
         freezeTimer(); mode = RecordingStatus.PAUSED
         releaseRecordingResources(); messageRes = R.string.tracking_paused
+        runCatching { music?.onPaused() }
         safely { persistCheckpoint() }
         publish(); updateNotification()
     }
@@ -563,6 +567,7 @@ class TrackingService : Service(), LocationListener {
     }
     private fun releaseRecordingResources() {
         coachEngine?.pause(); coachSpeech?.stop(); aiCoach?.pause(); cancelRouteAlert()
+        runCatching { music?.idle() }
         worker.removeCallbacks(ticker); runCatching { locations.removeUpdates(this) }
         wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
     }
@@ -620,6 +625,13 @@ class TrackingService : Service(), LocationListener {
                 ?.let { coachSpeech?.speak(it) }
             // A standstill is not a moment for advice; the AI coach waits for movement too.
             if (coachConfig.enabled && mode == RecordingStatus.RECORDING && stopped == null) aiCoach?.update(run, fresh, coachConfig, coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN)
+        }
+    }
+    /** Optional music follows the run; it has its own thread and can never fail the recorder. */
+    private fun updateMusic() {
+        runCatching {
+            val run = snapshotRun() ?: return
+            music?.update(run, coachConfig, stoppedSince() != null, accuracy != null && lastLocationElapsed > 0 && !isGpsStale())
         }
     }
     private fun notification(): Notification {
@@ -709,6 +721,7 @@ class TrackingService : Service(), LocationListener {
             freezeTimer(); releaseRecordingResources()
             coachSpeech?.close(); coachSpeech = null
             aiCoach?.close(); aiCoach = null
+            runCatching { music?.close() }; music = null
             if (current != null) {
                 mode = RecordingStatus.INTERRUPTED; runCatching { persistCheckpoint() }
                 messageRes = R.string.tracking_recovered_hint; publish()

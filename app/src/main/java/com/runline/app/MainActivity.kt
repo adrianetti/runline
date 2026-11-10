@@ -89,6 +89,7 @@ class MainActivity : AppCompatActivity() {
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
     private var appSettings: AppSettingsSheet? = null
+    private var musicSheet: com.runline.app.ui.MusicSheet? = null
     private var terrainSettings: com.runline.app.ui.TerrainSettingsSheet? = null
     private var dailySuggestion: com.runline.app.ui.DailySuggestionView? = null
     private val preparation by lazy { androidx.lifecycle.ViewModelProvider(this)[com.runline.app.ui.RunPreparation::class.java] }
@@ -186,6 +187,7 @@ class MainActivity : AppCompatActivity() {
                 com.runline.app.ui.RouteImportIntents.uri(intent) else null
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
+        if (!openSpotifyCallback() && savedInstanceState?.getBoolean("musicSheet") == true) showMusic()
         if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
         savedInstanceState?.getBundle("terrainDraft")?.let { terrainSettings?.restoreState(it) }
         if (savedInstanceState?.getBoolean("terrainLocating") == true) terrainSettings?.locate()
@@ -204,6 +206,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent); setIntent(intent)
         pendingRouteUri = com.runline.app.ui.RouteImportIntents.uri(intent)
         openReviewIntent()
+        openSpotifyCallback()
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
             intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING)
             screen = "record"; tabs.getTabAt(0)?.select(); render()
@@ -215,7 +218,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume(); prepareIdle() }
     override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { about?.close(); dailySuggestion?.dispose(); terrainWarmup.stop(); terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); detailsEditor?.close(); aiSettings?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
+    override fun onDestroy() { about?.close(); dailySuggestion?.dispose(); terrainWarmup.stop(); terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); musicSheet?.close(); detailsEditor?.close(); aiSettings?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
     override fun onPause() { terrainWarmup.stop(); coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("pendingRouteUri", pendingRouteUri?.toString())
@@ -229,6 +232,7 @@ class MainActivity : AppCompatActivity() {
         exporter.saveState(outState); super.onSaveInstanceState(outState)
         outState.putBoolean("about", about?.isShowing == true)
         outState.putBoolean("appSettings", appSettings?.isShowing == true)
+        outState.putBoolean("musicSheet", musicSheet?.isShowing == true)
         outState.putBoolean("terrainSettings", terrainSettings?.isShowing == true)
         outState.putBoolean("terrainLocating", terrainSettings?.locating == true)
         terrainSettings?.takeIf { it.isShowing }?.let { outState.putBundle("terrainDraft", it.saveState()) }
@@ -595,7 +599,16 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showSettings() {
         appSettings?.close()
-        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }, ::showTerrainSettings).also { it.show() }
+        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }, ::showTerrainSettings, ::showMusic).also { it.show() }
+    }
+    private fun showMusic(callback: String? = null) { musicSheet?.close(); musicSheet = com.runline.app.ui.MusicSheet(this, callback).also { it.show() } }
+    /** The browser came back from Spotify sign-in. The link is used once, then dropped from the intent. */
+    private fun openSpotifyCallback(): Boolean {
+        val link = intent?.dataString?.takeIf { intent.action == Intent.ACTION_VIEW && com.runline.app.music.SpotifyPkce.isCallback(it) &&
+            intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0 } ?: return false
+        intent.data = null
+        musicSheet?.takeIf { it.isShowing }?.onCallback(link) ?: showMusic(link)
+        return true
     }
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor).apply {

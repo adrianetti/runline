@@ -302,3 +302,13 @@ Verified 10 November 2026 for 0.21 as a whole: 424 JVM tests, 8 Android tests, l
 - **Explainable.** Every live request and its outcome is in the activity's coach log and in **Export data**.
 
 Verified 10 November 2026: 434 JVM tests (1 skipped: the replay, which needs a key), lint 0 errors, resource (764), icon (54) and route checks, debug, release and Android-test builds. The exported 3 km run from that day was replayed through the local and live coach against `claude-haiku-5-5` in Spanish and English: 13 live lines and 6 local ones in 23 minutes, where the phone had spoken 11 local lines and none from the model; median answer 0.95 s, slowest 1.3 s. Not tested: on a phone, audible speech timing over music, and runs with recorded history (the replay had none, so the history angle fell back to others). Replayed lines still open with the same word now and then and include the odd strained image. Details: [TESTING.md](TESTING.md#version-0220-validation).
+
+## Version 0.23.0
+
+- **Music follows the run.** A new optional **Settings → Music**, off by default. **Start with the run** and **Pause with the run** work with any player through the keys a headset sends.
+- **Spotify playlists by mood.** Connect Spotify with your own free Client ID and choose a calm, a steady and a push playlist. Runline starts one with the run and changes it as the run changes: calmer for the warm-up and easy days, up a step on a lasting climb or a slipping pace, push for the last 15% of a goal, calm once the goal is reached. Changes wait for the gap between songs and a playlist stays at least three minutes; only the final stretch cuts in. Music you choose yourself in Spotify is left alone.
+- **Now playing.** The recording screen shows cover, title and artist with play or pause and next. Tapping the title opens the track in Spotify.
+- **Open by design.** No Spotify credentials ship in the app or the repository. Sign-in uses PKCE, so there is no client secret and no dependence on the signing key; a fork connects the same way. Tokens are encrypted on the phone.
+- **Not built, on purpose.** No AI sees Spotify data: Spotify's Developer Terms forbid passing its content, track names included, into an AI model. No per-song tempo matching: Spotify closed its tempo data to new apps.
+
+Verified 10 November 2026: 466 JVM tests (1 skipped), lint 0 errors, resource (804), icon (57), route, surface and Semgrep checks, debug, release and Android-test builds; settings sheet, sign-in start, callback rejection and the recording strip on a throwaway API 34 emulator. No real Spotify account was used, so sign-in, playback control and playlist changes are untested. Details: [TESTING.md](TESTING.md#version-023-music-and-spotify) and [Music and Spotify](SPOTIFY.md).

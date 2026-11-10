@@ -80,6 +80,33 @@ class ActiveRunView(
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
     }
     private val ahead = RouteAheadView(context).apply { visibility = GONE }
+    /**
+     * Optional music strip: cover, track, play or pause, and next. Hidden while music control is off.
+     * Spotify's titles carry its mark and open the track in Spotify, as its terms ask.
+     */
+    private val audio = context.getSystemService(android.media.AudioManager::class.java)
+    private var musicPlaying: Boolean? = null
+    private var musicCoverUrl: String? = null
+    private val musicCover = android.widget.ImageView(context).apply {
+        scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val musicBrand = android.widget.ImageView(context).apply {
+        setImageResource(R.drawable.ic_spotify); imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+        contentDescription = "Spotify"; visibility = GONE
+    }
+    private val musicTitle = label("", 14).apply {
+        maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; minHeight = dp(48); gravity = Gravity.CENTER_VERTICAL
+        setOnClickListener { com.runline.app.music.RunMusic.nowPlaying?.takeIf { !it.keysOnly }?.let { openSpotify(it.trackUri) } }
+    }
+    private val musicToggle = musicButton(R.drawable.ic_play, R.string.music_play) { com.runline.app.music.RunMusic.toggle() }
+    private val musicRow = LinearLayout(context).apply {
+        gravity = Gravity.CENTER_VERTICAL; visibility = GONE
+        addView(musicCover, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(10) })
+        addView(musicTitle, LinearLayout.LayoutParams(0, -2, 1f))
+        addView(musicBrand, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginStart = dp(8) })
+        addView(musicToggle, LinearLayout.LayoutParams(dp(48), dp(48)))
+        addView(musicButton(R.drawable.ic_skip, R.string.music_next) { com.runline.app.music.RunMusic.skip() }, LinearLayout.LayoutParams(dp(48), dp(48)))
+    }
     private val heading = label(context.getString(when (initial.status) {
         RecordingStatus.PAUSED -> R.string.active_paused
         RecordingStatus.INTERRUPTED -> R.string.active_recovered
@@ -119,6 +146,7 @@ class ActiveRunView(
             addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
         }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(musicRow, row(top = 4))
         val controls = LinearLayout(context)
         val paused = initial.status != RecordingStatus.RECORDING
         controls.addView(action(if (paused) context.getString(R.string.active_resume) else context.getString(R.string.active_pause), if (paused) R.drawable.ic_play else R.drawable.ic_pause).apply {
@@ -138,7 +166,9 @@ class ActiveRunView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else (h * 0.55f).roundToInt().coerceAtLeast(dp(180))
+        // The music strip adds its own height, so the readout above it keeps the room it had.
+        val strip = if (musicRow.visibility == VISIBLE) dp(52) else 0
+        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else ((h * 0.55f).roundToInt() + strip).coerceAtLeast(dp(180))
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -158,8 +188,39 @@ class ActiveRunView(
     override fun onAttachedToWindow() { super.onAttachedToWindow(); terrainRepository.listen(terrainListener); lastState.run?.points?.let(terrainRepository::request); update(lastState) }
     override fun onDetachedFromWindow() { terrainRepository.unlisten(terrainListener); super.onDetachedFromWindow() }
 
+    private fun updateMusic() {
+        val now = com.runline.app.music.RunMusic.nowPlaying
+        musicRow.visibility = if (now == null) GONE else VISIBLE
+        if (now == null) return
+        change(musicTitle, when (now.problem) {
+            com.runline.app.music.MusicProblem.OPEN_SPOTIFY -> context.getString(R.string.music_open_spotify)
+            com.runline.app.music.MusicProblem.PREMIUM -> context.getString(R.string.music_premium_short)
+            com.runline.app.music.MusicProblem.RECONNECT -> context.getString(R.string.music_reconnect_short)
+            null -> if (now.title.isEmpty()) context.getString(R.string.music_title) else listOf(now.title, now.artist).filter { it.isNotEmpty() }.joinToString(" · ")
+        })
+        // A tap opens Spotify: at this track, or to wake it, after which the chosen playlist starts.
+        musicTitle.isClickable = !now.keysOnly
+        musicTitle.contentDescription = if (now.keysOnly) null else context.getString(R.string.music_open_spotify) + ". " + musicTitle.text
+        musicBrand.visibility = if (now.keysOnly) GONE else VISIBLE
+        if (now.coverUrl != musicCoverUrl || musicCover.drawable == null) {
+            val cover = now.coverUrl; musicCoverUrl = cover
+            musicCover.setImageResource(R.drawable.ic_music); musicCover.imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+            if (cover != null) com.runline.app.music.CoverArt.load(cover) { bitmap ->
+                if (bitmap != null && musicCoverUrl == cover) { musicCover.imageTintList = null; musicCover.setImageBitmap(bitmap) }
+            }
+        }
+        val playing = if (now.keysOnly) audio.isMusicActive else now.playing
+        if (playing != musicPlaying) {
+            musicPlaying = playing
+            musicToggle.setIconResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
+            musicToggle.contentDescription = context.getString(if (playing) R.string.music_pause_action else R.string.music_play)
+            musicToggle.tooltipText = musicToggle.contentDescription
+        }
+    }
+
     fun update(state: TrackingState) {
         lastState = state
+        updateMusic()
         val run = state.run ?: return
         val points = terrainProjector.project(run, terrainRepository.snapshot).points
         panel.setPoints(points)
@@ -347,6 +408,18 @@ class ActiveRunView(
         cornerRadius = dp(16); setIconResource(iconId); iconSize = dp(22); iconPadding = dp(8)
         iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
         setPadding(dp(10), dp(8), dp(10), dp(8))
+    }
+    private fun openSpotify(trackUri: String?) {
+        val app = context.packageManager.getLaunchIntentForPackage("com.spotify.music")
+        val track = trackUri?.let { android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(it)).setPackage("com.spotify.music") }
+        runCatching { context.startActivity(track ?: app) }.onFailure { runCatching { app?.let(context::startActivity) } }
+    }
+    private fun musicButton(iconId: Int, description: Int, action: () -> Unit) = MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+        setIconResource(iconId); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
+        minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0)
+        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+        contentDescription = context.getString(description); tooltipText = contentDescription
+        setOnClickListener { action() }
     }
     private fun row(top: Int = 0, bottom: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom) }
     private fun change(view: TextView, value: String) { if (view.text != value) view.text = value }

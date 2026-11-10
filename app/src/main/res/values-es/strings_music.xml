@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_title">Música</string>
+    <string name="music_enabled">Controlar la música</string>
+    <string name="music_start">Empezar con la carrera</string>
+    <string name="music_pause">Pausar con la carrera</string>
+    <string name="music_any_player">Funciona con cualquier reproductor. Spotify añade listas que siguen la carrera.</string>
+    <string name="music_client_id">Client ID</string>
+    <string name="music_client_id_hint">De tu propia app de Spotify</string>
+    <string name="music_client_id_error">Un Client ID tiene 32 letras y dígitos.</string>
+    <string name="music_connect">Conectar</string>
+    <string name="music_setup">Guía de configuración</string>
+    <string name="music_setup_steps">1. Crea una app en el panel de desarrolladores de Spotify. Spotify pide Premium.\n2. Añade la URI de redirección %1$s\n3. Marca Web API, guarda y pega aquí el Client ID.</string>
+    <string name="music_open_dashboard">Abrir panel de Spotify</string>
+    <string name="music_copy_redirect">Copiar URI de redirección</string>
+    <string name="music_copied">Copiado</string>
+    <string name="music_connected">Conectado · %1$s</string>
+    <string name="music_connected_plain">Conectado</string>
+    <string name="music_connecting">Conectando…</string>
+    <string name="music_disconnect">Desconectar</string>
+    <string name="music_adaptive">Adaptar la música a la carrera</string>
+    <string name="music_calm">Suave</string>
+    <string name="music_steady">Constante</string>
+    <string name="music_push">A tope</string>
+    <string name="music_none">Ninguna</string>
+    <string name="music_loading">Cargando listas…</string>
+    <string name="music_error_denied">Spotify no se conectó.</string>
+    <string name="music_error_stale">Ese inicio de sesión caducó. Inténtalo de nuevo.</string>
+    <string name="music_error_network">No se pudo conectar con Spotify.</string>
+    <string name="music_error_premium">Spotify exige Premium para controlar la reproducción.</string>
+    <string name="music_error_not_allowed">Añade esta cuenta en User Management de tu app de Spotify.</string>
+    <string name="music_error_auth">Vuelve a conectar Spotify.</string>
+    <string name="music_error_rate">Spotify está ocupado. Prueba en un minuto.</string>
+    <string name="music_error_response">Spotify envió una respuesta inesperada.</string>
+    <string name="music_error_browser">No hay navegador para abrir Spotify.</string>
+    <string name="music_error_storage">No se pudo guardar. Revisa el almacenamiento e inténtalo de nuevo.</string>
+    <string name="music_open_spotify">Abrir Spotify</string>
+    <string name="music_premium_short">Hace falta Premium</string>
+    <string name="music_reconnect_short">Reconecta Spotify</string>
+    <string name="music_play">Reproducir música</string>
+    <string name="music_pause_action">Pausar música</string>
+    <string name="music_next">Siguiente canción</string>
+</resources>
