@@ -12,6 +12,10 @@ To regenerate offline, run `python3 tools/import_icons.py`. To verify the checke
 
 The full upstream MIT notice is in [third_party/tabler-icons/LICENSE](third_party/tabler-icons/LICENSE).
 
+## Spotify
+
+The optional music module talks to the Spotify Web API with the user's own Client ID; no Spotify SDK or code is bundled. The Spotify mark beside a playing track is Tabler's `brand-spotify` outline, shown as the attribution Spotify's guidelines ask for. Spotify is a trademark of Spotify AB. Runline is not affiliated with or endorsed by Spotify. See [Music and Spotify](docs/SPOTIFY.md).
+
 ## MapLibre Native
 
 Runline uses [MapLibre Native Android 11.13.5](https://github.com/maplibre/maplibre-native/tree/android-v11.13.5) under the BSD-2-Clause license. The full upstream notice is bundled as `app/src/main/assets/licenses/maplibre-native.txt`. MapLibre renders maps locally; imagery is supplied separately by the providers below.

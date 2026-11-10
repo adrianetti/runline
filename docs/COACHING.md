@@ -45,7 +45,7 @@ Quiet intervals begin when speech finishes, fails or stops: two seconds for a go
 
 ## Music, calls and lifecycle
 
-Runline requests `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` with speech/navigation attributes for each short utterance. Compatible players may lower music. Focus is released after completion, errors, focus loss, pause/finish or a 15-second speech watchdog. Initialization has its own bounded timeout. Runline never sets global media volume, controls Spotify, impersonates a music player or restarts another app's audio.
+Runline requests `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` with speech/navigation attributes for each short utterance. Compatible players may lower music. Focus is released after completion, errors, focus loss, pause/finish or a 15-second speech watchdog. Initialization has its own bounded timeout. The voice coach never sets global media volume, controls a player, impersonates a music player or restarts another app's audio. Starting, pausing and choosing music is a separate optional module, off by default: see [Music and Spotify](SPOTIFY.md).
 
 The service owns live coaching. Closing the screen does not intentionally stop it. Pause/finish/interruption stops speech and invalidates pending work. Configuration changes/recovery baseline history; old pace or kilometre cues are not replayed. Current cues can wait only in the bounded, expiring slots above. Prompts are helpful feedback, not a guaranteed alarm.
 

@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.22:** a live coach that actually talks. With **Live advice** on, Claude speaks within the first minute, after every kilometre, lap and goal milestone, and every couple of minutes in between: a real number from your run and what it means, a form cue, a comparison with your recent runs, a nudge toward your goal. Each line is new, takes about a second to arrive, and never repeats the last ones. [AI](docs/AI.md#live-coach).
+**New in 0.23:** music that follows the run. Runline can start and pause any player with the recording. Connect Spotify with your own free Client ID and it plays your calm, steady and push playlists as the run changes: warm-up, climbs, a slipping pace, the final stretch. [Music and Spotify](docs/SPOTIFY.md).
+
+**In 0.22:** a live coach that actually talks. With **Live advice** on, Claude speaks within the first minute, after every kilometre, lap and goal milestone, and every couple of minutes in between: a real number from your run and what it means, a form cue, a comparison with your recent runs, a nudge toward your goal. Each line is new, takes about a second to arrive, and never repeats the last ones. [AI](docs/AI.md#live-coach).
 
 **In 0.21:** guidance to the route start. The island and voice say where it is ("Start 450 m to your left"), a dotted line on the map points the way, and one tap opens Google Maps walking directions. Directions are spoken even with the voice coach off. Off route and wrong way also pop up as a notification. Runline appears in **Open with** for downloaded GPX files, and Routes adds one with **+**. [Hiking and routes](docs/HIKING.md#following-a-route).
 
@@ -49,7 +51,7 @@ Google Play publication is deferred until a developer account and the remaining 
 ## More
 
 - [Usage](docs/USAGE.md) · [Development](docs/DEVELOPMENT.md) · [Repository checks](docs/CHECKS.md)
-- [Maps](docs/MAPS.md) · [Coaching](docs/COACHING.md) · [AI](docs/AI.md) · [Goals](docs/GOALS.md) · [Exports](docs/EXPORTS.md)
+- [Maps](docs/MAPS.md) · [Coaching](docs/COACHING.md) · [AI](docs/AI.md) · [Goals](docs/GOALS.md) · [Music and Spotify](docs/SPOTIFY.md) · [Exports](docs/EXPORTS.md)
 - [Coach diagnostics](docs/DIAGNOSTICS.md) · [Distribution and Google Play plan](docs/PUBLISHING.md)
 - [Testing and known limits](docs/TESTING.md) · [Release history](docs/RELEASE-HISTORY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 

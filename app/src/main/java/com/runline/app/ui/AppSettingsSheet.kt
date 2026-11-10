@@ -15,6 +15,7 @@ class AppSettingsSheet(
     onAbout: () -> Unit,
     onDiagnostics: () -> Unit,
     onTerrain: () -> Unit,
+    onMusic: () -> Unit,
 ) {
     private val sheet = AiSheet(activity, R.string.v8_settings)
     val isShowing get() = sheet.isShowing
@@ -33,6 +34,7 @@ class AppSettingsSheet(
             else -> activity.getString(R.string.main_phone_language)
         }
         item(activity.getString(R.string.v8_language_value, language), R.drawable.ic_language, onLanguage)
+        item(activity.getString(R.string.music_title), R.drawable.ic_music, onMusic)
         item(activity.getString(R.string.terrain_maps_title), R.drawable.ic_slope_up, onTerrain)
         // Derived only: stops never remove fixes, so this can be changed after a run too.
         // Same button style as the other rows keeps icon and label on one start edge.

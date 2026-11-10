@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_title">Music</string>
+    <string name="music_enabled">Control music</string>
+    <string name="music_start">Start with the run</string>
+    <string name="music_pause">Pause with the run</string>
+    <string name="music_any_player">Works with any player. Spotify adds playlists that follow the run.</string>
+    <string name="music_client_id">Client ID</string>
+    <string name="music_client_id_hint">From your own Spotify app</string>
+    <string name="music_client_id_error">A Client ID has 32 letters and digits.</string>
+    <string name="music_connect">Connect</string>
+    <string name="music_setup">Setup guide</string>
+    <string name="music_setup_steps">1. Create an app in the Spotify developer dashboard. Spotify asks for Premium.\n2. Add the redirect URI %1$s\n3. Tick Web API, save, and paste the Client ID here.</string>
+    <string name="music_open_dashboard">Open Spotify dashboard</string>
+    <string name="music_copy_redirect">Copy redirect URI</string>
+    <string name="music_copied">Copied</string>
+    <string name="music_connected">Connected · %1$s</string>
+    <string name="music_connected_plain">Connected</string>
+    <string name="music_connecting">Connecting…</string>
+    <string name="music_disconnect">Disconnect</string>
+    <string name="music_adaptive">Match the music to the run</string>
+    <string name="music_calm">Calm</string>
+    <string name="music_steady">Steady</string>
+    <string name="music_push">Push</string>
+    <string name="music_none">None</string>
+    <string name="music_loading">Loading playlists…</string>
+    <string name="music_error_denied">Spotify did not connect.</string>
+    <string name="music_error_stale">That sign-in expired. Try again.</string>
+    <string name="music_error_network">Could not reach Spotify.</string>
+    <string name="music_error_premium">Spotify needs Premium to control playback.</string>
+    <string name="music_error_not_allowed">Add this account under User Management in your Spotify app.</string>
+    <string name="music_error_auth">Connect Spotify again.</string>
+    <string name="music_error_rate">Spotify is busy. Try again in a minute.</string>
+    <string name="music_error_response">Spotify sent an unexpected reply.</string>
+    <string name="music_error_browser">No browser to open Spotify.</string>
+    <string name="music_error_storage">Could not save. Check storage and try again.</string>
+    <string name="music_open_spotify">Open Spotify</string>
+    <string name="music_premium_short">Premium needed</string>
+    <string name="music_reconnect_short">Reconnect Spotify</string>
+    <string name="music_play">Play music</string>
+    <string name="music_pause_action">Pause music</string>
+    <string name="music_next">Next track</string>
+</resources>

@@ -215,6 +215,18 @@
       "sha256": "4da4ed630189729c0da013d380bdd2f62c119b824f01193b83dd880e21781de9",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/directions.svg"
     },
+    "icons/outline/music.svg": {
+      "sha256": "afd2fe98e580e1d4e9bf45d88165894b0e683e9141f63c312585d778b73d02c5",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/music.svg"
+    },
+    "icons/outline/player-skip-forward.svg": {
+      "sha256": "c38c684e4e6f77b9b775a9dfbea059d82d62a7310ba1ff6cda34a5eb7870b818",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/player-skip-forward.svg"
+    },
+    "icons/outline/brand-spotify.svg": {
+      "sha256": "17865db84f76b1f92004ca81f011dcaa36c14c4e219f75a9218ce619dfa81d74",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/brand-spotify.svg"
+    },
     "LICENSE": {
       "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/LICENSE"
