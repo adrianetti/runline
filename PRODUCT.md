@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.20.3 (code 26) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.21.0 (code 26) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.0, built-in Kotlin with a 2.4.21 override, Gradle 9.8.2 and JDK 17. Runline remains a working name.
 
 ## Users
 
@@ -151,4 +151,9 @@ Routes has a **+** in its header, beside ⋯, that opens Android Files. Compatib
 
 Names prefer a useful GPX title, then a readable filename; default activity titles, IDs and dates are skipped. Otherwise the suggestion reads “Granada, Los Pinos – Puente Romano loop 10.3K”: town, start and far point, shape and distance. Nearby named waypoints beat map labels; places come from Android's built-in geocoder for two points only, and offline the suggestion falls back to shape and distance. Names are editable, limited to 120 characters, and blank input accepts the suggestion. Starting an imported route keeps the activity chosen on Record.
 
-In 0.20.3, Open with and Share also accept `application/octet-stream`, `application/xml` and `text/xml`, because Android has no MIME type for `.gpx` and file managers and browser downloads pass those with opaque URIs. Filenames that are a provider ID glued to words (“1448280673GRANADAPINOSGENIL…”) fall back to the place-based suggestion.
+In 0.21, Open with and Share also accept `application/octet-stream`, `application/xml` and `text/xml`, because Android has no MIME type for `.gpx` and file managers and browser downloads pass those with opaque URIs. Filenames that are a provider ID glued to words (“1448280673GRANADAPINOSGENIL…”) fall back to the place-based suggestion.
+
+## Getting to and staying on a route — 0.21
+
+Before you reach a route, the island and voice give the distance and direction to its start as the crow flies, with a dotted line on the map; street directions are a tap away in the phone's maps app. Route directions are spoken whenever a route is followed, independent of the voice coach. Off route and wrong way (60 m backwards along the route) vibrate, speak and post a high-importance Route alerts notification that clears on return. The Record activity picker opens only on a tap.
+

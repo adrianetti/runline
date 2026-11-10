@@ -24,6 +24,8 @@ data class RouteProgress(
     val nextWaypointMeters: Double?,
     /** True only on the update where [state] changed, so alerts fire once. */
     val changed: Boolean,
+    /** On the route but moving along it backwards for a while (turned round, or took the loop the other way). */
+    val wrongWay: Boolean = false,
 )
 
 /**
@@ -55,6 +57,9 @@ class RouteFollower(val route: HikingRoute) {
     private var courseFrom: Pair<Double, Double>? = null
     /** Last direction of travel over at least 8 m; kept between fixes that move less. */
     private var course: Double? = null
+    /** Net metres moved backwards along the route, up to [WRONG_WAY_METERS]. */
+    private var reversed = 0.0
+    private var wrongWay = false
 
     val currentState get() = state
 
@@ -148,8 +153,16 @@ class RouteFollower(val route: HikingRoute) {
                 }
                 if (match.distance > limit) {
                     offCount++; if (offSince == null) offSince = timeMs
-                    if (offCount >= 3 && timeMs - offSince!! >= 10_000) { state = RouteState.OFF_ROUTE; backCount = 0 }
-                } else { offCount = 0; offSince = null; along = match.along }
+                    if (offCount >= 3 && timeMs - offSince!! >= 10_000) { state = RouteState.OFF_ROUTE; backCount = 0; reversed = 0.0; wrongWay = false }
+                } else {
+                    offCount = 0; offSince = null
+                    // Net distance backwards along the route, capped so ~20 m the right way clears it.
+                    // Wobble while standing cancels out; only real steps count.
+                    if (step >= 3) reversed = (reversed - (match.along - along)).coerceIn(0.0, WRONG_WAY_METERS)
+                    if (reversed >= WRONG_WAY_METERS) wrongWay = true
+                    else if (reversed <= WRONG_WAY_METERS - 20) wrongWay = false
+                    along = match.along
+                }
             }
             RouteState.OFF_ROUTE -> {
                 // Rejoining anywhere is fine (a shortcut or a detour back to the path).
@@ -179,7 +192,8 @@ class RouteFollower(val route: HikingRoute) {
         } else 1.0
         val next = waypointAlong.firstOrNull { it.second > shown + 20 }
         return RouteProgress(state, shown, (total - shown).coerceAtLeast(0.0), fromRoute, ascent, minutesLeft * factor,
-            side, toRoute, next?.first, next?.second?.minus(shown), state != previousState)
+            side, toRoute, next?.first, next?.second?.minus(shown), state != previousState,
+            wrongWay = wrongWay && state == RouteState.ON_ROUTE)
     }
 
     private fun interpolate(values: DoubleArray, distance: Double): Double {
@@ -193,6 +207,9 @@ class RouteFollower(val route: HikingRoute) {
     }
 
     companion object {
+        /** Backwards travel along the route before it counts as going the wrong way. */
+        const val WRONG_WAY_METERS = 60.0
+
         fun sideOf(bearingToRoute: Double, course: Double): RouteSide {
             val relative = ((bearingToRoute - course + 540) % 360) - 180
             return when {

@@ -105,6 +105,35 @@ class RouteFollowerTest {
         assertEquals(0.0, p.bearingToRouteDegrees!!, 2.0)
     }
 
+    @Test fun `turning round on the route is the wrong way once, and walking on clears it`() {
+        val r = route(); val w = Walker(RouteFollower(r))
+        var p: RouteProgress? = null
+        for (i in 0..50) p = w.at(37.0 + i * 10 * m, -3.6)
+        assertFalse(p!!.wrongWay)
+        val back = (1..10).map { w.at(37.0 + (500 - it * 10) * m, -3.6) }
+        assertFalse(back[3].wrongWay)
+        assertTrue(back.last().wrongWay)
+        assertEquals(RouteState.ON_ROUTE, back.last().state)
+        val on = (1..4).map { w.at(37.0 + (400 + it * 10) * m, -3.6) }
+        assertFalse(on.last().wrongWay)
+    }
+
+    @Test fun `the way back along an out-and-back spur is not the wrong way`() {
+        val r = route(); val w = Walker(RouteFollower(r))
+        val east = 1 / (111_195.0 * Math.cos(Math.toRadians(37.01)))
+        val all = (0..100).map { w.at(37.0 + it * 10 * m, -3.6) } +
+            (1..30).map { w.at(37.0 + 1000 * m, -3.6 + it * 10 * east) } +
+            (29 downTo 0).map { w.at(37.0 + 1000 * m, -3.6 + it * 10 * east) }
+        assertTrue(all.none { it.wrongWay })
+    }
+
+    @Test fun `GPS wobble while standing still is not the wrong way`() {
+        val r = route(); val w = Walker(RouteFollower(r))
+        for (i in 0..50) w.at(37.0 + i * 10 * m, -3.6)
+        val wobble = (1..80).map { w.at(37.0 + (500 + if (it % 2 == 0) 4 else -4) * m, -3.6) }
+        assertTrue(wobble.none { it.wrongWay })
+    }
+
     @Test fun `estimate adapts to the hiker's own pace after the first kilometre`() {
         val r = route()
         val slow = RouteFollower(r); val normal = RouteFollower(r)

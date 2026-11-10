@@ -1,0 +1,22 @@
+<resources>
+    <string name="v21_say_m">%1$d metres</string>
+    <string name="v21_say_km">%1$s kilometres</string>
+    <string name="v21_say_start_where">The start of the route is %1$s %2$s.</string>
+    <string name="v21_say_start">The start of the route is %1$s away.</string>
+    <string name="v21_compass_n">to the north</string>
+    <string name="v21_compass_ne">to the north-east</string>
+    <string name="v21_compass_e">to the east</string>
+    <string name="v21_compass_se">to the south-east</string>
+    <string name="v21_compass_s">to the south</string>
+    <string name="v21_compass_sw">to the south-west</string>
+    <string name="v21_compass_w">to the west</string>
+    <string name="v21_compass_nw">to the north-west</string>
+    <string name="v21_route_wrong_way">Wrong way. The route goes the other way.</string>
+    <string name="v21_route_alert_channel">Route alerts</string>
+    <string name="v21_route_alert_channel_description">Off route and wrong way, also with the screen off.</string>
+    <string name="v21_island_start">Start %1$s %2$s</string>
+    <string name="v21_island_start_plain">Start %1$s away</string>
+    <string name="v21_island_wrong_way">Wrong way · turn around</string>
+    <string name="v21_directions">Directions to start</string>
+    <string name="v21_directions_failed">No maps app to open the directions</string>
+</resources>

@@ -496,6 +496,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showRouteOptions(anchor: View, id: String, imported: Boolean) {
         PopupMenu(this, anchor).apply {
+            menu.add(0, 4, 0, R.string.v21_directions).setIcon(R.drawable.ic_directions)
             menu.add(0, 1, 0, R.string.v19_route_share_gpx).setIcon(R.drawable.ic_share)
             menu.add(0, 2, 1, R.string.v19_route_save_gpx).setIcon(R.drawable.ic_download)
             if (imported) menu.add(0, 3, 2, R.string.v19_route_delete).setIcon(R.drawable.ic_trash)
@@ -503,6 +504,8 @@ class MainActivity : AppCompatActivity() {
             setForceShowIcon(true)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    4 -> runCatching { routes.load(id)?.points?.first() }.getOrNull()
+                        ?.let { com.runline.app.ui.RouteDirections.open(this@MainActivity, it.latitude, it.longitude) }
                     1 -> shareRoute(id)
                     2 -> runCatching { saveRouteAs.launch(routes.fileName(id, language())) }
                     3 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.v19_route_delete)

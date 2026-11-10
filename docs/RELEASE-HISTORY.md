@@ -278,12 +278,16 @@ Recorded 9 November 2026:
 
 Not verified: a physical phone, third-party download apps' Open with behaviour, and the signed update over 0.20.1.
 
-## Version 0.20.3
+## Version 0.21.0
 
+- **Directions to the start.** Until you reach the route, the island says "Start 450 m to your left" (a compass point before you move) and a dotted line on the map joins you to the start. Runline says it too, at about 1 km, 500, 200, 100 and 50 m, when the start falls behind you, and every 3 minutes. The signpost in the island, or **⋯ → Directions to start** on the route page, opens Google Maps walking navigation.
+- **Directions without the coach.** Turns, getting to the start, off route, back on route and arrival are spoken whenever you follow a route, even with the voice coach off. Pace and AI coaching still need the coach.
+- **Lost alerts.** Off route and the new **wrong way** cue (60 m backwards along the route) vibrate, speak and pop up as a Route alerts notification that clears when you are back on track.
 - **Open with finds Runline.** Android has no MIME type for `.gpx`, so Chrome downloads, Files and My Files pass it as `application/octet-stream` or XML with an opaque URI. Open with and Share now accept those types (and `application/x-gpx`); the import still checks the file and refuses anything that isn't a GPX route.
 - **+ to add.** Routes adds a GPX from a **+** beside ⋯ instead of a full-width button.
 - **Activity picker.** On Record, the Run/Walk/Hike list no longer opens by itself when you come back to the tab (seen on a Samsung). It opens only after a tap or an accessibility click.
 - **Names.** A filename that is a provider ID glued to words (“1448280673GRANADAPINOSGENIL…”) is skipped, so the place-based suggestion is used.
 
-Verified 10 November 2026: 416 JVM tests, lint 0 errors, resource, icon (53), route and security checks. Seven import tests on a throwaway API 34 emulator. There, a `.gpx` pushed to Downloads was stored as `application/octet-stream`; Runline resolved for it as octet-stream, XML and GPX types but not PDF, opened it, and suggested “Madrid, Callao – Paseo del Prado out and back 3.4K”. **+** opened the Files picker. Not tested on a physical phone or in Chrome's own download list.
+Verified 10 November 2026 for the Open with part: 416 JVM tests, lint 0 errors, resource, icon (53), route and security checks. Seven import tests on a throwaway API 34 emulator. There, a `.gpx` pushed to Downloads was stored as `application/octet-stream`; Runline resolved for it as octet-stream, XML and GPX types but not PDF, opened it, and suggested “Madrid, Callao – Paseo del Prado out and back 3.4K”. **+** opened the Files picker. Not tested on a physical phone or in Chrome's own download list.
 
+Verified 10 November 2026 for 0.21 as a whole: 424 JVM tests, 8 Android tests, lint 0 errors, resource (764), icon (54), route and security checks. Mock-GPS run on a throwaway emulator with the voice coach off: approach island, line and cues at 600/450/150/60 m, joined, off route and the Route alerts pop-up. Not tested: Google Maps handoff, audible speech, wrong way on a device, and the picker on the Samsung where it misbehaved. Details: [TESTING.md](TESTING.md#version-0210-validation).

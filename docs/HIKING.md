@@ -55,20 +55,22 @@ The route chosen for the next recording is ticked in the Routes list. It also sh
 
 - **Map.** The planned route is a dashed line under your recorded track.
 - **Live readout.** The island shows the distance and ascent left, your arrival time, and a warning when you would arrive after sunset. It also shows the next named waypoint.
-- **Approaching.** Before you reach the route, it shows the distance to its start.
+- **Getting to the start.** Until you reach the route, the island says where its start is, as the crow flies: "Start 450 m to your left", or a compass point ("to the north-east") before you are moving. A thin dotted line on the map joins you to the start.
+  - Runline says it too, when following begins, at about 1 km, 500, 200, 100 and 50 m, when the start falls behind you, and every 3 minutes otherwise.
+  - For street directions, tap the signpost in the island, or **⋯ → Directions to start** on the route page. Google Maps opens in walking navigation (any maps app otherwise); recording keeps running, and Runline takes over once you are on the route.
 - **Matching.** Each fix is matched to the route by expected progress, not just the nearest point, so out-and-back legs and loops count correctly.
 - **Joining.** You can join the route anywhere. Runline joins the earliest part of the route within reach, so a loop starts at its start. If that is a neighbouring leg (near a junction, or beside a parallel path), the first 300 m move you to the leg running the way you walk, without an off-route alert.
 - **Off route.** You are off route when 3 fixes over at least 10 s are further from the path than 1.5× the GPS accuracy, clamped to 35–80 m.
-  - The phone vibrates and the notification title says **Off route · N m**.
-  - When voice is on, Runline says how far away the path is, and on which side relative to your direction of travel.
+  - The phone vibrates, Runline says how far away the path is and on which side, and a **Route alerts** notification pops up, so it reaches a locked phone or one showing another app. It clears when you are back on the route.
   - The alert repeats every 2 minutes while you stay off route.
   - Two fixes well inside the threshold put you back on route, with a short vibration and "Back on the route".
+- **Wrong way.** On the route but going backwards along it for 60 m (you turned round, or set off round a loop the other way): three vibrations, "Wrong way. The route goes the other way." and the same pop-up. About 20 m the right way clears it. Wobble while standing still does not count, and neither does the way back along an out-and-back leg.
 - **Finishing.** The route is complete within 30 m of its end, once at least half of it is behind you.
 - **Restarts.** The route is saved with the session. After an app restart, progress is rebuilt from the recorded fixes, and every cue already behind you stays silent.
 
 ## Navigation
 
-Cues come from the route itself and work offline. They are spoken only when voice is on. Without voice, the island still shows them, and the phone vibrates briefly at each turn.
+Cues come from the route itself and work offline. They are spoken whenever you follow a route, even with the voice coach off; the coach switch only controls pace and AI coaching. The island shows them too, and the phone vibrates briefly at each turn.
 
 ### Turns
 
