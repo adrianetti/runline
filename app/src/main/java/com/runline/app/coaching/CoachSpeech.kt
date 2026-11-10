@@ -63,7 +63,7 @@ class CoachSpeech(context: Context,
     private var utteranceValid: (() -> Boolean)? = null
     private var timeout: Runnable? = null
     private val schedule = CoachSpeechSchedule { request, reason ->
-        diagnostic("dropped_$reason", request.advice.orEmpty(), if (request.cue == null) "AI" else "LOCAL", request.key)
+        diagnostic("dropped_$reason", request.advice.orEmpty(), if (request.advice != null && !request.key.startsWith("route-")) "AI" else "LOCAL", request.key)
     }
     private val spokenGate = SpokenCoachGate()
     private var situation = CoachSituation()
@@ -104,7 +104,13 @@ class CoachSpeech(context: Context,
     }
     fun reset() = onMain { stopInternal(); schedule.reset() }
     fun invalidatePending() = onMain { invalidatePendingInternal() }
-    fun speak(cue: CoachCue) = onMain {
+    fun speak(cue: CoachCue) = offer(cue, null)
+    /** A milestone announced by the live coach in its own words. It keeps the cue's place, priority and validity. */
+    fun speakMilestone(cue: CoachCue, text: String) {
+        val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
+        offer(cue, clean.takeIf { it.isNotEmpty() && it.length <= com.runline.app.ai.LiveAiAdvice.MAX_CHARS && it.split(' ').size <= com.runline.app.ai.LiveAiAdvice.MAX_WORDS })
+    }
+    private fun offer(cue: CoachCue, text: String?) = onMain {
         if (closed) return@onMain
         val priority = when (cue) {
             is CoachCue.GoalReached -> CoachSpeechPriority.GOAL
@@ -113,9 +119,9 @@ class CoachSpeech(context: Context,
             is CoachCue.Encouragement -> CoachSpeechPriority.MORALE
             else -> CoachSpeechPriority.PACE
         }
-        val offered = schedule.offer(CoachSpeechRequest(cue.toString(), priority, cue = cue,
+        val offered = schedule.offer(CoachSpeechRequest(cue.toString(), priority, cue = cue, advice = text,
             isValid = { situation.allows(cue) }), SystemClock.elapsedRealtime())
-        diagnostic(if (offered) "queued" else "rejected", "", "LOCAL", cue.toString())
+        diagnostic(if (offered) "queued" else "rejected", text.orEmpty(), if (text == null) "LOCAL" else "AI", cue.toString())
         prepareInternal()
         drainPendingSpeech()
     }
@@ -178,7 +184,7 @@ class CoachSpeech(context: Context,
                                     }
                                     completePreview(SpeechResult.READY)
                                     spokenGate.started(id, SystemClock.elapsedRealtime())?.let {
-                                        diagnostic("started"); runCatching { onSpoken(it.copy(cue = currentCue)) }
+                                        diagnostic("started"); runCatching { onSpoken(it) }
                                     }
                                 }
                             } }
@@ -290,10 +296,11 @@ class CoachSpeech(context: Context,
         if (closed || (!initialized && !initializing)) { invalidatePendingInternal(); return }
         val next = schedule.takeReady(SystemClock.elapsedRealtime(), initialized && !lease.isBusy && speakingInstance == null)
         if (next != null && runCatching(next.isValid).getOrDefault(false)) {
-            val text = next.cue?.let(::cueText) ?: next.advice.orEmpty()
+            // A cue with words attached is a milestone the live coach announces in its own voice.
+            val text = next.advice ?: next.cue?.let(::cueText).orEmpty()
             val route = next.cue == null && next.key.startsWith("route-")
             currentCue = next.cue?.toString() ?: if (route) next.key else "advice"
-            speakInternal(text, null, if (next.cue == null && !route) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
+            speakInternal(text, null, if (next.advice != null && !route) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
         }
         // At most three bounded slots; no polling or held focus after they expire.
         if (schedule.pendingCount > 0) main.postDelayed(retrySpeech, 1_000)
@@ -349,7 +356,8 @@ class CoachSpeech(context: Context,
             val comparison = cue.comparison
             val sector = comparison?.slowerSector
             if (sector != null) {
-                append(" ").append(tr(R.string.coach_lap_sector, sector.number))
+                val quarters = AppLanguage.localizedContext(context).resources.getStringArray(R.array.v22_coach_lap_quarters)
+                append(" ").append(tr(R.string.coach_lap_sector, quarters[(sector.number - 1).coerceIn(0, quarters.lastIndex)]))
                 // Lap pace remains useful; raw GPS height cannot corroborate a climb.
             } else if (comparison != null) append(" ").append(tr(when {
                 comparison.paceChangePercent >= 3 -> R.string.coach_lap_slower
@@ -361,9 +369,10 @@ class CoachSpeech(context: Context,
 
     /** Numbers first, a few words of direction second. Null falls back to a phrase. */
     private fun measured(kind: EncouragementKind, facts: com.runline.app.core.CoachFacts): String? = when (kind) {
+        // The cue can be held back by other speech: well past the middle it no longer says "halfway".
         EncouragementKind.HALFWAY -> when {
-            facts.projectedMeters != null -> tr(R.string.v17_coach_halfway_time, duration(facts.movingMs), kilometres(facts.distanceMeters), kilometres(facts.projectedMeters))
-            facts.projectedMs != null -> tr(R.string.v17_coach_halfway_distance, kilometres(facts.distanceMeters), duration(facts.movingMs), duration(facts.projectedMs))
+            facts.projectedMeters != null -> tr(if (facts.pastHalfway) R.string.v22_coach_past_halfway_time else R.string.v17_coach_halfway_time, duration(facts.movingMs), kilometres(facts.distanceMeters), kilometres(facts.projectedMeters))
+            facts.projectedMs != null -> tr(if (facts.pastHalfway) R.string.v22_coach_past_halfway_distance else R.string.v17_coach_halfway_distance, kilometres(facts.distanceMeters), duration(facts.movingMs), duration(facts.projectedMs))
             else -> null
         }
         EncouragementKind.FINAL_STRETCH -> when {

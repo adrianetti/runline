@@ -102,10 +102,10 @@
         <item>The path is descending. Choose control over extra speed.</item>
         <item>This stretch seems downhill. Keep an eye on the surface ahead.</item>
     </string-array>
-    <string name="coach_lap_complete">This looks like lap %1$d on the same loop.</string>
-    <string name="coach_lap_slower">That lap was slower than the previous one. Keep the effort comfortable.</string>
-    <string name="coach_lap_faster">That lap was quicker than the previous one. Keep something in reserve.</string>
-    <string name="coach_lap_even">Your lap pace was close to the previous one. Nice consistency.</string>
-    <string name="coach_lap_sector">Quarter %1$d of the loop took longer this time.</string>
+    <string name="coach_lap_complete">That\'s lap %1$d.</string>
+    <string name="coach_lap_slower">Slower than the lap before. Keep the effort comfortable.</string>
+    <string name="coach_lap_faster">Quicker than the lap before.</string>
+    <string name="coach_lap_even">Same pace as the lap before. Nice consistency.</string>
+    <string name="coach_lap_sector">The %1$s of the lap took longer this time.</string>
     <string name="coach_lap_sector_climb">GPS height rose through that section, so a slower pace can be sensible.</string>
 </resources>

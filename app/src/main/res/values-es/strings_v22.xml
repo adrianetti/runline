@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="v22_coach_lap_quarters">
+        <item>primer cuarto</item>
+        <item>segundo cuarto</item>
+        <item>tercer cuarto</item>
+        <item>último cuarto</item>
+    </string-array>
+    <string name="v22_coach_past_halfway_time">Ya has pasado la mitad. Llevas %1$s y %2$s. Vas camino de unos %3$s.</string>
+    <string name="v22_coach_past_halfway_distance">Ya has pasado la mitad. %1$s en %2$s. Vas camino de unos %3$s.</string>
+</resources>
