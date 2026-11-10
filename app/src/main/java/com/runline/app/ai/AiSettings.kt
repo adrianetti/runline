@@ -17,15 +17,20 @@ data class AiConfig(
     val automaticPlanUpdates: Boolean = false,
     val liveModel: String = AiProviderCatalog.DEFAULT_LIVE_MODEL,
     val reviewModel: String = AiProviderCatalog.DEFAULT_REVIEW_MODEL,
-    val intervalMinutes: Int = 5,
+    val intervalMinutes: Int = DEFAULT_INTERVAL_MINUTES,
     val includeNotes: Boolean = false,
     val provider: String = AiProviderCatalog.ANTHROPIC,
     val dailySuggestion: Boolean = false,
 ) {
-    fun valid() = AiProviderCatalog.find(provider) != null && intervalMinutes in 3..10 && validModel(liveModel) && validModel(reviewModel)
+    fun valid() = AiProviderCatalog.find(provider) != null && intervalMinutes in INTERVAL_MINUTES && validModel(liveModel) && validModel(reviewModel)
     /** Locally configured, not a guarantee of network availability or model access. */
     fun isReady(hasKey: Boolean) = enabled && hasKey && valid()
-    companion object { fun validModel(value: String) = value.matches(Regex("claude-[a-zA-Z0-9._-]{3,100}")) }
+    companion object {
+        /** How long the live coach stays quiet after it speaks; milestones still get their own line. */
+        val INTERVAL_MINUTES = 1..10
+        const val DEFAULT_INTERVAL_MINUTES = 2
+        fun validModel(value: String) = value.matches(Regex("claude-[a-zA-Z0-9._-]{3,100}"))
+    }
 }
 
 /** The app backup policy excludes all data; key ciphertext additionally lives in noBackupFilesDir. */
@@ -40,7 +45,7 @@ object AiSettings {
         p.getBoolean("enabled", false), p.getBoolean("live", false), p.getBoolean("reviews", false), p.getBoolean("adapt", false),
         p.getString("liveModel", null) ?: AiProviderCatalog.DEFAULT_LIVE_MODEL,
         p.getString("reviewModel", null) ?: AiProviderCatalog.DEFAULT_REVIEW_MODEL,
-        p.getInt("interval", 5), p.getBoolean("includeNotes", false),
+        p.getInt("livePace", AiConfig.DEFAULT_INTERVAL_MINUTES), p.getBoolean("includeNotes", false),
         p.getString("provider", null) ?: AiProviderCatalog.ANTHROPIC, p.getBoolean("dailySuggestion", false),
     ).takeIf { it.valid() } ?: AiConfig() }
     fun isReady(context: Context): Boolean = load(context).isReady(hasKey(context))
@@ -49,7 +54,7 @@ object AiSettings {
         changed(context)
         check(prefs(context).edit().putBoolean("enabled", config.enabled).putBoolean("live", config.liveEnabled)
             .putBoolean("reviews", config.automaticReviews).putBoolean("adapt", config.automaticPlanUpdates)
-            .putString("liveModel", config.liveModel).putString("reviewModel", config.reviewModel).putInt("interval", config.intervalMinutes)
+            .putString("liveModel", config.liveModel).putString("reviewModel", config.reviewModel).putInt("livePace", config.intervalMinutes)
             .putBoolean("includeNotes", config.includeNotes).putString("provider", config.provider).putBoolean("dailySuggestion", config.dailySuggestion).commit())
     }
     fun hasKey(context: Context): Boolean = keyFile(context).exists()

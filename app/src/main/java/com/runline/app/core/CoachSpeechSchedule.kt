@@ -5,11 +5,13 @@ package com.runline.app.core
  * NAVIGATION (turns, leaving or rejoining a route) waits only briefly after other speech and
  * expires fast, because a late turn instruction is a wrong one. ROUTE information (a place,
  * the next climb) shares the milestone slot with a shorter silence than a kilometre report.
+ * AI is the live coach: its line is written for this moment, so it follows other speech after
+ * a short breath and is dropped rather than spoken late.
  */
 enum class CoachSpeechPriority(val rank: Int, val silenceMs: Long, val lifetimeMs: Long) {
     NAVIGATION(110, 3_000, 12_000),
     GOAL(100, 2_000, 90_000), ROUTE(85, 8_000, 45_000), MILESTONE(80, 30_000, 60_000),
-    TERRAIN(50, 85_000, 60_000), AI(40, 85_000, 75_000),
+    TERRAIN(50, 85_000, 60_000), AI(40, 8_000, 40_000),
     PACE(30, 85_000, 25_000), MORALE(20, 85_000, 60_000)
 }
 
@@ -109,7 +111,8 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
 }
 
 enum class CoachSpeechSource { LOCAL, AI }
-data class SpokenCoachAdvice(val text: String, val source: CoachSpeechSource, val elapsedRealtimeMs: Long)
+/** [cue] names what was said: a local cue's diagnostic name, a route key, or "advice" for the live coach. */
+data class SpokenCoachAdvice(val text: String, val source: CoachSpeechSource, val elapsedRealtimeMs: Long, val cue: String = "")
 
 /** A queued/generated sentence is not speech history. Only the matching TTS start counts once. */
 class SpokenCoachGate {

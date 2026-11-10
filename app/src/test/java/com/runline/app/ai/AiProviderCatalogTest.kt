@@ -36,7 +36,7 @@ class AiProviderCatalogTest {
         for (model in listOf("", "claude-model?key=bad", "https://example.com", "claude-" + "a".repeat(101))) {
             assertFalse(AiConfig(enabled = true, liveModel = model).isReady(hasKey = true))
         }
-        assertFalse(AiConfig(enabled = true, intervalMinutes = 2).isReady(hasKey = true))
+        assertFalse(AiConfig(enabled = true, intervalMinutes = 0).isReady(hasKey = true))
         assertFalse(AiConfig(enabled = true, intervalMinutes = 11).isReady(hasKey = true))
     }
 }

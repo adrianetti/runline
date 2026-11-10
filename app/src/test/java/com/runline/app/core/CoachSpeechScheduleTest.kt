@@ -10,24 +10,33 @@ class CoachSpeechScheduleTest {
         cue = CoachCue.Kilometre(number, 330.0))
     private fun goal() = CoachSpeechRequest("goal", CoachSpeechPriority.GOAL, cue = CoachCue.GoalReached(null))
 
-    @Test fun `local and AI share silence measured from end of speech`() {
+    @Test fun `the live coach follows other speech after a short breath, measured from its end`() {
         val schedule = CoachSpeechSchedule()
         val local = CoachSpeechRequest("pace", CoachSpeechPriority.PACE, cue = CoachCue.SlowerThanTarget)
         schedule.offer(local, 0)
         assertEquals(local, schedule.takeReady(0, true))
         schedule.finished(8_000)
-        schedule.offer(ai(), 25_000)
-        assertNull(schedule.takeReady(85_000, true))
-        assertNotNull(schedule.takeReady(93_000, true))
+        schedule.offer(ai(), 9_000)
+        assertNull(schedule.takeReady(15_900, true))
+        assertNotNull(schedule.takeReady(16_000, true))
+    }
+
+    @Test fun `local routine cues still keep the long quiet interval after any speech`() {
+        val schedule = CoachSpeechSchedule()
+        schedule.offer(ai(), 0); assertNotNull(schedule.takeReady(0, true)); schedule.finished(8_000)
+        val morale = CoachSpeechRequest("morale", CoachSpeechPriority.MORALE, cue = CoachCue.Encouragement(EncouragementKind.STEADY))
+        schedule.offer(morale, 40_000)
+        assertNull(schedule.takeReady(92_000, true))
+        assertEquals(morale, schedule.takeReady(93_000, true))
     }
 
     @Test fun `new AI replaces old advice without a FIFO backlog`() {
         val schedule = CoachSpeechSchedule()
         schedule.finished(0)
-        repeat(50) { schedule.offer(ai("Advice $it"), 20_000 + it * 100L) }
+        repeat(50) { schedule.offer(ai("Advice $it"), 1_000 + it * 100L) }
         assertEquals(1, schedule.pendingCount)
-        assertEquals("Advice 49", schedule.takeReady(85_000, true)?.advice)
-        assertNull(schedule.takeReady(90_000, true))
+        assertEquals("Advice 49", schedule.takeReady(8_000, true)?.advice)
+        assertNull(schedule.takeReady(9_000, true))
     }
 
     @Test fun `expired AI never holds a slot or speaks late`() {
@@ -122,10 +131,10 @@ class CoachSpeechScheduleTest {
         schedule.takeReady(0, true)
         schedule.finished(5_000)
         schedule.reset()
-        schedule.offer(ai(), 30_000)
-        assertNull(schedule.takeReady(60_000, true))
-        assertNotNull(schedule.takeReady(90_000, true))
-        assertTrue(schedule.offer(goal(), 91_000))
+        schedule.offer(ai(), 6_000)
+        assertNull(schedule.takeReady(12_000, true))
+        assertNotNull(schedule.takeReady(13_000, true))
+        assertTrue(schedule.offer(goal(), 14_000))
     }
 
     @Test fun `broken validation fails closed and cannot block a newer valid cue`() {
