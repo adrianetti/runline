@@ -5,7 +5,7 @@ buildscript {
         // Keep the provider, PKIX and utility modules on one patched upstream release.
         classpath(platform("org.bouncycastle:bc-jdk18on-bom:1.86"))
         constraints {
-            add("classpath", "com.google.guava:guava:33.7.2-jre") {
+            add("classpath", "com.google.guava:guava:33.8.0-jre") {
                 because("Patch the Guava version selected by Android build tools")
             }
             add("classpath", "org.bitbucket.b_c:jose4j:0.9.6") {
@@ -32,7 +32,7 @@ subprojects {
             listOf("bcprov-jdk18on", "bcpkix-jdk18on", "bcutil-jdk18on").forEach { module ->
                 dependencyConstraints.add(project.dependencies.constraints.create("org.bouncycastle:$module:1.86"))
             }
-            dependencyConstraints.add(project.dependencies.constraints.create("com.google.guava:guava:33.7.2-jre"))
+            dependencyConstraints.add(project.dependencies.constraints.create("com.google.guava:guava:33.8.0-jre"))
             dependencyConstraints.add(project.dependencies.constraints.create("org.apache.commons:commons-lang3:3.18.0"))
             dependencyConstraints.add(project.dependencies.constraints.create("org.apache.httpcomponents:httpclient:4.5.14"))
         }
