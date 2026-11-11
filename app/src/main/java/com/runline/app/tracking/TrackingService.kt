@@ -604,7 +604,7 @@ class TrackingService : Service(), LocationListener {
                     published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.speech(
                         this, observed, event, text, source, cue, situation, !published.gpsStale) }
                 }) { spoken ->
-                    aiCoach?.onSpoken(spoken.text, spoken.source.name, spoken.elapsedRealtimeMs, spoken.cue)
+                    aiCoach?.onSpoken(spoken.text, spoken.source.name, spoken.elapsedRealtimeMs)
                 }
                 coachSpeech?.prepare()
             } else {
@@ -619,12 +619,23 @@ class TrackingService : Service(), LocationListener {
             val stopped = stoppedSince()
             val cue = coachEngine?.update(run, mode == RecordingStatus.RECORDING, fresh, stopped)
             coachEngine?.situation?.let { coachSpeech?.updateSituation(it) }
-            // While the live coach is answering, routine encouragement is its job: it knows the run
-            // and what was already said. Milestones, pace and terrain cues stay local and instant.
-            cue?.takeUnless { it is com.runline.app.core.CoachCue.Encouragement && it.kind !in LOCAL_ENCOURAGEMENT && aiCoach?.leading == true }
-                ?.let { coachSpeech?.speak(it) }
+            val terrain = coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN
+            val live = aiCoach?.takeIf { it.leading && mode == RecordingStatus.RECORDING && stopped == null }
+            when {
+                cue == null -> Unit
+                // While the live coach is answering, routine encouragement is its job: it knows the
+                // run and what was already said.
+                live != null && cue is com.runline.app.core.CoachCue.Encouragement && cue.kind !in LOCAL_ENCOURAGEMENT -> Unit
+                // It also announces the milestones in its own voice, with what they mean. The built-in
+                // announcement is spoken instead if it does not answer within a few seconds.
+                live != null && com.runline.app.ai.LiveMoment.of(cue) != null -> live.voice(cue, run, fresh, coachConfig, terrain) { text ->
+                    if (text != null) coachSpeech?.speakMilestone(cue, text) else coachSpeech?.speak(cue)
+                }
+                // Pace and terrain cues, and everything when the live coach is off, stay local and instant.
+                else -> coachSpeech?.speak(cue)
+            }
             // A standstill is not a moment for advice; the AI coach waits for movement too.
-            if (coachConfig.enabled && mode == RecordingStatus.RECORDING && stopped == null) aiCoach?.update(run, fresh, coachConfig, coachEngine?.situation?.terrain ?: com.runline.app.core.CoachTerrain.UNKNOWN)
+            if (coachConfig.enabled && mode == RecordingStatus.RECORDING && stopped == null) aiCoach?.update(run, fresh, coachConfig, terrain)
         }
     }
     /** Optional music follows the run; it has its own thread and can never fail the recorder. */

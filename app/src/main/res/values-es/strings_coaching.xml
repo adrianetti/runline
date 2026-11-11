@@ -102,10 +102,10 @@
         <item>El camino va bajando. Prioriza el control sobre la velocidad.</item>
         <item>Este tramo parece cuesta abajo. Presta atención al suelo que tienes delante.</item>
     </string-array>
-    <string name="coach_lap_complete">Parece la vuelta %1$d por el mismo recorrido.</string>
-    <string name="coach_lap_slower">Esa vuelta fue más lenta que la anterior. Mantén un esfuerzo cómodo.</string>
-    <string name="coach_lap_faster">Esa vuelta fue más rápida que la anterior. Guarda algo de energía.</string>
-    <string name="coach_lap_even">El ritmo de esta vuelta se parece al de la anterior. Buena constancia.</string>
-    <string name="coach_lap_sector">El cuarto %1$d del recorrido llevó más tiempo esta vez.</string>
+    <string name="coach_lap_complete">Vuelta %1$d completada.</string>
+    <string name="coach_lap_slower">Más lenta que la anterior. Mantén un esfuerzo cómodo.</string>
+    <string name="coach_lap_faster">Más rápida que la anterior.</string>
+    <string name="coach_lap_even">Mismo ritmo que la anterior. Buena constancia.</string>
+    <string name="coach_lap_sector">El %1$s de la vuelta te ha llevado más tiempo esta vez.</string>
     <string name="coach_lap_sector_climb">La altura del GPS subió en ese tramo, así que bajar el ritmo puede tener sentido.</string>
 </resources>

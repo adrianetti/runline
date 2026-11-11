@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="v22_coach_lap_quarters">
+        <item>first quarter</item>
+        <item>second quarter</item>
+        <item>third quarter</item>
+        <item>last quarter</item>
+    </string-array>
+    <string name="v22_coach_past_halfway_time">Past halfway. %1$s and %2$s so far. On track for about %3$s.</string>
+    <string name="v22_coach_past_halfway_distance">Past halfway. %1$s in %2$s. On track for about %3$s.</string>
+</resources>

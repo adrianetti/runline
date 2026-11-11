@@ -111,8 +111,7 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
 }
 
 enum class CoachSpeechSource { LOCAL, AI }
-/** [cue] names what was said: a local cue's diagnostic name, a route key, or "advice" for the live coach. */
-data class SpokenCoachAdvice(val text: String, val source: CoachSpeechSource, val elapsedRealtimeMs: Long, val cue: String = "")
+data class SpokenCoachAdvice(val text: String, val source: CoachSpeechSource, val elapsedRealtimeMs: Long)
 
 /** A queued/generated sentence is not speech history. Only the matching TTS start counts once. */
 class SpokenCoachGate {

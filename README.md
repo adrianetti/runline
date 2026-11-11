@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.23:** music that follows the run. Runline can start and pause any player with the recording. Connect Spotify with your own free Client ID and it plays your calm, steady and push playlists as the run changes: warm-up, climbs, a slipping pace, the final stretch. [Music and Spotify](docs/SPOTIFY.md).
+**New in 0.24:** the live coach sounds like a coach. It now announces each kilometre, lap, halfway point and goal itself, with what the number means ("Tercer kilómetro en 7 minutos 21, y cada uno sale un poco más rápido"), and every figure it says is worked out on the phone, so it no longer muddles or invents numbers. Backtested on three recorded runs, graded line by line: it scores twice as high as 0.21 for sounding like a human coach, and 60% higher than 0.22. [AI](docs/AI.md#live-coach).
+
+**In 0.23:** music that follows the run. Runline can start and pause any player with the recording. Connect Spotify with your own free Client ID and it plays your calm, steady and push playlists as the run changes: warm-up, climbs, a slipping pace, the final stretch. [Music and Spotify](docs/SPOTIFY.md).
 
 **In 0.22:** a live coach that actually talks. With **Live advice** on, Claude speaks within the first minute, after every kilometre, lap and goal milestone, and every couple of minutes in between: a real number from your run and what it means, a form cue, a comparison with your recent runs, a nudge toward your goal. Each line is new, takes about a second to arrive, and never repeats the last ones. [AI](docs/AI.md#live-coach).
 

@@ -33,7 +33,11 @@ data class CoachFacts(
     val remainingMeters: Double? = null,
     val projectedMeters: Double? = null,
     val projectedMs: Long? = null,
-)
+) {
+    /** More than 55% of a time or distance goal is done: "halfway" would no longer be true. */
+    val pastHalfway: Boolean get() = (remainingMs?.let { movingMs.toDouble() / (movingMs + it) }
+        ?: remainingMeters?.let { distanceMeters / (distanceMeters + it) })?.let { it > .55 } == true
+}
 enum class CoachTerrain { UNKNOWN, LEVEL, UPHILL, DOWNHILL }
 
 /** Immutable delivery-time facts; a deferred prompt must still describe the current run. */
@@ -127,6 +131,7 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
     private val recent = ArrayDeque<Pair<RunPoint, Double>>()
     private var laps = LapTracker()
     private var lapCount = 0
+    private var lastLapSpoken = -10
     private var crossedKilometre = 0
     private var remainingAnnounced = false
     private var goalAnnounced = false
@@ -254,7 +259,17 @@ class CoachEngine(private val config: CoachConfig, initialRun: RunSession? = nul
         if (crossedRemaining) return emit(CoachCue.OneKilometreRemaining, now)
         if (crossedKm && config.kilometreAnnouncements) return emit(CoachCue.Kilometre(newKm, RunMetrics.paceSecondsPerKm(distance, now),
             splitPace(newKm), splitPace(newKm - 1)), now)
-        if (newLap) return emit(CoachCue.LapCompleted(lapCount, report?.latestComparison), now)
+        if (newLap) {
+            // A circuit of about a kilometre ends seconds away from a kilometre announcement that
+            // already gives the time and the change. The lap is then spoken only for what it alone
+            // knows: which part of the circuit cost more this time.
+            val nearKilometre = config.kilometreAnnouncements && report?.laps?.lastOrNull()?.let { abs(it.distanceMeters - 1000.0) <= 150.0 } == true
+            // And not lap after lap: the same remark about a quarter of the circuit soon stops being news.
+            if (!nearKilometre || (report?.latestComparison?.slowerSector != null && lapCount - lastLapSpoken >= 3)) {
+                lastLapSpoken = lapCount
+                return emit(CoachCue.LapCompleted(lapCount, report?.latestComparison), now)
+            }
+        }
         if (pace == null) { candidateBand = null; terrainCandidate = CoachTerrain.UNKNOWN; return null }
         if (terrain != terrainCandidate) { terrainCandidate = terrain; terrainSinceMs = now }
         // Uphill/downhill feedback replaces speed-up advice, even when its own switch is off.
