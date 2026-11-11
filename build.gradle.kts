@@ -3,7 +3,7 @@ buildscript {
         // AGP's built-in Kotlin accepts a newer compiler via its documented classpath override.
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
         // Keep the provider, PKIX and utility modules on one patched upstream release.
-        classpath(platform("org.bouncycastle:bc-jdk18on-bom:1.86"))
+        classpath(platform("org.bouncycastle:bc-jdk18on-bom:1.86.2"))
         constraints {
             add("classpath", "com.google.guava:guava:33.7.2-jre") {
                 because("Patch the Guava version selected by Android build tools")
