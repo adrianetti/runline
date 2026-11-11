@@ -38,20 +38,27 @@ object SpotifyAccount {
     fun isConnected(context: Context): Boolean = sessionFile(context).exists()
     fun accountName(context: Context): String? = prefs(context).getString("name", null)
 
-    /** The authorize page to open in the browser. The verifier waits, encrypted, for the answer. */
-    fun begin(context: Context): String {
+    /** Starts a sign-in for the Spotify app or the browser to answer. The verifier waits, encrypted, for that answer. */
+    fun begin(context: Context): SpotifyPkce.SignIn {
         val clientId = clientId(context); require(SpotifyPkce.validClientId(clientId))
         val verifier = SpotifyPkce.verifier(); val state = SpotifyPkce.state()
         write(pendingFile(context), JSONObject().put("verifier", verifier).put("state", state).put("clientId", clientId).put("at", System.currentTimeMillis()))
-        return SpotifyPkce.authorizeUrl(clientId, SpotifyPkce.challenge(verifier), state)
+        return SpotifyPkce.SignIn(clientId, SpotifyPkce.challenge(verifier), state)
     }
 
-    /** Network: call off the main thread. Throws [SpotifyFailure] when the exchange itself fails. */
-    fun complete(context: Context, callback: String, auth: SpotifyAuthApi = SpotifyAuthApi()): Outcome {
+    /** The browser came back through the redirect link. Network: call off the main thread. Throws [SpotifyFailure] when the exchange itself fails. */
+    fun complete(context: Context, callback: String, auth: SpotifyAuthApi = SpotifyAuthApi()): Outcome =
+        finish(context, auth) { state -> SpotifyPkce.parseCallback(callback, state) }
+
+    /** The Spotify app answered. Network: call off the main thread. Throws [SpotifyFailure] when the exchange itself fails. */
+    fun complete(context: Context, reply: SpotifyPkce.AppReply, auth: SpotifyAuthApi = SpotifyAuthApi()): Outcome =
+        finish(context, auth) { state -> SpotifyPkce.parseAppReply(reply, state) }
+
+    private fun finish(context: Context, auth: SpotifyAuthApi, parse: (state: String) -> SpotifyPkce.Callback?): Outcome {
         val pending = read(pendingFile(context))
         AtomicFile(pendingFile(context)).delete()
         if (pending == null || System.currentTimeMillis() - pending.optLong("at") !in 0..PENDING_VALID_MS) return Outcome.STALE
-        return when (val answer = SpotifyPkce.parseCallback(callback, pending.optString("state"))) {
+        return when (val answer = parse(pending.optString("state"))) {
             null, SpotifyPkce.Callback.Mismatch -> Outcome.STALE
             is SpotifyPkce.Callback.Denied -> Outcome.DENIED
             is SpotifyPkce.Callback.Code -> {
