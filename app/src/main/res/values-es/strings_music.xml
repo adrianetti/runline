@@ -9,10 +9,13 @@
     <string name="music_client_id_hint">De tu propia app de Spotify</string>
     <string name="music_client_id_error">Un Client ID tiene 32 letras y dígitos.</string>
     <string name="music_connect">Conectar</string>
+    <string name="music_browser">Entrar con el navegador</string>
     <string name="music_setup">Guía de configuración</string>
-    <string name="music_setup_steps">1. Crea una app en el panel de desarrolladores de Spotify. Spotify pide Premium.\n2. Añade la URI de redirección %1$s\n3. Marca Web API, guarda y pega aquí el Client ID.</string>
+    <string name="music_setup_steps">1. Crea una app en el panel de desarrolladores de Spotify. Spotify pide Premium.\n2. Añade la URI de redirección %1$s\n3. Marca Web API y Android. Añade el paquete de Android %2$s con la huella %3$s\n4. Guarda y pega aquí el Client ID.</string>
     <string name="music_open_dashboard">Abrir panel de Spotify</string>
     <string name="music_copy_redirect">Copiar URI de redirección</string>
+    <string name="music_copy_package">Copiar paquete</string>
+    <string name="music_copy_fingerprint">Copiar huella</string>
     <string name="music_copied">Copiado</string>
     <string name="music_connected">Conectado · %1$s</string>
     <string name="music_connected_plain">Conectado</string>
@@ -25,6 +28,7 @@
     <string name="music_none">Ninguna</string>
     <string name="music_loading">Cargando listas…</string>
     <string name="music_error_denied">Spotify no se conectó.</string>
+    <string name="music_error_app">La app de Spotify lo rechazó. Revisa el paquete y la huella del paso 3 o entra con el navegador.</string>
     <string name="music_error_stale">Ese inicio de sesión caducó. Inténtalo de nuevo.</string>
     <string name="music_error_network">No se pudo conectar con Spotify.</string>
     <string name="music_error_premium">Spotify exige Premium para controlar la reproducción.</string>

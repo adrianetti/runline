@@ -26,6 +26,13 @@ object SpotifyPkce {
         data object Mismatch : Callback
     }
 
+    /** One sign-in attempt: what the Spotify app or the authorize page needs to answer it. Nothing here is secret. */
+    data class SignIn(val clientId: String, val challenge: String, val state: String) {
+        val url: String get() = authorizeUrl(clientId, challenge, state)
+    }
+    /** What the Spotify app handed back as an activity result. All null: the user left without agreeing. */
+    data class AppReply(val code: String? = null, val state: String? = null, val error: String? = null)
+
     fun validClientId(value: String) = value.matches(Regex("[0-9a-fA-F]{32}"))
     fun verifier(random: SecureRandom = SecureRandom()): String = encode(ByteArray(48).also(random::nextBytes))
     fun state(random: SecureRandom = SecureRandom()): String = encode(ByteArray(16).also(random::nextBytes))
@@ -51,6 +58,18 @@ object SpotifyPkce {
         if (expectedState.isEmpty() || query["state"] != expectedState) return Callback.Mismatch
         query["error"]?.let { return Callback.Denied(it.take(80)) }
         val code = query["code"]?.takeIf { it.isNotEmpty() && it.length <= 2000 } ?: return Callback.Mismatch
+        return Callback.Code(code)
+    }
+
+    /**
+     * An activity result can only be set by the app that was started, and that app was checked to
+     * be Spotify's. So unlike the open runline:// link, a reply without a state is accepted, as
+     * Spotify's own library accepts it; a different state is still refused.
+     */
+    fun parseAppReply(reply: AppReply, expectedState: String): Callback {
+        if (expectedState.isEmpty() || (reply.state != null && reply.state != expectedState)) return Callback.Mismatch
+        reply.error?.let { return Callback.Denied(it.take(80)) }
+        val code = reply.code?.takeIf { it.isNotEmpty() && it.length <= 2000 } ?: return Callback.Denied("cancelled")
         return Callback.Code(code)
     }
 

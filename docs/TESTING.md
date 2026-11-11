@@ -660,3 +660,14 @@ Recorded 11 November 2026 for **0.24.0 / code 29**.
 - **Latency in 0.24.** Milestones (21): median 1.1 s, 90th percentile 1.9 s, slowest 2.1 s; none fell back to the built-in announcement. Check-ins (45): median 2.0 s, 90th percentile 4.7 s, slowest 5.8 s. Two check-ins found nothing worth saying and stayed silent.
 - **Still faulted by the grader.** Generic praise, a recurring form cue or reassurance on the 10 km, an occasional claim about how the runner feels, and no interpretation of a strong finish when the run ends at the goal.
 - **Not tested.** On a phone; audible speech and its timing over music; the 3.5-second fallback and the coach log entries on a device; English beyond unit tests; pace-target goals, hills and routes; a provider outage mid-run; a near-kilometre circuit in an engine unit test (seen only in the 10 km replay).
+
+## Version 0.24.1 Spotify app sign-in
+
+Recorded 11 November 2026 for **0.24.1 / code 30**.
+
+- **Reported from a phone on 0.24.0.** **Connect** opened Spotify's sign-in page in a browser stacked inside Runline instead of the Spotify app.
+- **Build and checks.** 482 JVM tests passed, 2 skipped (`LiveCoachBacktest` replay and judge, which need a provider key). Lint 0 errors, 811 bilingual resources, 57 pinned icons, one catalog route and the Android surface guard. Debug, release and Android-test APKs assembled. Semgrep was left to CI.
+- **New unit coverage (6 tests).** The Spotify app's reply: a code with the same state or with none, a different state refused, an error or an empty reply never connects, long values cut. The fingerprint in dashboard form against the FIPS 180 vectors. An app not signed by Spotify is not handed the sign-in.
+- **New device coverage (6 tests, throwaway API 34 emulator without Spotify).** Spotify's activity result read from real intents: code and state, missing data, a token in place of a code, an error result, leaving without agreeing. Without Spotify there is no handoff, and the browser intent names the default browser and a task of its own. A refusal shows Spotify's error name, opens the guide with this build's package and fingerprint, and offers the browser. All 14 device tests passed.
+- **By hand on the same emulator.** The setup guide shows four steps with the package and fingerprint and three copy buttons. **Connect** with a made-up Client ID opened Chrome in Chrome's task; Runline's task held only its one activity. A `runline://spotify-callback` link with the wrong state came back to that same activity and showed "That sign-in expired".
+- **Not tested.** The handoff to the real Spotify app: its consent screen, the code it returns, what it answers when the package and fingerprint are not in the dashboard, and Samsung's build of Spotify. The protocol was read from the source of Spotify's auth library, not seen in a run. A real account, the token exchange after the handoff and a physical phone remain untested, as in 0.23.

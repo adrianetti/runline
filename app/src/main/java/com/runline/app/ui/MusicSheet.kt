@@ -21,6 +21,7 @@ import com.runline.app.music.MusicMood
 import com.runline.app.music.MusicSettings
 import com.runline.app.music.PlaylistRef
 import com.runline.app.music.SpotifyAccount
+import com.runline.app.music.SpotifyAppSignIn
 import com.runline.app.music.SpotifyFailure
 import com.runline.app.music.SpotifyPkce
 import com.runline.app.music.SpotifyPlaylist
@@ -29,8 +30,10 @@ import java.util.concurrent.Executors
 /**
  * Music that follows the run. The top three switches work with any player; the Spotify part needs
  * the user's own Client ID, so the app works the same for everyone who builds or installs it.
+ * [openSpotify] starts the Spotify app's sign-in for a result; the activity passes the answer back.
  */
-class MusicSheet(private val activity: AppCompatActivity, callback: String? = null) {
+class MusicSheet(private val activity: AppCompatActivity, callback: String? = null, appReply: SpotifyPkce.AppReply? = null,
+                 private val openSpotify: (Intent) -> Unit) {
     private val sheet = AiSheet(activity, R.string.music_title)
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
@@ -39,16 +42,24 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
     private var playlists: List<SpotifyPlaylist>? = null
     private var guideOpen = false
     private var draftClientId: String? = null
+    /** The Spotify app did not finish a sign-in, so the browser is offered beside it. */
+    private var offerBrowser = false
     val isShowing get() = sheet.isShowing
 
     init {
         render()
-        if (callback != null) complete(callback) else if (SpotifyAccount.isConnected(activity)) loadPlaylists()
+        when {
+            callback != null -> complete(callback, null)
+            appReply != null -> complete(null, appReply)
+            SpotifyAccount.isConnected(activity) -> loadPlaylists()
+        }
     }
     fun show() = sheet.show()
     fun close() { worker.shutdownNow(); sheet.close() }
     /** Spotify sent the browser back while this sheet was already open. */
-    fun onCallback(uri: String) = complete(uri)
+    fun onCallback(uri: String) = complete(uri, null)
+    /** The Spotify app answered while this sheet was already open. */
+    fun onAppReply(reply: SpotifyPkce.AppReply) = complete(null, reply)
 
     private fun render() {
         val config = MusicSettings.load(activity)
@@ -79,22 +90,18 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
             })
         }
         sheet.column.addView(sheet.button(activity.getString(R.string.music_connect), R.drawable.ic_music, filled = true).apply {
-            setOnClickListener {
-                val id = clientId.second.text.toString().trim().lowercase()
-                if (!SpotifyPkce.validClientId(id)) { clientId.first.error = activity.getString(R.string.music_client_id_error); return@setOnClickListener }
-                val url = runCatching { SpotifyAccount.saveClientId(activity, id); SpotifyAccount.begin(activity) }
-                    .getOrElse { say(R.string.music_error_storage); return@setOnClickListener }
-                runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.onFailure { say(R.string.music_error_browser) }
-            }
+            setOnClickListener { connect(clientId, inBrowser = false) }
+        }, sheet.row(0, 8))
+        if (offerBrowser) sheet.column.addView(sheet.button(activity.getString(R.string.music_browser), R.drawable.ic_external_link).apply {
+            setOnClickListener { connect(clientId, inBrowser = true) }
         }, sheet.row(0, 8))
         val guide = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; visibility = if (guideOpen) View.VISIBLE else View.GONE }
-        guide.addView(sheet.text(activity.getString(R.string.music_setup_steps, SpotifyPkce.REDIRECT_URI)), sheet.row(0, 8))
-        guide.addView(sheet.button(activity.getString(R.string.music_copy_redirect), R.drawable.ic_check).apply {
-            setOnClickListener {
-                activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Redirect URI", SpotifyPkce.REDIRECT_URI))
-                say(R.string.music_copied)
-            }
-        }, sheet.row())
+        // Spotify's app signs in only apps it finds in the dashboard under this package and fingerprint.
+        val fingerprint = SpotifyAppSignIn.ownFingerprint(activity)
+        guide.addView(sheet.text(activity.getString(R.string.music_setup_steps, SpotifyPkce.REDIRECT_URI, activity.packageName, fingerprint ?: "–")).apply { setTextIsSelectable(true) }, sheet.row(0, 8))
+        guide.addView(copyButton(R.string.music_copy_redirect, SpotifyPkce.REDIRECT_URI), sheet.row())
+        guide.addView(copyButton(R.string.music_copy_package, activity.packageName), sheet.row())
+        if (fingerprint != null) guide.addView(copyButton(R.string.music_copy_fingerprint, fingerprint), sheet.row())
         guide.addView(sheet.button(activity.getString(R.string.music_open_dashboard), R.drawable.ic_external_link).apply {
             setOnClickListener { runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SpotifyPkce.DASHBOARD_URL))) }.onFailure { say(R.string.music_error_browser) } }
         }, sheet.row())
@@ -102,6 +109,25 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
             setOnClickListener { guideOpen = !guideOpen; guide.visibility = if (guideOpen) View.VISIBLE else View.GONE }
         }, sheet.row())
         sheet.column.addView(guide, sheet.row())
+    }
+
+    /** Spotify's app when it can sign in, because the user is already signed in there; otherwise the browser. */
+    private fun connect(clientId: Pair<TextInputLayout, com.google.android.material.textfield.TextInputEditText>, inBrowser: Boolean) {
+        val id = clientId.second.text.toString().trim().lowercase()
+        if (!SpotifyPkce.validClientId(id)) { clientId.first.error = activity.getString(R.string.music_client_id_error); return }
+        val signIn = runCatching { SpotifyAccount.saveClientId(activity, id); SpotifyAccount.begin(activity) }
+            .getOrElse { say(R.string.music_error_storage); return }
+        status.visibility = View.GONE
+        val spotify = if (inBrowser) null else SpotifyAppSignIn.intent(activity, signIn)
+        if (spotify != null && runCatching { openSpotify(spotify) }.isSuccess) return
+        runCatching { activity.startActivity(SpotifyAppSignIn.browser(activity, signIn.url)) }.onFailure { say(R.string.music_error_browser) }
+    }
+
+    private fun copyButton(label: Int, value: String) = sheet.button(activity.getString(label), R.drawable.ic_check).apply {
+        setOnClickListener {
+            activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(activity.getString(label), value))
+            say(R.string.music_copied)
+        }
     }
 
     private fun renderConnected(config: MusicConfig) {
@@ -142,25 +168,36 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
         sheet.column.addView(wrapper, sheet.row(4, 12))
     }
 
-    private fun complete(callback: String) {
+    /** Exactly one answer: the browser's redirect link, or the Spotify app's reply. */
+    private fun complete(callback: String?, reply: SpotifyPkce.AppReply?) {
         say(R.string.music_connecting)
         worker.execute {
-            val result = runCatching { SpotifyAccount.complete(app, callback) }
+            val result = runCatching { if (reply != null) SpotifyAccount.complete(app, reply) else SpotifyAccount.complete(app, callback.orEmpty()) }
             main.post {
                 if (sheet.closed) return@post
+                val connected = result.getOrNull() == SpotifyAccount.Outcome.CONNECTED
+                // Whatever stopped the Spotify app, the browser is the other way in, and the guide
+                // holds the package and fingerprint Spotify wants to see.
+                if (reply != null && !connected) { offerBrowser = true; guideOpen = true; render() }
                 result.fold({ outcome ->
                     when (outcome) {
                         SpotifyAccount.Outcome.CONNECTED -> {
                             // Connecting is the wish to use it; the switch need not be found again.
                             change { it.copy(enabled = true) }
-                            status.visibility = View.GONE; render(); loadPlaylists()
+                            offerBrowser = false; status.visibility = View.GONE; render(); loadPlaylists()
                         }
-                        SpotifyAccount.Outcome.DENIED -> say(R.string.music_error_denied)
+                        SpotifyAccount.Outcome.DENIED -> if (reply?.error != null) say(refusal(reply.error)) else say(R.string.music_error_denied)
                         SpotifyAccount.Outcome.STALE -> say(R.string.music_error_stale)
                     }
                 }, { say(message(it)) })
             }
         }
+    }
+
+    /** Spotify's own short error name is kept: it tells a missing fingerprint from an account that is not listed. */
+    private fun refusal(error: String): String {
+        val code = error.filter { it.isLetterOrDigit() || it in " _-.:" }.trim().take(60)
+        return activity.getString(R.string.music_error_app) + if (code.isEmpty()) "" else " ($code)"
     }
 
     private fun loadPlaylists() {

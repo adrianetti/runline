@@ -34,7 +34,7 @@ Before speech, Runline requests temporary audio focus that allows music to lower
 
 ## Optional music
 
-**Settings → Music** is off by default. **Start with the run** and **Pause with the run** work with any player. Connecting Spotify with your own free Client ID adds a now-playing strip on the recording screen and playlists that follow the run: calm for the warm-up and easy days, steady for the middle, push for climbs, a slipping pace and the final stretch. Nothing from Spotify is sent to the AI coach. Setup and limits: [Music and Spotify](SPOTIFY.md).
+**Settings → Music** is off by default. **Start with the run** and **Pause with the run** work with any player. Connecting Spotify with your own free Client ID adds a now-playing strip on the recording screen and playlists that follow the run: calm for the warm-up and easy days, steady for the middle, push for climbs, a slipping pace and the final stretch. **Connect** signs you in through the Spotify app, or the browser when Spotify is not installed. Nothing from Spotify is sent to the AI coach. Setup and limits: [Music and Spotify](SPOTIFY.md).
 
 ## Editable activity details
 

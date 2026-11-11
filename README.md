@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.24:** the live coach sounds like a coach. It now announces each kilometre, lap, halfway point and goal itself, with what the number means ("Tercer kilómetro en 7 minutos 21, y cada uno sale un poco más rápido"), and every figure it says is worked out on the phone, so it no longer muddles or invents numbers. Backtested on three recorded runs, graded line by line: it scores twice as high as 0.21 for sounding like a human coach, and 60% higher than 0.22. [AI](docs/AI.md#live-coach).
+**New in 0.24.1:** Spotify sign-in goes through the Spotify app. **Connect** opens Spotify, where you are already signed in, and one tap brings you back connected; the browser is only used when Spotify is not installed. Your Spotify developer app needs one more entry for this, shown in the setup guide. [Music and Spotify](docs/SPOTIFY.md#connect-spotify-with-your-own-client-id).
+
+**In 0.24:** the live coach sounds like a coach. It now announces each kilometre, lap, halfway point and goal itself, with what the number means ("Tercer kilómetro en 7 minutos 21, y cada uno sale un poco más rápido"), and every figure it says is worked out on the phone, so it no longer muddles or invents numbers. Backtested on three recorded runs, graded line by line: it scores twice as high as 0.21 for sounding like a human coach, and 60% higher than 0.22. [AI](docs/AI.md#live-coach).
 
 **In 0.23:** music that follows the run. Runline can start and pause any player with the recording. Connect Spotify with your own free Client ID and it plays your calm, steady and push playlists as the run changes: warm-up, climbs, a slipping pace, the final stretch. [Music and Spotify](docs/SPOTIFY.md).
 
