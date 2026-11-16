@@ -22,12 +22,22 @@ object SmartRunAiInput {
             RunMetrics.elevationGainMeters(run.withTrustedElevation().points), run.startedAtMs)
     }.sortedWith(compareBy<SmartRunHistoryRun> { it.date }.thenBy { it.startedAtMs }.thenBy { it.id })
 
+    /**
+     * Hours from the end of the latest completed run to [nowMs]. A run finished long after it was
+     * paused counts from the pause, so saving Saturday's run on Monday does not read as "just now".
+     */
+    fun hoursSinceLastRun(runs: List<RunSession>, details: (String) -> ActivityDetails, nowMs: Long): Double? =
+        runs.filter { (details(it.id).activityType ?: it.activityType) == ActivityType.RUN }
+            .map { it.activityEndedAtMs }.filter { it <= nowMs }.maxOrNull()?.let { (nowMs - it) / 3_600_000.0 }
+
     fun build(today: LocalDate, runs: List<RunSession>, details: (String) -> ActivityDetails,
               includeNotes: Boolean = false, profile: RunnerProfile = RunnerProfile(), goal: RunnerGoal = RunnerGoal(),
               insights: RunnerInsights? = null): JSONObject {
         val history = history(runs, details).filter { it.date <= today }
         val validIds = history.map { it.id }.toSet()
+        val lastEnded = runs.filter { it.id in validIds }.maxOfOrNull { it.activityEndedAtMs }
         return JSONObject().put("today", today.toString())
+            .put("last_completed_run_ended_at", lastEnded?.let { Instant.ofEpochMilli(it).toString() } ?: JSONObject.NULL)
             .put("coaching_context", AiCoachingContext.build(today, history = runs.filter { it.id in validIds },
                 details = details, includeNotes = includeNotes, profile = profile, runnerGoal = goal, insights = insights))
             .put("goal_format", JSONObject()

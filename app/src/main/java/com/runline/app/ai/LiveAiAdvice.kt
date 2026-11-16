@@ -3,7 +3,11 @@ package com.runline.app.ai
 import org.json.JSONObject
 
 /** A line ready to be spoken and the observation it was built on. */
-data class LiveLine(val text: String, val point: LivePoint) { val pointId: String get() = point.id }
+data class LiveLine(val text: String, val point: LivePoint) {
+    val pointId: String get() = point.id
+    /** Every observation this line voiced: its point and the facts the point also states. */
+    val pointIds: List<String> get() = listOf(point.id) + point.covers
+}
 
 /**
  * The live coach's voice. [LiveCoachPlan] decides when to speak and [LivePoints] what about;
@@ -21,7 +25,8 @@ object LiveAiAdvice {
         compose(provider, key, model, language, data, call, used)?.text
 
     fun compose(provider: CoachAiProvider, key: String, model: String, language: String, data: JSONObject,
-                call: LiveCall, used: List<String> = emptyList(), milestone: JSONObject? = null): LiveLine? {
+                call: LiveCall, used: List<String> = emptyList(), milestone: JSONObject? = null,
+                rejected: (draft: String, problem: String) -> Unit = { _, _ -> }): LiveLine? {
         val run = data.optJSONObject("run") ?: JSONObject()
         val context = data.optJSONObject("coaching_context") ?: JSONObject()
         val spanish = language == "Spanish"
@@ -35,16 +40,20 @@ object LiveAiAdvice {
             .put("already_said", said ?: org.json.JSONArray()).put("avoid", avoid(said))
         val terrain = context.optJSONObject("recent_terrain")
         val earlier = aiLines(said)
-        fun problem(line: String): String? = figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line)
+        fun problem(line: String): String? = figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line) ?: feelings(line)
             ?: (if (terrainCompatible(line, terrain)) null else "It mentions hills or the ground, which the point does not.") ?: repeats(line, earlier)
         // A milestone is announced within a second or two; a check-in can take a moment to get the wording right.
         val instant = milestone != null
         val first = clean(provider.quickMessage(key, model, system(language), input, 400, 12_000, instant), spanish) ?: return null
         val flaw = problem(first) ?: return LiveLine(first, point)
+        rejected(first, flaw)
+        // A milestone has 3.5 s before the built-in line takes over: a second request for a mere echo would lose it.
+        if (instant && flaw == repeats(first, earlier)) return LiveLine(first, point)
         // One more try, told exactly what was wrong. A sound line a second later beats a flawed one now.
         input.put("rejected_draft", JSONObject().put("text", first).put("problem", flaw).put("instruction", "Write a different line that fixes this."))
         val second = runCatching { clean(provider.quickMessage(key, model, system(language), input, 400, 8_000, instant), spanish) }.getOrNull() ?: return null
         val again = problem(second) ?: return LiveLine(second, point)
+        rejected(second, again)
         // An echo is a matter of taste and may still be spoken; a wrong figure, language or question may not.
         return LiveLine(second, point).takeIf { again == repeats(second, earlier) }
     }
@@ -89,13 +98,14 @@ object LiveAiAdvice {
 
     /** A cheap check that the line is in the runner's language and is speech, not a note about what to say. */
     internal fun language(line: String, spanish: Boolean): String? {
-        val text = " " + words(line).joinToString(" ") + " "
-        val english = ENGLISH.count { text.contains(" $it ") }; val castilian = SPANISH.count { text.contains(" $it ") }
-        return when {
-            spanish && english > castilian -> "It is not in Spanish."
-            !spanish && castilian > english -> "It is not in English."
-            else -> null
+        fun wrong(part: String): Boolean {
+            val text = " " + words(part).joinToString(" ") + " "
+            val english = ENGLISH.count { text.contains(" $it ") }; val castilian = SPANISH.count { text.contains(" $it ") }
+            return if (spanish) english > castilian else castilian > english
         }
+        // Sentence by sentence too: a Spanish line with an English note to itself tacked on is still wrong.
+        val sentences = Regex("[^.!?]+[.!?]*").findAll(line).map { it.value }.filter { words(it).size >= 4 }.toList()
+        return if (wrong(line) || sentences.any(::wrong)) (if (spanish) "It is not all in Spanish." else "It is not all in English.") else null
     }
     private val ENGLISH = listOf("the", "and", "you", "your", "is", "are", "of", "to", "that", "with", "this", "so", "it")
     private val SPANISH = listOf("el", "la", "los", "las", "y", "que", "de", "tu", "tus", "es", "con", "en", "lo", "un", "una", "te", "ya")
@@ -103,12 +113,33 @@ object LiveAiAdvice {
     /** Words that belong to the request, not to a coach: the model was reading its instructions aloud. */
     internal fun leaks(line: String): String? =
         if (LEAKS.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) "It talks about the instructions instead of to the runner. Speak only to the runner." else null
-    private val LEAKS = Regex("\\b(json|rejected|draft|cifras permitidas|allowed figures|instruc\\w+|\\\"numbers\\\")\\b|\\bnumbers\\b.*\\bpoint\\b")
+    private val LEAKS = Regex("\\b(json|rejected|draft|cifras permitidas|allowed figures|instruc\\w+|\\\"numbers\\\")\\b|\\bnumbers\\b.*\\bpoint\\b|\\bthe point\\b|\\bi must\\b|\\bwait,")
 
-    /** The coach does not know who is running: no "champ", "tío" or "girl". */
-    internal fun gendered(line: String): String? =
-        if (GENDERED.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) "It addresses the runner with a gendered word. Drop it." else null
+    /**
+     * The coach does not know who is running: no "champ", "tío" or "girl", and in Spanish no
+     * adjective that agrees with the runner ("tranquila", "vas a llegar alta", "orgulloso").
+     */
+    internal fun gendered(line: String): String? {
+        val text = line.lowercase(java.util.Locale.ROOT)
+        if (GENDERED.containsMatchIn(text)) return "It addresses the runner with a gendered word. Drop it."
+        val agreeing = (RUNNER_ADJECTIVE.find(text) ?: VOCATIVE_ADJECTIVE.find(text) ?: COACH_ADJECTIVE.find(text))?.value?.trim(' ', ',', '.', '!', '¡') ?: return null
+        return "\"$agreeing\" gives the runner (or you) a gender. Reword so it fits anyone: describe the action or a body part instead, like con la cabeza alta, con calma, con soltura."
+    }
     private val GENDERED = Regex("\\b(t[ií]o|t[ií]a|campe[oó]n|campeona|chaval|chavala|amigo|amiga|hermano|hermana|machote|guap[oa]|dude|bro|man|girl|mate|buddy|champ)\\b")
+    // "Termina alto", "corre ligero" are also adverbs; only their feminine forms are agreement.
+    private const val AGREEING = "(?:(?:tranquil|relajad|list|suelt|concentrad|c[oó]mod|centrad|enter|cansad|content|lanzad|sobrad|enchufad|erguid|fresc|preparad|motivad|segur|hech)[oa]s?|(?:alt|liger)as?)"
+    private val RUNNER_ADJECTIVE = Regex("\\b(?:vas(?: a (?:ir|llegar|terminar|acabar))?|ve|llegas?|llegar|llegues|corres?|correr|sigues?|seguir|mantente|qu[eé]date|est[aá]s|terminas?|terminar|acabas?|acabar|vuelves|eres|verte|te veo|as[ií] de)" +
+        "\\s+(?:muy\\s+|bien\\s+|m[aá]s\\s+|tan\\s+|todo\\s+|toda\\s+|as[ií] de\\s+)?$AGREEING\\b")
+    private val VOCATIVE_ADJECTIVE = Regex("(?:^|[.!¡?¿,;]\\s*)(?:tranquil|relajad|concentrad)[oa]s?\\b|(?:^|[.!¡?¿,;]\\s*)list[oa]s?\\s*[,.!]")
+    private val COACH_ADJECTIVE = Regex("\\borgullos[oa]s?\\b")
+
+    /** The coach cannot see or feel the runner: "¡qué bien te sientes!" is a guess said as a fact. A self-check question may ask it. */
+    internal fun feelings(line: String): String? {
+        val text = line.lowercase(java.util.Locale.ROOT)
+        if (text.contains('?') || text.contains('¿')) return null
+        return if (FEELINGS.containsMatchIn(text)) "It says how they feel or look, which you cannot know. Say what the run shows instead." else null
+    }
+    private val FEELINGS = Regex("\\b(te sientes|te notas|te ves|se te ve|se te nota|te sienta|you feel|you're feeling|you are feeling|you look|you're looking)\\b")
 
     /** The runner cannot answer mid-run: a line may not ask them to tell the coach something. */
     internal fun asks(line: String): String? =

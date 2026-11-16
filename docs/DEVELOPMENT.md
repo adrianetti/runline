@@ -6,7 +6,7 @@ Runline uses Kotlin and Android Views. It is open source under MIT and distribut
 
 Install JDK 17, Android SDK Platform 37.0 and Build Tools 36.0.0. Set `ANDROID_HOME`, or create an untracked `local.properties` with `sdk.dir=/absolute/path/to/Android/sdk`.
 
-The wrapper pins Gradle 9.8.2; the build pins AGP 9.5.0 and Kotlin 2.4.21 through AGP's built-in Kotlin support. Compile SDK is 37; target SDK remains 34 and minimum SDK remains 26 (Android 8.0). [AGP 9.5 supports API 37](https://developer.android.com/build/releases/agp-9-5-0-release-notes#compatibility).
+The wrapper pins Gradle 9.9.1; the build pins AGP 9.5.1 and Kotlin 2.4.21 through AGP's built-in Kotlin support. Compile SDK is 37; target SDK remains 34 and minimum SDK remains 26 (Android 8.0). [AGP 9.5 supports API 37](https://developer.android.com/build/releases/agp-9-5-0-release-notes#compatibility).
 
 ```sh
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug

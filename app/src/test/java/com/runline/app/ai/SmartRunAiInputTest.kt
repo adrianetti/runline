@@ -64,6 +64,34 @@ class SmartRunAiInputTest {
         assertEquals(8, input.getJSONObject("coaching_context").getJSONObject("completed_training").getInt("last_recorded_effort_1_to_10"))
     }
 
+    @Test fun runPausedOnSaturdayAndFinishedOnMondayCountsFromThePause() {
+        // Recorded Saturday afternoon, left paused, Finish tapped on Monday.
+        val start = LocalDate.of(2026, 11, 14).atTime(16, 26).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val points = (0..470).map { RunPoint(37.17 + it * 15.0 / 111_195.0802, -3.6, start + it * 6_000L, 4f, 660.0) }
+        val finishTap = start + 46 * 3_600_000L + 2 * 3_600_000L
+        val paused = RunSession("saturday", start, finishTap, 2_820_000, points)
+        val now = finishTap + 10 * 60_000L
+        assertEquals(start + 2_820_000, paused.activityEndedAtMs)
+        val hours = SmartRunAiInput.hoursSinceLastRun(listOf(paused), { ActivityDetails() }, now)!!
+        assertEquals((now - start - 2_820_000) / 3_600_000.0, hours, 1e-9)
+        assertTrue("hours=$hours", hours > 45)
+        val input = SmartRunAiInput.build(LocalDate.of(2026, 11, 16), listOf(paused), { ActivityDetails() })
+        assertEquals(java.time.Instant.ofEpochMilli(start + 2_820_000).toString(), input.getString("last_completed_run_ended_at"))
+    }
+
+    @Test fun activityEndKeepsMidRunPausesAndNeverLeavesTheRecordedSpan() {
+        val start = 1_000_000L
+        // 10 min running, 20 min cafe pause, 10 min running, Finish 5 s after the last fix.
+        val points = (0..100).map { RunPoint(40.0 + it * 1e-4, -3.0, start + it * 6_000L, 4f, segment = 0) } +
+            (0..100).map { RunPoint(40.02 + it * 1e-4, -3.0, start + 1_800_000 + it * 6_000L, 4f, segment = 1) }
+        val run = RunSession("cafe", start, start + 2_405_000, 1_200_000, points)
+        assertEquals(start + 2_400_000, run.activityEndedAtMs)
+        assertEquals(start, RunSession("empty", start, start - 5, 0, emptyList()).activityEndedAtMs)
+        assertEquals(start + 60_000, RunSession("no-fix", start, start + 9_000_000, 60_000, emptyList()).activityEndedAtMs)
+        assertEquals(start + 30_000, RunSession("clock", start, start + 30_000, 60_000,
+            listOf(RunPoint(40.0, -3.0, start + 99_000_000, 4f))).activityEndedAtMs)
+    }
+
     @Test fun providerDefaultMethodPreservesExistingFakesAndLocalValidation() {
         var calls = 0
         val provider = object : CoachAiProvider {

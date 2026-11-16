@@ -49,6 +49,18 @@ data class RunSession(
     val elevationSource: TerrainSource = TerrainSource.GPS,
 )
 
+/**
+ * When the activity itself stopped. A run paused at the end and finished later, even days later,
+ * ended at its last fix or timer stop, not at the Finish tap stored in [RunSession.endedAtMs].
+ * Pauses in the middle still count as elapsed time. Never before the start or after [RunSession.endedAtMs].
+ */
+val RunSession.activityEndedAtMs: Long get() {
+    val latest = endedAtMs.coerceAtLeast(startedAtMs)
+    val timerEnd = startedAtMs + activeDurationMs.coerceAtLeast(0)
+    val lastFix = points.asSequence().map { it.timestampMs }.filter { it in startedAtMs..latest }.maxOrNull()
+    return maxOf(timerEnd, lastFix ?: timerEnd).coerceIn(startedAtMs, latest)
+}
+
 /** A kilometre, or the final partial kilometre, measured from recorded GPS samples. */
 data class RunSplit(
     val index: Int,

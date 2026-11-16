@@ -79,10 +79,41 @@ class LiveAiAdviceTest {
         assertNotNull(LiveAiAdvice.leaks("Siente ese empuje. Usa solo las cifras permitidas: 7 minutos 2.")); assertNull(LiveAiAdvice.leaks("Pasos cortos y ligeros."))
         assertNotNull(LiveAiAdvice.gendered("¡Meta conseguida, campeón!")); assertNotNull(LiveAiAdvice.gendered("Ese cambio es normal, tío."))
         assertNull(LiveAiAdvice.gendered("¡Meta conseguida! Qué carrera."))
+        // 2026-11-14: the runner heard "llegar alta", "Corre alta" and "Tranquila", gendered for anyone.
+        assertNotNull(LiveAiAdvice.gendered("Solo 200 metros, y vas a llegar alta y sonriendo."))
+        assertNotNull(LiveAiAdvice.gendered("¡Kilómetro seis! Corre alta y mira al frente."))
+        assertNotNull(LiveAiAdvice.gendered("Vuelta cinco en 6 minutos 59. Tranquila, es un tramo que pesa más."))
+        assertNull(LiveAiAdvice.gendered("Ya queda poco. Termina alto, ligero y sonriendo."))
+        assertNotNull(LiveAiAdvice.gendered("Ya queda poco. Termina alta, ligera y sonriendo."))
+        assertNotNull(LiveAiAdvice.gendered("Hoy vas más tranquilo que la última vez."))
+        assertNull(LiveAiAdvice.gendered("Vas algo más lento ahora. Suelta el aire del todo y acomódate."))
+        assertNotNull(LiveAiAdvice.gendered("Estoy orgulloso de ti."))
+        assertNotNull(LiveAiAdvice.gendered("Hoy vamos a por los 5 kilómetros, tranquilo y a tu ritmo."))
+        assertNotNull(LiveAiAdvice.gendered("¡Kilómetro siete en 6 minutos 44! Me encanta verte así de contento."))
+        assertNull(LiveAiAdvice.gendered("Cabeza alta y mira al frente."))
+        assertNull(LiveAiAdvice.gendered("Mantén la espalda alta y la respiración tranquila."))
+        assertNull(LiveAiAdvice.gendered("Con calma, que el ritmo es tuyo."))
+        assertNotNull(LiveAiAdvice.feelings("A 5 minutos 59 por kilómetro. ¡Qué bien te sientes!"))
+        assertNull(LiveAiAdvice.feelings("¿Te sientes capaz de mantener esto un buen rato más?"))
+        assertNotNull(LiveAiAdvice.feelings("6 minutos 26 por kilómetro, más tranquilo que la media, y te sienta bien."))
+        // A Spanish line with the model's English note to itself is not Spanish.
+        assertNotNull(LiveAiAdvice.language("Vamos, arrancamos suave y disfruta cada zancada. Wait, I must not add content beyond the point. The point says the run started.", spanish = true))
+        assertNotNull(LiveAiAdvice.leaks("Vamos, arrancamos suave. Wait, I must not add content beyond the point."))
         // Sent back once; a second flawed answer is dropped rather than spoken.
         assertEquals("Hombros sueltos y a disfrutar.", LiveAiAdvice.compose(provider("Dime cómo vas.", "Hombros sueltos y a disfrutar."), "k".repeat(20), "claude-haiku-5-5", "Spanish",
             data(), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2))?.text)
         assertNull(LiveAiAdvice.compose(provider("Dime cómo vas.", "Cuéntame qué tal."), "k".repeat(20), "claude-haiku-5-5", "Spanish", data(), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2)))
+    }
+
+    @Test fun `a milestone keeps a draft whose only flaw is an echo, rather than miss its few seconds`() {
+        val bodies = mutableListOf<JSONObject>(); val rejected = mutableListOf<String>()
+        val line = LiveAiAdvice.compose(provider("¡Tercer kilómetro en 7 minutos 22, qué bien!", "unused") { bodies += it }, "fake-key", "claude-haiku-5-5", "Spanish",
+            data("AI" to "Tercer día de la semana en marcha."), kilometre, milestone = third) { _, problem -> rejected += problem }!!
+        assertEquals("¡Tercer kilómetro en 7 minutos 22, qué bien!", line.text); assertEquals(1, bodies.size)
+        assertTrue(rejected.single().contains("opens with"))
+        // A check-in has time to ask again.
+        assertEquals("Hombros sueltos y a disfrutar del parque.", LiveAiAdvice.compose(provider("Vas muy bien, de verdad.", "Hombros sueltos y a disfrutar del parque."), "fake-key", "claude-haiku-5-5", "Spanish",
+            data("AI" to "Vas tranquilo y con buen ritmo."), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2))?.text)
     }
 
     @Test fun `an echo of an earlier line is asked for again once, then allowed`() {

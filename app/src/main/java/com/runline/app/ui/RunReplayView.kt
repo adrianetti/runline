@@ -21,6 +21,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
 import com.runline.app.ai.AiSettings
 import com.runline.app.core.RunMetrics
+import com.runline.app.core.activityEndedAtMs
 import com.runline.app.core.RunReplay
 import com.runline.app.core.ReplayPresentation
 import com.runline.app.core.LapAnalysis
@@ -401,7 +402,7 @@ class RunReplayView(
         content.addView(label(context.getString(R.string.replay_more_statistics), 22, bold = true), row(top = 24, bottom = 8))
         addDetail(content, R.string.replay_average_speed, context.getString(R.string.replay_kmh, number(summary.averageSpeedMetersPerSecond?.times(3.6), 1)))
         addDetail(content, R.string.replay_peak_speed, context.getString(R.string.replay_kmh, number(summary.maxSpeedMetersPerSecond?.times(3.6), 1)))
-        addDetail(content, R.string.replay_elapsed_time, duration((run.endedAtMs - run.startedAtMs).coerceAtLeast(0)))
+        addDetail(content, R.string.replay_elapsed_time, duration(run.activityEndedAtMs - run.startedAtMs))
         addDetail(content, R.string.replay_observed_time, duration(replay.durationMs))
         selectedAltitude = addDetail(content, R.string.replay_current_altitude, context.getString(R.string.replay_metres, number(elevationReplay.at(positionMs)?.point?.altitudeMeters, 0)))
         altitudeRange = addDetail(content, R.string.replay_altitude_range, context.getString(R.string.replay_metres_range, number(elevationReplay.summary.minAltitudeMeters, 0), number(elevationReplay.summary.maxAltitudeMeters, 0)))

@@ -70,12 +70,50 @@ class CoachSpeechScheduleTest {
 
     @Test fun `milestone waits briefly then discards an older routine cue`() {
         val schedule = CoachSpeechSchedule()
-        schedule.finished(1_000)
+        schedule.finished(5_000)
         schedule.offer(ai(), 10_000)
         schedule.offer(km(1), 11_000)
-        assertNull(schedule.takeReady(30_000, true))
-        assertEquals(km(1).cue, schedule.takeReady(31_000, true)?.cue)
+        assertNull(schedule.takeReady(14_999, true))
+        assertEquals(km(1).cue, schedule.takeReady(15_000, true)?.cue)
         assertEquals(0, schedule.pendingCount)
+    }
+
+    @Test fun `halfway and final stretch are milestones, not routine morale held for 85 seconds`() {
+        // 2026-11-14: halfway was ready 35 s after the last line and spoken 51 s later, 130 m past halfway.
+        assertEquals(CoachSpeechPriority.MILESTONE, CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.HALFWAY)))
+        assertEquals(CoachSpeechPriority.MILESTONE, CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.FINAL_STRETCH)))
+        assertEquals(CoachSpeechPriority.MORALE, CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.STEADY)))
+        assertEquals(CoachSpeechPriority.GOAL, CoachSpeechPriority.of(CoachCue.GoalReached(null)))
+        val schedule = CoachSpeechSchedule()
+        schedule.finished(0)
+        val halfway = CoachSpeechRequest("half", CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.HALFWAY)),
+            cue = CoachCue.Encouragement(EncouragementKind.HALFWAY), advice = "Halfway")
+        schedule.offer(halfway, 35_000)
+        assertEquals(halfway, schedule.takeReady(35_000, true))
+    }
+
+    @Test fun `a line the audio output refused gets its slot back once, with its original age`() {
+        val schedule = CoachSpeechSchedule()
+        val opening = ai("Welcome back")
+        schedule.offer(opening, 40_000)
+        assertEquals(opening, schedule.takeReady(40_000, true))
+        assertEquals(40_000L, schedule.offeredAt(opening))
+        schedule.finished(40_100)
+        assertTrue(schedule.retry(opening, 40_000, 40_100))
+        assertNull(schedule.takeReady(48_000, true))
+        assertEquals(opening, schedule.takeReady(48_100, true))
+        schedule.finished(48_200)
+        // Refused twice: it is dropped, not retried for ever.
+        assertFalse(schedule.retry(opening, 40_000, 48_200))
+        // Too old to be about this moment any more.
+        val late = ai("Late")
+        schedule.offer(late, 50_000); assertEquals(late, schedule.takeReady(57_000, true))
+        assertFalse(schedule.retry(late, 50_000, 90_000))
+        // Something newer took the slot meanwhile.
+        val older = ai("Older"); val newer = ai("Newer")
+        schedule.offer(older, 100_000); assertEquals(older, schedule.takeReady(100_000, true))
+        schedule.offer(newer, 100_050)
+        assertFalse(schedule.retry(older, 100_000, 100_100))
     }
 
     @Test fun `goal waits for current speech without interruption and supersedes lower priorities`() {

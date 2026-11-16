@@ -67,7 +67,7 @@ map.dispose()                 // before removing/replacing the screen
 
 Pass the original coordinate samples and a separately computed replay position. The SDK is never the authority for recorded distance or time. Each map instance is disposable; do not reuse it after `dispose()`.
 
-The native SDK remains pinned to **MapLibre Android 11.13.5** (BSD-2-Clause). Its published dependency metadata lists Kotlin 2.0.20; the current patched build uses Kotlin **2.4.21**, AGP **9.5.0** and Gradle **9.8.2**, with the completed compatibility checks recorded in [release history](RELEASE-HISTORY.md) and docs/TESTING.md. [MapLibre Android quickstart/lifecycle](https://maplibre.org/maplibre-native/android/examples/getting-started/), [pinned dependency metadata](https://repo.maven.apache.org/maven2/org/maplibre/gl/android-sdk/11.13.5/android-sdk-11.13.5.pom), [Android Kotlin compatibility](https://developer.android.com/build/kotlin-support).
+The native SDK remains pinned to **MapLibre Android 11.13.5** (BSD-2-Clause). Its published dependency metadata lists Kotlin 2.0.20; the current patched build uses Kotlin **2.4.21**, AGP **9.5.1** and Gradle **9.9.1**, with the completed compatibility checks recorded in [release history](RELEASE-HISTORY.md) and docs/TESTING.md. [MapLibre Android quickstart/lifecycle](https://maplibre.org/maplibre-native/android/examples/getting-started/), [pinned dependency metadata](https://repo.maven.apache.org/maven2/org/maplibre/gl/android-sdk/11.13.5/android-sdk-11.13.5.pom), [Android Kotlin compatibility](https://developer.android.com/build/kotlin-support).
 
 ## Verification scope
 
