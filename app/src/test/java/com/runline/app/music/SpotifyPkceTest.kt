@@ -35,6 +35,25 @@ class SpotifyPkceTest {
         assertEquals(SpotifyPkce.Callback.Denied("access_denied"), SpotifyPkce.parseCallback("runline://spotify-callback?error=access_denied&state=abc", "abc"))
         assertEquals(SpotifyPkce.Callback.Mismatch, SpotifyPkce.parseCallback("runline://spotify-callback?state=abc", "abc"))
     }
+    @Test fun signInOpensTheSameAuthorizePageTheBrowserFlowUsed() {
+        val signIn = SpotifyPkce.SignIn("0123456789abcdef0123456789abcdef", "challenge", "state-1")
+        assertEquals(SpotifyPkce.authorizeUrl("0123456789abcdef0123456789abcdef", "challenge", "state-1"), signIn.url)
+    }
+    @Test fun spotifyAppReplyGivesACodeWithTheSameStateOrWithNone() {
+        assertEquals(SpotifyPkce.Callback.Code("AQD-code_1"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("AQD-code_1", "abc"), "abc"))
+        assertEquals(SpotifyPkce.Callback.Code("AQD-code_1"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("AQD-code_1"), "abc"))
+        assertEquals(SpotifyPkce.Callback.Mismatch, SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("AQD", "other"), "abc"))
+        assertEquals(SpotifyPkce.Callback.Mismatch, SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("AQD", "abc"), ""))
+    }
+    @Test fun spotifyAppReplyWithoutACodeNeverConnects() {
+        assertEquals(SpotifyPkce.Callback.Denied("cancelled"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(), "abc"))
+        assertEquals(SpotifyPkce.Callback.Denied("cancelled"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(code = ""), "abc"))
+        assertEquals(SpotifyPkce.Callback.Denied("INVALID_APP_ID"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(error = "INVALID_APP_ID"), "abc"))
+        // An error wins over a code, and a long one is cut before it can reach the screen.
+        assertEquals(SpotifyPkce.Callback.Denied("no_code"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("AQD", "abc", "no_code"), "abc"))
+        assertEquals(80, (SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(error = "x".repeat(500)), "abc") as SpotifyPkce.Callback.Denied).error.length)
+        assertEquals(SpotifyPkce.Callback.Denied("cancelled"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("c".repeat(2001)), "abc"))
+    }
     @Test fun onlyTheExactRedirectIsACallback() {
         assertTrue(SpotifyPkce.isCallback("runline://spotify-callback")); assertTrue(SpotifyPkce.isCallback("runline://spotify-callback?code=1&state=2"))
         assertFalse(SpotifyPkce.isCallback("runline://spotify-callback-other?code=1")); assertFalse(SpotifyPkce.isCallback("https://spotify-callback?code=1"))

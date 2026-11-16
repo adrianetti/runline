@@ -323,3 +323,11 @@ Verified 10 November 2026: 466 JVM tests (1 skipped), lint 0 errors, resource (8
 - **Backtest.** `LiveCoachBacktest` replays recorded runs through the coach against the provider and has a stronger model grade every line.
 
 Verified 11 November 2026, on top of 0.23: 478 JVM tests (2 skipped: the backtest, which needs a key), lint 0 errors, resource (807), icon (57) and route checks, debug, release and Android-test builds. Backtest on three recorded runs in Spanish, graded by `claude-sonnet-5-5`, coach feel 0–100: 0.21 26, 0.22 33, 0.24 53 (61, 53, and 45 on the run held out from tuning, which scored 27 and 30 before); unclear or wrong lines 23%, 40%, 12%; lines asking for a reply 0, 10, 0. Milestone answers: median 1.1 s, slowest 2.1 s, no fallbacks. Not tested: on a phone, audible speech over music, the 3.5-second fallback on a real network, English, pace-target goals, hills and routes. The grader still finds some praise generic and the odd line claiming how the runner feels. Details: [TESTING.md](TESTING.md#version-0240-validation).
+
+## Version 0.24.1
+
+- **Spotify sign-in through the Spotify app.** **Connect** now opens Spotify, where the account is already signed in, and Spotify hands the answer straight back. In 0.24.0 it opened Spotify's sign-in page in a browser stacked inside Runline. Spotify's app signs in only apps listed in the developer dashboard under their Android package and SHA-1 fingerprint, so the setup guide gains that step and shows both values with copy buttons.
+- **A way out when Spotify refuses.** Runline shows Spotify's own error name, opens the setup guide and offers **Sign in with the browser**.
+- **Browser sign-in in a window of its own.** Used when Spotify is not installed, is older than 9.0.78 or is not signed by Spotify. The page opens in the default browser as that browser's own window, and comes back to the Runline screen that was already open.
+
+Verified 11 November 2026: 482 JVM tests (2 skipped), lint 0 errors, resource (811), icon (57), route and surface checks, debug, release and Android-test builds; 14 device tests and the setup guide, browser fallback and callback rejection by hand on a throwaway API 34 emulator. The handoff to the real Spotify app was not run: no emulator has Spotify with an account. Details: [TESTING.md](TESTING.md#version-0241-spotify-app-sign-in).

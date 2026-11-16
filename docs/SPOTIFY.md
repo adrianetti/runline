@@ -18,10 +18,16 @@ Spotify limits a Development Mode app to the accounts its owner adds by hand (fi
 
 1. Open the [Spotify developer dashboard](https://developer.spotify.com/dashboard) and create an app. Any name and description will do.
 2. Add the redirect URI `runline://spotify-callback`.
-3. Tick **Web API** and save.
-4. Copy the **Client ID** into **Settings → Music** and tap **Connect**. Sign in on the Spotify page that opens; it sends you back to Runline.
+3. Tick **Web API** and **Android**. Under **Android packages** add the package name and the SHA-1 fingerprint that **Settings → Music → Setup guide** shows, each with a copy button. For the released APK the package is `com.runline.app`.
+4. Save, copy the **Client ID** into **Settings → Music** and tap **Connect**.
 
-The **Client secret** is never needed. Runline uses Authorization Code with PKCE, so there is nothing secret in the app, in the repository or in a build. The Android package name and signing fingerprint are not needed either, so a fork or a self-built APK connects the same way.
+**Connect** opens the Spotify app, where you are already signed in. Agree there and Spotify returns you to Runline, connected. Nothing is typed and no browser opens.
+
+Spotify's app signs in only apps it finds in the dashboard under their package name and signing fingerprint; that is what step 3 is for. The fingerprint belongs to the key an APK was signed with, so a fork or a self-built APK shows its own, and the same steps work for it. If Spotify refuses, Runline shows Spotify's error, opens the setup guide and offers **Sign in with the browser**.
+
+The browser is used on its own when the Spotify app is not installed, is older than 9.0.78, or is not signed by Spotify. It opens Spotify's sign-in page in your default browser, as a browser window of its own, and the page sends you back to Runline. The browser sign-in needs only the redirect URI from step 2.
+
+The **Client secret** is never needed. Runline uses Authorization Code with PKCE on both paths, so there is nothing secret in the app, in the repository or in a build.
 
 To let someone else use your Spotify app instead of making their own, add their account under **User Management** in the dashboard. An account that is not listed gets "Add this account under User Management".
 
@@ -57,7 +63,8 @@ Runline starts music only on the active Spotify device or on this account's phon
 - Requested permissions: read and control playback, and list your playlists (`user-read-playback-state`, `user-modify-playback-state`, `playlist-read-private`, `playlist-read-collaborative`). No email, profile details or listening history.
 - The access and refresh tokens are AES-256-GCM ciphertext under a non-exportable Android Keystore key, in `noBackupFilesDir`. They never enter exports, logs, instance state or backups. This lowers extraction risk; it does not protect an unlocked or compromised phone.
 - Requests go only to `accounts.spotify.com/api/token`, `api.spotify.com/v1/…` and, for the cover, `i.scdn.co/image/…`. Redirects are not followed. Nothing about the run is sent to Spotify: no location, pace or goal.
-- The sign-in answer arrives through the `runline://spotify-callback` link. It carries a one-time code that is useless without the verifier Runline kept, is checked against a random state, and is ignored unless a sign-in started in the last 15 minutes.
+- The sign-in is handed only to an app named `com.spotify.music` that is signed with one of Spotify's certificates. An impostor under that name is ignored and the browser is used. The request carries the Client ID, the redirect URI, the four permissions, a random state and the PKCE challenge; none of them is secret.
+- Spotify's app answers with an activity result, which only the app that was started can set. The browser answers through the `runline://spotify-callback` link, which any app could open, so that answer must repeat the random state. Either way the answer is a one-time code that is useless without the verifier Runline kept, and it is ignored unless a sign-in started in the last 15 minutes.
 - **Disconnect** deletes the tokens, the Keystore key and the chosen playlists. To revoke access on Spotify's side as well, remove the app under **Account → Apps** on spotify.com.
 
 ## Limits
@@ -67,4 +74,4 @@ Runline starts music only on the active Spotify device or on this account's phon
 - Spotify can change its API rules again. The February 2026 rules this was built against are listed in [Spotify's migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide).
 - Spotify is a trademark of Spotify AB. Runline is not affiliated with or endorsed by Spotify.
 
-Verification scope is recorded in [TESTING.md](TESTING.md#version-023-music-and-spotify).
+Verification scope is recorded in [TESTING.md](TESTING.md#version-023-music-and-spotify) and, for the Spotify app sign-in, in [TESTING.md](TESTING.md#version-0241-spotify-app-sign-in).

@@ -103,6 +103,11 @@ class MainActivity : AppCompatActivity() {
     private var routeId: String? = null
     private var routesBusy = false
     private var pendingRouteUri: Uri? = null
+    /** The Spotify app's answer to a sign-in. The sheet may be gone if Android recreated this activity meanwhile. */
+    private val spotifySignIn = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        val reply = com.runline.app.music.SpotifyAppSignIn.reply(result.resultCode, result.data)
+        musicSheet?.takeIf { it.isShowing }?.onAppReply(reply) ?: showMusic(appReply = reply)
+    }
     private val importRoute = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) importRouteFrom(uri)
     }
@@ -601,7 +606,10 @@ class MainActivity : AppCompatActivity() {
         appSettings?.close()
         appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }, ::showTerrainSettings, ::showMusic).also { it.show() }
     }
-    private fun showMusic(callback: String? = null) { musicSheet?.close(); musicSheet = com.runline.app.ui.MusicSheet(this, callback).also { it.show() } }
+    private fun showMusic(callback: String? = null, appReply: com.runline.app.music.SpotifyPkce.AppReply? = null) {
+        musicSheet?.close()
+        musicSheet = com.runline.app.ui.MusicSheet(this, callback, appReply) { spotifySignIn.launch(it) }.also { it.show() }
+    }
     /** The browser came back from Spotify sign-in. The link is used once, then dropped from the intent. */
     private fun openSpotifyCallback(): Boolean {
         val link = intent?.dataString?.takeIf { intent.action == Intent.ACTION_VIEW && com.runline.app.music.SpotifyPkce.isCallback(it) &&

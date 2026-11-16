@@ -14,7 +14,7 @@ The full upstream MIT notice is in [third_party/tabler-icons/LICENSE](third_part
 
 ## Spotify
 
-The optional music module talks to the Spotify Web API with the user's own Client ID; no Spotify SDK or code is bundled. The Spotify mark beside a playing track is Tabler's `brand-spotify` outline, shown as the attribution Spotify's guidelines ask for. Spotify is a trademark of Spotify AB. Runline is not affiliated with or endorsed by Spotify. See [Music and Spotify](docs/SPOTIFY.md).
+The optional music module talks to the Spotify Web API with the user's own Client ID; no Spotify SDK is bundled. Sign-in through the Spotify app follows the intent protocol of Spotify's [android-auth](https://github.com/spotify/android-auth) library (Apache-2.0), and the list of Spotify signing-certificate hashes that identifies the genuine app is taken from it. The Spotify mark beside a playing track is Tabler's `brand-spotify` outline, shown as the attribution Spotify's guidelines ask for. Spotify is a trademark of Spotify AB. Runline is not affiliated with or endorsed by Spotify. See [Music and Spotify](docs/SPOTIFY.md).
 
 ## MapLibre Native
 
