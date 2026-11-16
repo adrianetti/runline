@@ -11,9 +11,9 @@ Runline uses GitHub Actions on pushes to `main` and pull requests. Workflow file
 
 **Secret scanning** uses checksum-pinned Gitleaks over Git history. **Android source security** runs seven tested local Semgrep rules and five tested guards for backup, exported components and file-sharing boundaries. Details and limitations are in [security checks](../tools/security/README.md). Scanners run on GitHub-hosted runners and do not send source to a separate scanning account. These checks catch known patterns and advisories; they do not replace device tests or a security review.
 
-The build uses AGP **9.5.0**, AGP's built-in Kotlin with the documented **2.4.21** classpath override, Gradle **9.8.2**, JDK **17**, Android compile SDK **37** / target SDK **34** and Build Tools **36.0.0**. Security constraints apply only to the root buildscript and isolated lint tool classpaths. Gradle Actions explicitly uses `cache-provider: basic`, which stays free for private repositories; its default Enhanced Caching is a [private-repository free preview](https://github.com/gradle/actions/blob/v6.4.1/README.md).
+The build uses AGP **9.5.1**, AGP's built-in Kotlin with the documented **2.4.21** classpath override, Gradle **9.9.1**, JDK **17**, Android compile SDK **37** / target SDK **34** and Build Tools **36.0.0**. Security constraints apply only to the root buildscript and isolated lint tool classpaths. Gradle Actions explicitly uses `cache-provider: basic`, which stays free for private repositories; its default Enhanced Caching is a [private-repository free preview](https://github.com/gradle/actions/blob/v6.4.1/README.md).
 
-A clean Maven audit does not mean the whole toolchain is vulnerability-free. Gradle 9.8.2 still bundles affected Guava 33.4.6-jre; the [known distribution limitation](../tools/security/README.md#dependency-advisories-and-toolchain-limits) is separate from the project's patchable Maven graph.
+A clean Maven audit does not mean the whole toolchain is vulnerability-free. Gradle 9.9.1 still bundles affected Guava 33.4.6-jre; the [known distribution limitation](../tools/security/README.md#dependency-advisories-and-toolchain-limits) is separate from the project's patchable Maven graph.
 
 Local checks:
 

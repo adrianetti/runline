@@ -151,7 +151,7 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
                     val (line, profile, runnerGoal) = result
                     plan.answered(activeMs.coerceAtLeast(requestActiveMs), line != null)
                     if (line == null) { onEvent("ai_silent", label, latency); deliver(null, { false }, label, latency); return@synchronized }
-                    if (runId == run.id) usedPoints += line.pointId
+                    if (runId == run.id) usedPoints += line.pointIds
                     val aboutGround = LiveAiAdvice.mentionsTerrain(line.text)
                     val valid = { synchronized(this) {
                         val now = AiSettings.load(context)

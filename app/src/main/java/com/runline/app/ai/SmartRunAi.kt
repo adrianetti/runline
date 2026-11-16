@@ -73,8 +73,8 @@ object SmartRunAi {
                             throw AiFailure(AiFailure.Reason.NETWORK)
                         key = AiSettings.readKey(app) ?: throw AiFailure(AiFailure.Reason.KEY)
                     }, request = {
-                        val lastEnded = runs.list().filter { it.endedAtMs <= now && (runs.details(it.id).activityType ?: it.activityType) == com.runline.app.core.ActivityType.RUN }.maxOfOrNull { it.endedAtMs }
-                        payload.put("context_time_ms", now).put("hours_since_last_completed_run", lastEnded?.let { (now - it) / 3_600_000.0 } ?: org.json.JSONObject.NULL)
+                        payload.put("context_time_ms", now).put("hours_since_last_completed_run",
+                            SmartRunAiInput.hoursSinceLastRun(runs.list(), runs::details, now) ?: org.json.JSONObject.NULL)
                         val language = if (AppLanguage.localizedContext(app).resources.configuration.locales[0].language == "es") "Spanish" else "English"
                         SmartRunAiInput.request(com.runline.app.diagnostics.Diagnostics.provider(app, "smart"), requireNotNull(key), config, language, payload, ::current)
                     }, isCurrent = { current() && SmartRunAiInput.key(input()) + ":" + epoch == inputKey })

@@ -27,7 +27,7 @@ android {
     namespace = "com.runline.app"
     compileSdk = 37
     defaultConfig {
-        applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 30; versionName = "0.24.1"
+        applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 31; versionName = "0.24.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

@@ -4,7 +4,7 @@ The checklist is not a blanket pass report. Current v0.20.2 and earlier v0.20.1/
 
 ## Build and unit checks
 
-With JDK 17, SDK 37.0 and Build Tools 36.0.0, use the pinned AGP 9.5.0 / Kotlin 2.4.21 / Gradle 9.8.2 build:
+With JDK 17, SDK 37.0 and Build Tools 36.0.0, use the pinned AGP 9.5.1 / Kotlin 2.4.21 / Gradle 9.9.1 build:
 
 ```sh
 python3 tools/import_icons.py --check
@@ -671,3 +671,14 @@ Recorded 11 November 2026 for **0.24.1 / code 30**.
 - **New device coverage (6 tests, throwaway API 34 emulator without Spotify).** Spotify's activity result read from real intents: code and state, missing data, a token in place of a code, an error result, leaving without agreeing. Without Spotify there is no handoff, and the browser intent names the default browser and a task of its own. A refusal shows Spotify's error name, opens the guide with this build's package and fingerprint, and offers the browser. All 14 device tests passed.
 - **By hand on the same emulator.** The setup guide shows four steps with the package and fingerprint and three copy buttons. **Connect** with a made-up Client ID opened Chrome in Chrome's task; Runline's task held only its one activity. A `runline://spotify-callback` link with the wrong state came back to that same activity and showed "That sign-in expired".
 - **Not tested.** The handoff to the real Spotify app: its consent screen, the code it returns, what it answers when the package and fingerprint are not in the dashboard, and Samsung's build of Spotify. The protocol was read from the source of Spotify's auth library, not seen in a run. A real account, the token exchange after the handoff and a physical phone remain untested, as in 0.23.
+
+## Version 0.24.2 validation
+
+Recorded 16 November 2026 for **0.24.2 / code 31**.
+
+- **Reported from a phone on 0.24.0.** A 7.08 km run recorded on Saturday 14 November, left paused and finished on Monday, made Monday's daily suggestion say the last run was minutes ago and suggest rest. Its coach log showed the opening line lost (`audio_unavailable`), halfway spoken 51 s after it was ready and 130 m late, adjectives that gave the runner a gender, the fastest kilometre repeated two minutes apart, "only 83 seconds slower, normal" after a 5:32 kilometre, and an invented reason for a slow lap.
+- **Build and checks.** 492 JVM tests passed, 2 skipped (`LiveCoachBacktest` replay and judge). Lint 0 errors, 811 bilingual resources, 57 pinned icons, one catalog route. Debug and release APKs assemble. Dependency audit: 243 Maven versions, 39 configurations, 0 findings. Gradle 9.9.1's distribution still ships `guava-33.4.6-jre.jar`, so the documented toolchain limitation is unchanged.
+- **New unit coverage.** A run paused Saturday and finished Monday ends at its last fix and counts 46 hours, not minutes; mid-run pauses still count as elapsed time; the end never leaves the recorded span. Halfway and the final stretch take the milestone slot with a 10 s breath. A refused line returns once with its original age, never twice, never after expiry, never over a newer line. Gendered Spanish adjectives from the real log are sent back while "cabeza alta", "suelta el aire" and adverbial "termina alto" pass; "qué bien te sientes" is sent back outside a question; an English note to itself after Spanish is caught. Kilometre and lap lines after a burst, a past-the-goal observation, covered facts, and a milestone that keeps an echo-only draft.
+- **Backtest, Spanish, `claude-haiku-5-5` live, `claude-sonnet-5-5` grading twice.** The 14 November run (5 km easy goal, 7.08 km run, three earlier runs as history) joined the 3 km, 10 km and held-out 4.7 km runs. Coach feel 0–100, 0.24.1 code against this code: 3 km 50/50, 10 km 52/56, 4.7 km 50/44, 14 November 55/58; mean 51.8/51.9 (noise about ±3). Wrong lines per round 7.0/4.5, lines asking for a reply 1.0/0.5. One kilometre in four runs fell back to the built-in line. The held-out drop came mostly from a kilometre called "slower than your kilometres before" after a kilometre that was no burst; that rule now also requires the previous kilometre to stand out from its own predecessor (unit test on those splits; not re-graded).
+- **Still faulted by the grader.** Recycled phrases ("sin prisa", "regalo"), guesses about appearance ("buena cara"), and no comment on a 5:26 surge on an easy day once the goal moment took its slot.
+- **Not tested.** On a phone: finishing a paused run, the audio retry, milestone timing over music, and the refreshed daily suggestion. The Spotify app handoff from 0.24.1 is still untested.

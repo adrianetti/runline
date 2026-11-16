@@ -105,24 +105,19 @@ class LiveCoachBacktest {
         val meta = mutableMapOf<String, Waiting>()
         class Voicing(val cue: CoachCue, val line: Waiting?, val readyAt: Long)
         var voicing: Voicing? = null
-        fun priority(cue: CoachCue) = when (cue) {
-            is CoachCue.GoalReached -> CoachSpeechPriority.GOAL
-            is CoachCue.Kilometre, CoachCue.OneKilometreRemaining, is CoachCue.LapCompleted -> CoachSpeechPriority.MILESTONE
-            is CoachCue.Terrain, CoachCue.EasingAfterHill -> CoachSpeechPriority.TERRAIN
-            is CoachCue.Encouragement -> CoachSpeechPriority.MORALE
-            else -> CoachSpeechPriority.PACE
-        }
+        fun priority(cue: CoachCue) = CoachSpeechPriority.of(cue)
         fun ask(run: RunSession, now: Long, call: LiveCall, milestone: JSONObject?): Waiting? {
             val label = call.trigger.name + (call.moment?.let { ":$it" } ?: if (call.trigger == LiveTrigger.CADENCE) ":${call.focus}" else "")
             val summary = AiRunSummary.of(run)
             val context = AiCoachingContext.build(today, activeGoal = config, activeRun = run, history = history, spoken = said.toList(), nowElapsedMs = now, runnerGoal = aspiration)
             val began = System.nanoTime()
-            val answer = runCatching { LiveAiAdvice.compose(provider, key!!, model, language, JSONObject().put("run", summary).put("coaching_context", context), call, used.toList(), milestone) }
+            val answer = runCatching { LiveAiAdvice.compose(provider, key!!, model, language, JSONObject().put("run", summary).put("coaching_context", context), call, used.toList(), milestone) { draft, problem ->
+                synchronized(events) { events.put(JSONObject().put("at_s", now / 1000).put("event", "draft_rejected").put("label", label).put("draft", draft).put("problem", problem)) } } }
             val latency = (System.nanoTime() - began) / 1_000_000; latencies += latency
             answer.onFailure { plan.failed(now); events.put(JSONObject().put("at_s", now / 1000).put("event", "failed").put("label", label).put("reason", it.message)) }
             val line = answer.getOrNull()
             if (answer.isSuccess) { plan.answered(now, line != null); if (line == null) events.put(JSONObject().put("at_s", now / 1000).put("event", "silent").put("label", label)) }
-            return line?.let { used += it.pointId
+            return line?.let { used += it.pointIds
                 Waiting(it.text, now + latency, "$label ${it.pointId}", latency, LiveFacts.of(summary, context).put("terrain", context.opt("recent_terrain") ?: JSONObject.NULL), now, it.point) }
         }
         points.indices.forEach { index ->

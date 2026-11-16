@@ -112,13 +112,7 @@ class CoachSpeech(context: Context,
     }
     private fun offer(cue: CoachCue, text: String?) = onMain {
         if (closed) return@onMain
-        val priority = when (cue) {
-            is CoachCue.GoalReached -> CoachSpeechPriority.GOAL
-            is CoachCue.Kilometre, CoachCue.OneKilometreRemaining, is CoachCue.LapCompleted -> CoachSpeechPriority.MILESTONE
-            is CoachCue.Terrain, CoachCue.EasingAfterHill -> CoachSpeechPriority.TERRAIN
-            is CoachCue.Encouragement -> CoachSpeechPriority.MORALE
-            else -> CoachSpeechPriority.PACE
-        }
+        val priority = CoachSpeechPriority.of(cue)
         val offered = schedule.offer(CoachSpeechRequest(cue.toString(), priority, cue = cue, advice = text,
             isValid = { situation.allows(cue) }), SystemClock.elapsedRealtime())
         diagnostic(if (offered) "queued" else "rejected", text.orEmpty(), if (text == null) "LOCAL" else "AI", cue.toString())
@@ -236,14 +230,15 @@ class CoachSpeech(context: Context,
         return true
     }
 
+    /** False only when the audio output refused the line before a word was said, so it may be offered again. */
     private fun speakInternal(text: String, preview: ((SpeechResult) -> Unit)?, source: CoachSpeechSource? = null,
-                              isValid: (() -> Boolean)? = null) {
-        if (closed || !initialized) { preview?.invoke(SpeechResult.UNAVAILABLE); return }
+                              isValid: (() -> Boolean)? = null): Boolean {
+        if (closed || !initialized) { preview?.invoke(SpeechResult.UNAVAILABLE); return true }
         if (lease.isBusy || (speakingInstance != null && speakingInstance !== this)) {
-            preview?.invoke(SpeechResult.AUDIO_BUSY); return
+            preview?.invoke(SpeechResult.AUDIO_BUSY); return true
         }
-        if (!runCatching { ensureVoice() }.getOrDefault(false)) { diagnostic("voice_unavailable", text, source?.name ?: "PREVIEW", currentCue); preview?.invoke(SpeechResult.UNAVAILABLE); return }
-        if (isValid?.let { !runCatching(it).getOrDefault(false) } == true) return
+        if (!runCatching { ensureVoice() }.getOrDefault(false)) { diagnostic("voice_unavailable", text, source?.name ?: "PREVIEW", currentCue); preview?.invoke(SpeechResult.UNAVAILABLE); return true }
+        if (isValid?.let { !runCatching(it).getOrDefault(false) } == true) return true
         val id = "runline-coach-${++serial}"
         currentId = id; utterancePreview = preview; utteranceValid = isValid
         currentText = text; currentSource = source?.name ?: "PREVIEW"
@@ -253,7 +248,7 @@ class CoachSpeech(context: Context,
             currentId = null; utteranceValid = null; spokenGate.clear()
             schedule.finished(SystemClock.elapsedRealtime())
             completePreview(SpeechResult.AUDIO_BUSY)
-            return
+            return false
         }
         speakingInstance = this
         val guard = Runnable {
@@ -268,6 +263,7 @@ class CoachSpeech(context: Context,
         timeout = guard
         // Short prompts take a few seconds; a place note up to about 25 s. Never keep another app ducked.
         main.postDelayed(guard, maxOf(15_000L, 6_000L + text.length * 90L))
+        return true
     }
 
     private fun finish(id: String?, error: SpeechResult?) {
@@ -300,7 +296,11 @@ class CoachSpeech(context: Context,
             val text = next.advice ?: next.cue?.let(::cueText).orEmpty()
             val route = next.cue == null && next.key.startsWith("route-")
             currentCue = next.cue?.toString() ?: if (route) next.key else "advice"
-            speakInternal(text, null, if (next.advice != null && !route) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid)
+            val offeredAt = schedule.offeredAt(next)
+            // Audio focus or the engine can refuse for a moment (another app starting, a notification):
+            // one retry after the usual breath, instead of losing the line.
+            if (!speakInternal(text, null, if (next.advice != null && !route) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid) &&
+                offeredAt != null && schedule.retry(next, offeredAt, SystemClock.elapsedRealtime())) diagnostic("retry_queued", text)
         }
         // At most three bounded slots; no polling or held focus after they expire.
         if (schedule.pendingCount > 0) main.postDelayed(retrySpeech, 1_000)

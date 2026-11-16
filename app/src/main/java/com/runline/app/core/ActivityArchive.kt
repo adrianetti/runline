@@ -50,9 +50,9 @@ object ActivityArchive {
             val speed = if (run.activeDurationMs > 0 && distance > 0) distance * 3_600.0 / run.activeDurationMs else null
             val fields = listOf(
                 run.id, run.activityType.storageValue,
-                Instant.ofEpochMilli(run.startedAtMs).toString(), Instant.ofEpochMilli(run.endedAtMs).toString(),
+                Instant.ofEpochMilli(run.startedAtMs).toString(), Instant.ofEpochMilli(run.activityEndedAtMs).toString(),
                 Instant.ofEpochMilli(run.startedAtMs).atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME), zone.id,
-                number(run.activeDurationMs / 1000.0), number((run.endedAtMs - run.startedAtMs).coerceAtLeast(0) / 1000.0),
+                number(run.activeDurationMs / 1000.0), number((run.activityEndedAtMs - run.startedAtMs) / 1000.0),
                 number(analysis.observedDurationMs / 1000.0), number(distance / 1_000), number(pace), number(speed),
                 number(analysis.elevationGainMeters), number(analysis.elevationLossMeters),
                 run.points.size.toString(), continuousSegments(run.points).size.toString(), filename,

@@ -39,6 +39,7 @@ import com.runline.app.i18n.AppLanguage
 import com.runline.app.core.RunMetrics
 import com.runline.app.core.RunPoint
 import com.runline.app.core.RunSession
+import com.runline.app.core.activityEndedAtMs
 import com.runline.app.data.DraftRecord
 import com.runline.app.data.RunStore
 import java.util.UUID
@@ -294,8 +295,12 @@ class TrackingService : Service(), LocationListener {
 
     private fun finishRun() {
         if (current == null) { stopSelf(); return }
+        val wasRecording = mode == RecordingStatus.RECORDING
         pauseRun()
-        val finished = current!!.copy(endedAtMs = System.currentTimeMillis())
+        // A run left paused and finished later ends when it was paused, not at this tap.
+        val finished = current!!.copy(endedAtMs = System.currentTimeMillis()).let {
+            if (wasRecording) it else it.copy(endedAtMs = it.activityEndedAtMs)
+        }
         if (!safely { store.complete(finished) }) return
         // The route is durable before optional editing or online analysis is scheduled.
         runCatching { getSharedPreferences("activity_completion", MODE_PRIVATE).edit().putString("pending_id", finished.id).apply() }

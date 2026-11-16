@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AtomicFile
 import com.runline.app.core.RunSession
+import com.runline.app.core.activityEndedAtMs
 import com.runline.app.data.RunStore
 import com.runline.app.i18n.AppLanguage
 import com.runline.app.coaching.VoiceCoachSettings
@@ -55,8 +56,8 @@ object AiWork {
             val runDetails = runStore.details(run.id)
             val terrainMap = com.runline.app.terrain.TerrainRepository.get(app).snapshot
             val verifiedRun = terrainMap.project(run)
-            val history = runStore.list().map(terrainMap::project).filter { it.startedAtMs <= run.endedAtMs }.distinctBy { it.id }
-            val asOf = java.time.Instant.ofEpochMilli(run.endedAtMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            val history = runStore.list().map(terrainMap::project).filter { it.startedAtMs <= run.activityEndedAtMs }.distinctBy { it.id }
+            val asOf = java.time.Instant.ofEpochMilli(run.activityEndedAtMs).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
             val input = JSONObject().put("activity", AiRunSummary.of(verifiedRun, runDetails, config.includeNotes))
                 .put("coaching_context", AiCoachingContext.build(asOf, activeGoal = com.runline.app.data.SessionIntentStore(app).get(run.id)?.applyTo(com.runline.app.core.CoachConfig(enabled = true)),
                     activeRun = verifiedRun, history = history, details = runStore::details, includeNotes = config.includeNotes,
