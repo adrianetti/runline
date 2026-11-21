@@ -2,7 +2,6 @@ package com.runline.app.ai
 
 import org.json.JSONObject
 
-/** Metadata only: never credentials, prompt/response text, coordinates or profile fields. */
 data class AiRequestMetric(
     val atMs: Long, val model: String, val method: String, val status: Int?, val durationMs: Long,
     val inputTokens: Long?, val outputTokens: Long?, val cacheReadTokens: Long?, val cacheWriteTokens: Long?,
@@ -20,7 +19,6 @@ data class AiRequestMetric(
                 estimateCost(model, input, output, read, write, usage?.optJSONObject("cache_creation"))
             return AiRequestMetric(at, model, method, response?.status, duration.coerceAtLeast(0), input, output, read, write, cost, failure)
         }
-        // Standard global list prices verified 2026-11-04. An estimate, not an account invoice.
         private fun estimateCost(model: String, input: Long?, output: Long?, read: Long?, write: Long?, cache: JSONObject?): Double? {
             if (input == null || output == null) return null
             val cacheRead = read ?: 0; val cacheWrite = write ?: 0
@@ -30,7 +28,6 @@ data class AiRequestMetric(
                 "claude-opus-5-5" -> listOf(4.0, 20.0, .20)
                 else -> return null
             }
-            // A cache write without a TTL breakdown cannot be priced accurately.
             val short = (cache?.opt("ephemeral_5m_input_tokens") as? Number)?.toLong() ?: 0
             val long = (cache?.opt("ephemeral_1h_input_tokens") as? Number)?.toLong() ?: 0
             if (short < 0 || long < 0 || short + long != cacheWrite) return null

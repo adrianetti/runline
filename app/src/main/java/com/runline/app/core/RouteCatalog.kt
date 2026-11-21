@@ -3,12 +3,10 @@ package com.runline.app.core
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** A short note about a named waypoint, read out as the hiker reaches it. */
 data class CatalogPlace(val waypoint: String, val notes: Map<String, String>) {
     fun note(language: String) = notes[language] ?: notes["en"] ?: notes.values.first()
 }
 
-/** One route listed in the open repository's `routes/index.json`. */
 data class CatalogRoute(
     val id: String,
     val file: String,
@@ -24,7 +22,6 @@ data class CatalogRoute(
     val startLatitude: Double,
     val startLongitude: Double,
     val places: List<CatalogPlace> = emptyList(),
-    /** Where the route meets other paths; turn cues are given only there. Null: unknown. */
     val junctions: List<Pair<Double, Double>>? = null,
 ) {
     fun name(language: String) = names[language] ?: names["en"] ?: names.values.first()
@@ -35,7 +32,6 @@ data class CatalogRoute(
 
 data class RouteCatalogIndex(val version: Int, val license: String, val attribution: String, val routes: List<CatalogRoute>)
 
-/** Strict reader: a bad catalog is rejected whole, so a broken download never replaces a good one. */
 object RouteCatalog {
     const val MAX_BYTES = 1_000_000
     const val MAX_ROUTES = 500

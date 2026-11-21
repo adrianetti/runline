@@ -16,7 +16,6 @@ class TerrainConfidenceTest {
         assertTrue(estimates(points).all { it.direction == TerrainDirection.UNKNOWN })
         assertTrue(ObservedElevationTrace.fromPoints(points).sections.isEmpty())
         assertEquals(TerrainDirection.DOWNHILL, estimates(track(-15.0, vertical = 2f)).last().direction)
-        // Legacy data remains readable and approximate; no invented accuracy.
         assertEquals(TerrainDirection.UPHILL, estimates(track(5.0)).last().direction)
     }
     @Test fun heightRelocationDoesNotBecomeASteepDescent() {
@@ -28,7 +27,7 @@ class TerrainConfidenceTest {
         assertEquals(TerrainDirection.UPHILL, values.last().direction)
         val trace = ObservedElevationTrace.fromPoints(shifted)
         assertEquals(2, trace.sections.size)
-        assertEquals(159_000L, trace.durationMs) // Quality never deletes elapsed observed time.
+        assertEquals(159_000L, trace.durationMs)
         assertNull(trace.at(79_500, 0))
     }
     @Test fun isolatedSpikesDoNotInventHillsOnFlatOrInvertAClimb() {

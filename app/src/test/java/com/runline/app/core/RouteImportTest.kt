@@ -30,7 +30,6 @@ class RouteImportTest {
         assertEquals(RouteImportNaming.Shape.ROUTE, RouteImportNaming.shape(route(outbound)))
         assertEquals(RouteImportNaming.Shape.LOOP, RouteImportNaming.shape(loop))
         assertEquals(RouteImportNaming.Shape.OUT_AND_BACK, RouteImportNaming.shape(outBack))
-        // Return only records a start, midpoint and end: sampling by vertex index would fail.
         assertEquals(RouteImportNaming.Shape.OUT_AND_BACK, RouteImportNaming.shape(route(outbound + listOf(outbound[25], outbound[0]))))
         assertEquals(RouteImportNaming.Shape.ROUTE, RouteImportNaming.shape(route(listOf(37.0 to -3.6, 37.0001 to -3.6, 37.0 to -3.6))))
     }
@@ -57,7 +56,6 @@ class RouteImportTest {
     @Test fun `suggestion drops what it does not know`() {
         assertEquals("Loop 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP, emptyList(), en, java.util.Locale.UK))
         assertEquals("Ruta 1,1K", RouteImportNaming.suggestion(route(outbound), RouteImportNaming.Shape.ROUTE, listOf(null, null), es, spanish))
-        // A town alone, a spot that is the town, and the same spot at both ends.
         assertEquals("Granada loop 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP,
             listOf(RouteImportNaming.Place("Granada", "Granada"), RouteImportNaming.Place("Granada", null)), en, java.util.Locale.UK))
         assertEquals("Granada, Zaidín loop 4K", RouteImportNaming.suggestion(loop, RouteImportNaming.Shape.LOOP,
@@ -108,11 +106,9 @@ class RouteImportTest {
         }
         assertEquals("Run Granada", RouteImportNaming.suppliedName("Run Granada", null))
         assertEquals("Vereda de la Estrella", RouteImportNaming.suppliedName("Morning Run", "Vereda_de_la_Estrella.gpx"))
-        // Runline's own exports and download copies.
         assertNull(RouteImportNaming.suppliedName("Walk 3f2a9c1e-12ab-4cde-8f00-123456789abc", "Caminata 8,42 km - 2026-11-01 10-30.gpx"))
         assertEquals("Vuelta al parque", RouteImportNaming.suppliedName(null, "Vuelta al parque 10.05 km - 2026-11-04 09-15 (2).gpx"))
         assertEquals("Alhambra", RouteImportNaming.suppliedName(null, "Alhambra (1).gpx"))
-        // Provider IDs and words glued together fall back to the route's own description.
         assertNull(RouteImportNaming.suppliedName(null, "1448280673GRANADAPINOSGENILGUEJAR.gpx"))
         assertEquals("Pinos Genil", RouteImportNaming.suppliedName(null, "1448280673-Pinos_Genil.gpx"))
         assertEquals("PinosGenilLoop", RouteImportNaming.suppliedName(null, "PinosGenilLoop.gpx"))

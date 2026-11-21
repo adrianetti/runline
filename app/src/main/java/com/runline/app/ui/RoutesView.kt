@@ -16,7 +16,6 @@ import com.runline.app.core.RouteImportNaming
 import com.runline.app.data.RouteEntry
 import kotlin.math.roundToInt
 
-/** The Routes tab: imported routes first, then the open catalog. */
 class RoutesView(
     context: Context,
     entries: List<RouteEntry>,
@@ -31,7 +30,6 @@ class RoutesView(
         orientation = VERTICAL
         val heading = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         heading.addView(text(context.getString(R.string.v19_routes_title), 24, bold = true), LayoutParams(0, -2, 1f))
-        // Add sits beside the options menu: one tap to Files, without a full-width button over the list.
         heading.addView(iconButton(R.drawable.ic_add, R.string.route_import_add).apply { setOnClickListener { onImport() } },
             LayoutParams(dp(48), dp(48)))
         heading.addView(iconButton(R.drawable.ic_more, R.string.v19_routes_options).apply {
@@ -82,7 +80,6 @@ class RoutesView(
         row.addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(text(entry.name, 20, bold = true).apply { maxLines = 2 }, LayoutParams(0, -2, 1f))
-            // The route chosen for the next recording; Record shows it too.
             if (entry.id == selected) addView(android.widget.ImageView(context).apply {
                 setImageResource(R.drawable.ic_check); imageTintList = android.content.res.ColorStateList.valueOf(context.getColor(R.color.on_surface))
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO

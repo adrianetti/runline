@@ -3,12 +3,6 @@ package com.runline.app.core
 import kotlin.math.ceil
 import kotlin.math.roundToLong
 
-/**
- * A planned route as a replayable timeline, so it previews like a recording: the 3D camera,
- * playback speed and the timeline. Time is the steady-effort moving time from Tobler's hiking
- * function. A sample every 5 s of planned time keeps every gap far below the replay's 15 s cut.
- * Display only: it is never saved and never becomes a recording.
- */
 object RoutePreview {
     const val SAMPLE_MS = 5_000L
 
@@ -33,11 +27,6 @@ object RoutePreview {
         return RunSession("preview-${route.id}", 0L, totalMs, totalMs, out, activity)
     }
 
-    /**
-     * True when every sample carries the route's own height. The preview then shows the
-     * profile the route was planned with, as route details and the elevation ahead do: offline,
-     * and without the gaps a terrain lookup leaves on steep ground.
-     */
     fun hasHeights(session: RunSession): Boolean =
         session.points.isNotEmpty() && session.points.all { it.altitudeMeters?.isFinite() == true }
 }

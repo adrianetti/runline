@@ -7,23 +7,12 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/**
- * One thing worth saying, worked out on the phone. [point] states it plainly (in English, as
- * data for the model); [numbers] are the only figures the coach may speak, already written the
- * way they are said in the runner's language; [hint] is the coaching angle. [id] is
- * "theme/observation": an observation is offered once per activity, and a theme not twice running.
- * [covers] names other observations this one also states, so they are not said again later.
- */
 data class LivePoint(val id: String, val point: String, val numbers: Map<String, String> = emptyMap(), val hint: String? = null,
                      val covers: List<String> = emptyList()) {
     val theme: String get() = themeOf(id)
     companion object { fun themeOf(id: String) = id.substringBefore('/') }
 }
 
-/**
- * What a local milestone cue knows, as data for [LivePoints]: the app's own numbers, so the
- * line the live coach speaks agrees with the screen and with the built-in announcement it replaces.
- */
 object LiveMilestone {
     fun of(cue: com.runline.app.core.CoachCue): JSONObject? = when (cue) {
         is com.runline.app.core.CoachCue.Kilometre -> JSONObject().put("kind", "KILOMETRE").put("number", cue.completed)
@@ -44,10 +33,8 @@ object LiveMilestone {
         .putOpt("projected_m", f.projectedMeters).putOpt("projected_ms", f.projectedMs).put("past_halfway", f.pastHalfway)
 }
 
-/** Figures as they are spoken: "7 minutos 41 por kilómetro", "2,2 kilómetros", "20 segundos". */
 class LiveSpeech(private val spanish: Boolean) {
     fun pace(seconds: Double): String = time(seconds) + if (spanish) " por kilómetro" else " per kilometre"
-    /** Minutes and seconds, as for a split or a lap. */
     fun time(seconds: Double): String {
         val total = seconds.roundToInt().coerceAtLeast(0)
         if (total >= 3600) return about(seconds)
@@ -58,7 +45,6 @@ class LiveSpeech(private val spanish: Boolean) {
             else -> minutes(m) + " " + s
         }
     }
-    /** Rounded to whole minutes, as for time left. */
     fun about(seconds: Double): String {
         val total = (seconds / 60).roundToInt().coerceAtLeast(1)
         val h = total / 60; val m = total % 60
@@ -71,7 +57,6 @@ class LiveSpeech(private val spanish: Boolean) {
     fun seconds(value: Int): String = if (spanish) (if (value == 1) "1 segundo" else "$value segundos") else (if (value == 1) "1 second" else "$value seconds")
     private fun minutes(value: Int) = if (spanish) (if (value == 1) "1 minuto" else "$value minutos") else (if (value == 1) "1 minute" else "$value minutes")
     private fun hours(value: Int) = if (spanish) (if (value == 1) "1 hora" else "$value horas") else (if (value == 1) "1 hour" else "$value hours")
-    /** Whole metres to the nearest 50 under a kilometre, one decimal above. */
     fun distance(km: Double): String {
         if (km < 0.95) { val metres = ((km * 1000 / 50).roundToInt() * 50).coerceAtLeast(50); return if (spanish) "$metres metros" else "$metres metres" }
         val tenths = (km * 10).roundToInt()
@@ -85,20 +70,9 @@ class LiveSpeech(private val spanish: Boolean) {
     fun ago(value: String): String = if (spanish) "hace $value" else "$value ago"
 }
 
-/**
- * Chooses what the live coach talks about. The model is good at sounding like a coach and poor
- * at arithmetic under time pressure, so every observation, comparison and projection is decided
- * here from the run summary and coaching context, and the model only gives it a voice.
- */
 object LivePoints {
-    /**
-     * The observation for this call, or null when nothing is worth saying. [used] lists the
-     * observations already voiced in this activity, oldest first. After a local milestone only a
-     * real finding earns a follow-up; a routine check-in always finds something.
-     */
     fun pick(run: JSONObject, context: JSONObject, call: LiveCall, spanish: Boolean, used: List<String> = emptyList(), milestone: JSONObject? = null): LivePoint? {
         val s = State(run, context, LiveSpeech(spanish))
-        // The coach is announcing a milestone in the app's place: that announcement is the point.
         if (milestone != null) return s.milestone(milestone)
         val order: List<() -> LivePoint?> = when (call.trigger) {
             LiveTrigger.OPENING -> listOf(s::opening)
@@ -111,9 +85,7 @@ object LivePoints {
                 LiveMoment.GOAL_REACHED -> listOf(s::goalBest)
                 null -> emptyList()
             }
-            // Nearly home: only the finish matters, or nothing.
             LiveTrigger.CADENCE -> if (s.nearlyThere) listOf(s::paceJumped, s::finalStretch)
-            // Something that just changed outranks the rotating angle; past the goal, so does what the extra is for.
             else listOf(s::paceJumped, s::beyondGoal, s::longest) + when (call.focus) {
                 LiveFocus.PACE_TREND -> listOf(s::shape, s::paceMoved, s::paceSteady, s::paceNow)
                 LiveFocus.TECHNIQUE -> listOf(s::technique)
@@ -149,7 +121,6 @@ object LivePoints {
             .filter { it.optString("activity_type") == run.optString("activity_type") && (it.number("distance_km") ?: 0.0) >= .3 }
             .mapNotNull { r -> runCatching { LocalDate.parse(r.optString("date")) }.getOrNull()?.takeIf { today != null && it <= today }?.let { it to r } }
         val previousPace = earlier.firstOrNull()?.second?.number("average_pace_seconds_per_km")
-        /** Coarse time buckets let a moving observation come back later in a long run, but not twice in a row. */
         private fun every(minutes: Int) = (moving / 60 / minutes).toInt()
         private val phase get() = (progress ?: (moving / 2400)).let { if (it < .25) 0 else if (it < .7) 1 else 2 }
 
@@ -173,7 +144,6 @@ object LivePoints {
                         n >= 2 && time != null && known.dropLast(1).minOrNull()?.let { time < it - 3 } == true -> { covers += listOf("best/km:$n", "faster/km_fastest:$n")
                             "and it is the fastest kilometre of the run so far" to
                             (if (easy) "Be glad with them; no need to chase another one." else "Be glad with them, and point at the next kilometre.") }
-                        // After a burst (or a stop) the change says more about that kilometre than about this one.
                         rebound != null && abs(rebound.versusRecent) <= 8 ->
                             "and it is back at their recent rhythm, after an unusually ${if (rebound.previousQuick) "quick" else "slow"} kilometre before it" to
                                 (if (rebound.previousQuick && easy) "The quick one was the exception; back to an easy rhythm is exactly right today. Do not give the difference."
@@ -203,7 +173,6 @@ object LivePoints {
                     val numbers = linkedMapOf<String, String>()
                     laps.lastOrNull()?.let { numbers["time_of_this_lap"] = say.time(it) }
                     val delta = if (laps.size >= 2) (laps.last() - laps[laps.size - 2]).roundToInt() else null
-                    // After an unusually quick or slow lap, one back at the recent lap time is simply normal again: no sector detail, no difference.
                     val rebound = rebound(laps)
                     val back = rebound != null && abs(rebound.versusRecent) <= 8
                     val quarter = m.number("slower_quarter")?.toInt()?.takeIf { !back }
@@ -344,11 +313,6 @@ object LivePoints {
             val now = c.number("recent_pace_seconds_per_km") ?: return null; val before = c.number("previous_pace_seconds_per_km") ?: return null
             return Triple(c.optString("trend"), now, (now - before).roundToInt())
         }
-        /**
-         * A change of pace worth a word. A coach does not comment on every wobble: on an easy day
-         * only real speeding counts; otherwise a late surge is cheered, a real fade gets one cue,
-         * and coming back to the usual rhythm after a slow patch is simply good news.
-         */
         private fun moved(minimum: Int): LivePoint? {
             val (trend, now, delta) = shift() ?: return null
             val a = average ?: return null
@@ -369,13 +333,11 @@ object LivePoints {
         }
         fun paceJumped(): LivePoint? = moved(25)
         fun paceMoved(): LivePoint? = moved(12)
-        /** How the run is developing over kilometres, not minutes: fading or building. */
         fun shape(): LivePoint? {
             if (splits.size < 4) return null
             val late = splits.takeLast(2).average(); val before = splits.dropLast(2).average()
             val delta = (late - before).roundToInt()
             if (abs(delta) < 10) return null
-            // Old news once they are surging again or nearly home.
             if (delta > 0 && ((progress ?: 0.0) >= .9 || recent?.let { it < late - 10 } == true)) return null
             val numbers = mapOf("average_of_the_last_two_kilometres" to say.pace(late), "average_of_the_kilometres_before" to say.pace(before))
             return if (delta > 0) LivePoint("slower/shape:${splits.size / 2}", "Their last two kilometres were slower than the kilometres before them.", numbers,
@@ -541,11 +503,9 @@ object LivePoints {
     private val EASY_CHECKS = listOf("could they say a full sentence out loud right now without gasping?", "could they breathe through the nose for a few steps?", "does this feel like a pace they could hold for a long time yet?")
     private val STEADY_CHECKS = listOf("is the breathing strong but still under control?", "are the shoulders and hands still relaxed at this effort?", "does this effort feel like one they can hold to the end?")
 
-    /** "abril de 2027" or "April 2027" in the runner's aspiration: whole months from [today], when it can be read. */
     internal fun monthsUntil(text: String, today: LocalDate?): Int? {
         val now = today ?: return null
         val lower = text.lowercase(java.util.Locale.ROOT)
-        // A month counts only next to a year or after "en/in/de/of", so the verb "may" is not a date.
         val month = MONTHS.entries.firstOrNull { (name, _) ->
             Regex("\\b(?:en|in|de|of)\\s+$name\\b|\\b$name\\b(?:\\s+de)?\\s+20\\d{2}").containsMatchIn(lower) }?.value ?: return null
         val year = Regex("\\b(20\\d{2})\\b").find(lower)?.groupValues?.get(1)?.toInt() ?: (if (month >= now.monthValue) now.year else now.year + 1)
@@ -556,12 +516,7 @@ object LivePoints {
         listOf("julio", "july"), listOf("agosto", "august"), listOf("septiembre", "september", "setiembre"), listOf("octubre", "october"), listOf("noviembre", "november"), listOf("diciembre", "december"))
         .flatMapIndexed { index, names -> names.map { it to index + 1 } }.toMap()
 
-    /** How a kilometre or lap that follows one far off the runner's recent rhythm compares with that rhythm. */
     private class Rebound(val previousQuick: Boolean, val versusRecent: Int)
-    /**
-     * [values] end with the one just completed. Null unless the one before it stood out, by 20 s from
-     * the recent rhythm and 15 s from its own predecessor, and this one moved 20 s back from it.
-     */
     private fun rebound(values: List<Double>): Rebound? {
         if (values.size < 3) return null
         val current = values.last(); val previous = values[values.size - 2]

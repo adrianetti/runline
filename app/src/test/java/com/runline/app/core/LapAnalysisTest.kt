@@ -10,7 +10,6 @@ class LapAnalysisTest {
         for (i in 0..count * 120) {
             val lap = (i / 120).coerceAtMost(count - 1)
             val angle = i * 2 * PI / 120
-            // A ~630m loop with different quarter pacing on successive laps.
             timestamp += if (lap > 0 && i % 120 in 30..59) 6000 else 3000
             out += RunPoint(centreLat + .0009 * sin(angle), -3.0 + .00113 * cos(angle), timestamp,
                 if (noisy) 45f else 4f, 700 + 6 * sin(angle), if (pauseLap != null && i >= pauseLap * 120) 1 else 0)
@@ -23,7 +22,6 @@ class LapAnalysisTest {
         assertTrue(report.laps.all { it.distanceMeters in 550.0..700.0 && it.durationMs > 300_000 })
         assertTrue(report.laps.all { it.sectors.size == 4 && it.ascentMeters != null })
         assertNotNull(report.latestComparison)
-        // Compare first two because the third repeats the second's pacing.
         val firstPair = LapAnalysis.analyze(loops(2))
         assertNotNull(firstPair.latestComparison?.slowerSector)
         assertTrue(firstPair.latestComparison!!.slowerSector!!.paceChangePercent > 8)

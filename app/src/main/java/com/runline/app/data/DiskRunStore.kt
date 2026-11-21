@@ -14,7 +14,6 @@ import java.nio.file.StandardCopyOption
 import java.util.UUID
 import java.util.zip.CRC32
 
-/** Everything needed for recovery; the timer is a checkpoint, never inferred from time spent dead. */
 data class DraftRecord(
     val run: RunSession,
     val wantsRecording: Boolean = false,
@@ -28,14 +27,6 @@ data class DraftRecord(
             checkpointElapsedMs > 0 && nowElapsedMs >= checkpointElapsedMs
 }
 
-/**
- * A deliberately small write-ahead store. A point is acknowledged only after fd.sync().
- * Session identity exists in two independent places; each checkpoint has two CRC-protected
- * copies. Journal entries include timer checkpoints, so losing both mutable headers does
- * not strand the recorded route. Original damaged bytes are retained before tail repair.
- *
- * The directory sync function is supplied by Android; tests run against real temporary files.
- */
 class DiskRunStore(
     private val directory: File,
     private val syncDirectory: (File) -> Unit = {},
@@ -66,28 +57,23 @@ class DiskRunStore(
     fun save(run: RunSession) {
         require(run.elevationSource == com.runline.app.core.TerrainSource.GPS) { "Derived terrain must never replace a recording." }
         val text = seal(encodeRun(run))
-        // Two independent durable copies, each self-checking. No cloud or external backup.
         atomicWrite(File(runFile(run.id).path + ".backup"), text)
         atomicWrite(runFile(run.id), text)
     }
 
     fun complete(run: RunSession) {
         try { save(run) } catch (error: Exception) {
-            // The first completed copy is a commit. Never report "retry/resume" after it
-            // exists: otherwise later points could be discarded against that older copy.
             val exactCopyExists = listOf(runFile(run.id), File(runFile(run.id).path + ".backup")).any {
                 runCatching { decodeRun(unseal(it.readText())) == run }.getOrDefault(false)
             }
             if (!exactCopyExists) throw error
             runCatching { resolveDraft(run.id, "completed") }
-            return // Keep the journal as an extra copy when the second write failed.
+            return
         }
         runCatching { resolveDraft(run.id, "completed"); clearDraft() }
     }
 
     fun delete(id: String) {
-        // Clear a matching stale draft BEFORE removing the completed copies that prove
-        // it was saved. If cleanup fails, deletion fails visibly instead of resurrecting it.
         val related = listOf(header, mirror, seed, File(header.path + ".bak")).any {
             runCatching { decodeRecord(unseal(it.readText())).run.id == id }.getOrDefault(false)
         } || runCatching {
@@ -121,7 +107,6 @@ class DiskRunStore(
         }
         val chosen = metadata.maxWithOrNull(compareBy<DraftRecord> { it.revision }.thenBy { it.run.activeDurationMs })!!
         val id = chosen.run.id
-        // Saving the completed file committed this session even when draft cleanup was interrupted.
         if (runCatching { get(id) }.getOrNull() != null) {
             clearDraft()
             return null
@@ -146,7 +131,7 @@ class DiskRunStore(
                         require(checkpoint.run.id == id)
                         if (checkpoint.revision > latest.revision) latest = checkpoint
                     }
-                    else -> { // Read the original prototype's plain JSON point journal.
+                    else -> {
                         val p = decodePoint(entry)
                         val corrected = p.copy(segment = maxOf(p.segment + segmentOffset, lastSegment))
                         points.add(corrected); lastSegment = corrected.segment
@@ -154,7 +139,6 @@ class DiskRunStore(
                 }
             } catch (_: Exception) {
                 damaged = true
-                // Never draw or measure a line across a missing/corrupt record.
                 segmentOffset = maxOf(segmentOffset + 1, lastSegment + 1)
             }
         }
@@ -167,7 +151,6 @@ class DiskRunStore(
         check(activeFiles().none { it.exists() && it.length() > 0 }) { "Previous recovery files still need attention." }
         revision = 0
         val record = DraftRecord(run.copy(points = emptyList()), revision = ++revision)
-        // The immutable seed reaches disk before any route data can be recorded.
         atomicWrite(seed, seal(encodeRecord(record)))
         FileOutputStream(journal, false).use { stream ->
             stream.write((seal(JSONObject().put("kind", "seed").put("record", encodeRecord(record))) + "\n").toByteArray(Charsets.UTF_8))
@@ -179,7 +162,7 @@ class DiskRunStore(
 
     fun checkpoint(record: DraftRecord) {
         val updated = record.copy(run = record.run.copy(points = emptyList()), revision = ++revision)
-        if (!seed.exists()) atomicWrite(seed, seal(encodeRecord(updated))) // Legacy draft upgrade.
+        if (!seed.exists()) atomicWrite(seed, seal(encodeRecord(updated)))
         val text = seal(encodeRecord(updated))
         atomicWrite(mirror, text)
         atomicWrite(header, text)
@@ -213,17 +196,14 @@ class DiskRunStore(
             }.getOrDefault(false)
             if (!committed) throw error
         }
-        // Discard is committed. Never leave Resume available merely because cleanup failed.
         runCatching { clearDraft() }
     }
 
     private fun resolveDraft(id: String, state: String) = atomicWrite(resolution, seal(JSONObject().put("id", id).put("state", state)))
 
     fun clearDraft() {
-        // A failure leaves readable seed/checkpoint copies for another attempt.
         checkedDelete(journal)
         listOf(header, mirror, File(header.path + ".bak"), File(header.path + ".new"), File(mirror.path + ".new"), File(seed.path + ".new"), seed).forEach(::checkedDelete)
-        // Make removal of the old data durable before removing its resolution proof.
         syncDirectory(directory)
         checkedDelete(File(resolution.path + ".new")); checkedDelete(resolution)
         syncDirectory(directory)
@@ -240,7 +220,7 @@ class DiskRunStore(
         RandomAccessFile(journal, "rw").use { file ->
             file.seek(file.length() - 1)
             if (file.read() == 10) return
-            archiveFiles(listOf(journal)) // Retain original bytes before either kind of repair.
+            archiveFiles(listOf(journal))
             val tail = journal.readText().substringAfterLast('\n')
             val complete = runCatching {
                 val value = unseal(tail)
@@ -251,7 +231,6 @@ class DiskRunStore(
                 }
             }.isSuccess
             if (complete) {
-                // A valid checked record that lost only its terminator is recoverable.
                 file.seek(file.length()); file.write(10); file.fd.sync(); return
             }
             var end = file.length()
@@ -304,7 +283,7 @@ class DiskRunStore(
 
     private fun unseal(text: String): JSONObject {
         val objectValue = JSONObject(text)
-        if (!objectValue.has("payload")) return objectValue // Version-one compatibility.
+        if (!objectValue.has("payload")) return objectValue
         val payload = objectValue.getString("payload")
         val crc = CRC32().apply { update(payload.toByteArray(Charsets.UTF_8)) }.value
         if (crc != objectValue.getLong("crc32")) throw IOException("Recording checksum mismatch.")

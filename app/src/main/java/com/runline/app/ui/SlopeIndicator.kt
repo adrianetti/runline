@@ -19,7 +19,6 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
-/** Recent observed terrain shape paired with an independently validated GPS grade. */
 internal class SlopeIndicator(context: Context) : LinearLayout(context) {
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val line = SlopeLine(context)
@@ -44,8 +43,6 @@ internal class SlopeIndicator(context: Context) : LinearLayout(context) {
     private var held: TerrainEstimate? = null
     private var heldAt = 0L
     fun update(next: TerrainEstimate, animate: Boolean = true, profile: SlopeProfile = SlopeProfile.EMPTY) {
-        // A brief unknown between two estimates (a crest, one rejected fix) should not flip the
-        // label back and forth. Hold the last estimate for a few seconds while playing live.
         val now = SystemClock.uptimeMillis()
         val estimate = when {
             next.direction != TerrainDirection.UNKNOWN -> { held = next; heldAt = now; next }
@@ -71,7 +68,6 @@ internal class SlopeIndicator(context: Context) : LinearLayout(context) {
     private companion object { const val UNKNOWN_HOLD_MS = 5_000L }
 }
 
-/** One short shared-axis flip per state change, never per GPS/render frame. */
 private class TerrainLabel(context: Context) : androidx.appcompat.widget.AppCompatTextView(context) {
     private var target = ""
     private var motion: ValueAnimator? = null
@@ -99,7 +95,6 @@ private class TerrainLabel(context: Context) : androidx.appcompat.widget.AppComp
     override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); if (!isVisible) settle() }
 }
 
-/** Same compact footprint, now a rolling 45-second observed elevation profile. */
 private class SlopeLine(context: Context) : View(context) {
     private val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val path = Path()
@@ -116,7 +111,6 @@ private class SlopeLine(context: Context) : View(context) {
     fun setGrade(grade: Double?, profile: SlopeProfile, animate: Boolean) {
         val valid = profile.heights.filterNotNull()
         val low = valid.minOrNull() ?: 0.0
-        // True-ish aspect: two metres over a long stretch must not fill the whole line.
         val range = profile.drawRange()
         val middle = low + ((valid.maxOrNull() ?: low) - low) / 2
         val next = profile.heights.map { it?.let { ((it - middle) / range).toFloat() } }
@@ -161,7 +155,6 @@ private class SlopeLine(context: Context) : View(context) {
             var end = segmentStart
             while (end + 1 < shown.size && shown[end + 1] != null) end++
             path.moveTo(x(segmentStart), y(shown[segmentStart]!!))
-            // Midpoint quadratics share tangents, avoiding a tiny horizontal plateau at every bin.
             for (index in segmentStart until end) {
                 path.quadTo(x(index), y(shown[index]!!),
                     (x(index) + x(index + 1)) / 2, (y(shown[index]!!) + y(shown[index + 1]!!)) / 2)
@@ -171,7 +164,6 @@ private class SlopeLine(context: Context) : View(context) {
         }
         canvas.drawPath(path, ink)
         shown.lastOrNull()?.let { ink.style = Paint.Style.FILL; canvas.drawCircle(x(shown.lastIndex), y(it), 3 * density, ink) }
-        // No sample means no terrain: a faint baseline is a placeholder, never a zero grade.
         if (shown.all { it == null }) {
             ink.alpha = 70; ink.strokeWidth = density
             canvas.drawLine(padding, height / 2f, width - padding, height / 2f, ink)

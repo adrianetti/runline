@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Mutation tests prove security-sensitive manifest regressions fail the guard."""
 from pathlib import Path
 import shutil
 import tempfile

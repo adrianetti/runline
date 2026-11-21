@@ -174,8 +174,6 @@ class RunReplayTest {
             point(0.0, 0L), point(0.0, 2_000L),
             point(20.0 * degreesPerMeter, 4_000L), point(74.0 * degreesPerMeter, 10_000L),
         ))
-        // At 7s the five-second window has just dropped its initial stationary time:
-        // 20m at 10m/s followed by 27m at 9m/s. No GPS fix occurs at this peak.
         assertEquals(9.4, replay.at(7_000L)!!.speedMetersPerSecond!!, 0.000001)
         assertEquals(9.4, replay.summary.maxSpeedMetersPerSecond!!, 0.000001)
     }

@@ -9,14 +9,12 @@ import android.os.LocaleList
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 
-/** Empty app locales follow the phone; English resources are the fallback. */
 object AppLanguage {
     private const val PREFERENCES = "app_language"
     private const val LANGUAGE = "language"
     private const val SYSTEM_DEFAULT_MIGRATED = "system_default_v6"
     private fun preferences(context: Context) = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
-    /** Custom locale storage is supplied before Activity.onCreate on API 26–32. */
     fun beforeCreate(context: Context) {
         if (Build.VERSION.SDK_INT <= 32) {
             migrateDefault(context)
@@ -24,7 +22,6 @@ object AppLanguage {
         }
     }
 
-    /** v0.5 forced Spanish. This requested update returns existing installs to phone language once. */
     fun afterCreate(context: Context) {
         if (Build.VERSION.SDK_INT >= 33 && migrateDefault(context)) {
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())

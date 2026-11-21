@@ -4,7 +4,6 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
-/** Persistent one-attempt automatic queue. An interrupted HTTP attempt is never silently repeated. */
 data class ReviewJob(val runId: String, val dueAt: Long, val state: String = "pending", val error: String? = null)
 class ReviewQueue(private val folder: File) {
     init { folder.mkdirs() }

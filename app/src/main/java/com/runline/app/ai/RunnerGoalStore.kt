@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicLong
 
 data class RunnerGoalSnapshot(val goal: RunnerGoal, val revision: Long)
 
-/** Private, atomic, excluded from exports/backup. Empty is an explicit saved choice. */
 class RunnerGoalStore(context: Context) {
     private val app = context.applicationContext
     private val file = AtomicFile(File(app.noBackupFilesDir, "runner-goal.json"))

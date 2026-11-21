@@ -7,7 +7,6 @@ import java.io.File
 class RouteGuidanceTest {
     private val m = 1 / 110_574.0
 
-    /** Due north, one vertex every 10 m, with heights from [height] (metres along → metres). */
     private fun north(length: Int, height: (Double) -> Double): HikingRoute =
         HikingRoute.of("n", "North", (0..length / 10).map { Triple(37.0 + it * 10 * m, -3.6, height(it * 10.0)) })
 
@@ -20,10 +19,10 @@ class RouteGuidanceTest {
         val route = north(6000) { d ->
             when {
                 d < 1000 -> 700.0
-                d < 2200 -> 700 + (d - 1000) / 1200 * 110 + if (d.toInt() % 200 == 0) 4.0 else 0.0   // 110 m over 1.2 km, with bumps
+                d < 2200 -> 700 + (d - 1000) / 1200 * 110 + if (d.toInt() % 200 == 0) 4.0 else 0.0
                 d < 3500 -> 810.0
-                d < 4500 -> 810 - (d - 3500) / 1000 * 60      // 60 m down over 1 km
-                d < 5000 -> 750 + (d - 4500) / 500 * 20        // only 20 m: not a climb
+                d < 4500 -> 810 - (d - 3500) / 1000 * 60
+                d < 5000 -> 750 + (d - 4500) / 500 * 20
                 else -> 770.0
             }
         }
@@ -34,7 +33,6 @@ class RouteGuidanceTest {
         assertEquals(1000.0, up.startMeters, 60.0); assertEquals(2200.0, up.endMeters, 60.0)
         assertEquals(9.0, up.gradePercent, 1.0)
         assertFalse(down.uphill); assertEquals(-60.0, down.heightMeters, 3.0); assertEquals(6.0, down.gradePercent, 0.6)
-        // 30 m over 3 km is 1%: a long incline, not a climb.
         assertTrue(RouteClimbs.detect(north(4000) { 700 + it / 4000 * 40 }).isEmpty())
         assertEquals(up, RouteClimbs.next(climbs, 0.0)); assertNull(RouteClimbs.next(climbs, 0.0, lookAhead = 500.0))
         assertEquals(down, RouteClimbs.next(climbs, 2300.0))
@@ -56,7 +54,6 @@ class RouteGuidanceTest {
         val cues = (470..600 step 2).mapNotNull { g.update(progress(it.toDouble())) as RouteCue.Turn? }
         assertEquals(2, cues.size)
         assertTrue(cues[0].now); assertEquals(TurnKind.RIGHT, cues[0].then?.kind)
-        // The second turn still gets its own "now" cue, but no early one.
         assertTrue(cues[1].now); assertEquals(540.0, cues[1].maneuver.alongMeters, 0.0)
     }
 
@@ -64,7 +61,6 @@ class RouteGuidanceTest {
         val g = RouteGuidance(listOf(turn(300.0), turn(1500.0)), emptyList(), emptyList())
         assertNull(g.update(progress(100.0)))
         assertNull(g.update(progress(250.0, RouteState.OFF_ROUTE)))
-        // Rejoining further on: the first turn is behind and stays silent.
         assertNull(g.update(progress(1000.0)))
         val far = g.update(progress(1420.0)) as RouteCue.Turn
         assertEquals(1500.0, far.maneuver.alongMeters, 0.0)
@@ -87,7 +83,6 @@ class RouteGuidanceTest {
         assertEquals(780, climbAt); assertEquals(200, (climbCue as RouteCue.Climb).meters)
         val (placeAt, placeCue) = cues[1]
         assertEquals(1540, placeAt); assertEquals("Mirador", (placeCue as RouteCue.Place).place.name)
-        // Joining inside the climb or past the place says nothing about them.
         val late = RouteGuidance(emptyList(), listOf(climb), listOf(place))
         assertNull(late.update(progress(1800.0)))
     }
@@ -98,7 +93,6 @@ class RouteGuidanceTest {
         assertEquals(listOf("turn", "turn", "place"), cues.map { (_, c) -> if (c is RouteCue.Place) "place" else "turn" })
         assertTrue((cues[1].second as RouteCue.Turn).now)
         assertTrue(cues[2].first > cues[1].first)
-        // Passing the place far behind without a chance to speak settles it for good.
         val skipped = RouteGuidance(emptyList(), emptyList(), listOf(RoutePlace("Gone", "Behind.", 500.0)))
         assertNull(skipped.update(progress(700.0)))
     }
@@ -127,7 +121,6 @@ class RouteGuidanceTest {
         println("Granada climbs: " + climbs.joinToString { "%.0f–%.0f m %+.0f m %.0f%%".format(it.startMeters, it.endMeters, it.heightMeters, it.gradePercent) })
         assertTrue(climbs.any { it.uphill && it.heightMeters >= 100 })
         assertTrue(climbs.any { !it.uphill && it.heightMeters <= -50 })
-        // Walking the route speaks every note once, in order.
         val g = RouteGuidance(emptyList(), emptyList(), places)
         val spoken = (0..route.distanceMeters.toInt() step 5).mapNotNull { (g.update(progress(it.toDouble())) as? RouteCue.Place)?.place?.name }
         assertEquals(places.map { it.name }, spoken)

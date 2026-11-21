@@ -11,7 +11,6 @@ import android.os.Looper
 import android.os.SystemClock
 import com.runline.app.core.RunPoint
 
-/** Short foreground-only preparation; the recorder owns all live GPS requests. */
 class TerrainWarmup(private val activity: Activity) : LocationListener {
     private val manager = activity.getSystemService(LocationManager::class.java)
     private val handler = Handler(Looper.getMainLooper())

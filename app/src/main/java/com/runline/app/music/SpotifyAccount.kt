@@ -13,10 +13,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/**
- * The user's own Spotify connection. Tokens are AES-256-GCM ciphertext under a non-exportable
- * Android Keystore key, in noBackupFilesDir; they never enter exports, logs or instance state.
- */
 object SpotifyAccount {
     enum class Outcome { CONNECTED, DENIED, STALE }
 
@@ -29,7 +25,6 @@ object SpotifyAccount {
     private fun sessionFile(context: Context) = File(context.noBackupFilesDir, "spotify-session.enc")
     private fun pendingFile(context: Context) = File(context.noBackupFilesDir, "spotify-pending.enc")
 
-    /** A public identifier of the user's Spotify app, not a secret. */
     fun clientId(context: Context): String = prefs(context).getString("clientId", null).orEmpty()
     fun saveClientId(context: Context, value: String) {
         require(SpotifyPkce.validClientId(value))
@@ -38,7 +33,6 @@ object SpotifyAccount {
     fun isConnected(context: Context): Boolean = sessionFile(context).exists()
     fun accountName(context: Context): String? = prefs(context).getString("name", null)
 
-    /** Starts a sign-in for the Spotify app or the browser to answer. The verifier waits, encrypted, for that answer. */
     fun begin(context: Context): SpotifyPkce.SignIn {
         val clientId = clientId(context); require(SpotifyPkce.validClientId(clientId))
         val verifier = SpotifyPkce.verifier(); val state = SpotifyPkce.state()
@@ -46,11 +40,9 @@ object SpotifyAccount {
         return SpotifyPkce.SignIn(clientId, SpotifyPkce.challenge(verifier), state)
     }
 
-    /** The browser came back through the redirect link. Network: call off the main thread. Throws [SpotifyFailure] when the exchange itself fails. */
     fun complete(context: Context, callback: String, auth: SpotifyAuthApi = SpotifyAuthApi()): Outcome =
         finish(context, auth) { state -> SpotifyPkce.parseCallback(callback, state) }
 
-    /** The Spotify app answered. Network: call off the main thread. Throws [SpotifyFailure] when the exchange itself fails. */
     fun complete(context: Context, reply: SpotifyPkce.AppReply, auth: SpotifyAuthApi = SpotifyAuthApi()): Outcome =
         finish(context, auth) { state -> SpotifyPkce.parseAppReply(reply, state) }
 
@@ -64,7 +56,6 @@ object SpotifyAccount {
             is SpotifyPkce.Callback.Code -> {
                 val tokens = auth.exchange(pending.getString("clientId"), answer.code, pending.getString("verifier"))
                 synchronized(lock) { save(context, tokens) }
-                // Shown beside "Connected"; the connection itself does not depend on it.
                 runCatching { api(context).displayName() }.getOrNull()?.let { prefs(context).edit().putString("name", it).apply() }
                 Outcome.CONNECTED
             }
@@ -90,7 +81,6 @@ object SpotifyAccount {
             if (!fresh && session.expiresAtMs - System.currentTimeMillis() > 60_000) return session.access
             try { return auth.refresh(clientId(context), session.refresh).also { save(context, it) }.access }
             catch (error: SpotifyFailure) {
-                // A refused refresh token cannot recover; a network error can, so keep the session.
                 if (error.reason == SpotifyFailure.Reason.AUTH) disconnect(context)
                 throw error
             }

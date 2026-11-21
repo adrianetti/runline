@@ -28,7 +28,6 @@ object Diagnostics {
         val app = context.applicationContext
         worker.execute { runCatching { log(app).append(run.id, value) } }
     }
-    /** The live coach's requests and their outcomes, beside the speech they led to. Never the prompt or the key. */
     fun live(context: Context, run: RunSession, event: String, detail: String, latencyMs: Long?) {
         if (!enabled(context)) return
         val value = JSONObject().put("version", 1).put("event", event).put("at_ms", System.currentTimeMillis()).put("source", "AI")
@@ -46,7 +45,6 @@ object Diagnostics {
                 .put("input_tokens", m.inputTokens ?: JSONObject.NULL).put("output_tokens", m.outputTokens ?: JSONObject.NULL)
                 .put("cache_read_tokens", m.cacheReadTokens ?: JSONObject.NULL).put("cache_write_tokens", m.cacheWriteTokens ?: JSONObject.NULL)
                 .put("estimated_usd", m.estimatedUsd ?: JSONObject.NULL).put("failure", m.failure ?: JSONObject.NULL)
-            // Provider calls already run outside the recorder/main thread.
             runCatching { log(app).append("usage", value) }
         })
     }

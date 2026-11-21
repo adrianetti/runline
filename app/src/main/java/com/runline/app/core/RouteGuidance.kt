@@ -2,31 +2,21 @@ package com.runline.app.core
 
 import kotlin.math.roundToInt
 
-/** A named place on the route with a short note to read out as you reach it. */
 data class RoutePlace(val name: String, val note: String, val alongMeters: Double)
 
 sealed class RouteCue {
-    /** [meters] is rounded for speech; [now] is the late cue. [then] follows within 60 m. */
     data class Turn(val maneuver: RouteManeuver, val meters: Int, val now: Boolean, val then: RouteManeuver?) : RouteCue()
     data class Climb(val climb: RouteClimb, val meters: Int) : RouteCue()
     data class Place(val place: RoutePlace) : RouteCue()
 }
 
-/** What the island shows: the next manoeuvre and the climb you are in or approaching. */
 data class RouteGuidanceView(
     val maneuver: RouteManeuver?,
     val maneuverMeters: Double?,
     val climb: RouteClimb?,
-    /** Distance to the start of [climb]; zero or less inside it. */
     val climbMeters: Double?,
 )
 
-/**
- * Turns progress on a followed route into spoken cues: each turn about 80 m ahead and again
- * at 20 m, each climb or descent once about 200 m before it, and each place note once as you
- * reach it, after any turn just ahead. A cue is never repeated, and nothing already behind you is spoken, including
- * after rejoining the route somewhere else. Only one cue per update; turns come first.
- */
 class RouteGuidance(
     val maneuvers: List<RouteManeuver>,
     val climbs: List<RouteClimb>,
@@ -44,7 +34,6 @@ class RouteGuidance(
         onRoute = progress.state == RouteState.ON_ROUTE
         if (!onRoute) return null
         val d = progress.doneMeters
-        // Everything behind you is settled for good, so a rejoin never speaks old turns.
         maneuvers.forEachIndexed { i, m -> if (m.alongMeters < d - PASSED) { far[i] = true; near[i] = true } }
         climbs.forEachIndexed { i, c -> if (c.startMeters - d < CLIMB_MIN) climbSpoken[i] = true }
         places.forEachIndexed { i, p -> if (d > p.alongMeters + PLACE_AFTER) placeSpoken[i] = true }
@@ -64,7 +53,6 @@ class RouteGuidance(
                 far[next] = true
                 return RouteCue.Turn(m, roundTo(ahead, 10), false, null)
             }
-            // A long note would hold back the "now" cue; read it once the turn is behind you.
             turnSoon = ahead <= PLACE_CLEAR && !near[next]
         }
         val place = if (turnSoon) null else places.indices.firstOrNull { !placeSpoken[it] && d >= places[it].alongMeters - PLACE_BEFORE }
@@ -74,7 +62,6 @@ class RouteGuidance(
         return null
     }
 
-    /** True while a queued cue still describes what is ahead; a passed turn is never spoken late. */
     fun stillAhead(cue: RouteCue): Boolean = onRoute && when (cue) {
         is RouteCue.Turn -> cue.maneuver.alongMeters - done >= if (cue.now) -8.0 else NEAR
         is RouteCue.Climb -> cue.climb.startMeters - done >= 0
@@ -98,12 +85,10 @@ class RouteGuidance(
         const val PLACE_BEFORE = 60.0
         const val PLACE_AFTER = 150.0
         const val PLACE_STALE = 250.0
-        /** No place note starts while a turn's "now" cue is still to come within this distance. */
         const val PLACE_CLEAR = 150.0
 
         fun roundTo(meters: Double, step: Int) = ((meters / step).roundToInt() * step).coerceAtLeast(step)
 
-        /** Places from catalog notes: each waypoint named in [notes] is projected onto the route. */
         fun places(route: HikingRoute, notes: Map<String, String>): List<RoutePlace> {
             if (notes.isEmpty()) return emptyList()
             return route.waypoints.filter { it.name in notes }.mapNotNull { w ->

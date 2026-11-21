@@ -57,7 +57,6 @@ class RouteImportAndroidTest {
                 .any { it.activityInfo.name == MainActivity::class.java.name }
         }
         assertTrue(matches("opaque-document-id", "application/gpx+xml"))
-        // Android has no .gpx MIME type: Files, My Files and browser downloads pass opaque IDs as binary or XML.
         assertTrue(matches("1000012345", "application/octet-stream"))
         assertTrue(matches("msf:42", "application/xml"))
         assertTrue(matches("opaque-document-id", "text/xml"))
@@ -79,8 +78,6 @@ class RouteImportAndroidTest {
                 val dialog = dialog(it)!!
                 assertEquals("Afternoon", field(dialog).text.toString())
                 dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick()
-                // Scenario matches lifecycle events by Intent; MainActivity adopts the incoming SEND.
-                // Restore only the test launch intent so teardown can observe DESTROYED.
                 it.intent = launchIntent
                 it.finish()
             }

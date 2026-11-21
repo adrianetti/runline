@@ -29,7 +29,6 @@ class CoachStopsTest {
         assertTrue(during.isEmpty())
         assertFalse(engine.situation.eligible)
         assertTrue(engine.situation.stopped)
-        // Fresh movement first: nothing for the first 20 s after moving again.
         val after = run(engine, 15)
         assertTrue(after.none { it is CoachCue.Encouragement })
     }
@@ -50,7 +49,6 @@ class CoachStopsTest {
         assertNull(first.previousSplitPaceSeconds)
         stand(engine, 40)
         val second = run(engine, 270, 4.0).filterIsInstance<CoachCue.Kilometre>().single()
-        // The standstill is excluded: 250 s for this kilometre, not ~290 s.
         assertEquals(250.0, second.splitPaceSeconds!!, 6.0)
         assertEquals(333.0, second.previousSplitPaceSeconds!!, 3.0)
         assertEquals(0, CoachNarration.splitChange(300.0, 303.0))

@@ -15,7 +15,6 @@ import androidx.core.widget.TextViewCompat
 import androidx.core.graphics.withClip
 import com.runline.app.R
 
-/** Native rolling digits, with real TextView text for measurement and accessibility. */
 internal class RollingNumberView @JvmOverloads constructor(context: Context, sizeSp: Int = 32, minimumSp: Int = sizeSp) : AppCompatTextView(context) {
     private data class Reading(val text: String, val number: Double?)
     private var reading = Reading("—", null)
@@ -33,7 +32,6 @@ internal class RollingNumberView @JvmOverloads constructor(context: Context, siz
         setTextColor(context.getColor(R.color.on_surface))
         if (minimumSp < sizeSp) TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
             this, minimumSp, sizeSp, 1, TypedValue.COMPLEX_UNIT_SP)
-        // Values remain discoverable without announcing every second over the coach/music.
         accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_NONE
     }
 
@@ -62,7 +60,6 @@ internal class RollingNumberView @JvmOverloads constructor(context: Context, siz
         }
     }
 
-    /** Seeking, pausing and leaving the screen must show the exact latest value. */
     fun settle() {
         val queued = pending; pending = null
         animator?.apply { removeAllListeners(); removeAllUpdateListeners(); cancel() }

@@ -8,7 +8,6 @@ class CoachScenariosTest {
         val points = mutableListOf(RunPoint(0.0, 0.0, 1000, 4f, 700.0))
         var active = 0L; var metres = 0.0
         private var height = 700.0
-        // These synthetic heights are an explicit independent-reference fixture.
         val engine = CoachEngine(config, session(), terrainPoint = { it })
         fun session() = RunSession("scenario", 1000, 1000 + active, active, points.toList())
         fun step(speed: Double, climb: Double = 0.0, fresh: Boolean = true): CoachCue? {
@@ -62,7 +61,6 @@ class CoachScenariosTest {
         val t = Track(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300,
             kilometreAnnouncements = false, encouragement = false, terrainFeedback = false))
         repeat(36) { assertNull(t.step(2.0, climb = .2)) }
-        // The measured window still includes the hill initially; its last hill sample starts recovery.
         repeat(24) { assertNull(t.step(2.0)) }
         assertTrue((1..40).mapNotNull { t.step(2.0) }.contains(CoachCue.SlowerThanTarget))
     }

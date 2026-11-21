@@ -2,10 +2,6 @@ package com.runline.app.ai
 
 import org.json.JSONObject
 
-/**
- * Self-reported, or AI-assessed from recorded activities only when the user turns on
- * [RunnerProfile.aiManaged]. Never inferred from age or appearance.
- */
 enum class RunningExperience { UNSPECIFIED, STARTING, RETURNING, REGULAR, EXPERIENCED }
 
 data class RunnerProfile(
@@ -13,11 +9,9 @@ data class RunnerProfile(
     val preferences: String = "",
     val healthNotes: String = "",
     val includeInAi: Boolean = false,
-    /** The AI keeps experience and a short training summary current after new runs. */
     val aiManaged: Boolean = false,
 ) {
     fun bounded() = copy(preferences = preferences.trim().take(TEXT_LIMIT), healthNotes = healthNotes.trim().take(TEXT_LIMIT))
-    /** Self-report needs its own consent; the AI's earlier assessment comes from activity data only. */
     fun forAi(insights: RunnerInsights? = null): JSONObject? {
         val assessed = insights?.takeIf { aiManaged }
         if (!includeInAi && assessed == null) return null

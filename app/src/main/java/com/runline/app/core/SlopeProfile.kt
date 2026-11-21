@@ -1,12 +1,6 @@
 package com.runline.app.core
 
-/**
- * Fixed temporal scale, no future path or bridges over missing heights. Display only.
- * [spanMeters] is the path length behind the drawn heights, so a few metres of terrain
- * over a long stretch is drawn as the gentle slope it is, not a cliff.
- */
 data class SlopeProfile(val heights: List<Double?>, val spanMeters: Double? = null) {
-    /** Vertical range for drawing: at least 3 m, and at least a 12% grade over the drawn distance. */
     fun drawRange(): Double {
         val valid = heights.filterNotNull()
         val observed = if (valid.isEmpty()) 0.0 else valid.max() - valid.min()

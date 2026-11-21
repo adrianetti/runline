@@ -11,20 +11,6 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * Backtest of the voice coach on recorded activities: replays each one through the local coach,
- * the shared speech schedule and the live coach (calling the real provider), writes what the
- * runner would have heard, and has a stronger model grade every line against the run's data.
- * Skipped unless RUNLINE_BACKTEST_DIR and ANTHROPIC_API_KEY are set, so it never runs in CI.
- *
- *   RUNLINE_BACKTEST_DIR=/path/flow RUNLINE_BACKTEST_VARIANT=v3 RUNLINE_BACKTEST_STEP=replay \
- *   ./gradlew testDebugUnitTest --tests '*LiveCoachBacktest*'
- *
- * The directory holds sessions.json: [{"id", "file" (points.csv from Export data, or a GPX),
- * "language", "goal": {"type", "minutes", "km", "effort"}, "history": [ids], "aspiration"}].
- * RUNLINE_BACKTEST_STEP is replay or judge; RUNLINE_BACKTEST_MODE is live (default) or local
- * (the built-in coach alone); RUNLINE_BACKTEST_ONLY limits it to some session ids.
- */
 class LiveCoachBacktest {
     private val dir get() = System.getenv("RUNLINE_BACKTEST_DIR")
     private val key get() = System.getenv("ANTHROPIC_API_KEY")
@@ -129,7 +115,6 @@ class LiveCoachBacktest {
             speakingUntil?.let { if (now >= it) { schedule.finished(it); speakingUntil = null } }
             val leftToLive = live && plan.healthy && cue is CoachCue.Encouragement && cue.kind !in setOf(EncouragementKind.HALFWAY, EncouragementKind.FINAL_STRETCH)
             if (cue != null && !leftToLive) {
-                // The live coach announces milestones itself; the built-in line is the fallback after a short wait.
                 val moment = LiveMoment.of(cue); val milestone = LiveMilestone.of(cue)
                 val call = if (live && voiceMilestones && moment != null && milestone != null && voicing == null && waiting == null) plan.milestone(now, moment) else null
                 if (call == null) schedule.offer(CoachSpeechRequest(cue.toString(), priority(cue), cue = cue, isValid = { engine.situation.allows(cue) }), now)
@@ -218,7 +203,6 @@ class LiveCoachBacktest {
         }
     }
 
-    /** The app's own wording for local cues, read from the string resources so the backtest hears the real lines. */
     private class LocalVoice(private val language: String, private val lapPercent: Double) {
         private val strings = mutableMapOf<String, String>(); private val plurals = mutableMapOf<String, Map<String, String>>(); private val arrays = mutableMapOf<String, List<String>>()
         private val phrases = PhraseRotation(7)

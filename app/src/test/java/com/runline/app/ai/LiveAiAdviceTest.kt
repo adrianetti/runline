@@ -79,7 +79,6 @@ class LiveAiAdviceTest {
         assertNotNull(LiveAiAdvice.leaks("Siente ese empuje. Usa solo las cifras permitidas: 7 minutos 2.")); assertNull(LiveAiAdvice.leaks("Pasos cortos y ligeros."))
         assertNotNull(LiveAiAdvice.gendered("¡Meta conseguida, campeón!")); assertNotNull(LiveAiAdvice.gendered("Ese cambio es normal, tío."))
         assertNull(LiveAiAdvice.gendered("¡Meta conseguida! Qué carrera."))
-        // 2026-11-14: the runner heard "llegar alta", "Corre alta" and "Tranquila", gendered for anyone.
         assertNotNull(LiveAiAdvice.gendered("Solo 200 metros, y vas a llegar alta y sonriendo."))
         assertNotNull(LiveAiAdvice.gendered("¡Kilómetro seis! Corre alta y mira al frente."))
         assertNotNull(LiveAiAdvice.gendered("Vuelta cinco en 6 minutos 59. Tranquila, es un tramo que pesa más."))
@@ -96,10 +95,8 @@ class LiveAiAdviceTest {
         assertNotNull(LiveAiAdvice.feelings("A 5 minutos 59 por kilómetro. ¡Qué bien te sientes!"))
         assertNull(LiveAiAdvice.feelings("¿Te sientes capaz de mantener esto un buen rato más?"))
         assertNotNull(LiveAiAdvice.feelings("6 minutos 26 por kilómetro, más tranquilo que la media, y te sienta bien."))
-        // A Spanish line with the model's English note to itself is not Spanish.
         assertNotNull(LiveAiAdvice.language("Vamos, arrancamos suave y disfruta cada zancada. Wait, I must not add content beyond the point. The point says the run started.", spanish = true))
         assertNotNull(LiveAiAdvice.leaks("Vamos, arrancamos suave. Wait, I must not add content beyond the point."))
-        // Sent back once; a second flawed answer is dropped rather than spoken.
         assertEquals("Hombros sueltos y a disfrutar.", LiveAiAdvice.compose(provider("Dime cómo vas.", "Hombros sueltos y a disfrutar."), "k".repeat(20), "claude-haiku-5-5", "Spanish",
             data(), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2))?.text)
         assertNull(LiveAiAdvice.compose(provider("Dime cómo vas.", "Cuéntame qué tal."), "k".repeat(20), "claude-haiku-5-5", "Spanish", data(), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2)))
@@ -111,7 +108,6 @@ class LiveAiAdviceTest {
             data("AI" to "Tercer día de la semana en marcha."), kilometre, milestone = third) { _, problem -> rejected += problem }!!
         assertEquals("¡Tercer kilómetro en 7 minutos 22, qué bien!", line.text); assertEquals(1, bodies.size)
         assertTrue(rejected.single().contains("opens with"))
-        // A check-in has time to ask again.
         assertEquals("Hombros sueltos y a disfrutar del parque.", LiveAiAdvice.compose(provider("Vas muy bien, de verdad.", "Hombros sueltos y a disfrutar del parque."), "fake-key", "claude-haiku-5-5", "Spanish",
             data("AI" to "Vas tranquilo y con buen ritmo."), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2))?.text)
     }

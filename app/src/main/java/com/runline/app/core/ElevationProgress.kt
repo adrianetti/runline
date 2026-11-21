@@ -2,7 +2,6 @@ package com.runline.app.core
 
 import kotlin.math.abs
 
-/** Incremental elevation totals for a live display; never alters recorded GPS samples. */
 class ElevationProgress {
     var climbedMeters: Double? = null
         private set

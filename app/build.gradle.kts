@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins { id("com.android.application") }
 
-/** The open route repository (`routes/`) is packaged as assets: only the catalog and GPX files. */
 abstract class RouteAssets : DefaultTask() {
     @get:InputDirectory abstract val source: DirectoryProperty
     @get:OutputDirectory abstract val output: DirectoryProperty

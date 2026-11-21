@@ -5,18 +5,11 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** Provider boundary leaves the recorder and training model independent of any vendor SDK. */
 interface CoachAiProvider {
     fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int = 45_000): String
-    /** Existing providers remain compatible; callers still validate every returned goal locally. */
     fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
                           maxTokens: Int, timeoutMs: Int = 45_000): String =
         message(key, model, system, data, maxTokens, timeoutMs)
-    /**
-     * A short spoken line for live coaching. With [instant] the answer is wanted in about a
-     * second (a kilometre is being announced), so providers that can should skip reasoning;
-     * otherwise a moment of thought is welcome. The default is an ordinary message.
-     */
     fun quickMessage(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int = 12_000, instant: Boolean = true): String =
         message(key, model, system, data, maxTokens, timeoutMs)
     fun checkModel(key: String, model: String)
@@ -38,12 +31,6 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport(), 
     override fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int): String {
         return sendMessage(key, model, system, data, null, maxTokens, timeoutMs)
     }
-    /**
-     * Measured on replayed runs with Haiku 5.5. [instant]: thinking off, medium effort, about one
-     * second. Otherwise low effort with thinking left on, about three seconds, with room in
-     * max_tokens for the thinking: fewer muddled lines. A custom model that rejects these
-     * options (HTTP 400) gets the plain request once.
-     */
     override fun quickMessage(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int, instant: Boolean): String =
         try { sendMessage(key, model, system, data, null, maxTokens, timeoutMs, quick = if (instant) Quick.INSTANT else Quick.BRIEF) }
         catch (e: AiFailure) {
@@ -99,7 +86,6 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport(), 
     }
 }
 
-/** Fixed HTTPS origin, no redirect credentials, bounded response and timeouts; never logs secrets or bodies. */
 class HttpAiTransport : AiTransport {
     override fun request(method: String, path: String, key: String, body: String?, timeoutMs: Int): AiHttpResponse {
         require(path.startsWith("/v1/") && !path.contains('?'))

@@ -31,7 +31,6 @@ class RunnerInsightsTest {
         assertEquals(6.0, snapshot.averageEffort!!, 1e-9)
         assertEquals(4, snapshot.totalRuns)
         assertNotNull(snapshot.typicalPaceSeconds)
-        // A walk retyped as a run in its details counts as a run.
         val retyped = TrainingSnapshot.of(runs, { if (it == "walk") ActivityDetails(activityType = ActivityType.RUN) else ActivityDetails() }, now, ZoneOffset.UTC)
         assertEquals(4, retyped.runs28Days)
     }
@@ -64,7 +63,6 @@ class RunnerInsightsTest {
         assertNull(private.copy(aiManaged = false).forAi(insights))
         val consented = private.copy(includeInAi = true).forAi(insights)!!
         assertEquals("knee", consented.getString("self_reported_health_notes"))
-        // With AI management, the AI's experience replaces the manual choice rather than contradicting it.
         assertFalse(consented.has("experience"))
         assertEquals(true, RunnerProfile.parse(private.json()).aiManaged)
         assertEquals(false, RunnerProfile.parse(JSONObject(private.json().toString()).apply { remove("ai_managed") }).aiManaged)

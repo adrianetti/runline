@@ -16,7 +16,6 @@ import java.util.concurrent.Executors
 data class TerrainAreaStatus(val area: TerrainDownloadArea?, val completed: Int, val total: Int,
                              val ready: Boolean, val loading: Boolean, val bytes: Long)
 
-/** Bounded public-data downloads; GPS persistence never waits for this worker. */
 class TerrainRepository private constructor(context: Context) {
     private val app = context.applicationContext
     private val preferences = app.getSharedPreferences("terrain_maps", Context.MODE_PRIVATE)
@@ -26,7 +25,7 @@ class TerrainRepository private constructor(context: Context) {
     private val main = Handler(Looper.getMainLooper())
     private val listeners = CopyOnWriteArraySet<() -> Unit>()
     private data class Entry(val grid: Any, val bytes: Long)
-    private val entries = linkedMapOf<TerrainDownloadKey, Entry>() // Worker-owned.
+    private val entries = linkedMapOf<TerrainDownloadKey, Entry>()
     private val pending = mutableMapOf<TerrainDownloadKey, Long>()
     private val failedUntil = mutableMapOf<TerrainDownloadKey, Long>()
     @Volatile private var generation = 0L
@@ -144,13 +143,11 @@ class TerrainRepository private constructor(context: Context) {
         }
         notifyListeners()
     }
-    /** Reserve the worst-case new file before writing, including atomic/temp files. */
     private fun reserveSpace(key: TerrainDownloadKey) {
         try { TerrainDiskBudget.reserve(folder, key.maxBytes.toLong(), key.name, area?.keys.orEmpty().map { it.name }.toSet()) }
         finally { refreshAvailable() }
     }
     private fun refreshAvailable() {
-        // Keep useful decoded grids for the current run, but report only durable files as offline-ready.
         available = entries.filterKeys { File(folder, it.name).isFile }.mapValues { it.value.bytes }
     }
     private fun trimCache() {

@@ -37,10 +37,9 @@ import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.Executors
 
-/** Save/share local files; preparation and destination writes never run on the UI thread. */
 class ActivityExporter(
     private val activity: AppCompatActivity,
-    @Suppress("UNUSED_PARAMETER") loadRun: (String) -> RunSession?, // Kept for the Activity integration.
+    @Suppress("UNUSED_PARAMETER") loadRun: (String) -> RunSession?,
     private val onMessage: (String) -> Unit,
 ) {
     private val model = ViewModelProvider(activity)[ActivityExportViewModel::class.java]
@@ -169,7 +168,6 @@ internal enum class ExportKind(val extension: String, val mimeType: String) {
 }
 internal enum class ExportAction { DOWNLOAD, SHARE, PICKER }
 
-/** Only a small file reference is saved with the picker, never every activity in a Bundle. */
 internal data class PreparedExport(val file: File, val filename: String, val kind: ExportKind) {
     fun save(context: Context, state: Bundle) {
         state.putString(STATE_FILE, file.relativeTo(context.cacheDir).path)
@@ -198,7 +196,6 @@ internal sealed interface ActivityExportOutcome {
     data class Failed(val messageRes: Int, val pickerFallback: PreparedExport? = null) : ActivityExportOutcome
 }
 
-/** A retained worker owns I/O; only immutable outcomes cross back to the main thread. */
 class ActivityExportViewModel : ViewModel() {
     internal var pending: PreparedExport? = null
     internal var isSaving = false
@@ -313,8 +310,6 @@ class ActivityExportViewModel : ViewModel() {
     }
 
     private fun copyToUri(context: Context, source: File, destination: Uri) {
-        // Opening the source first avoids truncating an existing picker destination if a
-        // cached prepared export was evicted while the external picker was open.
         source.inputStream().use { input ->
             (context.contentResolver.openOutputStream(destination, "wt") ?: error("Could not open destination."))
                 .buffered().use { output -> input.copyTo(output) }

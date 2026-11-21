@@ -8,7 +8,6 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-/** Portable analysis files; summary CSV deliberately contains no route coordinates. */
 object ActivityArchive {
     data class Entry(val run: RunSession, val filename: String, val details: ActivityDetails = ActivityDetails())
 
@@ -38,7 +37,6 @@ object ActivityArchive {
         }
     }
 
-    /** Locale-independent headers, decimal points, ISO timestamps and RFC 4180 quoting. */
     fun summaryCsv(entries: List<Entry>, zone: ZoneId): String = buildString {
         append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file,title,description,effort,routine,moving_seconds,stop_count,stopped_seconds,moving_pace_seconds_per_km\r\n")
         for ((run, filename, details) in entries) {
@@ -58,7 +56,6 @@ object ActivityArchive {
                 run.points.size.toString(), continuousSegments(run.points).size.toString(), filename,
                 safeSpreadsheetText(details.title), safeSpreadsheetText(details.description),
                 details.effort?.toString() ?: "", details.routine.storageValue.takeUnless { details.routine == RoutineType.NONE } ?: "",
-                // Derived standstills (traffic lights, shoelaces); the GPX keeps every original fix.
                 number(moving / 1000.0), stops.size.toString(), number(StopDetection.totalMs(stops) / 1000.0),
                 number(RunMetrics.paceSecondsPerKm(distance, moving)),
             )
@@ -70,7 +67,6 @@ object ActivityArchive {
         String.format(Locale.ROOT, "%.3f", it)
     } ?: ""
 
-    /** Prefix user text that spreadsheets could interpret as a formula. GPX keeps the original. */
     internal fun safeSpreadsheetText(value: String): String =
         if (value.trimStart().firstOrNull() in setOf('=', '+', '-', '@') || value.firstOrNull() in setOf('\t', '\r', '\n')) "'" + value else value
 

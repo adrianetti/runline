@@ -16,9 +16,6 @@ enum class TrainingGoalType {
 }
 enum class TrainingTiming { EXACT_DAY, TARGET_MONTH, ROLLING }
 
-/** raceDate remains the exclusive scheduling boundary for constructor compatibility.
- * Only EXACT_DAY is a chosen race date; TARGET_MONTH retains month precision and
- * PERSONAL_PROGRESS uses a bounded rolling horizon, with no distance/race target. */
 data class TrainingGoal(
     val distanceKm: Double, val raceDate: LocalDate, val daysPerWeek: Int, val weeklyKm: Double,
     val goalType: TrainingGoalType = TrainingGoalType.forDistance(distanceKm),
@@ -33,7 +30,6 @@ data class TrainingBaseline(
 )
 
 object TrainingBaselineEstimator {
-    /** Recorded volume is evidence, not a fitness assessment. Walks must be excluded by the caller. */
     fun infer(runs: List<TrainingHistoryRun>, today: LocalDate): TrainingBaseline {
         val recent = runs.filter { !it.date.isBefore(today.minusDays(27)) && !it.date.isAfter(today) && it.distanceKm.isFinite() && it.distanceKm > 0 }
         val weeks = recent.map { ChronoUnit.DAYS.between(it.date, today) / 7 }.distinct().size
@@ -68,7 +64,6 @@ object TrainingPlanEngine {
         }
     }
 
-    /** A conservative envelope, not a guarantee of readiness or an injury-prevention formula. */
     fun create(goal: TrainingGoal, today: LocalDate, spanish: Boolean = false): TrainingPlan {
         require(validateGoal(goal, today))
         val sessions = mutableListOf<TrainingSession>()
@@ -98,7 +93,6 @@ object TrainingPlanEngine {
             System.currentTimeMillis())
     }
 
-    /** Missed sessions stay missed; a completed activity is linked once, never to several sessions. */
     fun reconcile(plan: TrainingPlan, today: LocalDate, activities: List<Triple<String, LocalDate, Double>>): TrainingPlan {
         val assigned = plan.sessions.mapNotNull { it.activityId }.toMutableSet()
         val sessions = plan.sessions.map { session ->
@@ -142,7 +136,6 @@ object TrainingPlanEngine {
         return TrainingPlan(goal, starts, sessions, json.getString("summary").take(2400), json.getLong("updated_at"), json.optString("source", "local"), json.optString("automatic_date", ""))
     }
 
-    /** AI may personalize only future sessions inside the original local envelope; status/history are immutable. */
     fun applyAdvice(plan: TrainingPlan, response: String, today: LocalDate, spanish: Boolean = false): TrainingPlan {
         val json = JSONObject(response.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim())
         val summary = json.getString("summary"); require(summary.length in 5..2400)

@@ -44,7 +44,6 @@ object AutomaticReviews {
             return
         }
         val next = queue(context).all().filter { it.state == "pending" }.minByOrNull { it.dueAt } ?: return
-        // Do not replace a running job when the app opens or another activity finishes.
         if (jobs.getPendingJob(JOB_ID) != null) return
         val job = JobInfo.Builder(JOB_ID, ComponentName(context, ReviewJobService::class.java))
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPersisted(true)
@@ -75,7 +74,6 @@ object AutomaticReviews {
     }
 }
 
-/** Android keeps pending work across process death/reboot; HTTP attempts are not automatically replayed. */
 class ReviewJobService : JobService() {
     private var stopped = false
     private fun continueLater(): Boolean {
@@ -97,10 +95,8 @@ class ReviewJobService : JobService() {
             result.getOrNull()?.let { AutomaticReviews.notifyReady(this, id, it) }
             fun done() {
                 if (!stopped) jobFinished(params, false)
-                // The completed job must leave the scheduler before scheduling the next one.
                 android.os.Handler(mainLooper).postDelayed({ AutomaticReviews.schedule(applicationContext) }, 1000)
             }
-            // Still inside this network-constrained job: refresh the AI-maintained profile.
             if (!stopped && RunnerProfileStore(this).load().aiManaged) AiWork.updateProfile(this) { done() } else done()
         }
         return true

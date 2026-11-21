@@ -45,7 +45,6 @@ class RunDataBundleTest {
         val rows = files.getValue("points.csv").trim().lines()
         assertEquals(original.points.size + 1, rows.size)
         assertTrue(rows[0].startsWith("time_utc,elapsed_s,segment,latitude,longitude"))
-        // GPS columns stay as recorded; the structure point has no derived terrain height.
         assertTrue(rows[1].contains(",700.0,650.0,IGN_MDT05,"))
         assertTrue(rows[11].contains(",700.") && rows[11].contains(",,STRUCTURE,"))
         assertTrue(rows[0].endsWith(",stopped,terrain_level"))

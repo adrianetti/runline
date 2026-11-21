@@ -65,7 +65,6 @@ class SmartRunAiInputTest {
     }
 
     @Test fun runPausedOnSaturdayAndFinishedOnMondayCountsFromThePause() {
-        // Recorded Saturday afternoon, left paused, Finish tapped on Monday.
         val start = LocalDate.of(2026, 11, 14).atTime(16, 26).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val points = (0..470).map { RunPoint(37.17 + it * 15.0 / 111_195.0802, -3.6, start + it * 6_000L, 4f, 660.0) }
         val finishTap = start + 46 * 3_600_000L + 2 * 3_600_000L
@@ -81,7 +80,6 @@ class SmartRunAiInputTest {
 
     @Test fun activityEndKeepsMidRunPausesAndNeverLeavesTheRecordedSpan() {
         val start = 1_000_000L
-        // 10 min running, 20 min cafe pause, 10 min running, Finish 5 s after the last fix.
         val points = (0..100).map { RunPoint(40.0 + it * 1e-4, -3.0, start + it * 6_000L, 4f, segment = 0) } +
             (0..100).map { RunPoint(40.02 + it * 1e-4, -3.0, start + 1_800_000 + it * 6_000L, 4f, segment = 1) }
         val run = RunSession("cafe", start, start + 2_405_000, 1_200_000, points)

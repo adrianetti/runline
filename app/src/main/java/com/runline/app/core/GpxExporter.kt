@@ -3,7 +3,6 @@ package com.runline.app.core
 import java.math.BigDecimal
 import java.time.Instant
 
-/** Standard GPX 1.1 for a portable copy of the recorded activity route. */
 object GpxExporter {
     fun export(run: RunSession, details: ActivityDetails = ActivityDetails()): String = buildString {
         val type = details.activityType ?: run.activityType
@@ -57,7 +56,6 @@ object GpxExporter {
                 '>'.code -> append("&gt;")
                 '"'.code -> append("&quot;")
                 '\''.code -> append("&apos;")
-                // Exclude forbidden XML 1.0 controls and unpaired surrogate characters.
                 else -> if (codePoint == 9 || codePoint == 10 || codePoint == 13 ||
                     codePoint in 0x20..0xD7FF || codePoint in 0xE000..0xFFFD ||
                     codePoint in 0x10000..0x10FFFF

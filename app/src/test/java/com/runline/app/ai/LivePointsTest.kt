@@ -48,7 +48,6 @@ class LivePointsTest {
         assertEquals("31 seconds", slower.numbers["it_took_this_much_longer_than_the_previous_kilometre"]); assertTrue(slower.hint!!.contains("normal"))
         val even = LivePoints.pick(run(461.0, 463.0), context(), km, true, milestone = LiveMilestone.of(CoachCue.Kilometre(2, 462.0, 463.0, 461.0)))!!
         assertTrue(even.point.contains("almost exactly the same time")); assertEquals(1, even.numbers.size)
-        // The first kilometre has nothing to compare with unless there is a previous run.
         val first = LiveMilestone.of(CoachCue.Kilometre(1, 464.0, splitPaceSeconds = 464.0))
         assertFalse(LivePoints.pick(run(464.0), context(), km, true, milestone = first)!!.point.contains("previous"))
         assertTrue(LivePoints.pick(run(464.0), context(null, null, Triple("2026-11-06", 4.7, 380.0)), km, true, milestone = first)!!.point.contains("gentler than the average pace of their previous run"))
@@ -69,11 +68,9 @@ class LivePointsTest {
     }
 
     @Test fun `a kilometre or lap back to the usual rhythm after a burst is good news, not a big drop`() {
-        // 2026-11-14, easy 5 km: kilometre 5 in 5:32, kilometre 6 in 6:56. Spoken as "only 83 seconds slower, normal".
         val splits = doubleArrayOf(433.6, 418.5, 397.0, 386.4, 332.4, 415.8)
         val cue = LiveMilestone.of(CoachCue.Kilometre(6, 400.0, splitPaceSeconds = 415.8, previousSplitPaceSeconds = 332.4))
         val easy = context(distanceGoal(5).put("intended_effort", "EASY"))
-        // Kilometres 2-4 averaged about 6:37, so 6:56 is a little slower than that, not "back to normal" and not "83 seconds".
         val eased = LivePoints.pick(run(*splits), easy, km, true, milestone = cue)!!
         assertTrue(eased.point, eased.point.contains("unusually quick kilometre, and it is slower than their kilometres before"))
         assertEquals(mapOf("time_of_this_kilometre" to "6 minutos 56", "slower_than_their_recent_kilometres_by" to "19 segundos"), eased.numbers)
@@ -82,15 +79,12 @@ class LivePointsTest {
             milestone = LiveMilestone.of(CoachCue.Kilometre(6, 392.0, splitPaceSeconds = 405.0, previousSplitPaceSeconds = 340.0)))!!
         assertTrue(back.point, back.point.contains("back at their recent rhythm"))
         assertEquals(setOf("time_of_this_kilometre"), back.numbers.keys); assertTrue(back.hint!!.contains("easy"))
-        // 6:38, 6:00, 5:58, 6:49 (6 November): kilometre 3 matched kilometre 2, so it was no burst; the drop is from kilometre 3.
         val held = LivePoints.pick(run(398.0, 360.0, 358.0, 409.0), context(), km, true,
             milestone = LiveMilestone.of(CoachCue.Kilometre(4, 381.0, splitPaceSeconds = 409.0, previousSplitPaceSeconds = 358.0)))!!
         assertEquals("51 segundos", held.numbers["it_took_this_much_longer_than_the_previous_kilometre"])
-        // A real drop, not a return from a burst, is said plainly and never called small.
         val drop = LivePoints.pick(run(400.0, 402.0, 398.0, 401.0, 440.0), context(), km, true,
             milestone = LiveMilestone.of(CoachCue.Kilometre(5, 408.0, splitPaceSeconds = 440.0, previousSplitPaceSeconds = 401.0)))!!
         assertEquals("39 segundos", drop.numbers["it_took_this_much_longer_than_the_previous_kilometre"]); assertTrue(drop.hint!!.contains("without calling the difference small"))
-        // The same for a lap: lap 4 in 5:40, lap 5 in 6:59 is a usual lap again, with no sector detail or difference.
         val lap = LivePoints.pick(run(*splits, laps = listOf(416.6, 433.0, 386.0, 340.0, 419.0)), context(), LiveCall(LiveTrigger.MOMENT, LiveMoment.LAP, LiveFocus.SPLIT_DETAIL, 4), true,
             milestone = JSONObject().put("kind", "LAP").put("number", 5).put("slower_quarter", 3))!!
         assertTrue(lap.point, lap.point.contains("back at their recent lap time")); assertFalse(lap.point.contains("quarter"))
@@ -98,7 +92,6 @@ class LivePointsTest {
     }
 
     @Test fun `past the goal the coach says what the extra running is for`() {
-        // 2026-11-14: a 5 km easy goal, then 2 more kilometres with nothing said about them.
         val easy = context(distanceGoal(5).put("intended_effort", "EASY"))
         val beyond = LivePoints.pick(run(433.0, 418.0, 397.0, 386.0, 332.0, extraKm = .6), easy, cadence(LiveFocus.MORALE), true)!!
         assertEquals("goal/beyond:4", beyond.id); assertEquals(mapOf("beyond_the_goal" to "600 metros"), beyond.numbers)
@@ -107,7 +100,6 @@ class LivePointsTest {
     }
 
     @Test fun `a fact one line already gave is not given again by another`() {
-        // 2026-11-14: "Your fastest was the fourth, 6:26" at one kilometre left, then the same fact two minutes later.
         val splits = doubleArrayOf(433.6, 418.5, 397.0, 386.4)
         val last = LivePoints.pick(run(*splits), context(distanceGoal(5)), LiveCall(LiveTrigger.MOMENT, LiveMoment.ONE_KM_LEFT, LiveFocus.GOAL_PROJECTION, 5), true,
             milestone = JSONObject().put("kind", "ONE_KM_LEFT"))!!
@@ -124,7 +116,6 @@ class LivePointsTest {
         assertEquals("best/km:1", first.id)
         val second = LivePoints.pick(data, ctx, cadence(LiveFocus.MORALE), true, listOf(first.id))!!
         assertEquals("steady/km:3", second.id); assertTrue(second.numbers.isEmpty())
-        // Steady again would be the same theme: the check-in moves on to something else.
         val third = LivePoints.pick(data, ctx, cadence(LiveFocus.PACE_TREND), true, listOf(first.id, second.id))!!
         assertNotEquals("steady", third.theme)
         assertEquals("steady", LivePoint.themeOf("steady/pace:3"))
@@ -144,21 +135,17 @@ class LivePointsTest {
     @Test fun `pace changes are mentioned with judgement, not every time they wobble`() {
         fun shifted(trend: String, now: Double, before: Double, ctx: JSONObject, moving: Double = 1500.0) =
             LivePoints.pick(run(450.0, 450.0, 450.0, moving = moving, recent = now, shift = Triple(trend, now, before)), ctx, cadence(LiveFocus.TECHNIQUE), true)!!
-        // Easy day: slowing is never news, speeding up only when clearly faster than the run's average, and only once.
         val easy = context(timeGoal(60, "EASY"))
         assertEquals("form", shifted("SLOWER", 490.0, 440.0, easy).theme)
         assertEquals("form", shifted("FASTER", 440.0, 480.0, easy).theme)
         val nag = shifted("FASTER", 410.0, 450.0, easy)
         assertEquals("faster/pace_easy:2", nag.id); assertEquals("6 minutos 50 por kilómetro", nag.numbers["pace_now"])
         assertEquals("form", LivePoints.pick(run(450.0, 450.0, 450.0, moving = 1500.0, recent = 410.0, shift = Triple("FASTER", 410.0, 450.0)), easy, cadence(LiveFocus.TECHNIQUE), true, listOf(nag.id))!!.theme)
-        // Ten minutes later a second burst on an easy day earns one more kind word.
         assertEquals("faster/pace_easy:3", shifted("FASTER", 410.0, 450.0, easy, moving = 2100.0).id)
-        // No effort set: a real fade gets one cue, coming back to the usual rhythm is good news, a late surge is cheered.
         val open = context(timeGoal(60))
         assertEquals("slower", shifted("SLOWER", 480.0, 440.0, open).theme)
         assertEquals("steady/back", shifted("FASTER", 452.0, 490.0, open).id.substringBefore(':'))
         assertEquals("faster/surge", shifted("FASTER", 420.0, 450.0, context(timeGoal(30)), moving = 1500.0).id)
-        // A small wobble does not interrupt the rotation.
         assertEquals("form", shifted("FASTER", 430.0, 445.0, open).theme)
     }
 
@@ -167,7 +154,6 @@ class LivePointsTest {
         assertEquals("slower/shape:2", fading.id); assertEquals("6 minutes 22 per kilometre", fading.numbers["average_of_the_last_two_kilometres"])
         val building = LivePoints.pick(run(380.0, 384.0, 362.0, 360.0, recent = 360.0), context(distanceGoal(10)), cadence(LiveFocus.SPLIT_DETAIL), false)!!
         assertEquals("faster/shape:2", building.id)
-        // Surging again: the earlier fade is not mentioned.
         assertNotEquals("slower", LivePoints.pick(run(360.0, 362.0, 380.0, 384.0, recent = 350.0), context(distanceGoal(10)), cadence(LiveFocus.SPLIT_DETAIL), false)!!.theme)
     }
 

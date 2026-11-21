@@ -5,7 +5,6 @@ import android.view.MotionEvent
 import android.widget.LinearLayout
 import kotlin.math.abs
 
-/** Intentional horizontal gestures only; maps, sheets, vertical scroll and edge-back retain ownership. */
 internal class SwipeTabs @JvmOverloads constructor(context: Context, private val enabled: () -> Boolean = { false }, private val swipe: (Int) -> Unit = {}) : LinearLayout(context) {
     private var startX = 0f; private var startY = 0f
     private var eligible = false; private var dragging = false

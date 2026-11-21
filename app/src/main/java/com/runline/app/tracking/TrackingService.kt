@@ -56,31 +56,25 @@ data class TrackingState(
     val lastSavedAtMs: Long? = null,
     val gpsStale: Boolean = false,
     val messageRes: Int? = null,
-    /** Live standstill start (GPS wall clock). Derived only; recording continues unchanged. */
     val stoppedSinceMs: Long? = null,
-    /** A followed route and the hiker's progress on it. Derived only. */
     val route: LiveRoute? = null,
 ) {
-    /** Resolve again when read so a language change also updates a paused/recovered state. */
     fun localized(context: Context): TrackingState = messageRes?.let {
         copy(message = AppLanguage.localizedContext(context).getString(it))
     } ?: this
 }
 
-/** A planned route being followed; [points] keeps one identity so the map draws it once. */
 data class LiveRoute(val id: String, val name: String, val points: List<com.runline.app.core.RunPoint>,
                      val progress: com.runline.app.core.RouteProgress?, val sunsetMs: Long?,
                      val route: com.runline.app.core.HikingRoute? = null,
                      val guidance: com.runline.app.core.RouteGuidanceView? = null)
 
-/** User-started foreground recorder. UI closure never stops it; force-stop and reboot never auto-start it. */
 class TrackingService : Service(), LocationListener {
     private lateinit var store: RunStore
     private lateinit var locations: LocationManager
     private val thread = HandlerThread("RunlineRecorder")
     private lateinit var worker: Handler
     private val main = Handler(Looper.getMainLooper())
-    // Accessed only on the main thread, where Android delivers start commands.
     private var latestStartId = 0
     private var wakeLock: PowerManager.WakeLock? = null
     private var current: RunSession? = null
@@ -135,14 +129,12 @@ class TrackingService : Service(), LocationListener {
         override fun run() {
             if (mode != RecordingStatus.RECORDING) return
             tickCount++
-            // Durability does not depend on onPause/onDestroy/shutdown callbacks being delivered.
             if (!safely { persistCheckpoint() }) return
             if (isGpsStale()) { accuracy = null; messageRes = R.string.tracking_gps_lost }
             if (tickCount % 300 == 0) wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
             updateCoaching()
             updateMusic()
             publish()
-            // A standstill (or moving again) should show on the lock screen without waiting.
             val stoppedNow = published.stoppedSinceMs != null
             if (tickCount % 5 == 0 || stoppedNow != notifiedStopped) { notifiedStopped = stoppedNow; updateNotification() }
             worker.postDelayed(this, 1000)
@@ -175,8 +167,6 @@ class TrackingService : Service(), LocationListener {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // Services survive configuration changes. A paused recorder has no ticker,
-        // so refresh its notification when the OS changes the app language too.
         refreshLanguage()
     }
 
@@ -198,13 +188,8 @@ class TrackingService : Service(), LocationListener {
             }
         }
         worker.post {
-            // onCreate's recovery runs first on this same worker. Never trust the snapshot
-            // shown when a PendingIntent was built: it may belong to a finished/older run.
             if (fromNotification && !RunNotificationActions.isAllowed(action, expectedRunId, current?.id, mode)) {
                 if (!wasForeground && mode != RecordingStatus.RECORDING) {
-                    // A newer Start/Resume may already have reused our foreground state.
-                    // Serialize cleanup with onStartCommand so an old action cannot remove
-                    // that protection, including between the ID check and stopForeground.
                     main.post {
                         if (latestStartId == startId && published.status != RecordingStatus.RECORDING) {
                             stopForeground(STOP_FOREGROUND_REMOVE); foreground = false
@@ -220,8 +205,6 @@ class TrackingService : Service(), LocationListener {
             }
             when (action) {
                 null -> {
-                    // Only the OS's sticky-service recreation enters here. A normal app launch
-                    // merely displays recovery; same-boot check rules out reboot/shutdown gaps.
                     if (recovered?.mayRestart(bootCount, SystemClock.elapsedRealtime()) == true) {
                         resumeRun()
                     } else {
@@ -236,8 +219,6 @@ class TrackingService : Service(), LocationListener {
                 ACTION_ARCHIVE_DRAFT -> archiveDraft()
             }
         }
-        // A rejected, old notification action must not remove sticky recovery from an
-        // active recorder. Paused drafts still cannot auto-resume (mayRestart checks that).
         return START_STICKY
     }
 
@@ -264,7 +245,6 @@ class TrackingService : Service(), LocationListener {
         }
         if (!locations.isProviderEnabled(LocationManager.GPS_PROVIDER)) { fail(R.string.tracking_enable_location); return }
         try {
-            // Neither the timer nor the route connects across any process outage or pause.
             segment = (current!!.points.maxOfOrNull { it.segment } ?: -1) + 1
             activeSince = SystemClock.elapsedRealtime(); lastLocationElapsed = 0L; tickCount = 0
             stillness = com.runline.app.core.StillnessTracker(current!!.activityType)
@@ -275,7 +255,6 @@ class TrackingService : Service(), LocationListener {
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Runline:recording").apply {
                     setReferenceCounted(false); acquire(WAKE_LOCK_TIMEOUT_MS)
                 }
-            // The route first: following one turns on spoken directions even with the voice coach off.
             loadRoute()
             reloadCoaching()
             runCatching { (music ?: com.runline.app.music.RunMusic(this).also { music = it }).onRecording(current!!) }
@@ -297,12 +276,10 @@ class TrackingService : Service(), LocationListener {
         if (current == null) { stopSelf(); return }
         val wasRecording = mode == RecordingStatus.RECORDING
         pauseRun()
-        // A run left paused and finished later ends when it was paused, not at this tap.
         val finished = current!!.copy(endedAtMs = System.currentTimeMillis()).let {
             if (wasRecording) it else it.copy(endedAtMs = it.activityEndedAtMs)
         }
         if (!safely { store.complete(finished) }) return
-        // The route is durable before optional editing or online analysis is scheduled.
         runCatching { getSharedPreferences("activity_completion", MODE_PRIVATE).edit().putString("pending_id", finished.id).apply() }
         runCatching { AiActivityCompletion.onSaved(this, finished) }
         current = null; mode = RecordingStatus.IDLE; clearRoute()
@@ -333,8 +310,7 @@ class TrackingService : Service(), LocationListener {
             accuracy = null; messageRes = R.string.tracking_weak_gps; publish(); return
         }
         val elapsed = location.elapsedRealtimeNanos / 1_000_000
-        if (elapsed < activeSince || location.time < 0) return // Never import a cached fix from before Start/Resume.
-        // Every valid fix informs the standstill signal, including those too close to store.
+        if (elapsed < activeSince || location.time < 0) return
         stillness.update(location.latitude, location.longitude, location.time, location.accuracy,
             if (location.hasSpeed() && location.speed.isFinite()) location.speed else null)
         updateRoute(location.latitude, location.longitude, location.accuracy, location.time)
@@ -348,7 +324,6 @@ class TrackingService : Service(), LocationListener {
             if (distance[0] < 2.5f && seconds < 10) return
         }
         if (lastLocationElapsed > 0 && seconds > 15) segment++
-        // UTC labels must keep increasing within a segment even if the wall clock is corrected.
         if (previous != null && previous.segment == segment && location.time <= previous.timestampMs) segment++
         val point = RunPoint(location.latitude, location.longitude, location.time, location.accuracy,
             if (location.hasAltitude() && location.altitude.isFinite()) location.altitude else null, segment,
@@ -364,7 +339,6 @@ class TrackingService : Service(), LocationListener {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Removing the activity from Recents does not stop this foreground service.
         worker.post { if (current != null) safely { persistCheckpoint() } }
         super.onTaskRemoved(rootIntent)
     }
@@ -388,7 +362,6 @@ class TrackingService : Service(), LocationListener {
         stoppedSinceMs = stoppedSince(), route = routeId?.let { LiveRoute(it, routeName, routePoints, routeProgress, routeSunset, routeModel,
             routeProgress?.let { p -> routeGuidance?.view(p.doneMeters) }) }).localized(this); cached = published }
 
-    /** The session's planned route, rebuilt from the recorded fixes after a restart. Optional: never in the storage path. */
     private fun loadRoute() {
         runCatching {
             val session = current ?: return
@@ -399,14 +372,12 @@ class TrackingService : Service(), LocationListener {
             val route = routes.load(id) ?: run { clearRoute(); return }
             val follower = com.runline.app.core.RouteFollower(route)
             val language = AppLanguage.localizedContext(this).resources.configuration.locales[0].language
-            // Catalog routes know their junctions and place notes; imported GPX uses geometry alone.
             val catalog = runCatching { routes.catalog().routes.firstOrNull { it.id == id } }.getOrNull()
             val guidance = runCatching {
                 com.runline.app.core.RouteGuidance(com.runline.app.core.RouteManeuvers.detect(route, catalog?.junctions),
                     com.runline.app.core.RouteClimbs.detect(route), com.runline.app.core.RouteGuidance.places(route, catalog?.notes(language).orEmpty()))
             }.getOrNull()
             var last: com.runline.app.core.RouteProgress? = null
-            // Replaying the fixes also settles every cue already behind the hiker, so none is spoken late.
             session.points.forEach { p -> last = follower.update(p.latitude, p.longitude, p.accuracyMeters, p.timestampMs).also { guidance?.update(it) } }
             routeFollower = follower; routeId = id; routeProgress = last; routeState = last?.state
             routeApproach.reset(); routeWrongWay = last?.wrongWay == true
@@ -439,7 +410,6 @@ class TrackingService : Service(), LocationListener {
         }
     }
 
-    /** Turns, climbs and place notes. Speech needs the voice coach on; the last turn cue also vibrates. */
     private fun routeCue(guidance: com.runline.app.core.RouteGuidance, cue: com.runline.app.core.RouteCue) {
         val (key, priority, text) = when (cue) {
             is com.runline.app.core.RouteCue.Turn -> {
@@ -504,7 +474,6 @@ class TrackingService : Service(), LocationListener {
         if (state == com.runline.app.core.RouteState.OFF_ROUTE) showRouteAlert(text) else cancelRouteAlert()
     }
 
-    /** "The start of the route is 450 metres to your left." As the crow flies; Directions hands off to a maps app. */
     private fun approachCue(cue: com.runline.app.core.ApproachCue) {
         val distance = if (cue.meters >= 1000) tr(R.string.v21_say_km, String.format(AppLanguage.localizedContext(this).resources.configuration.locales[0], "%.1f", cue.meters / 1000.0))
             else tr(R.string.v21_say_m, cue.meters)
@@ -528,13 +497,11 @@ class TrackingService : Service(), LocationListener {
         showRouteAlert(text)
     }
 
-    /** A heads-up that reaches a locked or busy phone; one at a time, replaced and cleared as the route state changes. */
     private fun showRouteAlert(text: String) {
         runCatching {
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(ROUTE_ALERT_CHANNEL, tr(R.string.v21_route_alert_channel), NotificationManager.IMPORTANCE_HIGH).apply {
                 description = tr(R.string.v21_route_alert_channel_description)
-                // Runline vibrates and speaks itself; the channel only makes it pop up.
                 setSound(null, null); enableVibration(false); setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             })
@@ -565,7 +532,6 @@ class TrackingService : Service(), LocationListener {
     private fun fail(reason: Int) {
         freezeTimer(); mode = if (mode == RecordingStatus.RECOVERY_ERROR) mode else if (current == null) RecordingStatus.IDLE else RecordingStatus.PAUSED
         releaseRecordingResources(); messageRes = reason
-        // Best effort: this is additional protection, never the only durable copy.
         if (current != null) runCatching { persistCheckpoint() }
         publish(); updateNotification()
         if (current == null) { stopForeground(STOP_FOREGROUND_REMOVE); foreground = false; stopSelf() }
@@ -576,7 +542,6 @@ class TrackingService : Service(), LocationListener {
         worker.removeCallbacks(ticker); runCatching { locations.removeUpdates(this) }
         wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
     }
-    /** Optional audio must never be part of the recorder's storage/error path. */
     private fun reloadCoaching() {
         runCatching {
             val preferences = VoiceCoachSettings.load(this)
@@ -584,7 +549,6 @@ class TrackingService : Service(), LocationListener {
             if (aiCoach == null) aiCoach = AiRunCoach(this, onEvent = { event, detail, latency ->
                 published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.live(this, observed, event, detail, latency) }
             }) { advice ->
-                // AI callbacks arrive on main; published is the recorder's volatile snapshot.
                 if (published.status == RecordingStatus.RECORDING && VoiceCoachSettings.load(this).enabled) {
                     coachSpeech?.speakAdvice(advice.text) {
                         published.status == RecordingStatus.RECORDING && !published.gpsStale &&
@@ -603,7 +567,6 @@ class TrackingService : Service(), LocationListener {
                     autoPause = RecordingSettings.autoPause(this))
                 coachSpeech?.reset()
             }
-            // Pace and AI coaching stay silent unless the coach is on; a followed route still gets its directions.
             if ((next.enabled || routeFollower != null) && mode == RecordingStatus.RECORDING) {
                 if (coachSpeech == null) coachSpeech = CoachSpeech(this, onDiagnostic = { event, text, source, cue, situation ->
                     published.run?.let { observed -> com.runline.app.diagnostics.Diagnostics.speech(
@@ -628,22 +591,15 @@ class TrackingService : Service(), LocationListener {
             val live = aiCoach?.takeIf { it.leading && mode == RecordingStatus.RECORDING && stopped == null }
             when {
                 cue == null -> Unit
-                // While the live coach is answering, routine encouragement is its job: it knows the
-                // run and what was already said.
                 live != null && cue is com.runline.app.core.CoachCue.Encouragement && cue.kind !in LOCAL_ENCOURAGEMENT -> Unit
-                // It also announces the milestones in its own voice, with what they mean. The built-in
-                // announcement is spoken instead if it does not answer within a few seconds.
                 live != null && com.runline.app.ai.LiveMoment.of(cue) != null -> live.voice(cue, run, fresh, coachConfig, terrain) { text ->
                     if (text != null) coachSpeech?.speakMilestone(cue, text) else coachSpeech?.speak(cue)
                 }
-                // Pace and terrain cues, and everything when the live coach is off, stay local and instant.
                 else -> coachSpeech?.speak(cue)
             }
-            // A standstill is not a moment for advice; the AI coach waits for movement too.
             if (coachConfig.enabled && mode == RecordingStatus.RECORDING && stopped == null) aiCoach?.update(run, fresh, coachConfig, terrain)
         }
     }
-    /** Optional music follows the run; it has its own thread and can never fail the recorder. */
     private fun updateMusic() {
         runCatching {
             val run = snapshotRun() ?: return
@@ -660,7 +616,6 @@ class TrackingService : Service(), LocationListener {
         val recording = state.status == RecordingStatus.RECORDING
         val distance = run?.let { RunMetrics.distanceMeters(it.points) } ?: 0.0
         val stopped = recording && state.stoppedSinceMs != null
-        // With auto-pause, time and pace exclude standstills, matching the recording screen.
         val duration = run?.let { if (RecordingSettings.autoPause(this)) com.runline.app.core.StopDetection.movingDurationMs(it, openStopSinceMs = state.stoppedSinceMs) else it.activeDurationMs } ?: 0L
         val formatLocale = AppLanguage.localizedContext(this).resources.configuration.locales[0]
         val paceSeconds = RunMetrics.paceSecondsPerKm(distance, duration)?.roundToLong()
@@ -701,8 +656,6 @@ class TrackingService : Service(), LocationListener {
                 builder.addAction(notificationAction(R.drawable.ic_pause, tr(R.string.tracking_action_pause), ACTION_PAUSE, run.id))
             } else if (state.status == RecordingStatus.PAUSED || state.status == RecordingStatus.INTERRUPTED) {
                 builder.addAction(notificationAction(R.drawable.ic_play, tr(R.string.tracking_action_resume), ACTION_RESUME, run.id))
-                // Two deliberate steps: Pause, then Finish. A stale Finish is rejected if
-                // recording has already resumed, even when it still belongs to this run.
                 builder.addAction(notificationAction(R.drawable.ic_stop, tr(R.string.tracking_action_finish), ACTION_FINISH, run.id))
             }
         }
@@ -724,8 +677,6 @@ class TrackingService : Service(), LocationListener {
             .setData(Uri.Builder().scheme("runline").authority("recording").appendPath(runId).appendPath(action).build())
             .putExtra(EXTRA_NOTIFICATION_RUN_ID, runId)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        // A user tapping a notification is an explicit exemption to both background FGS
-        // start restrictions and Android 14's while-in-use location checks.
         val pending = if (action == ACTION_RESUME) PendingIntent.getForegroundService(this, 0, intent, flags)
             else PendingIntent.getService(this, 0, intent, flags)
         return Notification.Action.Builder(Icon.createWithResource(this, icon), label, pending).build()
@@ -750,7 +701,6 @@ class TrackingService : Service(), LocationListener {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        /** Goal-progress lines carry measured numbers at an exact moment; they stay local even with the live coach on. */
         private val LOCAL_ENCOURAGEMENT = setOf(com.runline.app.core.EncouragementKind.HALFWAY, com.runline.app.core.EncouragementKind.FINAL_STRETCH)
         const val ACTION_START = "com.runline.app.START"
         const val ACTION_PAUSE = "com.runline.app.PAUSE"
@@ -780,7 +730,6 @@ class TrackingService : Service(), LocationListener {
             } catch (_: Exception) { TrackingState(RecordingStatus.RECOVERY_ERROR, messageRes = R.string.tracking_recovery_error) }
             cached = recovered; return recovered.localized(context)
         }
-        /** A language change must also update an existing paused notification. */
         fun refreshLanguage() {
             instance?.let { recorder -> recorder.worker.post {
                 recorder.refreshNotificationChannel()
@@ -789,11 +738,9 @@ class TrackingService : Service(), LocationListener {
                 recorder.updateNotification()
             } }
         }
-        /** Apply optional voice preferences without starting or altering a recording. */
         fun refreshCoaching() {
             instance?.let { recorder -> recorder.worker.post { recorder.reloadCoaching() } }
         }
-        /** Visible Activity controls; notifications use their own run-scoped PendingIntents. */
         fun command(context: Context, action: String, activityType: ActivityType = ActivityType.RUN, sessionIntent: com.runline.app.core.SessionIntent? = null) {
             val intent = Intent(context, TrackingService::class.java).setAction(action)
             if (action == ACTION_START) { intent.putExtra(EXTRA_ACTIVITY_TYPE, activityType.storageValue); sessionIntent?.let { intent.putExtra(EXTRA_SESSION_INTENT, it.json().toString()) } }

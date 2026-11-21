@@ -8,7 +8,6 @@ import com.runline.app.core.RunPoint
 import com.runline.app.core.RunSession
 import java.io.File
 
-/** Android adapter: all files remain private, and file replacements also sync their directory. */
 class RunStore(context: Context) {
     private val contextApp = context.applicationContext
     private val disk = DiskRunStore(File(context.filesDir, "runs"), syncDirectory = { folder ->

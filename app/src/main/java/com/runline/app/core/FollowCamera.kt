@@ -2,7 +2,6 @@ package com.runline.app.core
 
 import kotlin.math.exp
 
-/** Display orientation only: never predicts a position or modifies a GPS sample. */
 class FollowCamera {
     data class Pose(val bearing: Double, val tilt: Double, val markerRotation: Double?)
     private var bearing = 0.0
@@ -11,7 +10,6 @@ class FollowCamera {
 
     fun reset() { bearing = 0.0; tilt = 0.0; lastFrameMs = null }
 
-    /** Wall time makes steering independent of replay speed and display frame rate. */
     fun update(heading: Double?, nowMs: Long, cut: Boolean = false, reduceMotion: Boolean = false): Pose {
         val course = heading?.takeIf(Double::isFinite)?.let(::normalize)
         val priorTime = lastFrameMs

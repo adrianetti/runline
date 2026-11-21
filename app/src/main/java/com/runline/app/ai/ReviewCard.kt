@@ -3,7 +3,6 @@ package com.runline.app.ai
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Small, validated presentation contract; legacy plain-text reviews stay readable. */
 data class ReviewCard(val headline: String, val win: String, val focus: String, val nextSession: String) {
     fun json() = JSONObject().put("headline", headline).put("win", win).put("focus", focus).put("next_session", nextSession)
     fun text() = listOf(headline, win, focus, nextSession).joinToString("\n\n")

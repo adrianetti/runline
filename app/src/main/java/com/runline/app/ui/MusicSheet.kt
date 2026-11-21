@@ -27,11 +27,6 @@ import com.runline.app.music.SpotifyPkce
 import com.runline.app.music.SpotifyPlaylist
 import java.util.concurrent.Executors
 
-/**
- * Music that follows the run. The top three switches work with any player; the Spotify part needs
- * the user's own Client ID, so the app works the same for everyone who builds or installs it.
- * [openSpotify] starts the Spotify app's sign-in for a result; the activity passes the answer back.
- */
 class MusicSheet(private val activity: AppCompatActivity, callback: String? = null, appReply: SpotifyPkce.AppReply? = null,
                  private val openSpotify: (Intent) -> Unit) {
     private val sheet = AiSheet(activity, R.string.music_title)
@@ -42,7 +37,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
     private var playlists: List<SpotifyPlaylist>? = null
     private var guideOpen = false
     private var draftClientId: String? = null
-    /** The Spotify app did not finish a sign-in, so the browser is offered beside it. */
     private var offerBrowser = false
     val isShowing get() = sheet.isShowing
 
@@ -56,9 +50,7 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
     }
     fun show() = sheet.show()
     fun close() { worker.shutdownNow(); sheet.close() }
-    /** Spotify sent the browser back while this sheet was already open. */
     fun onCallback(uri: String) = complete(uri, null)
-    /** The Spotify app answered while this sheet was already open. */
     fun onAppReply(reply: SpotifyPkce.AppReply) = complete(null, reply)
 
     private fun render() {
@@ -70,7 +62,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
         sheet.column.addView(toggle(R.string.music_pause, config.pauseWithRun, config.enabled) { on -> change { it.copy(pauseWithRun = on) } }, sheet.row())
         sheet.column.addView(sheet.text(activity.getString(R.string.music_any_player)), sheet.row(4, 4))
         sheet.column.addView(sheet.text("Spotify", 18, true), sheet.row(20, 8))
-        // Directly under the heading, so a sign-in result is seen without scrolling.
         (status.parent as? android.view.ViewGroup)?.removeView(status)
         sheet.column.addView(status, sheet.row(0, 8))
         if (connected) renderConnected(config) else renderSetup()
@@ -96,7 +87,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
             setOnClickListener { connect(clientId, inBrowser = true) }
         }, sheet.row(0, 8))
         val guide = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; visibility = if (guideOpen) View.VISIBLE else View.GONE }
-        // Spotify's app signs in only apps it finds in the dashboard under this package and fingerprint.
         val fingerprint = SpotifyAppSignIn.ownFingerprint(activity)
         guide.addView(sheet.text(activity.getString(R.string.music_setup_steps, SpotifyPkce.REDIRECT_URI, activity.packageName, fingerprint ?: "–")).apply { setTextIsSelectable(true) }, sheet.row(0, 8))
         guide.addView(copyButton(R.string.music_copy_redirect, SpotifyPkce.REDIRECT_URI), sheet.row())
@@ -111,7 +101,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
         sheet.column.addView(guide, sheet.row())
     }
 
-    /** Spotify's app when it can sign in, because the user is already signed in there; otherwise the browser. */
     private fun connect(clientId: Pair<TextInputLayout, com.google.android.material.textfield.TextInputEditText>, inBrowser: Boolean) {
         val id = clientId.second.text.toString().trim().lowercase()
         if (!SpotifyPkce.validClientId(id)) { clientId.first.error = activity.getString(R.string.music_client_id_error); return }
@@ -168,7 +157,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
         sheet.column.addView(wrapper, sheet.row(4, 12))
     }
 
-    /** Exactly one answer: the browser's redirect link, or the Spotify app's reply. */
     private fun complete(callback: String?, reply: SpotifyPkce.AppReply?) {
         say(R.string.music_connecting)
         worker.execute {
@@ -176,13 +164,10 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
             main.post {
                 if (sheet.closed) return@post
                 val connected = result.getOrNull() == SpotifyAccount.Outcome.CONNECTED
-                // Whatever stopped the Spotify app, the browser is the other way in, and the guide
-                // holds the package and fingerprint Spotify wants to see.
                 if (reply != null && !connected) { offerBrowser = true; guideOpen = true; render() }
                 result.fold({ outcome ->
                     when (outcome) {
                         SpotifyAccount.Outcome.CONNECTED -> {
-                            // Connecting is the wish to use it; the switch need not be found again.
                             change { it.copy(enabled = true) }
                             offerBrowser = false; status.visibility = View.GONE; render(); loadPlaylists()
                         }
@@ -194,7 +179,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
         }
     }
 
-    /** Spotify's own short error name is kept: it tells a missing fingerprint from an account that is not listed. */
     private fun refusal(error: String): String {
         val code = error.filter { it.isLetterOrDigit() || it in " _-.:" }.trim().take(60)
         return activity.getString(R.string.music_error_app) + if (code.isEmpty()) "" else " ($code)"
@@ -223,7 +207,6 @@ class MusicSheet(private val activity: AppCompatActivity, callback: String? = nu
     }
 
     private fun change(update: (MusicConfig) -> MusicConfig) { runCatching { MusicSettings.save(activity, update(MusicSettings.load(activity))) }.onFailure { say(R.string.music_error_storage) } }
-    /** A switch must not rebuild its own row while it is still reporting the change. */
     private fun rerender() { sheet.column.post { if (!sheet.closed) render() } }
     private fun say(message: Int) = say(activity.getString(message))
     private fun say(message: String) { status.text = message; status.visibility = View.VISIBLE }

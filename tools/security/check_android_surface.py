@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Small app-specific regression guard for backup/export/provider boundaries."""
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET

@@ -11,11 +11,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * Town and nearest named place for a route's naming points, from Android's built-in geocoder:
- * no API key or extra service. Offline, or on phones without a geocoder, every place is null and
- * the suggestion falls back to shape and distance. Call off the main thread.
- */
 class RoutePlaces(context: Context) {
     private val app = context.applicationContext
 

@@ -27,7 +27,6 @@ class LiveCoachPlanTest {
         val call = plan.milestone(45_000, LiveMoment.KILOMETRE)!!
         assertEquals(LiveTrigger.MOMENT, call.trigger); assertEquals(LiveMoment.KILOMETRE, call.moment); assertEquals(2, plan.attempts)
         assertEquals(LiveMoment.GOAL_REACHED, plan.milestone(46_000, LiveMoment.GOAL_REACHED)?.moment)
-        // The next check-in keeps its distance from the milestone.
         assertNull(plan.next(60_000, 2))
     }
 

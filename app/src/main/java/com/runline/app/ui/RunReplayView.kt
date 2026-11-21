@@ -36,10 +36,6 @@ import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * Full-screen, display-only playback. Opening details never changes the saved activity.
- * With [preview], it plays a planned route instead: no export, options or activity details.
- */
 class RunReplayView(
     context: Context,
     private val replay: RunReplay,
@@ -68,7 +64,6 @@ class RunReplayView(
     private val panel = ElevationIsland(context)
     private val readout = RunReadoutView(context)
     private val terrainRepository = com.runline.app.terrain.TerrainRepository.get(context)
-    /** A previewed route with its own heights shows them; terrain maps fill in only without. */
     private val routeHeights = preview && com.runline.app.core.RoutePreview.hasHeights(replay.session)
     private var elevationReplay = if (routeHeights) replay else RunReplay(terrainRepository.snapshot.project(replay.session))
     private var replayTerrain = ReplayTerrain(elevationReplay)
@@ -194,8 +189,6 @@ class RunReplayView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        // Apply the cap before measuring children. A requestLayout from onSizeChanged
-        // can be swallowed by the current layout pass, leaving the header covered.
         panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(180)) else (h * 0.55f).roundToInt().coerceAtLeast(dp(200))
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
@@ -294,7 +287,6 @@ class RunReplayView(
         if (seek.contentDescription != description) seek.contentDescription = description
     }
 
-    /** Pause on the selected frame so its detail values and profile cursor remain stable. */
     private fun showDetails() {
         if (disposed || details?.isShowing == true) return
         pausePlayback()
@@ -351,7 +343,6 @@ class RunReplayView(
             content.addView(ActivityPhotosView(context, run.id, it), row(top = 8, bottom = 16))
         }
         addDetail(content, R.string.replay_total_distance, context.getString(R.string.replay_kilometres, number(summary.distanceMeters / 1000, 2)))
-        // Stops are derived from the saved fixes, so older activities gain moving time too.
         val stops = com.runline.app.core.StopDetection.detect(run.points, run.activityType)
         val moving = com.runline.app.core.StopDetection.movingDurationMs(run, stops)
         val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(context)
@@ -408,7 +399,6 @@ class RunReplayView(
         altitudeRange = addDetail(content, R.string.replay_altitude_range, context.getString(R.string.replay_metres_range, number(elevationReplay.summary.minAltitudeMeters, 0), number(elevationReplay.summary.maxAltitudeMeters, 0)))
         addDetail(content, R.string.replay_gps_samples, java.text.NumberFormat.getIntegerInstance(locale()).format(run.points.size))
         content.addView(label(context.getString(R.string.replay_splits), 22, bold = true), row(top = 24, bottom = 8))
-        // Computed only when details open, never for each playback frame.
         val splits = RunMetrics.splits(run.copy(points = replay.segments.flatten()), if (autoPause) stops else emptyList())
         if (splits.isEmpty()) content.addView(label(context.getString(R.string.replay_not_enough_gps), 14, muted = true))
         else splits.forEach { split ->

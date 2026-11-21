@@ -2,9 +2,7 @@ package com.runline.app.core
 
 import org.json.JSONObject
 
-/** Selected target, independent of speech preferences and original GPS samples. */
 data class SessionIntent(val goal: CoachConfig, val source: String, val suggestionId: String? = null,
-                         /** A planned route to follow, from the Routes tab. Optional and older-intent compatible. */
                          val routeId: String? = null) {
     init {
         require(goal.isValid() && source in setOf("free", "manual", "smart")); require(suggestionId == null || suggestionId.length <= 100)

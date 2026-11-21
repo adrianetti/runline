@@ -6,7 +6,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 
-/** Derived once per saved activity; chart filtering never re-scans its GPS samples. */
 data class HistoryActivity(
     val id: String,
     val activityType: ActivityType,
@@ -24,7 +23,6 @@ data class HistoryPeriod(
     val activities: List<HistoryActivity>,
     val distanceMeters: Double,
     val activeDurationMs: Long,
-    /** Distance-weighted pace of activities with both usable distance and active time. */
     val paceSecondsPerKm: Double?,
 ) {
     val paceTrend: List<HistoryActivity> get() = activities.filter { it.paceSecondsPerKm != null }.takeLast(8)
@@ -37,7 +35,6 @@ object HistorySummary {
             distance, RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs))
     }
 
-    /** Four Monday-starting local calendar weeks, including the current week so far. */
     fun forPeriod(
         prepared: List<HistoryActivity>,
         nowMs: Long,

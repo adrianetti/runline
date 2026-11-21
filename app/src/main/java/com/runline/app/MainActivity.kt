@@ -103,7 +103,6 @@ class MainActivity : AppCompatActivity() {
     private var routeId: String? = null
     private var routesBusy = false
     private var pendingRouteUri: Uri? = null
-    /** The Spotify app's answer to a sign-in. The sheet may be gone if Android recreated this activity meanwhile. */
     private val spotifySignIn = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
         val reply = com.runline.app.music.SpotifyAppSignIn.reply(result.resultCode, result.data)
         musicSheet?.takeIf { it.isShowing }?.onAppReply(reply) ?: showMusic(appReply = reply)
@@ -187,7 +186,6 @@ class MainActivity : AppCompatActivity() {
             notice(getString(R.string.v19_routes_imported))
         }
         pendingRouteUri = savedInstanceState?.getString("pendingRouteUri")?.let(Uri::parse)
-            // Recents relaunches with the original Open with/Share intent; that file was already handled.
             ?: if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0)
                 com.runline.app.ui.RouteImportIntents.uri(intent) else null
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
@@ -308,7 +306,6 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(text(getString(R.string.main_ready), 30, bold = true), margin(bottom = 24))
         val types = ActivityType.entries
-        // The picker opens only on a tap: on some phones the rebuilt Record screen opened it by itself.
         var picker: com.runline.app.ui.TapDropdown? = null
         val field = com.runline.app.ui.TapDropdown.field(this) { picker }.apply {
             hint = getString(R.string.main_activity_type)
@@ -398,7 +395,6 @@ class MainActivity : AppCompatActivity() {
         minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0)
         contentDescription = label; tooltipText = label; layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
     }
-    /** The route chosen in the Routes tab for the next recording, if it still exists. */
     private fun followedRoute(): String? = getPreferences(0).getString("followRoute", null)?.takeIf { id ->
         runCatching { routes.entry(id, language()) != null }.getOrDefault(false)
     }
@@ -438,7 +434,6 @@ class MainActivity : AppCompatActivity() {
         content.addView(com.runline.app.ui.RoutesView(this, entries, followedRoute(),
             stats = { id -> runCatching { routes.load(id)?.stats }.getOrNull() },
             onOpen = { id -> routeId = id; screen = "route"; render() },
-            // Providers often label .gpx as binary/XML or omit its MIME type. Validate the contents after picking.
             onImport = { runCatching { importRoute.launch(arrayOf("*/*")) }
                 .onFailure { notice(getString(R.string.route_import_picker_failed)) } },
             onRefresh = ::refreshRoutes,
@@ -474,8 +469,6 @@ class MainActivity : AppCompatActivity() {
             onBack = { screen = "routes"; render() },
             onMore = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
             onStart = {
-                // One tap: choose the route and its activity, then start recording straight away.
-                // An imported GPX has no activity of its own, so it keeps the one chosen on Record.
                 getPreferences(0).edit { putString("followRoute", id) }
                 if (entry?.imported != true) selectedActivity = entry?.activity ?: ActivityType.HIKE
                 getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
@@ -488,10 +481,8 @@ class MainActivity : AppCompatActivity() {
         route = view.map
         body.addView(view, LinearLayout.LayoutParams(-1, -1))
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.map.onHostResume()
-        // Heights for grades and coaching are ready before the hike, offline too.
         runCatching { com.runline.app.terrain.TerrainRepository.get(this).request(hiking.runPoints()) }
     }
-    /** The route played like a recording: 3D camera, playback speed and timeline. Nothing is recorded. */
     private fun renderRoutePreview() {
         val id = routeId ?: run { screen = "routes"; render(); return }
         val hiking = runCatching { routes.load(id) }.getOrNull() ?: run { screen = "routes"; render(); return }
@@ -610,7 +601,6 @@ class MainActivity : AppCompatActivity() {
         musicSheet?.close()
         musicSheet = com.runline.app.ui.MusicSheet(this, callback, appReply) { spotifySignIn.launch(it) }.also { it.show() }
     }
-    /** The browser came back from Spotify sign-in. The link is used once, then dropped from the intent. */
     private fun openSpotifyCallback(): Boolean {
         val link = intent?.dataString?.takeIf { intent.action == Intent.ACTION_VIEW && com.runline.app.music.SpotifyPkce.isCallback(it) &&
             intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0 } ?: return false
@@ -728,7 +718,6 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton(getString(R.string.main_keep), null).show()
     }
     private fun showActivityTransfer(run: RunSession) {
-        // Say what each option produces: the GPX route, or every recorded detail in one ZIP.
         IconChoices.show(this, R.string.main_activity_file, listOf(
             IconChoices.Choice(getString(R.string.v17_download_gpx), R.drawable.ic_download),
             IconChoices.Choice(getString(R.string.v17_share_gpx), R.drawable.ic_share),

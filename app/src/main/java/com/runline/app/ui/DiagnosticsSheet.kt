@@ -21,7 +21,6 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.concurrent.Executors
 
-/** Optional local tools, separate from the runner's two primary tabs. No network calls. */
 class DiagnosticsSheet(private val activity: AppCompatActivity, val runId: String? = null, val usageOnly: Boolean = false,
                        private val openPosition: (String, Long) -> Unit = { _, _ -> }) {
     private val sheet = AiSheet(activity, if (usageOnly) R.string.diag_v12_usage else R.string.diag_v12_title)

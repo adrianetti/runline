@@ -15,7 +15,6 @@ import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** One durable daily reservation, with explicit retries. UI observation never sends HTTP. */
 object SmartRunAi {
     private val worker = Executors.newSingleThreadExecutor()
     private val busy = AtomicBoolean()

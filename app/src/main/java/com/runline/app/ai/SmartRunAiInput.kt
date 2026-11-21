@@ -8,7 +8,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Pure request/response boundary: no coordinates, photos, calendar or secret persistence. */
 object SmartRunAiInput {
     fun history(runs: List<RunSession>, details: (String) -> ActivityDetails,
                 zone: ZoneId = ZoneId.systemDefault()): List<SmartRunHistoryRun> = runs.distinctBy { it.id }.mapNotNull { run ->
@@ -22,10 +21,6 @@ object SmartRunAiInput {
             RunMetrics.elevationGainMeters(run.withTrustedElevation().points), run.startedAtMs)
     }.sortedWith(compareBy<SmartRunHistoryRun> { it.date }.thenBy { it.startedAtMs }.thenBy { it.id })
 
-    /**
-     * Hours from the end of the latest completed run to [nowMs]. A run finished long after it was
-     * paused counts from the pause, so saving Saturday's run on Monday does not read as "just now".
-     */
     fun hoursSinceLastRun(runs: List<RunSession>, details: (String) -> ActivityDetails, nowMs: Long): Double? =
         runs.filter { (details(it.id).activityType ?: it.activityType) == ActivityType.RUN }
             .map { it.activityEndedAtMs }.filter { it <= nowMs }.maxOrNull()?.let { (nowMs - it) / 3_600_000.0 }
@@ -51,7 +46,6 @@ object SmartRunAiInput {
     fun key(input: JSONObject): String = MessageDigest.getInstance("SHA-256").digest(input.toString().toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it.toInt() and 255) }
 
-    /** Static schema contains no runner data. Value and combination checks remain in the local validator. */
     private fun outputSchema(): JSONObject {
         fun nullable(type: String) = JSONObject().put("type", JSONArray(listOf(type, "null")))
         val properties = JSONObject()

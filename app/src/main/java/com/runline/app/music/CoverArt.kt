@@ -8,14 +8,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 
-/** The small album cover of the track that is playing: one image from Spotify's image host, kept in memory only. */
 object CoverArt {
     private const val LIMIT_BYTES = 400_000
     private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var cached: Pair<String, Bitmap>? = null
 
-    /** [done] runs on the main thread, with null when the cover could not be shown. */
     fun load(url: String, done: (Bitmap?) -> Unit) {
         cached?.takeIf { it.first == url }?.let { done(it.second); return }
         if (!url.startsWith(SpotifyApi.COVER_ORIGIN)) { done(null); return }

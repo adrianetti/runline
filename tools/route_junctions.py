@@ -1,21 +1,9 @@
 #!/usr/bin/env python3
-"""Record where an open route meets other paths, so Runline speaks turns only there.
-
-Runline derives turns from route geometry. Without more information a bend in a single path
-sounds like a turn. This tool asks OpenStreetMap, through the public Overpass API, for the
-walkable ways around one route. It finds the route vertices that are OSM junctions (a node
-shared with another walkable way) and writes them to that route's `junctions` list in
-routes/index.json. Only the route's bounding box is sent. Junctions are not hashed, so the
-GPX file and its SHA-256 do not change.
-
-    python3 tools/route_junctions.py es-granada-alhambra-dehesa-genil
-    python3 tools/route_junctions.py ROUTE_ID --osm saved-overpass.json   # reuse a saved reply
-"""
 import argparse, json, sys, urllib.parse, urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_routes import ROOT, check_gpx, meters, write_index  # noqa: E402
+from check_routes import ROOT, check_gpx, meters, write_index
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
 WALKABLE = {"footway", "path", "track", "residential", "service", "living_street", "pedestrian", "steps", "unclassified",
@@ -52,7 +40,7 @@ def junctions(points, osm):
     return found
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description="Record where an open route meets other walkable OpenStreetMap ways.")
     parser.add_argument("route_id")
     parser.add_argument("--osm", type=Path, help="a saved Overpass JSON reply covering the route")
     args = parser.parse_args()

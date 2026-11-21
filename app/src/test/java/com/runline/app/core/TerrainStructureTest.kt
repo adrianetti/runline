@@ -14,11 +14,9 @@ class TerrainStructureTest {
         val points = line(40, { if (it == 20) TerrainModel.STRUCTURE else TerrainModel.IGN_MDT05 })
         val guarded = TerrainStructureGuard.apply(points)
         val hidden = guarded.indices.filter { guarded[it].altitudeMeters == null }
-        // 3 m spacing: indices 15..25 lie within 15 m of index 20.
         assertEquals((15..25).toList(), hidden)
         assertTrue(hidden.all { guarded[it].terrainModel == TerrainModel.STRUCTURE })
         assertSame(points[0], guarded[0])
-        // Original GPS fixes are never changed: guarding only returns a derived copy.
         assertEquals(650.0, points[16].altitudeMeters!!, 0.0)
     }
 

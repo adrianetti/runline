@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Rebuild Runline's pinned Tabler subset as Android VectorDrawables.
-
-Default and --check are offline. --fetch downloads only the pinned revision below.
-Original SVG paths and license are retained under third_party/tabler-icons/.
-"""
 from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -77,8 +72,6 @@ def vector(resource: str, source_name: str, launcher: bool = False) -> str:
         fill = child.get("fill", source.get("fill", "none"))
         if fill not in ("none", "currentColor"):
             raise ValueError(f"Unexpected fill {fill!r}")
-        # The map's navigation marker keeps Tabler's exact path with a white interior,
-        # so satellite imagery cannot obscure its direction. Other icons stay outline-only.
         attrs = {
             a("fillColor"): "#FFFFFF" if resource == "navigation" else ("@android:color/transparent" if fill == "none" else ("#FFFFFF" if launcher else "#151515")),
             a("strokeColor"): "#FFFFFF" if launcher else "#151515",
@@ -108,7 +101,7 @@ def fetch() -> None:
     (SOURCE / "provenance.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Rebuild the pinned Tabler subset as Android VectorDrawables.")
     parser.add_argument("--fetch", action="store_true", help="Fetch the pinned originals and then regenerate")
     parser.add_argument("--check", action="store_true", help="Check checked-in drawables without modifying files")
     args = parser.parse_args()

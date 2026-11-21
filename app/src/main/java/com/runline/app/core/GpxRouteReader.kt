@@ -7,7 +7,6 @@ import org.xml.sax.helpers.DefaultHandler
 import java.io.StringReader
 import javax.xml.parsers.SAXParserFactory
 
-/** What a GPX file offers as a route to follow. */
 data class GpxRoute(
     val name: String?,
     val description: String?,
@@ -15,7 +14,6 @@ data class GpxRoute(
     val waypoints: List<RouteWaypoint>,
 )
 
-/** Bounded, namespace-aware GPX import. Extensions and all external entities are ignored/refused. */
 object GpxRouteReader {
     const val MAX_BYTES = 15 * 1024 * 1024
     private const val MAX_WAYPOINTS = 500
@@ -31,12 +29,10 @@ object GpxRouteReader {
     fun read(source: String): GpxRoute {
         if (source.length > MAX_BYTES) throw InvalidGpx("too large")
         val text = source.removePrefix("\uFEFF")
-        // Do not depend on parser-specific feature support for the no-DTD boundary.
         if (text.contains("<!DOCTYPE", true) || text.contains("<!ENTITY", true)) throw InvalidGpx("DOCTYPE is not allowed")
         val handler = Reader()
         try {
             val reader = SAXParserFactory.newInstance().apply { isNamespaceAware = true }.newSAXParser().xmlReader
-            // Android and desktop parsers differ in supported features. The resolver below is mandatory.
             listOf("http://xml.org/sax/features/external-general-entities", "http://xml.org/sax/features/external-parameter-entities",
                 "http://apache.org/xml/features/nonvalidating/load-external-dtd").forEach { feature ->
                 runCatching { reader.setFeature(feature, false) }

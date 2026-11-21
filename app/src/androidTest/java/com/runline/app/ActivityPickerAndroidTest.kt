@@ -18,7 +18,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** The Record activity picker opened by itself on a phone. It must open only on a tap, and still work. */
 @RunWith(AndroidJUnit4::class)
 class ActivityPickerAndroidTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
@@ -35,7 +34,6 @@ class ActivityPickerAndroidTest {
                 }
                 scenario.onActivity {
                     val picker = find<TapDropdown>(it.window.decorView)!!
-                    // Whatever opened it on the phone ends in showDropDown() without a tap: that must do nothing.
                     picker.showDropDown()
                     assertFalse("Picker opened without a tap", picker.isPopupShowing)
                 }
@@ -51,7 +49,6 @@ class ActivityPickerAndroidTest {
                 val picker = find<TapDropdown>(it.window.decorView)!!
                 assertTrue("A tap should open the picker", picker.isPopupShowing)
             }
-            // Pick Walk from the open list the way a tap would.
             val walk = context.getString(R.string.main_type_walk)
             var row: AccessibilityNodeInfo? = null
             val until = SystemClock.uptimeMillis() + 5_000

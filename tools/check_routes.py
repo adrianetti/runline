@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""Validate the open route catalog in routes/ (CI and contributors).
-
-Checks the index schema, every file's SHA-256, GPX safety and privacy (no DOCTYPE, no
-timestamps or device extensions), the ODbL licence element, and that distance, ascent and
-height range in the index match the GPX (same 3 m deadband as the app). Place notes must
-name a GPX waypoint and carry short English and Spanish text; junctions must lie on the
-track. Retraced dead-end spurs (routing artefacts) are refused. Also refuses GPX files that
-the index does not list. `--fix-hashes` rewrites SHA-256 values and computed stats.
-"""
 import argparse, hashlib, json, math, re, subprocess, sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -21,7 +12,6 @@ MAX_NOTE = 260
 SPUR_MIN_M = 50
 
 def write_index(path, index):
-    """Pretty JSON with each [lat, lon] pair kept on one line."""
     text = json.dumps(index, indent=2, ensure_ascii=False)
     text = re.sub(r"\[\s+(-?[\d.]+),\s+(-?[\d.]+)\s+\]", r"[\1, \2]", text)
     path.write_text(text + "\n", encoding="utf-8")
@@ -32,11 +22,10 @@ def waypoint_names(path):
         [(float(w.get("lat")), float(w.get("lon"))) for w in root.iter(NS + "wpt")]
 
 def spurs(points):
-    """Retraced dead ends: the track goes out along a line and comes straight back over it."""
     out = []; k = 1
     while k < len(points) - 1:
         tip = k; far = k + 1
-        if far < len(points) and meters(points[tip], points[far]) <= 1: far += 1  # a doubled tip vertex
+        if far < len(points) and meters(points[tip], points[far]) <= 1: far += 1
         r = 1
         while tip - r >= 0 and far + r - 1 < len(points) and meters(points[tip - r], points[far + r - 1]) <= 3: r += 1
         r -= 1
@@ -110,7 +99,7 @@ def check_gpx(path, problems):
     return points
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Validate the open route catalog in routes/.")
     parser.add_argument("--fix-hashes", action="store_true")
     args = parser.parse_args()
     problems = []
@@ -128,7 +117,6 @@ def main():
         if not entry.get("name", {}).get("en"): problems.append(f"{rid}: an English name is required")
         path = ROOT / f; listed.add(path.resolve())
         if not path.is_file(): problems.append(f"{rid}: missing {f}"); continue
-        # A file only on disk passes locally but is missing from the repository (e.g. ignored *.gpx).
         tracked = subprocess.run(["git", "ls-files", "--error-unmatch", str(path)], cwd=ROOT, capture_output=True)
         ignored = subprocess.run(["git", "check-ignore", "-q", str(path)], cwd=ROOT, capture_output=True)
         if ignored.returncode == 0: problems.append(f"{rid}: {f} is git-ignored; it would not be published")

@@ -39,7 +39,6 @@ import com.runline.app.ai.AiActivityCompletion
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
-/** Editing never delays recording finalization: this sheet receives an already-saved session. */
 class ActivityDetailsEditor(
     private val activity: AppCompatActivity,
     private val run: RunSession,
@@ -150,7 +149,6 @@ class ActivityDetailsEditor(
     }
 
     fun show() { dialog.show(); updateState() }
-    /** Root calls this on Activity destruction; explicit dismissal uses the close control. */
     fun close() { retainDraft = true; closed = true; if (model.listener === listener) model.listener = null; dialog.dismiss() }
     fun saveState() = Bundle().apply {
         putString("runId", run.id); putString("title", title.second.text.toString()); putString("description", description.second.text.toString())
@@ -262,7 +260,6 @@ class ActivityDetailsEditor(
     companion object { const val REQUEST_PHOTOS = 3104 }
 }
 
-/** Only small metadata crosses recreation; photo decoding/import/saving stays on a worker. */
 class ActivityDetailsEditModel : ViewModel() {
     internal var listener: (() -> Unit)? = null
     internal var initial = ActivityDetails()

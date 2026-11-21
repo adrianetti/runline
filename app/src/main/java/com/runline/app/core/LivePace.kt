@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** Recent GPS pace for the display only. Never changes stored samples or coaching. */
 object LivePace {
     fun secondsPerKm(points: List<RunPoint>, nowMs: Long): Double? {
         val last = points.lastOrNull() ?: return null

@@ -8,12 +8,6 @@ import kotlin.math.max
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/**
- * Direction of travel, clockwise from true north, derived only from accepted GPS fixes.
- * This is not the direction the phone is facing. A distance/accuracy deadband prevents
- * stationary GPS jitter from spinning the arrow; the last observed course survives a stop.
- * Pauses, missing GPS, invalid samples and clock regressions require a fresh baseline.
- */
 class GpsCourse {
     var bearingDegrees: Double? = null
         private set
@@ -33,13 +27,12 @@ class GpsCourse {
             return
         }
         val last = previous
-        if (point == last) return // UI timer updates may repeat the same accepted GPS fix.
+        if (point == last) return
         val elapsed = last?.let { point.timestampMs - it.timestampMs }
         if (last == null || point.segment != last.segment || elapsed == null || elapsed !in 1L..15_000L) {
             restartAt(point)
             return
         }
-        // Defensive guard: a discontinuity must not appear as a direction of travel.
         if (distance(last, point) > 15.0 * elapsed / 1_000.0 + last.accuracyMeters + point.accuracyMeters) {
             restartAt(point)
             return
@@ -54,7 +47,6 @@ class GpsCourse {
         val distance = distance(baseline, point)
         val minimumDistance = max(6.0, 1.5 * hypot(baseline.accuracyMeters.toDouble(), point.accuracyMeters.toDouble()))
         if (distance < minimumDistance) return
-        // Slow wandering across the deadband while stopped is not reliable heading.
         if (duration > 0L && distance / (duration / 1_000.0) >= 0.6) {
             val start = Math.toRadians(baseline.latitude)
             val end = Math.toRadians(point.latitude)

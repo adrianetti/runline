@@ -7,7 +7,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlin.math.roundToInt
 
-/** Scrolling edits content; only Back or the visible close control dismisses it. */
 internal object StableSheet {
     fun configure(dialog: BottomSheetDialog, activity: AppCompatActivity, heightFraction: Float = .92f) {
         dialog.setCanceledOnTouchOutside(false)
@@ -24,8 +23,6 @@ internal object StableSheet {
                         view.layoutParams = view.layoutParams.apply { this.height = height }
                     }
                 }
-                // The dialog window shrinks for the keyboard. Keep fixed actions inside
-                // that visible window instead of leaving them below the IME.
                 val resize = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitAvailableHeight() }
                 container?.addOnLayoutChangeListener(resize)
                 view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {

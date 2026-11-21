@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Spoken coach. Kept short: heard once, mid-run, often over music. -->
     <string name="v17_coach_split">That one took %1$d minutes %2$d seconds.</string>
     <string name="v17_coach_split_faster">%1$d seconds faster than the one before.</string>
     <string name="v17_coach_split_slower">%1$d seconds slower than the one before.</string>
@@ -25,7 +24,6 @@
     <string name="v17_coach_final_distance">%1$d metres to go.</string>
     <string name="v17_coach_summary">%1$s in %2$s, average %3$s.</string>
 
-    <!-- Stops and auto-pause -->
     <string name="v17_stopped">Stopped</string>
     <string name="v17_stopped_auto_paused">Stopped · auto-paused</string>
     <string name="v17_auto_pause">Auto-pause at stops</string>
@@ -37,7 +35,6 @@
         <item quantity="other">%1$d · %2$s</item>
     </plurals>
 
-    <!-- Runner profile -->
     <string name="v17_profile_from_activities">From your activities</string>
     <string name="v17_profile_snapshot_volume">%1$d runs in 28 days · %2$s km/week</string>
     <string name="v17_profile_snapshot_pace">Longest %1$s km · typical %2$s/km</string>
@@ -51,7 +48,6 @@
     <string name="v17_profile_ai_updating">Updating…</string>
     <string name="v17_profile_ai_failed">Couldn\'t update. Try again later.</string>
 
-    <!-- Export -->
     <string name="v17_download_gpx">Download GPX</string>
     <string name="v17_share_gpx">Share GPX</string>
     <string name="v17_save_gpx">Save GPX to…</string>

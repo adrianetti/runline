@@ -1,11 +1,6 @@
 package com.runline.app.core
 
-/**
- * The part of a replayed route already covered by its arrow, so the map can draw the path
- * behind the arrow as it moves. [route] is in replay order: segment, then time.
- */
 object ReplayTrail {
-    /** Index of the last fix at or before the arrow; -1 without an arrow. O(log n). */
     fun passed(route: List<RunPoint>, arrow: RunPoint?): Int {
         if (arrow == null) return -1
         var low = 0; var high = route.lastIndex; var found = -1
@@ -19,11 +14,6 @@ object ReplayTrail {
         return found
     }
 
-    /**
-     * Index of the last fix at least [meters] of track behind [passed], for the map trail during
-     * playback. It never reaches back past the start of the arrow's segment: there it is the
-     * previous segment's last fix (or -1), so an earlier segment is always drawn complete.
-     */
     fun behind(route: List<RunPoint>, passed: Int, meters: Double): Int {
         if (passed < 0 || passed > route.lastIndex) return passed
         val segment = route[passed].segment
@@ -35,7 +25,6 @@ object ReplayTrail {
         return if (covered >= meters) index else index - 1
     }
 
-    /** From the end of the drawn trail to the arrow itself, never across a segment break. */
     fun head(route: List<RunPoint>, trailEnd: Int, passed: Int, arrow: RunPoint?): List<RunPoint> {
         if (arrow == null || passed < 0 || passed > route.lastIndex) return emptyList()
         return route.subList(trailEnd.coerceIn(0, passed), passed + 1).filter { it.segment == arrow.segment } + arrow

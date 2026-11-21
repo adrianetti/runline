@@ -4,34 +4,19 @@ import kotlin.math.*
 
 enum class TurnKind { BEAR_LEFT, BEAR_RIGHT, LEFT, RIGHT, SHARP_LEFT, SHARP_RIGHT, TURN_AROUND, ZIGZAG }
 
-/** A point where the route changes direction. [angleDegrees] is signed: positive turns right. */
 data class RouteManeuver(
     val alongMeters: Double,
     val kind: TurnKind,
     val angleDegrees: Double,
-    /** For [TurnKind.ZIGZAG]: how far the switchbacks continue. */
     val lengthMeters: Double = 0.0,
 )
 
-/**
- * Turns derived from route geometry alone. The route is resampled every 5 m, and the
- * bearing of the 20 m before a 20 m window is compared with the 20 m after it. A change of
- * 35° or more is a turn. Turns within 30 m merge. Opposite turns within 30 m, or gentle ones
- * (under 60°) within 50 m, are a jog judged by their net change. Runs of switchbacks
- * become one zig-zag cue. A reversal is "turn around" only when the path really retraces
- * itself; a hairpin bend into a ravine is a sharp turn.
- *
- * With [junctions] (catalog routes list where they meet other paths), a turn away from
- * any junction is a bend in a single path and is not a manoeuvre.
- */
 object RouteManeuvers {
     const val STEP = 5.0
     const val WINDOW = 20.0
     const val ARM = 20.0
     const val THRESHOLD = 35.0
-    /** Same-direction turns closer than this are one turn. */
     const val MERGE = 30.0
-    /** Opposite turns closer than this are a jog around something, judged by their net change. */
     const val JOG = 50.0
     const val END_MARGIN = 15.0
     const val JUNCTION_RADIUS = 20.0
@@ -73,7 +58,6 @@ object RouteManeuvers {
         private fun bearing(a: DoubleArray, b: DoubleArray) = Math.toDegrees(atan2(b[0] - a[0], b[1] - a[1]))
         private fun gap(a: DoubleArray, b: DoubleArray) = hypot(a[0] - b[0], a[1] - b[1])
 
-        /** Bearing change from the arm ending at [from] to the arm starting at [to]; 0 if an arm is too short. */
         fun change(from: Double, to: Double): Double {
             val a = at(from - ARM); val b = at(from); val c = at(to); val d = at(to + ARM)
             if (gap(a, b) < 8 || gap(c, d) < 8) return 0.0
@@ -87,7 +71,6 @@ object RouteManeuvers {
                 val s = k * STEP
                 if (s < END_MARGIN || s > total - END_MARGIN) 0.0 else change(s - WINDOW / 2, s + WINDOW / 2)
             }
-            // Neighbouring samples over the threshold are one turn; a reversal may flip sign at ±180°.
             val turns = ArrayList<Turn>()
             var k = 0
             while (k <= n) {
@@ -107,7 +90,6 @@ object RouteManeuvers {
                 if (p != null && !p.retrace && !t.retrace && sign(p.angle) == sign(t.angle) && gap < MERGE) {
                     p.along = (p.along + t.along) / 2; p.angle = change(p.along - gap / 2 - WINDOW / 2, p.along + gap / 2 + WINDOW / 2); continue
                 }
-                // A wiggle around a tree or rock, not two real turns such as a street offset.
                 val wiggle = gap < MERGE || (gap < JOG && p != null && abs(p.angle) < 60 && abs(t.angle) < 60)
                 if (p != null && !p.retrace && !t.retrace && sign(p.angle) != sign(t.angle) && wiggle) {
                     val net = change(p.along - WINDOW / 2, t.along + WINDOW / 2)
@@ -125,7 +107,6 @@ object RouteManeuvers {
             return zigzags(kept)
         }
 
-        /** A ±180° change: a true reversal retraces the way it came; a hairpin bend does not. */
         private fun hairpin(s: Double): Turn {
             val before = at(s - 30); val after = at(s + 30); val inbound = at(s - 30 - ARM)
             val cross = (before[0] - inbound[0]) * (after[1] - before[1]) - (before[1] - inbound[1]) * (after[0] - before[0])

@@ -15,7 +15,6 @@ import com.runline.app.core.RunPoint
 import com.runline.app.core.RunReplay
 import kotlin.math.roundToInt
 
-/** Quiet, truthful terrain context behind the numbers. No height samples means no trace. */
 internal class ElevationIsland(context: Context) : LinearLayout(context) {
     var maxHeight = Int.MAX_VALUE
     private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -87,7 +86,6 @@ internal class ElevationIsland(context: Context) : LinearLayout(context) {
         val minimum = heights.minOrNull()
         val high = heights.maxOrNull()
         if (width <= 0 || height <= 0 || minimum == null || high == null || trace.durationMs <= 0) { invalidate(); return }
-        // A subtle whole-run backdrop: at least 10 m tall, centred, so flat runs stay flat.
         range = (high - minimum).coerceAtLeast(10.0)
         low = minimum + (high - minimum) / 2 - range / 2
         val bounds = Rect()

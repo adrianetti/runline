@@ -18,7 +18,6 @@ class MusicIntensityTest {
     @Test fun warmUpIsCalmerThanTheRunThatFollows() {
         val engine = MusicIntensity()
         assertEquals(MusicTarget(2), engine.update(running(activeMin = 1), 0))
-        // The new level must hold before it counts.
         assertEquals(2, engine.update(running(activeMin = 5), 4 * minute).intensity)
         assertEquals(3, engine.update(running(activeMin = 6), 4 * minute + MusicIntensity.SETTLE_MS).intensity)
     }
@@ -34,7 +33,6 @@ class MusicIntensityTest {
         assertEquals(3, engine.update(running(pace = 380.0, paceMax = 360.0), 30_000).intensity)
         engine.update(running(pace = 380.0, paceMax = 360.0), MusicIntensity.BEHIND_MS)
         assertEquals(MusicTarget(4), engine.update(running(pace = 380.0, paceMax = 360.0), MusicIntensity.BEHIND_MS + MusicIntensity.SETTLE_MS))
-        // A few seconds over the goal is on pace.
         assertEquals(3, MusicIntensity().also { it.update(running(pace = 366.0, paceMax = 360.0), 0) }.update(running(pace = 366.0, paceMax = 360.0), 10 * minute).intensity)
     }
     @Test fun aSustainedClimbRaisesEnergyAndAShortBumpDoesNot() {
@@ -53,7 +51,6 @@ class MusicIntensityTest {
         assertEquals(5, engine.update(running(progress = .99), 2_000).intensity)
         engine.update(running(progress = 1.0), 3_000)
         assertEquals(MusicTarget(2), engine.update(running(progress = 1.02), 3_000 + MusicIntensity.SETTLE_MS))
-        // An easy run ends a little brighter, never all out and never by cutting a song.
         assertEquals(MusicTarget(3), MusicIntensity().also { it.update(running(effort = SmartRunEffort.EASY, progress = .9), 0) }
             .update(running(effort = SmartRunEffort.EASY, progress = .9), minute))
     }
@@ -65,7 +62,6 @@ class MusicIntensityTest {
         assertEquals(3, engine.update(running(), 0).intensity)
     }
     @Test fun factsComeFromTheRecordingAndTheAppliedGoal() {
-        // 2.5 m/s north for two minutes: 300 m, 6:40 per km.
         val points = (0..120).map { RunPoint(37.0 + it * 2.5 / 111_320.0, -3.6, 1_000_000L + it * 1000L, 5f) }
         val run = RunSession("run", 1_000_000L, 1_120_000L, 120_000L, points)
         val distance = MusicFacts.from(run, CoachConfig(goal = CoachGoal.DISTANCE, distanceKm = 3.0), uphill = true, stopped = false, gpsFresh = true)
@@ -82,7 +78,6 @@ class MusicIntensityTest {
         assertEquals(333.3, MusicFacts.recentPace(moving)!!, 4.0)
         assertNull(MusicFacts.recentPace(moving.take(10)))
         assertNull(MusicFacts.recentPace(emptyList()))
-        // Only the stretch after the pause counts, and ten seconds of it is too little.
         val resumed = moving + (41..50).map { RunPoint(37.0 + it * 3.0 / 111_320.0, -3.6, it * 1000L, 5f, segment = 1) }
         assertNull(MusicFacts.recentPace(resumed))
     }

@@ -36,26 +36,21 @@ class HikingRouteTest {
             "<kml><Document/></kml>", gpx("<trk><trkseg><trkpt lat=\"1\" lon=\"1\"/></trkseg></trk>"),
             gpx("<trk><trkseg><trkpt lat=\"1\" lon=\"1\"></trk>"), "<gpx><trk>")
         bad.forEach { assertTrue(it.take(40), runCatching { GpxRouteReader.read(it) }.isFailure) }
-        // A malformed point is skipped, not fatal.
         val skipped = GpxRouteReader.read(gpx("<trk><trkseg><trkpt lat=\"x\" lon=\"1\"/><trkpt lat=\"1\" lon=\"1\"/><trkpt lat=\"1.001\" lon=\"1\"/></trkseg></trk>"))
         assertEquals(2, skipped.points.size)
     }
 
     @Test fun `estimates follow Tobler and rate effort kilometres`() {
-        // 5 km flat: Tobler gives ~5.04 km/h on the flat, so about an hour.
         val flat = HikingRoute.of("flat", "Flat", (0..100).map { Triple(37.0 + it * 0.00045, -3.6, 700.0) })
         assertEquals(5.0, flat.distanceMeters / 1000, 0.05)
         assertEquals(60.0, flat.stats.estimatedMinutes.toDouble(), 3.0)
         assertEquals(RouteDifficulty.EASY, flat.stats.difficulty)
-        // The same distance climbing 500 m takes much longer and is harder.
         val climb = HikingRoute.of("climb", "Climb", (0..100).map { Triple(37.0 + it * 0.00045, -3.6, 700.0 + it * 5.0) })
         assertEquals(500.0, climb.stats.ascentMeters!!, 1.0)
-        // Tobler at 10%: ~3.55 km/h, so ~85 min for 5 km.
         assertEquals(85.0, climb.stats.estimatedMinutes.toDouble(), 4.0)
         assertTrue(climb.stats.estimatedMinutes > flat.stats.estimatedMinutes + 20)
         assertEquals(RouteDifficulty.MODERATE, climb.stats.difficulty)
         assertEquals(500.0, climb.ascentAt.last(), 1.0); assertEquals(0.0, climb.ascentAt.first(), 0.0)
-        // Without heights the estimate falls back to the flat speed.
         assertNull(HikingRoute.of("none", "None", (0..10).map { Triple(37.0 + it * 0.001, -3.6, null) }).stats.ascentMeters)
     }
 
@@ -99,7 +94,6 @@ class HikingRouteTest {
             assertTrue(b, runCatching { RouteCatalog.parse(good.replaceFirst(a, b)) }.isFailure)
         }
         assertTrue(runCatching { RouteCatalog.parse(good.replaceFirst("[37.", "[137.")) }.isFailure)
-        // Older catalogs without notes or junctions still parse.
         val plain = RouteCatalog.parse(good.replace(Regex(",\\s*\"places\": \\[.*?\\n      \\]", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex(",\\s*\"junctions\": \\[.*?\\n      \\]", RegexOption.DOT_MATCHES_ALL), "")).routes.single()
         assertTrue(plain.places.isEmpty()); assertNull(plain.junctions)
@@ -108,7 +102,6 @@ class HikingRouteTest {
     @Test fun `sunset in Granada and polar night`() {
         val day = LocalDate.of(2026, 11, 6).toEpochDay()
         val sunset = SunTimes.sunset(day, 37.1773, -3.5986)!!
-        // About 17:13 UTC (18:13 local) in early November.
         val utc = java.time.Instant.ofEpochMilli(sunset).atZone(java.time.ZoneOffset.UTC)
         assertEquals(LocalDate.of(2026, 11, 6), utc.toLocalDate())
         val minutes = utc.hour * 60 + utc.minute

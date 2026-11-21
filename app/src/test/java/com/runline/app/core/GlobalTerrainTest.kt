@@ -75,7 +75,6 @@ class GlobalTerrainTest {
         val zoom = WorldTileKey.zoom(point.latitude)
         val row = WorldTileKey.pixels(point.latitude, point.longitude, zoom)!!.second
         val pixel = 40075016.686 * cos(Math.toRadians(point.latitude)) / ((1 shl zoom) * 256)
-        // Height rises to the north (lower pixel rows) at [grade].
         fun slope(grade: Double) = WorldTileKey.needed(point).associateWith { key ->
             WorldTerrainGrid.fromArgb(IntArray(65536) { i -> argb(2000 + (row - (key.y * 256 + i / 256 + .5)) * pixel * grade) })
         }

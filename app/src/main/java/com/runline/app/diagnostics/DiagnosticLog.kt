@@ -4,7 +4,6 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
-/** Bounded append-only JSONL. A torn final line is ignored; diagnostics never own a recording. */
 class DiagnosticLog(private val folder: File) {
     init { folder.mkdirs() }
     private fun file(id: String): File {
@@ -21,7 +20,6 @@ class DiagnosticLog(private val folder: File) {
             FileOutputStream(temp).use { it.write(kept.toByteArray()); it.fd.sync() }
             check(temp.renameTo(target));
         }
-        // Separate a previously torn line from the new event.
         FileOutputStream(target, true).use { it.write('\n'.code); it.write(bytes); it.fd.sync() }
         folder.listFiles { f -> f.extension == "jsonl" && f.name != "usage.jsonl" }.orEmpty()
             .sortedByDescending { it.lastModified() }.drop(100).forEach { it.delete() }

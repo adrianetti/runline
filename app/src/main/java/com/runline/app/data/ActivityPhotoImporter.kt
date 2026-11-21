@@ -16,7 +16,6 @@ import java.nio.file.StandardCopyOption
 import java.util.UUID
 import kotlin.math.max
 
-/** Bounded, private JPEG copies; no provider URI, EXIF location or original filename is retained. */
 object ActivityPhotoImporter {
     fun import(context: Context, runId: String, uri: Uri): String {
         val store = RunStore(context)

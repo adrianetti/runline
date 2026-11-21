@@ -4,7 +4,6 @@ import kotlin.math.*
 
 enum class TerrainSource { GPS, TERRAIN_MAP, UNKNOWN }
 
-/** A kilometre-aligned area, never a route or timestamp sent to the provider. */
 data class TerrainTileKey(val eastKm: Int, val northKm: Int) {
     val name get() = "mdt05-v1-$eastKm-$northKm"
     val west get() = eastKm * 1000.0 - 50
@@ -17,7 +16,6 @@ data class TerrainTileKey(val eastKm: Int, val northKm: Int) {
     }
 }
 
-/** ETRS89 / UTM 30N (GRS80). Initial coverage: mainland Spain and Balearic Islands. */
 object SpainTerrainProjection {
     fun project(latitude: Double, longitude: Double): Pair<Double, Double>? {
         if (!latitude.isFinite() || !longitude.isFinite() || latitude !in 35.7..43.9 || longitude !in -9.6..4.5) return null
@@ -33,7 +31,6 @@ object SpainTerrainProjection {
     }
 }
 
-/** Strict, bounded Arc/Info ASCII reader; supports IGN's multipart response without an XML parser. */
 class TerrainGrid private constructor(val columns: Int, val rows: Int, val west: Double, val south: Double,
                                       val cell: Double, private val heights: FloatArray) {
     fun at(east: Double, north: Double): Double? {
@@ -78,35 +75,15 @@ class TerrainGrid private constructor(val columns: Int, val rows: Int, val west:
     }
 }
 
-/**
- * The ground a fix may stand on: its centre and eight probes at the GPS uncertainty radius.
- * Heights spread over more than 3 m there are ambiguous at a bridge, wall or embankment,
- * but not on an even hillside, where a path cut across the slope always has that spread.
- */
 object TerrainFootprint {
-    /** Probes may stray this far from the best plane through them, or a tenth of the radius. */
     const val PLANE_METERS = 1.0
-    /** No steeper than this: open hillside, not a cliff or a wall. */
     const val HILLSIDE_GRADE = .7
-    /** How far up and down the slope the ground is checked to keep falling. */
     const val REACH_METERS = 20.0
-    /** Over that reach the ground keeps at least this share of the local slope. */
     const val SUSTAINED = .5
 
-    /** Metres (east, north): the centre first, then four sides and four diagonals. */
     fun offsets(radius: Double): List<Pair<Double, Double>> = listOf(0.0 to 0.0, radius to 0.0, -radius to 0.0, 0.0 to radius, 0.0 to -radius,
         radius * .707 to radius * .707, -radius * .707 to radius * .707, radius * .707 to -radius * .707, -radius * .707 to -radius * .707)
 
-    /**
-     * True when the footprint is an even hillside: one tilted plane explains every height
-     * within [PLANE_METERS] (more for a wide footprint, which spans more of the slope's natural
-     * curve), the plane is no steeper than [HILLSIDE_GRADE], and the ground
-     * [REACH_METERS] up and down the slope keeps falling. The bank of a bridge, underpass or
-     * embankment is a step a few metres high that flattens out on both sides, so it stays
-     * ambiguous. On a hillside the height at the fix is off by about the slope times the
-     * GPS error, which is far better than no height at all.
-     * [sample] gives the model height at metres (east, north) from the fix.
-     */
     fun hillside(offsets: List<Pair<Double, Double>>, heights: List<Double>, sample: (Double, Double) -> Double?): Boolean {
         if (offsets.size != heights.size || offsets.size < 4 || heights.any { !it.isFinite() }) return false
         val mx = offsets.sumOf { it.first } / offsets.size; val my = offsets.sumOf { it.second } / offsets.size
@@ -129,7 +106,6 @@ object TerrainFootprint {
     }
 }
 
-/** Immutable map snapshot. Missing/ambiguous cells stay missing; GPS heights are never substituted. */
 class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val grids: Map<TerrainTileKey, TerrainGrid>,
                          private val world: Map<WorldTileKey, WorldTerrainGrid> = emptyMap()) {
     val hasTiles get() = grids.isNotEmpty() || world.isNotEmpty()
@@ -145,21 +121,15 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
                 val values = offsets.map { (dx, dy) -> grid.at(xy.first + dx, xy.second + dy) }
                 val known = values.filterNotNull()
                 val spread = if (known.size >= 2) known.max() - known.min() else 0.0
-                // Reject steep edges/ambiguous location footprints, not a park-specific grade.
-                // An even hillside is not ambiguous: one tilted plane explains it.
                 if (values.all { it != null } && (spread <= 3.0 || TerrainFootprint.hillside(offsets, known) { dx, dy -> grid.at(xy.first + dx, xy.second + dy) }))
                     { height = values.first(); model = TerrainModel.IGN_MDT05 }
-                // A bridge deck, the road below it, an underpass ramp or a wall share this
-                // footprint. Coarser global data would only blur them and mix references.
                 else if (values.first() != null && spread > 3.0)
                     return original.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = TerrainModel.STRUCTURE)
             }
             if (height == null) {
                 val radius = original.accuracyMeters.toDouble().coerceAtLeast(5.0)
-                // All uncertainty probes use the center's resolution, including at zoom-band boundaries.
                 val zoom = WorldTileKey.zoom(original.latitude)
                 val dLat = radius / 111195.08; val dLon = dLat / cos(Math.toRadians(original.latitude))
-                // The same footprint in metres (east, north), so the hillside test reads it alike.
                 fun sample(east: Double, north: Double) =
                     sampleWorld(world, original.latitude + north / radius * dLat, ((original.longitude + east / radius * dLon + 540) % 360) - 180, zoom)
                 val offsets = TerrainFootprint.offsets(radius)
@@ -172,7 +142,6 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
         return original.copy(altitudeMeters = height, verticalAccuracyMeters = null, terrainModel = model)
     }
 
-    /** The detailed model at the fix itself, without the footprint check. Structure levels only. */
     fun ground(point: RunPoint): Double? {
         if (!enabled) return null
         val xy = SpainTerrainProjection.project(point.latitude, point.longitude) ?: return null
@@ -183,21 +152,12 @@ class TerrainMapSnapshot(val revision: Long, val enabled: Boolean, private val g
         elevationSource = TerrainSource.TERRAIN_MAP)
 }
 
-/**
- * Heights next to an ambiguous structure may describe its deck, the road below or the
- * slope between, so [apply] hides them for a short distance on both sides, and [resolve]
- * then finds the runner's level from the clean heights around them. Display and
- * analysis only; recorded GPS observations are never changed.
- */
 object TerrainStructureGuard {
     const val MARGIN_METERS = 15.0
-    /** Longer hidden stretches stay unknown: a straight join would be a guess. */
     const val MAX_LEVEL_SPAN_METERS = 250.0
-    /** Steeper than this over [GRADE_WINDOW_METERS], the model is not the surface underfoot. */
     const val RUNNABLE_GRADE = .15
     const val GRADE_WINDOW_METERS = 10.0
     const val MAX_JOIN_GRADE = .30
-    /** A model dip or hump beyond this, below or above the join, names the level. */
     const val LEVEL_METERS = 1.5
 
     private class Continuity(points: List<RunPoint>) {
@@ -233,15 +193,6 @@ object TerrainStructureGuard {
         }
     }
 
-    /**
-     * Gives each hidden stretch from [apply] a level, using clean detailed heights on both
-     * sides. A runner's road never jumps: where the model's own heights through the
-     * stretch stay runnable, they are the surface (a ramp beside a wall, a road under a
-     * viaduct). Otherwise the model holds a different level than the runner's: lower
-     * ground under a deck ([TerrainLevel.ABOVE]) or an embankment over a passage
-     * ([TerrainLevel.BELOW]), and the runner's height is the join between the clean sides.
-     * Stretches without clean heights on both sides stay unknown. Display and analysis only.
-     */
     fun resolve(points: List<RunPoint>, ground: (RunPoint) -> Double?): List<RunPoint> {
         if (points.none { it.terrainModel == TerrainModel.STRUCTURE }) return points
         val continuity = Continuity(points)
@@ -295,7 +246,6 @@ object TerrainStructureGuard {
         return true
     }
 
-    /** Causal form for live coaching: only the distance after a structure can be hidden. */
     class Live {
         private var previous: RunPoint? = null
         private var traveled = 0.0
@@ -313,7 +263,6 @@ object TerrainStructureGuard {
     }
 }
 
-/** Retains point identity and only projects appended fixes until the map snapshot changes. */
 class TerrainProjector {
     private var revision = -1L; private var id: String? = null; private var originals = emptyList<RunPoint>()
     private var derived = emptyList<RunPoint>()
@@ -330,6 +279,5 @@ class TerrainProjector {
     }
 }
 
-/** Never send uncorroborated GPS elevation to an AI coach as terrain evidence. */
 fun RunSession.withTrustedElevation(): RunSession = if (elevationSource == TerrainSource.TERRAIN_MAP) this
     else copy(points = points.map { it.copy(altitudeMeters = null, verticalAccuracyMeters = null, terrainModel = null) }, elevationSource = TerrainSource.UNKNOWN)

@@ -29,7 +29,6 @@ import java.util.UUID
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
-/** Retains parsing/saving across rotation without retaining an Activity or its views. */
 class RouteImportModel(application: Application) : AndroidViewModel(application) {
     sealed class State {
         data object Reading : State()
@@ -49,11 +48,9 @@ class RouteImportModel(application: Application) : AndroidViewModel(application)
         state.value = State.Reading
         worker.execute {
             val result = runCatching {
-                // The process may have died just after confirmation committed this stable draft ID.
                 if (store.entry(id, "en") != null) State.Saved(id) else {
                     val draft = store.prepareImport(uri, id)
                     val shape = RouteImportNaming.shape(draft.route)
-                    // A name from the file wins, so only ask the geocoder when the suggestion needs places.
                     val places = if (draft.suppliedName != null) emptyList()
                     else runCatching { placeLookup.lookup(RouteImportNaming.namingPoints(draft.route, shape), locale) }.getOrDefault(emptyList())
                     State.Ready(draft, shape, places)
@@ -75,7 +72,6 @@ class RouteImportModel(application: Application) : AndroidViewModel(application)
     override fun onCleared() { worker.shutdownNow() }
 }
 
-/** A single decision: keep/edit the suggested name, then add. Cancel never saves the draft. */
 class RouteImportDialog : DialogFragment() {
     private lateinit var model: RouteImportModel
     private lateinit var input: TextInputEditText
@@ -100,10 +96,8 @@ class RouteImportDialog : DialogFragment() {
         field = TextInputLayout(context).apply { hint = getString(R.string.route_import_name) }
         input = TextInputEditText(field.context).apply {
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            // Long suggested names wrap instead of scrolling sideways; Enter still confirms the keyboard.
             setHorizontallyScrolling(false); maxLines = 3
             filters = arrayOf(InputFilter.LengthFilter(RouteImportNaming.MAX_NAME))
-            // Tapping the suggestion selects it, so typing replaces it in one go.
             setSelectAllOnFocus(true)
             setText(savedInstanceState?.getString("name").orEmpty())
         }
@@ -145,7 +139,6 @@ class RouteImportDialog : DialogFragment() {
                 val route = state.draft.route
                 val words = RouteImportNaming.Words(getString(R.string.route_name_loop), getString(R.string.route_name_out_back), getString(R.string.route_name_route))
                 suggestion = state.draft.suppliedName ?: RouteImportNaming.suggestion(route, state.shape, state.places, words, locale())
-                // A glance that the right file was picked: shape, distance and climb.
                 val km = String.format(locale(), "%.1f", route.distanceMeters / 1000)
                 val facts = listOfNotNull(RouteFormat.shape(requireContext(), state.shape), getString(R.string.v19_km, km),
                     route.stats.ascentMeters?.let { getString(R.string.v19_ascent_short, it.roundToInt()) }).joinToString(" · ")

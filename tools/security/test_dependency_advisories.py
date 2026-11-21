@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Offline fixtures for fail-closed matching, pagination, and HTTP failures."""
 import contextlib
 import http.client
 import io

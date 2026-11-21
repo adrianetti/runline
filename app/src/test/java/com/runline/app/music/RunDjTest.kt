@@ -23,7 +23,6 @@ class RunDjTest {
         val dj = RunDj()
         assertNull(dj.decide(playing(steady.uri, progressMs = 60_000), MusicTarget(4), config, 0))
         assertEquals(RunDj.POLL_MS, dj.pollInMs)
-        // Close to the end: look again just after the next song starts.
         assertNull(dj.decide(playing(steady.uri, progressMs = 190_000), MusicTarget(4), config, 10_000))
         assertEquals(11_200L, dj.pollInMs)
         assertEquals(push.uri, dj.decide(playing(steady.uri, progressMs = 1_500), MusicTarget(4), config, 21_000))
@@ -38,7 +37,6 @@ class RunDjTest {
         dj.started(0)
         assertNull(dj.decide(playing(calm.uri, progressMs = 1_000), MusicTarget(3), config, minute))
         assertEquals(steady.uri, dj.decide(playing(calm.uri, progressMs = 1_000), MusicTarget(3), config, RunDj.HOLD_MS))
-        // Final stretch: now, in the middle of a song, right after the last change.
         assertEquals(push.uri, dj.decide(playing(steady.uri, progressMs = 90_000), MusicTarget(5, true), config, RunDj.HOLD_MS + 5_000))
         assertNull(dj.decide(playing(push.uri, progressMs = 1_000), MusicTarget(2), config, RunDj.HOLD_MS + 20_000))
         assertEquals(calm.uri, dj.decide(playing(push.uri, progressMs = 1_000), MusicTarget(2), config, 2 * RunDj.HOLD_MS + 5_000))
@@ -49,7 +47,6 @@ class RunDjTest {
     }
     @Test fun aMissingMoodBorrowsItsNeighbour() {
         val two = MusicConfig(enabled = true, steady = steady, push = push)
-        // Calm falls back to steady, which is already playing.
         assertNull(RunDj().decide(playing(steady.uri, progressMs = 1_000), MusicTarget(1), two, 0))
         assertEquals(steady.uri, RunDj().decide(playing(push.uri, progressMs = 1_000), MusicTarget(2), two, 0))
     }

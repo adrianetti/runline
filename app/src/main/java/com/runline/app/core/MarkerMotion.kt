@@ -7,7 +7,6 @@ import kotlin.math.roundToLong
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Display-only movement between observed fixes. Never changes a recorded sample. */
 object MarkerMotion {
     fun canInterpolate(previous: RunPoint?, next: RunPoint?): Boolean {
         if (previous == null || next == null || previous.segment != next.segment) return false
@@ -24,7 +23,6 @@ object MarkerMotion {
         return distance <= 15.0 * span / 1_000.0 + previous.accuracyMeters + next.accuracyMeters
     }
 
-    /** One fix of visual latency; avoid lengthy catch-up after a slower GPS interval. */
     fun durationMs(previous: RunPoint, next: RunPoint): Long =
         (next.timestampMs - previous.timestampMs).coerceIn(300L, 1_500L)
 

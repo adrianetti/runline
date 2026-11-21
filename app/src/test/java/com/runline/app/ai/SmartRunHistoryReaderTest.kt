@@ -26,7 +26,7 @@ class SmartRunHistoryReaderTest {
         assertEquals(LocalDate.of(2026, 11, 3), readings.last().date)
         assertTrue(readings.last().distanceKm > .3)
         assertEquals(60_000L, readings.last().activeDurationMs)
-        assertNull(readings.last().elevationGainMeters) // Raw GPS height is not trusted terrain evidence.
+        assertNull(readings.last().elevationGainMeters)
     }
 
     @Test fun duplicatesNoGpsAndInvalidDurationsDoNotInflateTrainingVolume() {

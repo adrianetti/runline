@@ -1,13 +1,11 @@
 package com.runline.app.core
 
-/** Heights use exactly the replay's observed clock, even when a height is unusable. */
 class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>, latestIsObserved: Boolean) {
     data class Sample(val positionMs: Long, val heightMeters: Double)
     private data class Fix(val positionMs: Long, val point: RunPoint, val drawable: Boolean)
     val sections: List<List<Sample>>
     val durationMs: Long
     private val bySegment: List<List<Fix>>
-    /** Path distance per fix, so display scales can keep a true height/length aspect. */
     private val alongBySegment: List<DoubleArray>
     val latestCursor: Sample?
     val latestSegmentIndex: Int get() = bySegment.lastIndex
@@ -46,7 +44,6 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         latestCursor = if (latestIsObserved) at(clock, bySegment.lastIndex) else null
     }
 
-    /** Never bridges unknown heights, poor fixes, jumps, or an isolated endpoint. */
     fun at(positionMs: Long, segmentIndex: Int): Sample? {
         val fixes = bySegment.getOrNull(segmentIndex) ?: return null
         if (fixes.isEmpty() || positionMs < fixes.first().positionMs || positionMs > fixes.last().positionMs) return null
@@ -64,7 +61,6 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         return Sample(positionMs, a.point.altitudeMeters!! + (b.point.altitudeMeters!! - a.point.altitudeMeters) * fraction)
     }
 
-    /** Interpolated path distance within one replay segment; null outside it. */
     fun distanceAt(positionMs: Long, segmentIndex: Int): Double? {
         val fixes = bySegment.getOrNull(segmentIndex) ?: return null
         val along = alongBySegment.getOrNull(segmentIndex) ?: return null
@@ -84,8 +80,6 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         fun fromReplay(replay: RunReplay) = ObservedElevationTrace(replay.segments, true)
 
         fun fromPoints(points: List<RunPoint>): ObservedElevationTrace {
-            // The same accepted order/gap rule as RunReplay; height quality does not
-            // remove time. Trace breaks and cursor visibility are separate concerns.
             val segments = buildList {
                 continuousSegments(points).forEach { source ->
                     var segment = mutableListOf<RunPoint>()

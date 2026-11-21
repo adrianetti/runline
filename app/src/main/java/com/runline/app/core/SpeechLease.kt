@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** Small testable ownership boundary: every granted focus is released exactly once. */
 interface SpeechOutput {
     fun requestFocus(): Boolean
     fun abandonFocus()

@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** Goals use active recording time; explicit pauses are excluded. */
 enum class CoachGoal { NONE, DISTANCE, PACE, TIME, DISTANCE_TIME }
 
 data class CoachConfig(
@@ -34,7 +33,6 @@ data class CoachConfig(
     }
 
     companion object {
-        // Shared input support, not a recommended workout or a history-derived training ceiling.
         val DISTANCE_KM_RANGE = 0.1..500.0
         val DURATION_MINUTES_RANGE = 1.0..1440.0
         val PACE_SECONDS_RANGE = 60..3600

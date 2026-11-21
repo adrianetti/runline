@@ -2,7 +2,6 @@ package com.runline.app.ai
 
 import org.json.JSONObject
 
-/** Shared production request and validated card, also usable by bounded external test harnesses. */
 object ReviewAi {
     fun request(provider: CoachAiProvider, key: String, model: String, language: String, input: JSONObject): ReviewCard {
         val raw = provider.structuredMessage(key, model,

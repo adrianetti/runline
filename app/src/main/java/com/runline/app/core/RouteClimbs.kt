@@ -2,7 +2,6 @@ package com.runline.app.core
 
 import kotlin.math.*
 
-/** A sustained climb (positive [heightMeters]) or descent (negative) along a route. */
 data class RouteClimb(
     val startMeters: Double,
     val endMeters: Double,
@@ -10,16 +9,9 @@ data class RouteClimb(
 ) {
     val lengthMeters get() = endMeters - startMeters
     val uphill get() = heightMeters > 0
-    /** Average grade in percent, always positive. */
     val gradePercent get() = if (lengthMeters > 0) abs(heightMeters) / lengthMeters * 100 else 0.0
 }
 
-/**
- * Climbs and descents from a route profile. Heights are resampled every 25 m, and a 10 m
- * hysteresis keeps small bumps from splitting a climb. A flat stretch of 400 m or more (under
- * 2 m per 100 m) splits a section, so a long valley floor never becomes one endless descent. A
- * section counts when it changes at least 30 m at an average of 1.5% or more: 30 m within 2 km.
- */
 object RouteClimbs {
     const val STEP = 25.0
     const val HYSTERESIS = 10.0
@@ -30,7 +22,6 @@ object RouteClimbs {
     fun detect(route: HikingRoute): List<RouteClimb> {
         val heights = profile(route, 0.0, route.distanceMeters, STEP) ?: return emptyList()
         val out = ArrayList<RouteClimb>()
-        // Alternating extremes: a turning point is confirmed once the height moves 10 m back from it.
         var low = 0; var high = 0; var anchorIndex = 0; var extremeIndex = 0; var rising: Boolean? = null
         fun close(from: Int, to: Int) {
             val up = heights[to] > heights[from]
@@ -61,9 +52,8 @@ object RouteClimbs {
         return trim(out, heights)
     }
 
-    /** Pieces of [from]..[to] between flat stretches of at least [FLAT_SPLIT] metres. */
     private fun splitAtFlats(from: Int, to: Int, heights: DoubleArray): List<Pair<Int, Int>> {
-        val window = 4 // 100 m
+        val window = 4
         val minRun = (FLAT_SPLIT / STEP).roundToInt()
         val pieces = ArrayList<Pair<Int, Int>>()
         var start = from; var i = from
@@ -79,7 +69,6 @@ object RouteClimbs {
         return pieces
     }
 
-    /** Starts each section where the height actually begins to change, not on the flat before it. */
     private fun trim(sections: List<RouteClimb>, heights: DoubleArray): List<RouteClimb> = sections.map { c ->
         var from = (c.startMeters / STEP).roundToInt(); val to = (c.endMeters / STEP).roundToInt().coerceAtMost(heights.lastIndex)
         val up = c.uphill
@@ -89,14 +78,9 @@ object RouteClimbs {
         RouteClimb(from * STEP, end * STEP, heights[end] - heights[from])
     }
 
-    /** The climb you are in, or the next one starting within [lookAhead] metres. */
     fun next(climbs: List<RouteClimb>, doneMeters: Double, lookAhead: Double = 2000.0): RouteClimb? =
         climbs.firstOrNull { it.endMeters > doneMeters + 50 && it.startMeters <= doneMeters + lookAhead }
 
-    /**
-     * Heights every [step] metres from [from] to [to] along the route, interpolated between
-     * vertices. Null when less than half the route has heights.
-     */
     fun profile(route: HikingRoute, from: Double, to: Double, step: Double): DoubleArray? {
         val pts = route.points
         if (pts.count { it.elevationMeters != null } < max(2, pts.size / 2)) return null

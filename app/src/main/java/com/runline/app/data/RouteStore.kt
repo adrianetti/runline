@@ -20,7 +20,6 @@ import java.security.MessageDigest
 data class PreparedRouteImport(val id: String, val bytes: ByteArray, val route: HikingRoute,
                                val suppliedName: String?)
 
-/** A route as listed in the Routes tab. */
 data class RouteEntry(
     val id: String,
     val name: String,
@@ -34,11 +33,6 @@ data class RouteEntry(
     val shape: RouteImportNaming.Shape? = null,
 )
 
-/**
- * Routes to follow: the open catalog bundled with the app (refreshable from the public
- * repository, every file checked against the catalog's SHA-256) and GPX files the user
- * imported. All private storage; nothing here is a recording.
- */
 class RouteStore(context: Context) {
     private val app = context.applicationContext
     private val root = File(app.filesDir, "routes")
@@ -75,7 +69,6 @@ class RouteStore(context: Context) {
         return runCatching { HikingRoute.of(id, name, parsed.points, parsed.waypoints, parsed.description) }.getOrNull()?.also { cache[id] = it }
     }
 
-    /** The route's GPX bytes, exactly as published or imported. */
     fun gpx(id: String): ByteArray? {
         if (IMPORTED_ID.matches(id)) return runCatching { File(imported, "$id.gpx").readBytes() }.getOrNull()
         val entry = catalogEntry(id) ?: return null
@@ -93,7 +86,6 @@ class RouteStore(context: Context) {
     private fun catalogEntry(id: String): CatalogRoute? = runCatching { catalog().routes.firstOrNull { it.id == id } }.getOrNull()
     private fun importedName(id: String) = runCatching { JSONObject(File(imported, "$id.json").readText()).getString("name") }.getOrNull()
 
-    /** Reads and validates without saving anything. Off the main thread, including provider queries. */
     fun prepareImport(uri: Uri, id: String): PreparedRouteImport {
         require(uri.scheme == "content" && !uri.authority.isNullOrBlank())
         require(IMPORTED_ID.matches(id))
@@ -116,7 +108,6 @@ class RouteStore(context: Context) {
         return PreparedRouteImport(id, bytes, route, RouteImportNaming.suppliedName(parsed.name, fileName))
     }
 
-    /** Confirmation commits one stable ID, so recreation/retry cannot add the same draft twice. */
     fun commitImport(draft: PreparedRouteImport, requestedName: String): RouteEntry = synchronized(LOCK) {
         val id = draft.id
         require(IMPORTED_ID.matches(id))
@@ -147,11 +138,6 @@ class RouteStore(context: Context) {
         File(imported, "$id.gpx").delete(); File(imported, "$id.json").delete(); cache.remove(id)
     }
 
-    /**
-     * Downloads the current catalog from the public repository. A file is kept only when it
-     * matches the catalog's SHA-256; the catalog itself is replaced last. Off the main thread.
-     * Returns the number of routes available afterwards.
-     */
     fun refresh(): Int {
         val index = String(fetch(BASE_URL + "index.json", RouteCatalog.MAX_BYTES), Charsets.UTF_8)
         val catalog = RouteCatalog.parse(index)

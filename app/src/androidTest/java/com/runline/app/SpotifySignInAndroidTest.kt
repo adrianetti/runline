@@ -16,7 +16,6 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** The parts of the Spotify sign-in that need real intents and the package manager. No network, no Spotify. */
 @RunWith(AndroidJUnit4::class)
 class SpotifySignInAndroidTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
@@ -32,7 +31,6 @@ class SpotifySignInAndroidTest {
     @Test fun aResultWithoutACodeIsAnError() {
         assertEquals("no_code", SpotifyAppSignIn.reply(Activity.RESULT_OK, null).error)
         assertEquals("no_code", SpotifyAppSignIn.reply(Activity.RESULT_OK, Intent()).error)
-        // This app never asks for a token, so one is not accepted in place of a code.
         assertEquals("no_code", SpotifyAppSignIn.reply(Activity.RESULT_OK, answer("RESPONSE_TYPE" to "token", "ACCESS_TOKEN" to "BQD")).error)
         assertEquals(SpotifyPkce.AppReply(error = "INVALID_APP_ID"), SpotifyAppSignIn.reply(-2, Intent().putExtra("ERROR", "INVALID_APP_ID")))
         assertEquals(SpotifyPkce.AppReply(error = "unknown"), SpotifyAppSignIn.reply(-2, null))
@@ -42,14 +40,12 @@ class SpotifySignInAndroidTest {
         assertEquals(SpotifyPkce.AppReply(), SpotifyAppSignIn.reply(7, Intent().putExtra("ERROR", "ignored")))
     }
     @Test fun withoutSpotifyTheBrowserSignsInInItsOwnTask() {
-        // The test device has no Spotify, so there is nothing to hand the sign-in to.
         assertNull(SpotifyAppSignIn.intent(context, signIn))
         val browser = SpotifyAppSignIn.browser(context, signIn.url)
         assertEquals(Intent.ACTION_VIEW, browser.action); assertEquals(signIn.url, browser.dataString)
         assertTrue(browser.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         assertNotEquals(SpotifyAppSignIn.PACKAGE, browser.`package`); assertNotEquals("android", browser.`package`)
     }
-    /** The first thing a user without a registered fingerprint sees: it must name the way out. */
     @Test fun aRefusalFromSpotifyShowsItsErrorTheFingerprintAndTheBrowser() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val automation = instrumentation.uiAutomation

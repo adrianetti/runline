@@ -4,36 +4,23 @@ import kotlin.math.*
 
 enum class RouteState { APPROACHING, ON_ROUTE, OFF_ROUTE, FINISHED }
 
-/** Where the path is, relative to the direction of travel. */
 enum class RouteSide { AHEAD, RIGHT, BEHIND, LEFT }
 
 data class RouteProgress(
     val state: RouteState,
-    /** Distance along the route at the matched position. */
     val doneMeters: Double,
     val remainingMeters: Double,
-    /** Distance from the fix to the route (to its start while approaching). */
     val distanceFromRouteMeters: Double,
     val ascentRemainingMeters: Double?,
-    /** Steady-effort minutes left, scaled to the hiker's pace on this route after the first kilometre. */
     val minutesRemaining: Double,
-    /** Only when off route or approaching: where the path is from here. */
     val side: RouteSide?,
     val bearingToRouteDegrees: Double?,
     val nextWaypoint: RouteWaypoint?,
     val nextWaypointMeters: Double?,
-    /** True only on the update where [state] changed, so alerts fire once. */
     val changed: Boolean,
-    /** On the route but moving along it backwards for a while (turned round, or took the loop the other way). */
     val wrongWay: Boolean = false,
 )
 
-/**
- * Matches live fixes to a planned route. Each fix is projected onto the route and the
- * candidate closest to the *expected* progress wins, so overlapping out-and-back legs and
- * loops resolve correctly. Leaving the route needs 3 fixes over 10 s beyond a threshold
- * scaled to GPS accuracy; rejoining needs 2 fixes well inside it.
- */
 class RouteFollower(val route: HikingRoute) {
     private val lat0 = route.points.first().latitude
     private val lon0 = route.points.first().longitude
@@ -52,12 +39,9 @@ class RouteFollower(val route: HikingRoute) {
     private var offCount = 0
     private var backCount = 0
     private var lastFix: Triple<Double, Double, Long>? = null
-    /** Metres walked since joining; a wrong leg is corrected silently within the first 300 m. */
     private var sinceJoin = 0.0
     private var courseFrom: Pair<Double, Double>? = null
-    /** Last direction of travel over at least 8 m; kept between fixes that move less. */
     private var course: Double? = null
-    /** Net metres moved backwards along the route, up to [WRONG_WAY_METERS]. */
     private var reversed = 0.0
     private var wrongWay = false
 
@@ -82,11 +66,6 @@ class RouteFollower(val route: HikingRoute) {
 
     private fun threshold(accuracy: Float) = (accuracy * 1.5).coerceIn(35.0, 80.0)
 
-    /**
-     * Joining: the earliest part of the route within [limit], then the closest point on that leg.
-     * A loop starts at its start and an out-and-back on its way out, yet joining mid-route works
-     * however far along it is.
-     */
     private fun joinMatch(px: Double, py: Double, limit: Double): Match? {
         var first: Double? = null
         for (k in 0 until xs.size - 1) {
@@ -101,7 +80,6 @@ class RouteFollower(val route: HikingRoute) {
         }
         return best
     }
-    /** The closest point within [limit] on a segment heading within 60° of [course]. */
     private fun alongCourse(px: Double, py: Double, limit: Double, course: Double): Match? {
         var best: Match? = null
         for (k in 0 until xs.size - 1) {
@@ -144,8 +122,6 @@ class RouteFollower(val route: HikingRoute) {
             RouteState.APPROACHING -> joinMatch(px, py, limit)?.let { state = RouteState.ON_ROUTE; along = it.along; joinedAlong = it.along; sinceJoin = 0.0; match = it }
             RouteState.ON_ROUTE -> {
                 sinceJoin += step
-                // Joined on a neighbouring leg (near a junction, beside a parallel path): within the first
-                // 300 m, move to a leg within reach that runs the way you are walking.
                 if (sinceJoin < 300 && course != null && (match.distance > limit || match.along < along - 5)) {
                     alongCourse(px, py, limit, course)?.takeIf { abs(it.along - match.along) > 2 * limit }?.let {
                         match = it; joinedAlong = it.along; offCount = 0; offSince = null
@@ -156,8 +132,6 @@ class RouteFollower(val route: HikingRoute) {
                     if (offCount >= 3 && timeMs - offSince!! >= 10_000) { state = RouteState.OFF_ROUTE; backCount = 0; reversed = 0.0; wrongWay = false }
                 } else {
                     offCount = 0; offSince = null
-                    // Net distance backwards along the route, capped so ~20 m the right way clears it.
-                    // Wobble while standing cancels out; only real steps count.
                     if (step >= 3) reversed = (reversed - (match.along - along)).coerceIn(0.0, WRONG_WAY_METERS)
                     if (reversed >= WRONG_WAY_METERS) wrongWay = true
                     else if (reversed <= WRONG_WAY_METERS - 20) wrongWay = false
@@ -165,7 +139,6 @@ class RouteFollower(val route: HikingRoute) {
                 }
             }
             RouteState.OFF_ROUTE -> {
-                // Rejoining anywhere is fine (a shortcut or a detour back to the path).
                 val anywhere = project(px, py, null)
                 val rejoin = if (match.distance <= limit * 0.6) match else anywhere.takeIf { it.distance <= limit * 0.6 }
                 if (rejoin != null) {
@@ -207,7 +180,6 @@ class RouteFollower(val route: HikingRoute) {
     }
 
     companion object {
-        /** Backwards travel along the route before it counts as going the wrong way. */
         const val WRONG_WAY_METERS = 60.0
 
         fun sideOf(bearingToRoute: Double, course: Double): RouteSide {
@@ -222,14 +194,11 @@ class RouteFollower(val route: HikingRoute) {
     }
 }
 
-/** NOAA-style sunrise equation; accurate to a minute or two at hiking latitudes. */
 object SunTimes {
-    /** Epoch milliseconds of sunset on [epochDay] (UTC date) at the place, or null in polar day or night. */
     fun sunset(epochDay: Long, latitude: Double, longitude: Double): Long? = event(epochDay, latitude, longitude, +1)
     fun sunrise(epochDay: Long, latitude: Double, longitude: Double): Long? = event(epochDay, latitude, longitude, -1)
 
     private fun event(epochDay: Long, latitude: Double, longitude: Double, sign: Int): Long? {
-        // Julian date at 00:00 UTC of the day; at noon the ceiling below would pick the next day.
         val julian0 = epochDay + 2440587.5
         val n = ceil(julian0 - 2451545.0 + 0.0008)
         val meanSolarNoon = n - longitude / 360

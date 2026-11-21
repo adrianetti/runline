@@ -6,7 +6,6 @@ import org.junit.Test
 import kotlin.math.ceil
 
 class AiPaceWindowsTest {
-    /** Synthetic straight path; the recorded failure is reproduced using distances/times only. */
     private fun route(vararg sections: Pair<Double, Long>): RunSession {
         val points = mutableListOf(RunPoint(0.0, 0.0, 1_000L, 3f, 0.0))
         var distance = 0.0; var elapsed = 1_000L

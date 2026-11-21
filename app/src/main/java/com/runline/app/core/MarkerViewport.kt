@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** Screen coordinates are physical pixels. Never clamp an off-map fix to the edge. */
 object MarkerViewport {
     data class Placement(val left: Float, val top: Float)
     fun place(x: Float, y: Float, width: Int, height: Int, markerSize: Int): Placement? {

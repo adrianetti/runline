@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** Editable annotations are separate from original GPS samples and recording checkpoints. */
 data class ActivityDetails(
     val title: String = "",
     val description: String = "",

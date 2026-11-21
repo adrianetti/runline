@@ -39,7 +39,6 @@ internal object TerrainUi {
     }
 }
 
-/** A secondary preparation task. Start remains available without downloading anything. */
 internal class TerrainSettingsSheet(private val activity: AppCompatActivity, private val requestLocation: () -> Unit) : LocationListener {
     private val sheet = AiSheet(activity, R.string.terrain_offline_title)
     private val repository = TerrainRepository.get(activity)

@@ -5,9 +5,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** A portable, human-readable export name; it never requires geocoding or network access. */
 object ActivityExportFileName {
-    /** Reserve a readable name ourselves; some providers append collisions after an unknown extension. */
     fun availableName(desired: String, existingNames: Collection<String>): String {
         val extension = desired.substringAfterLast('.', "").lowercase(Locale.ROOT)
         require(extension in setOf("gpx", "zip", "csv"))
@@ -33,7 +31,6 @@ object ActivityExportFileName {
         val date = Instant.ofEpochMilli(run.startedAtMs).atZone(zone)
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm", Locale.ROOT))
         val suffix = " $distance km - $date.gpx"
-        // Leave room for duplicate suffixes. Bound bytes as well as characters; emoji can be 4 bytes.
         val budget = (MAX_BYTES - 12 - suffix.toByteArray(Charsets.UTF_8).size).coerceAtLeast(8).coerceAtMost(160)
         val stem = utf8Prefix(safeName, budget, 80).trim(' ', '.').ifEmpty { "Activity" }
         return stem + suffix

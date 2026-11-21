@@ -10,7 +10,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
 import kotlin.math.roundToInt
 
-/** A short dialog list where every option carries its Tabler icon, aligned on one start edge. */
 internal object IconChoices {
     data class Choice(val label: String, val icon: Int)
 

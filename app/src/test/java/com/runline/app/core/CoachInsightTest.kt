@@ -28,7 +28,6 @@ class CoachInsightTest {
         }
         val halfway = cues.filterIsInstance<CoachCue.Encouragement>().single { it.kind == EncouragementKind.HALFWAY }
         assertTrue(cues.any { it is CoachCue.Encouragement && it.kind == EncouragementKind.FINAL_STRETCH })
-        // Measured facts: time remains, a projection from the real average, no invented distance goal.
         val facts = halfway.facts!!
         assertNull(facts.remainingMeters)
         assertTrue(facts.remainingMs!! in 0..6 * 60_000L)

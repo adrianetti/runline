@@ -1,19 +1,9 @@
 package com.runline.app.core
 
-/** A standstill inside one recording segment, such as a traffic light or a shoelace. */
 data class StopInterval(val startMs: Long, val endMs: Long) {
     val durationMs get() = (endMs - startMs).coerceAtLeast(0)
 }
 
-/**
- * Finds standstills from the accepted GPS fixes. Derived only: fixes, timer history and
- * exports are never edited, so moving time can always be recomputed or ignored.
- *
- * The recorder drops fixes that move less than 2.5 m within 10 s, so standing still shows
- * as sparse steps with almost no movement. A step slower than [stillSpeed] is a stop; the
- * time needed to cover its small distance at a normal moving speed stays moving time.
- * Jitter steps inside one stop are joined when the position stays within GPS accuracy.
- */
 object StopDetection {
     const val MIN_STOP_MS = 5_000L
     private const val MIN_STEP_MS = 2_000L
@@ -47,7 +37,6 @@ object StopDetection {
         return found.filter { it.second - it.first >= MIN_STOP_MS }.map { StopInterval(it.first, it.second) }
     }
 
-    /** Total of overlapping intervals counted once. */
     fun totalMs(stops: List<StopInterval>): Long {
         var total = 0L; var end = Long.MIN_VALUE
         stops.sortedBy { it.startMs }.forEach { stop ->
@@ -58,7 +47,6 @@ object StopDetection {
         return total
     }
 
-    /** Active timer time minus standstills. Never negative, never more than the active time. */
     fun movingDurationMs(run: RunSession, stops: List<StopInterval> = detect(run.points, run.activityType), openStopSinceMs: Long? = null,
                          nowMs: Long = run.endedAtMs): Long {
         val open = openStopSinceMs?.takeIf { nowMs - it >= MIN_STOP_MS }?.let { StopInterval(it, nowMs) }
@@ -68,10 +56,6 @@ object StopDetection {
     private fun usable(point: RunPoint) = point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
 }
 
-/**
- * Live standstill signal from every valid GPS fix, including the ones the recorder does not
- * store because they barely moved. Doppler speed answers quickly; position is the fallback.
- */
 class StillnessTracker(private val type: ActivityType = ActivityType.RUN) {
     private var anchor: RunPoint? = null
     private var stillSinceMs: Long? = null
@@ -87,12 +71,10 @@ class StillnessTracker(private val type: ActivityType = ActivityType.RUN) {
         val meters = previous?.let { RunMetrics.distanceMeters(listOf(it, fix)) }
         val seconds = previous?.let { (timeMs - it.timestampMs) / 1_000.0 }
         val radius = accuracyMeters.toDouble().coerceIn(5.0, 10.0)
-        // Within GPS accuracy of the anchor and not steadily drifting away from it.
         val near = meters != null && seconds != null && meters <= radius && (seconds < 3.0 || meters / seconds < stillSpeed * 1.5)
         val slow = speedMetersPerSecond?.takeIf { it.isFinite() && it >= 0f }?.let { it < stillSpeed }
         val still = when {
             previous == null -> slow ?: false
-            // Leaving GPS accuracy is movement, even when a provider reports zero speed.
             meters != null && meters > radius -> false
             else -> slow ?: near
         }

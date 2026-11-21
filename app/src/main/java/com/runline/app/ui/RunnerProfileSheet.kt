@@ -16,7 +16,6 @@ import com.runline.app.R
 import com.runline.app.ai.*
 import com.runline.app.tracking.TrackingService
 
-/** A rotation-only memory draft; sensitive text never enters saved instance state. */
 class RunnerProfileDraft : ViewModel() { var value: RunnerProfile? = null }
 
 class RunnerProfileSheet(private val activity: AppCompatActivity, @Suppress("UNUSED_PARAMETER") state: Bundle? = null) {
@@ -44,7 +43,6 @@ class RunnerProfileSheet(private val activity: AppCompatActivity, @Suppress("UNU
 
     init {
         sheet.column.removeView(preference.first); sheet.column.removeView(health.first)
-        // Measured from saved activities on this phone; no model call.
         sheet.column.addView(sheet.text(activity.getString(R.string.v17_profile_from_activities), 16, bold = true), sheet.row(0, 4))
         sheet.column.addView(snapshotText, sheet.row(0, 16))
         loadSnapshot()
@@ -105,7 +103,6 @@ class RunnerProfileSheet(private val activity: AppCompatActivity, @Suppress("UNU
     fun saveState() = Bundle()
     private fun current() = RunnerProfile(experience, preference.second.text.toString(), health.second.text.toString(), include.isChecked,
         managed.isChecked).bounded()
-    /** With AI management on, the AI's assessment replaces the manual experience choice. */
     private fun updateExperienceVisibility() { experienceField?.visibility = if (managed.isChecked) View.GONE else View.VISIBLE }
     private fun loadSnapshot() {
         val app = activity.applicationContext
@@ -140,7 +137,6 @@ class RunnerProfileSheet(private val activity: AppCompatActivity, @Suppress("UNU
         if (!aiReady) return
         val update = sheet.button(activity.getString(R.string.v17_profile_ai_update_now), R.drawable.ic_refresh)
         update.setOnClickListener {
-            // Saving first makes the switch and consent the AI sees match the screen.
             runCatching { store.save(current()) }.onFailure { showError(); return@setOnClickListener }
             if (!managed.isChecked) return@setOnClickListener
             update.isEnabled = false; update.text = activity.getString(R.string.v17_profile_ai_updating)

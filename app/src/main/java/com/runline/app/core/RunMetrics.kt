@@ -13,26 +13,18 @@ object RunMetrics {
     private const val SPLIT_METERS = 1_000.0
     private const val EPSILON = 0.000001
 
-    /** Horizontal GPS distance. Pauses and missing/invalid fixes never add connecting lines. */
     fun distanceMeters(points: List<RunPoint>): Double =
         continuousSegments(points).sumOf { segment ->
             segment.zipWithNext().sumOf { (a, b) -> between(a, b) }
         }
 
-    /** Average timer pace, not instantaneous pace. Null means there is not enough data. */
     fun paceSecondsPerKm(distanceMeters: Double, durationMs: Long): Double? {
         if (!distanceMeters.isFinite() || distanceMeters <= 0.0 || durationMs <= 0L) return null
         return (durationMs.toDouble() / distanceMeters).takeIf { it.isFinite() }
     }
 
-    /**
-     * Interpolates kilometre boundaries between fixes. Durations use sample timestamps,
-     * including stationary samples, but exclude pauses and periods without a GPS baseline.
-     * They intentionally do not invent time to make their sum equal the run's timer.
-     */
     fun splits(run: RunSession, stops: List<StopInterval> = emptyList()): List<RunSplit> {
         val ordered = stops.sortedBy { it.startMs }
-        // Time standing still inside a step is not running time when stops are excluded.
         fun stoppedWithin(start: Long, end: Long): Double = ordered.sumOf { stop ->
             (minOf(end, stop.endMs) - maxOf(start, stop.startMs)).coerceAtLeast(0L).toDouble()
         }
@@ -43,7 +35,6 @@ object RunMetrics {
         var emittedDuration = 0L
 
         fun emit() {
-            // Round cumulative time, so rounding per kilometre cannot create or lose time.
             val roundedTotal = totalDuration.roundToLong()
             splits.add(RunSplit(splits.size + 1, splitDistance, max(0L, roundedTotal - emittedDuration)))
             emittedDuration = roundedTotal
@@ -79,7 +70,6 @@ object RunMetrics {
         if (splitDistance > EPSILON) {
             emit()
         } else if (splitDuration > 0.0 && splits.isNotEmpty()) {
-            // A stop exactly on a kilometre boundary belongs to that final kilometre.
             val last = splits.last()
             splits[splits.lastIndex] = last.copy(
                 durationMs = last.durationMs + max(0L, totalDuration.roundToLong() - emittedDuration),
@@ -88,10 +78,6 @@ object RunMetrics {
         return splits
     }
 
-    /**
-     * A rough GPS ascent estimate, never corrected terrain elevation. A three-metre
-     * deadband suppresses small altitude oscillations. Null means insufficient altitude data.
-     */
     fun elevationGainMeters(points: List<RunPoint>): Double? {
         var gain = 0.0
         var hasAltitudePair = false

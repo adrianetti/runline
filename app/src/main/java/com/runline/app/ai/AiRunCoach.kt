@@ -18,13 +18,6 @@ import java.util.concurrent.Executors
 
 data class AiCoachPrompt(val text: String, val isValid: () -> Boolean)
 
-/**
- * The live coach during a recording. [LiveCoachPlan] picks the moments and [LivePoints] the
- * content; the model gives each line its voice. Check-ins go to [onPrompt]; a local milestone
- * is handed to [voice], which answers with the coach's own announcement or with null when the
- * built-in one should be spoken. [onEvent] records every request's outcome in the activity's
- * coach log, so a quiet run can be explained afterwards.
- */
 class AiRunCoach(context: Context, private val onEvent: (event: String, detail: String, latencyMs: Long?) -> Unit = { _, _, _ -> },
                  private val onPrompt: (AiCoachPrompt) -> Unit) {
     private val context = context.applicationContext
@@ -39,10 +32,8 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
     private var closed = false
     private var activeMs = 0L
     private var currentTerrain = CoachTerrain.UNKNOWN
-    /** Observations already voiced in this activity, oldest first, so each is offered once. */
     private val usedPoints = mutableListOf<String>()
 
-    /** True while the live coach is on and answering: it then speaks the milestones and the routine encouragement. */
     val leading: Boolean @Synchronized get() = !closed && active && plan.healthy && enabled()
 
     private fun enabled(): Boolean {
@@ -66,7 +57,6 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
         active = true; fresh = gpsFresh; currentTerrain = terrain; activeMs = run.activeDurationMs
     }
 
-    /** A routine tick: asks for the opening line or a check-in when one is due. */
     @Synchronized fun update(run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig = VoiceCoachSettings.load(context), terrain: CoachTerrain = CoachTerrain.UNKNOWN) {
         if (closed) return
         observe(run, gpsFresh, terrain)
@@ -81,12 +71,6 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
         }
     }
 
-    /**
-     * The local coach is about to announce [cue] (a kilometre, lap, halfway or goal). [onResult]
-     * gets the live coach's own announcement of it, or null to speak the built-in one: when the
-     * live coach is off, busy or failing, or has not answered within [VOICE_WITHIN_MS].
-     * It is called exactly once, on the main thread.
-     */
     @Synchronized fun voice(cue: CoachCue, run: RunSession, gpsFresh: Boolean, goalConfig: CoachConfig, terrain: CoachTerrain, onResult: (String?) -> Unit) {
         val moment = LiveMoment.of(cue); val milestone = LiveMilestone.of(cue)
         if (closed || moment == null || milestone == null) { main.post { onResult(null) }; return }
@@ -104,7 +88,6 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
         }
     }
 
-    /** Runs one request off the main thread and reports back on it. [deliver] gets null when there is nothing to say. */
     private fun launch(run: RunSession, goalConfig: CoachConfig, terrain: CoachTerrain, settings: AiConfig, call: LiveCall, milestone: JSONObject?,
                        deliver: (line: LiveLine?, valid: () -> Boolean, label: String, latencyMs: Long) -> Unit) {
         val token = generation; val settingsRevision = AiSettings.revision(); val requestedAt = SystemClock.elapsedRealtime(); busy = true
@@ -126,7 +109,6 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
                 val runs = RunStore(context)
                 val terrainMap = TerrainRepository.get(context).snapshot
                 val verifiedRun = terrainMap.project(run)
-                // Worked through on the phone; only the chosen observation is sent.
                 val input = JSONObject().put("run", AiRunSummary.of(verifiedRun)).put("coaching_context", AiCoachingContext.build(
                     LocalDate.now(), activeGoal = goalConfig, activeRun = verifiedRun, history = runs.list().map(terrainMap::project), details = runs::details,
                     includeNotes = false, spoken = AiSpokenHistory.recent(run.id, requestedAt), nowElapsedMs = requestedAt, runnerGoal = runnerGoal.goal))
@@ -143,7 +125,6 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
                     busy = false
                     val latency = SystemClock.elapsedRealtime() - requestedAt
                     if (result == null) {
-                        // Switched off or superseded is not a provider problem.
                         if (failure != AiFailure.Reason.DISABLED.name) plan.failed(activeMs.coerceAtLeast(requestActiveMs))
                         onEvent("ai_failed", "$label ${failure.orEmpty()}".trim(), latency)
                         deliver(null, { false }, label, latency); return@synchronized
@@ -156,7 +137,6 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
                     val valid = { synchronized(this) {
                         val now = AiSettings.load(context)
                         !closed && active && fresh && token == generation && runId == run.id &&
-                            // A line about the ground must still describe the ground under the runner.
                             (!aboutGround || (TerrainRepository.get(context).snapshot.revision == terrainRevision && currentTerrain == terrain)) &&
                             now.enabled && now.liveEnabled && now == settings && AiSettings.revision() == settingsRevision &&
                             VoiceCoachSettings.load(context).enabled && profileCurrent(profile) && goalCurrent(runnerGoal) &&
@@ -175,10 +155,8 @@ class AiRunCoach(context: Context, private val onEvent: (event: String, detail: 
     private fun goalCurrent(snapshot: RunnerGoalSnapshot) = RunnerGoalStore.revision() == snapshot.revision &&
         RunnerGoalStore(context).load() == snapshot.goal
     companion object {
-        /** A line written for a moment is not spoken once the moment has passed. */
         const val ARRIVE_WITHIN_MS = 15_000L
         const val SPEAK_WITHIN_MS = 50_000L
-        /** How long a kilometre or goal announcement may wait for the live coach before the built-in one is spoken. */
         const val VOICE_WITHIN_MS = 3_500L
         fun cleanAdvice(raw: String): String? = LiveAiAdvice.clean(raw)
     }

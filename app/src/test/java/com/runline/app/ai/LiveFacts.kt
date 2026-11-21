@@ -6,11 +6,6 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
-/**
- * Numbers the live coach may say, worked out here so a fast model never does arithmetic
- * mid-run. Derived only from the run summary and coaching context already in the request:
- * nothing new leaves the phone. Paces and times are "m:ss"; a negative change means faster.
- */
 internal object LiveFacts {
     fun of(run: JSONObject, context: JSONObject): JSONObject = JSONObject().apply {
         val moving = run.number("moving_seconds")
@@ -34,14 +29,12 @@ internal object LiveFacts {
                 put("last_kilometre_vs_previous_seconds", (splits.last().second - splits[splits.size - 2].second).roundToInt())
                 val fastest = splits.minBy { it.second }
                 put("fastest_kilometre", JSONObject().put("number", fastest.first).put("pace", clock(fastest.second)))
-                // Each kilometre quicker than the one before: a real negative split worth naming.
                 if (splits.size >= 3) put("every_kilometre_faster_than_the_last", splits.zipWithNext().all { (a, b) -> b.second < a.second - 2 })
             }
         }
         val lapData = run.optJSONArray("estimated_repeated_laps").objects()
         val laps = lapData.mapNotNull { it.number("duration_seconds") }
         if (laps.isNotEmpty()) {
-            // Durations of one loop of the same circuit: times, not paces per kilometre.
             put("repeated_lap_times", JSONArray(laps.map(::clock)))
             lapData.mapNotNull { it.number("distance_m") }.takeIf { it.isNotEmpty() }?.let { put("lap_length_km", round2(it.average() / 1000)) }
             if (laps.size >= 2) put("last_lap_vs_previous_seconds", (laps.last() - laps[laps.size - 2]).roundToInt())
@@ -107,7 +100,6 @@ internal object LiveFacts {
         return result
     }
 
-    /** 461.1 -> "7:41"; an hour or more -> "1:02:05". */
     fun clock(seconds: Double): String {
         val total = seconds.roundToInt().coerceAtLeast(0)
         val h = total / 3600; val m = total % 3600 / 60; val s = total % 60

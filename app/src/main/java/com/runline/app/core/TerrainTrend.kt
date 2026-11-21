@@ -4,7 +4,6 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.floor
 
-// UNKNOWN is deliberately distinct from a measured flat section.
 enum class TerrainDirection { UPHILL, FLAT, DOWNHILL, UNKNOWN }
 
 data class TerrainEstimate(
@@ -14,14 +13,6 @@ data class TerrainEstimate(
     val source: TerrainSource = TerrainSource.UNKNOWN,
 )
 
-/**
- * Causal height/distance estimate shared by recording, replay and coaching.
- * Median distance bins and a robust fit reject individual height spikes. A longer
- * 55–90 m window reduces GNSS noise; a recent-window veto avoids stale hill calls.
- * Vertical accuracy is a separate measurement from horizontal GPS accuracy.
- * This cannot distinguish smooth altitude drift from a real hill without another
- * height source. Original recordings are never changed or terrain-corrected here.
- */
 class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
     private data class Sample(val point: RunPoint, val distance: Double)
     private data class Bin(val distance: Double, val height: Double)
@@ -49,7 +40,6 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         val distance = RunMetrics.distanceMeters(listOf(prior, point))
         val elapsed = point.timestampMs - prior.timestampMs
         if (distance * 1_000 / elapsed > 12.0) return restart()
-        // An abrupt height relocation is not a downhill/uphill observation.
         if (abs(point.altitudeMeters!! - prior.altitudeMeters!!) > maxOf(4.0, distance * .5)) return restart()
         previous = point; traveled += distance
         samples.addLast(Sample(point, traveled))
@@ -72,8 +62,6 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         }
         val fit = fit(bins, 20.0) ?: return unknown()
         if (!fit.grade.isFinite() || abs(fit.grade) > 40.0 || fit.residual > 1.2) return unknown()
-        // Opposite recent observations, a crest, or leveling invalidate the old
-        // window immediately. Do not average a known reversal into the old sign.
         val tail = bins.filter { traveled - it.distance <= (if (global) 70.0 else 35.0) }
         val recent = fit(tail, 10.0) ?: return unknown()
         if (recent.residual > 1.2) return unknown()
@@ -104,7 +92,6 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         val slope = slopes.median()
         val intercept = bins.map { it.height - slope * it.distance }.median()
         val errors = bins.map { abs(it.height - intercept - slope * it.distance) }.sorted()
-        // Upper-quartile residual rejects persistent noise but tolerates one outlier.
         return Fit(slope * 100, errors[(errors.lastIndex * .75).toInt()])
     }
 
@@ -116,7 +103,6 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..20f && point.hasUsableAltitude()
 }
 
-/** Precomputed causal estimates: seeking never depends on the previously played frame. */
 class ReplayTerrain(replay: RunReplay) {
     private data class Sample(val position: Long, val estimate: TerrainEstimate)
     private val bySegment: List<List<Sample>>
@@ -140,7 +126,6 @@ class ReplayTerrain(replay: RunReplay) {
             val middle = (low + high + 1) ushr 1
             if (samples[middle].position <= positionMs) low = middle else high = middle - 1
         }
-        // Missing/poor data at the other end makes this entire interpolated interval unknown.
         val next = samples.getOrNull(low + 1)
         if (positionMs > samples[low].position && next?.estimate?.direction == TerrainDirection.UNKNOWN) return TerrainEstimate()
         return samples[low].estimate

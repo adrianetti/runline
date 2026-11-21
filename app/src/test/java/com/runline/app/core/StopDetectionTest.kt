@@ -6,14 +6,12 @@ import org.junit.Test
 class StopDetectionTest {
     private val metresPerDegree = 111195.0802335329
 
-    /** Synthetic recorder output: moving fixes every second; standing still yields sparse 10 s fixes. */
     private class Track(private val start: Long = 1_000_000L) {
         val points = mutableListOf<RunPoint>()
         var time = start; var east = 0.0; var segment = 0
         fun move(seconds: Int, speed: Double, accuracy: Float = 4f) = repeat(seconds) {
             time += 1_000; east += speed; add(accuracy)
         }
-        /** Recorder drops fixes within 2.5 m for 10 s, so a standstill keeps one fix per 10 s with GPS jitter. */
         fun stand(seconds: Int, jitter: Double = 1.0, accuracy: Float = 10f) {
             var waited = 0
             while (waited + 10 <= seconds) { waited += 10; time += 10_000; east += if (waited / 10 % 2 == 0) jitter else -jitter; add(accuracy) }
@@ -62,7 +60,6 @@ class StopDetectionTest {
         assertEquals(30_000L, StopDetection.totalMs(listOf(StopInterval(0, 20_000), StopInterval(10_000, 30_000))))
         val run = RunSession("open", 0, 100_000, 100_000, emptyList())
         assertEquals(80_000L, StopDetection.movingDurationMs(run, emptyList(), openStopSinceMs = 80_000, nowMs = 100_000))
-        // A just-started standstill shorter than the minimum is not subtracted yet.
         assertEquals(100_000L, StopDetection.movingDurationMs(run, emptyList(), openStopSinceMs = 97_000, nowMs = 100_000))
     }
 
@@ -89,11 +86,9 @@ class StopDetectionTest {
         val fallback = StillnessTracker()
         repeat(8) { fallback.update(37.17, -3.6 + it * 1e-7, 10_000L + it * 1_000, 5f, null) }
         assertNotNull(fallback.stoppedSinceMs)
-        // A provider that always reports zero speed (emulators, some chipsets) cannot hide movement.
         val zero = StillnessTracker()
         repeat(30) { zero.update(37.17, -3.6 + it * 3.0 / (metresPerDegree * .797), 10_000L + it * 1_000, 5f, 0f) }
         assertNull(zero.stoppedSinceMs)
-        // Walking speed without Doppler drifts away from the anchor and is not a standstill.
         val walker = StillnessTracker(ActivityType.WALK)
         repeat(20) { walker.update(37.17, -3.6 + it * 1.3 / (metresPerDegree * .797), 10_000L + it * 1_000, 8f, null) }
         assertNull(walker.stoppedSinceMs)

@@ -3,7 +3,6 @@ package com.runline.app.core
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
-/** GPS estimates, not terrain-corrected elevation or sensor-measured speed. */
 data class RunAnalysis(
     val distanceMeters: Double,
     val observedDurationMs: Long,
@@ -15,7 +14,6 @@ data class RunAnalysis(
     val maxAltitudeMeters: Double?,
 )
 
-/** [point] is interpolated only inside one observed, continuous GPS segment. */
 data class ReplayFrame(
     val point: RunPoint,
     val positionMs: Long,
@@ -27,14 +25,6 @@ data class ReplayFrame(
     val segmentIndex: Int,
 )
 
-/**
- * A seekable GPS timeline. Its clock includes only observed intervals, not the run's
- * active timer, pauses, time awaiting a first fix, or gaps over 15 seconds. A gap is
- * a cut to the next segment: it never becomes an invented connecting path.
- *
- * Construction is O(n log n); a frame seek is O(log n). Build once for a saved run, then
- * advance position using a monotonic UI clock and the selected playback multiplier.
- */
 class RunReplay(val session: RunSession) {
     private val run = session
     val segments: List<List<RunPoint>> = safeSegments(run.points)
@@ -86,8 +76,6 @@ class RunReplay(val session: RunSession) {
                 else {
                     altitudePairs = true
                     val change = altitude - anchor
-                    // Same simple three-metre deadband used by the recorder's metrics.
-                    // Missing altitude and segment breaks reset it; small GPS noise is ignored.
                     if (abs(change) >= ALTITUDE_DEADBAND_METERS) {
                         if (change > 0) gain += change else loss -= change
                         altitudeAnchor = altitude
@@ -114,8 +102,6 @@ class RunReplay(val session: RunSession) {
         }
         for (edge in edges) {
             considerPeak(edge.endMs, edge)
-            // A trailing window changes slope when either end crosses a fix. Its
-            // maximum can therefore occur five seconds after a fix, between samples.
             if (durationMs - edge.startMs >= SPEED_WINDOW_MS) {
                 val position = edge.startMs + SPEED_WINDOW_MS
                 val containingEdge = edgeAt(position)
@@ -143,8 +129,6 @@ class RunReplay(val session: RunSession) {
         if (edges.isEmpty() || position == 0L) {
             return frame(first.copy(segment = 0), position, 0.0, null, 0.0, 0.0, 0)
         }
-        // Keep a trailing isolated fix as the endpoint, without drawing/animating a
-        // connection to it. Its timestamp and altitude are genuine, speed is unknown.
         if (position == durationMs) {
             val last = segments.last().last()
             val edge = edges.last()
@@ -180,15 +164,12 @@ class RunReplay(val session: RunSession) {
         ReplayFrame(point, position, distance, speed, speed?.takeIf { it > 0.0 }?.let { 1000.0 / it },
             gain.takeIf { hasAltitudePairs }, loss.takeIf { hasAltitudePairs }, segment)
 
-    /** Trailing five-second GPS speed, kept within one segment; no motion through pauses. */
     private fun speedAt(position: Long, edge: Edge): Double? {
         val start = maxOf(edge.segmentStartMs, position - SPEED_WINDOW_MS)
         val span = position - start
         if (span <= 0L) return null
         val traveled = distanceAt(position, edge) - distanceAt(start, edgeAt(start))
         val speed = traveled.coerceAtLeast(0.0) * 1000.0 / span
-        // GPS jitter can survive the recorder's horizontal-accuracy gate. Do not turn
-        // an implausible running speed into a headline peak or an invented pace.
         return speed.takeIf { it.isFinite() && it <= MAX_RUNNING_SPEED_METERS_PER_SECOND }
     }
 
@@ -197,7 +178,6 @@ class RunReplay(val session: RunSession) {
         return edge.startDistance + edge.length * fraction
     }
 
-    /** Last edge beginning at/before this position. Equal boundaries select the new segment. */
     private fun edgeAt(position: Long): Edge {
         var low = 0
         var high = edges.lastIndex

@@ -30,10 +30,6 @@ import kotlin.math.roundToInt
 
 enum class SpeechResult { READY, UNAVAILABLE, AUDIO_BUSY, ERROR }
 
-/**
- * Short, optional speech using an installed offline system voice. All engine/focus
- * operations are serialized on main; recording persistence never waits for speech.
- */
 class CoachSpeech(context: Context,
     private val onDiagnostic: (String, String, String, String, CoachSituation) -> Unit = { _, _, _, _, _ -> },
     private val onSpoken: (SpokenCoachAdvice) -> Unit = {}) {
@@ -99,13 +95,11 @@ class CoachSpeech(context: Context,
     }
     fun updateSituation(value: CoachSituation) = onMain {
         situation = value
-        // A standstill silences coaching, not route guidance, which checks its own validity.
         if (!value.eligible) { schedule.invalidateCoaching(); if (schedule.pendingCount == 0) main.removeCallbacks(retrySpeech) }
     }
     fun reset() = onMain { stopInternal(); schedule.reset() }
     fun invalidatePending() = onMain { invalidatePendingInternal() }
     fun speak(cue: CoachCue) = offer(cue, null)
-    /** A milestone announced by the live coach in its own words. It keeps the cue's place, priority and validity. */
     fun speakMilestone(cue: CoachCue, text: String) {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
         offer(cue, clean.takeIf { it.isNotEmpty() && it.length <= com.runline.app.ai.LiveAiAdvice.MAX_CHARS && it.split(' ').size <= com.runline.app.ai.LiveAiAdvice.MAX_WORDS })
@@ -119,7 +113,6 @@ class CoachSpeech(context: Context,
         prepareInternal()
         drainPendingSpeech()
     }
-    /** One fresh AI slot shares local speech timing. It never reserves audio focus while waiting. */
     fun speakAdvice(text: String, isValid: () -> Boolean = { true }) = onMain {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
         if (closed || clean.isEmpty() || clean.length > com.runline.app.ai.LiveAiAdvice.MAX_CHARS || clean.split(' ').size > com.runline.app.ai.LiveAiAdvice.MAX_WORDS) return@onMain
@@ -129,11 +122,6 @@ class CoachSpeech(context: Context,
         prepareInternal()
         drainPendingSpeech()
     }
-    /**
-     * Route guidance. Turns and leaving or rejoining the route use [CoachSpeechPriority.NAVIGATION];
-     * places, climbs and finishing use [CoachSpeechPriority.ROUTE]. Neither waits for the pace
-     * coach to consider the moment eligible: [isValid] says whether the cue still applies.
-     */
     fun speakRoute(key: String, text: String, priority: CoachSpeechPriority = CoachSpeechPriority.ROUTE, isValid: () -> Boolean = { true }) = onMain {
         val clean = text.replace(Regex("[\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim()
         if (closed || clean.isEmpty() || clean.length > 320) return@onMain
@@ -201,7 +189,6 @@ class CoachSpeech(context: Context,
             initializing = false; initialized = false
             invalidatePendingInternal()
         }
-        // A broken TTS engine must never keep a preview request hanging indefinitely.
         val initGuard = Runnable {
             if (initializing && !closed && generation == initializationSerial) {
                 initializing = false
@@ -230,7 +217,6 @@ class CoachSpeech(context: Context,
         return true
     }
 
-    /** False only when the audio output refused the line before a word was said, so it may be offered again. */
     private fun speakInternal(text: String, preview: ((SpeechResult) -> Unit)?, source: CoachSpeechSource? = null,
                               isValid: (() -> Boolean)? = null): Boolean {
         if (closed || !initialized) { preview?.invoke(SpeechResult.UNAVAILABLE); return true }
@@ -261,7 +247,6 @@ class CoachSpeech(context: Context,
             }
         }
         timeout = guard
-        // Short prompts take a few seconds; a place note up to about 25 s. Never keep another app ducked.
         main.postDelayed(guard, maxOf(15_000L, 6_000L + text.length * 90L))
         return true
     }
@@ -292,17 +277,13 @@ class CoachSpeech(context: Context,
         if (closed || (!initialized && !initializing)) { invalidatePendingInternal(); return }
         val next = schedule.takeReady(SystemClock.elapsedRealtime(), initialized && !lease.isBusy && speakingInstance == null)
         if (next != null && runCatching(next.isValid).getOrDefault(false)) {
-            // A cue with words attached is a milestone the live coach announces in its own voice.
             val text = next.advice ?: next.cue?.let(::cueText).orEmpty()
             val route = next.cue == null && next.key.startsWith("route-")
             currentCue = next.cue?.toString() ?: if (route) next.key else "advice"
             val offeredAt = schedule.offeredAt(next)
-            // Audio focus or the engine can refuse for a moment (another app starting, a notification):
-            // one retry after the usual breath, instead of losing the line.
             if (!speakInternal(text, null, if (next.advice != null && !route) CoachSpeechSource.AI else CoachSpeechSource.LOCAL, next.isValid) &&
                 offeredAt != null && schedule.retry(next, offeredAt, SystemClock.elapsedRealtime())) diagnostic("retry_queued", text)
         }
-        // At most three bounded slots; no polling or held focus after they expire.
         if (schedule.pendingCount > 0) main.postDelayed(retrySpeech, 1_000)
     }
     private fun invalidatePendingInternal() { schedule.invalidate(); main.removeCallbacks(retrySpeech) }
@@ -315,7 +296,6 @@ class CoachSpeech(context: Context,
             val split = cue.splitPaceSeconds?.roundToInt()
             val pace = cue.averagePaceSeconds?.roundToInt()
             when {
-                // The kilometre just run says more than a whole-run average diluted by the start.
                 split != null -> buildString {
                     append(km).append(' ').append(tr(R.string.v17_coach_split, split / 60, split % 60))
                     when (val change = CoachNarration.splitChange(cue.splitPaceSeconds, cue.previousSplitPaceSeconds)) {
@@ -358,7 +338,6 @@ class CoachSpeech(context: Context,
             if (sector != null) {
                 val quarters = AppLanguage.localizedContext(context).resources.getStringArray(R.array.v22_coach_lap_quarters)
                 append(" ").append(tr(R.string.coach_lap_sector, quarters[(sector.number - 1).coerceIn(0, quarters.lastIndex)]))
-                // Lap pace remains useful; raw GPS height cannot corroborate a climb.
             } else if (comparison != null) append(" ").append(tr(when {
                 comparison.paceChangePercent >= 3 -> R.string.coach_lap_slower
                 comparison.paceChangePercent <= -3 -> R.string.coach_lap_faster
@@ -367,9 +346,7 @@ class CoachSpeech(context: Context,
         }
     }
 
-    /** Numbers first, a few words of direction second. Null falls back to a phrase. */
     private fun measured(kind: EncouragementKind, facts: com.runline.app.core.CoachFacts): String? = when (kind) {
-        // The cue can be held back by other speech: well past the middle it no longer says "halfway".
         EncouragementKind.HALFWAY -> when {
             facts.projectedMeters != null -> tr(if (facts.pastHalfway) R.string.v22_coach_past_halfway_time else R.string.v17_coach_halfway_time, duration(facts.movingMs), kilometres(facts.distanceMeters), kilometres(facts.projectedMeters))
             facts.projectedMs != null -> tr(if (facts.pastHalfway) R.string.v22_coach_past_halfway_distance else R.string.v17_coach_halfway_distance, kilometres(facts.distanceMeters), duration(facts.movingMs), duration(facts.projectedMs))
@@ -419,7 +396,6 @@ class CoachSpeech(context: Context,
     }
 
     companion object {
-        // Main-thread ownership prevents a settings preview and background cue overlapping.
         private var speakingInstance: CoachSpeech? = null
     }
 }

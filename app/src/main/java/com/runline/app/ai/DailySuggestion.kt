@@ -5,7 +5,6 @@ import org.json.JSONObject
 import org.json.JSONArray
 import java.time.LocalDate
 
-/** Durable request reservation: process death cannot make a paid attempt disappear. */
 data class DailySuggestion(val day: String, val zone: String, val attemptedAt: Long, val inputKey: String,
                            val token: String, val suggestion: SmartRunSuggestion? = null,
                            val attemptedDays: List<String> = listOf(day)) {

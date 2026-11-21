@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Check bilingual Android resources and positional format arguments (stdlib only)."""
 from pathlib import Path
 import re
 import sys

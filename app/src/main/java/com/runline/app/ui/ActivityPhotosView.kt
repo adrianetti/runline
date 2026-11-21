@@ -12,7 +12,6 @@ import com.runline.app.data.RunStore
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
-/** Small private-photo previews, reusable in saved details and the editor. */
 class ActivityPhotosView(context: Context, runId: String, photos: List<String>, onRemove: ((String) -> Unit)? = null) : HorizontalScrollView(context) {
     private var attached = true
     init {

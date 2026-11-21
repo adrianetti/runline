@@ -10,10 +10,6 @@ import com.runline.app.core.HikingRoute
 import com.runline.app.core.RouteClimbs
 import kotlin.math.roundToInt
 
-/**
- * The route's height from 300 m behind you to 2 km ahead, with your position marked. Ground
- * already walked is drawn lighter. Never squashed below a 40 m range, so gentle ground stays flat.
- */
 class RouteAheadView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -33,7 +29,6 @@ class RouteAheadView(context: Context) : View(context) {
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES }
 
-    /** Recomputed only after moving 10 m, so drawing never runs per GPS jitter. */
     fun set(route: HikingRoute, doneMeters: Double): Boolean {
         if (route === this.route && kotlin.math.abs(doneMeters - done) < 10) return heights != null
         this.route = route; done = doneMeters

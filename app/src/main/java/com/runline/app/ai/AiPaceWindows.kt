@@ -5,7 +5,6 @@ import com.runline.app.core.RunPoint
 import kotlin.math.abs
 import org.json.JSONObject
 
-/** Compare like-for-like observed windows, never raw durations of differently sized splits. */
 internal object AiPaceWindows {
     fun comparison(segment: List<RunPoint>): JSONObject? {
         val last = segment.lastOrNull() ?: return null

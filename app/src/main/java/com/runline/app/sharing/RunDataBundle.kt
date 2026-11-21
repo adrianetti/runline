@@ -15,11 +15,6 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-/**
- * Everything one activity recorded, in one file the runner can hand to a person or an AI:
- * the original GPX, every fix with derived terrain/stop columns, the coach's spoken log,
- * the measured summary and any saved review. Photos and the runner profile are never included.
- */
 object RunDataBundle {
     fun write(
         output: OutputStream,
@@ -45,7 +40,6 @@ object RunDataBundle {
         }
     }
 
-    /** One row per recorded fix. Terrain columns are derived; GPS columns are as recorded. */
     fun pointsCsv(run: RunSession, terrainRun: RunSession): String = buildString {
         append("time_utc,elapsed_s,segment,latitude,longitude,horizontal_accuracy_m,vertical_accuracy_m,gps_altitude_m,")
         append("terrain_altitude_m,terrain_model,terrain_grade_percent,terrain_direction,distance_m,stopped,terrain_level\r\n")

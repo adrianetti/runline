@@ -28,13 +28,11 @@ class AiReviewStore(context: Context) {
     }
 }
 
-/** Bounded independent workers. Neither failures nor API latency enter recording persistence. */
 object AiWork {
     private val worker = Executors.newFixedThreadPool(2)
     private val main = Handler(Looper.getMainLooper())
     private val running = mutableSetOf<String>()
     private val deletedRuns = mutableSetOf<String>()
-    /** Observation only: reopening a sheet must never enqueue another paid request. */
     fun isReviewRunning(runId: String): Boolean = synchronized(running) { "review:$runId" in running }
     fun deleted(context: Context, id: String) = synchronized(deletedRuns) { deletedRuns += id; AiReviewStore(context).delete(id) }
     private fun language(context: Context) = if (AppLanguage.localizedContext(context).resources.configuration.locales[0].language == "es") "Spanish" else "English"
@@ -75,11 +73,6 @@ object AiWork {
             }
         }
     }
-    /**
-     * Keeps the AI-maintained runner profile current. Due after new runs (at most every 6 h)
-     * unless [force]d from the profile screen. Sends coordinate-free activity summaries only;
-     * health notes go only with the separate profile-sharing consent.
-     */
     fun updateProfile(context: Context, force: Boolean = false, callback: (Result<RunnerInsights?>) -> Unit = {}) {
         val app = context.applicationContext
         submit("profile", callback) {
@@ -101,7 +94,6 @@ object AiWork {
                 .put("previous_assessment", previous?.forAi() ?: JSONObject.NULL)
             val result = ProfileAi.request(com.runline.app.diagnostics.Diagnostics.provider(app, "profile"), key, config.reviewModel,
                 language(app), input, runs.size, now)
-            // The user may have turned management off or cleared the profile while this ran.
             if (!RunnerProfileStore(app).load().aiManaged || !AiSettings.load(app).enabled) throw AiFailure(AiFailure.Reason.DISABLED)
             insights.save(result); result
         }
@@ -126,7 +118,6 @@ object AiActivityCompletion {
     fun onAppOpen(context: Context) {
         RunnerGoalStore(context.applicationContext).load(); SmartRunAi.snapshot(context.applicationContext)
         AutomaticReviews.reconcile(context.applicationContext)
-        // Opportunistic: only when due (a new run, at most every 6 h) and fully opted in.
         if (AiSettings.isReady(context) && RunnerProfileStore(context).load().aiManaged) AiWork.updateProfile(context)
     }
     fun onDeleted(context: Context, id: String) {
@@ -136,7 +127,6 @@ object AiActivityCompletion {
         SmartRunAi.clear()
     }
     fun onDetailsSaved(context: Context, runId: String) {
-        // The caller invokes this only after the annotation write succeeds; no UI must remain alive.
         if (runId.isNotBlank()) SmartRunAi.clear()
     }
     fun onSaved(context: Context, run: RunSession) {

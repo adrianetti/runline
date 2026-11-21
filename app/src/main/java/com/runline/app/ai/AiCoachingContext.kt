@@ -9,7 +9,6 @@ import java.time.ZoneId
 import java.time.DayOfWeek
 import java.time.temporal.TemporalAdjusters
 
-/** Shared bounded context, never coordinates, photos, API keys, or inferred health. */
 object AiCoachingContext {
     fun build(
         today: LocalDate,

@@ -5,7 +5,6 @@ import com.runline.app.core.CoachConfig
 import com.runline.app.core.CoachGoal
 import com.runline.app.core.SmartRunEffort
 
-/** Independent optional preferences: a coaching error never changes a saved recording. */
 object VoiceCoachSettings {
     private fun preferences(context: Context) = context.getSharedPreferences("voice_coach", Context.MODE_PRIVATE)
     fun load(context: Context): CoachConfig {

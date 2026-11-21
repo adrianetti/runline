@@ -31,7 +31,6 @@ import com.runline.app.tracking.TrackingService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Personal goal drafts survive rotation in memory, never in saved-state Bundles. */
 class AiGoalDraft : ViewModel() { var text: String? = null }
 
 class AiSettingsSheet(
@@ -181,7 +180,6 @@ class AiSettingsSheet(
     fun show() = sheet.show()
     fun close() { dispose(); sheet.close() }
 
-    /** API keys are deliberately omitted, including unsaved input. */
     fun saveState() = Bundle().apply {
         putBoolean("usage", usage?.isShowing == true)
         putBoolean("enabled", enabled.isChecked); putBoolean("live", live.isChecked)
@@ -201,8 +199,6 @@ class AiSettingsSheet(
         val entered = key.second.text.toString().trim()
         if (!desired.enabled) {
             runCatching {
-                // Disabling takes effect before touching the key store. Invalid drafts
-                // cannot keep background AI enabled; valid model selections still save.
                 AiSettings.save(activity, desired)
                 goalStore.save(RunnerGoal(overallGoal.second.text.toString()))
                 goalDraft.text = null

@@ -21,7 +21,6 @@ import com.runline.app.tracking.RecordingStatus
 import com.runline.app.tracking.TrackingState
 import kotlin.math.roundToInt
 
-/** A map-first recording surface. It only renders the independently saved service state. */
 class ActiveRunView(
     context: Context,
     initial: TrackingState,
@@ -50,7 +49,6 @@ class ActiveRunView(
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private val routeText = label("", 14).apply { maxLines = 3 }
-    /** Street directions to the start, handed to the phone's maps app; only while still on the way there. */
     private var routeStart: Pair<Double, Double>? = null
     private val directions = com.google.android.material.button.MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
         setIconResource(R.drawable.ic_directions); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
@@ -66,7 +64,6 @@ class ActiveRunView(
         addView(directions, LinearLayout.LayoutParams(dp(48), dp(48)))
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
     }
-    /** GPS-style: arrow, distance and instruction for the next manoeuvre. */
     private val turnArrow = android.widget.ImageView(context).apply {
         imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface)); importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
@@ -80,10 +77,6 @@ class ActiveRunView(
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
     }
     private val ahead = RouteAheadView(context).apply { visibility = GONE }
-    /**
-     * Optional music strip: cover, track, play or pause, and next. Hidden while music control is off.
-     * Spotify's titles carry its mark and open the track in Spotify, as its terms ask.
-     */
     private val audio = context.getSystemService(android.media.AudioManager::class.java)
     private var musicPlaying: Boolean? = null
     private var musicCoverUrl: String? = null
@@ -166,7 +159,6 @@ class ActiveRunView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        // The music strip adds its own height, so the readout above it keeps the room it had.
         val strip = if (musicRow.visibility == VISIBLE) dp(52) else 0
         panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else ((h * 0.55f).roundToInt() + strip).coerceAtLeast(dp(180))
         val params = panel.layoutParams as LayoutParams
@@ -198,7 +190,6 @@ class ActiveRunView(
             com.runline.app.music.MusicProblem.RECONNECT -> context.getString(R.string.music_reconnect_short)
             null -> if (now.title.isEmpty()) context.getString(R.string.music_title) else listOf(now.title, now.artist).filter { it.isNotEmpty() }.joinToString(" · ")
         })
-        // A tap opens Spotify: at this track, or to wake it, after which the chosen playlist starts.
         musicTitle.isClickable = !now.keysOnly
         musicTitle.contentDescription = if (now.keysOnly) null else context.getString(R.string.music_open_spotify) + ". " + musicTitle.text
         musicBrand.visibility = if (now.keysOnly) GONE else VISIBLE
@@ -241,7 +232,6 @@ class ActiveRunView(
         elevation.update(points)
         val stopped = state.status == RecordingStatus.RECORDING && state.stoppedSinceMs != null
         val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(context)
-        // Auto-pause: the clock and average stop at traffic lights; the GPS keeps recording.
         val duration = if (autoPause) com.runline.app.core.StopDetection.movingDurationMs(run, openStopSinceMs = state.stoppedSinceMs) else run.activeDurationMs
         change(heading, context.getString(when {
             stopped -> if (autoPause) R.string.v17_stopped_auto_paused else R.string.v17_stopped
@@ -269,7 +259,6 @@ class ActiveRunView(
         heading.contentDescription = "${heading.text}. $status"
     }
 
-    /** Distance and ascent left, arrival against sunset, the next named place, or which way the path is. */
     private fun showRoute(route: com.runline.app.tracking.LiveRoute?, recording: Boolean) {
         routeRow.visibility = if (route == null) GONE else VISIBLE
         showGuidance(route)
@@ -320,7 +309,6 @@ class ActiveRunView(
         routeRow.contentDescription = "${route.name}. $text"
     }
 
-    /** "Start 450 m to your left", or a compass point before you are moving; as the crow flies. */
     private fun approachText(p: com.runline.app.core.RouteProgress): String {
         val meters = com.runline.app.core.RouteApproach.round(p.distanceFromRouteMeters)
         val distance = if (meters >= 1000) context.getString(R.string.v20_island_km, String.format(resources.configuration.locales[0], "%.1f", meters / 1000.0))
@@ -337,7 +325,6 @@ class ActiveRunView(
         return where?.let { context.getString(R.string.v21_island_start, distance, it) } ?: context.getString(R.string.v21_island_start_plain, distance)
     }
 
-    /** "Climb ahead: 110 m over 1.2 km, ~9%" from 2 km out, then the height still to climb. */
     private fun climbLine(guidance: com.runline.app.core.RouteGuidanceView?, done: Double): String {
         val climb = guidance?.climb ?: return ""
         val locale = resources.configuration.locales[0]
@@ -351,7 +338,6 @@ class ActiveRunView(
         return "\n" + context.getString(res, height.roundToInt(), String.format(locale, "%.1f", length / 1000), climb.gradePercent.roundToInt())
     }
 
-    /** The arrow row and the elevation ahead, only while on the route. */
     private fun showGuidance(route: com.runline.app.tracking.LiveRoute?) {
         val p = route?.progress
         val onRoute = p?.state == com.runline.app.core.RouteState.ON_ROUTE

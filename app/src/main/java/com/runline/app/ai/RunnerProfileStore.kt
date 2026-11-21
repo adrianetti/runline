@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicLong
 
 data class RunnerProfileSnapshot(val profile: RunnerProfile, val revision: Long)
 
-/** App-private, outside backup and every recording/export path. No network access. */
 class RunnerProfileStore(context: Context) {
     private val file = AtomicFile(File(context.noBackupFilesDir, "runner-profile.json"))
     fun load(): RunnerProfile = snapshot().profile

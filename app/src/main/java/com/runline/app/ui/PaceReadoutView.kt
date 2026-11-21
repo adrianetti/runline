@@ -10,14 +10,13 @@ import com.runline.app.R
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-/** Measure the digits themselves: unused column width belongs after the unit, not between it and the value. */
 internal class PaceReadoutView @JvmOverloads constructor(context: Context, private val compact: Boolean = false) : ViewGroup(context) {
     private val maximumSp = if (compact) 40 else 56
     val number = RollingNumberView(context, maximumSp)
     private val unit = TextView(context).apply {
         text = context.getString(R.string.v16_unit_pace); textSize = if (compact) 18f else 20f
         includeFontPadding = false; maxLines = 1; setTextColor(context.getColor(R.color.on_surface_variant))
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO // The number already includes its unit in its spoken label.
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private val gap = (6 * resources.displayMetrics.density).roundToInt()
     private val measurePaint = TextPaint()

@@ -53,14 +53,6 @@ import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import kotlin.math.*
 
-/**
- * A display-only map. It never requests GPS or writes to RunStore. Remote hosts receive
- * only the requested map tiles, not the session or its timestamps. Live recording is
- * independent of this view and of tile availability.
- *
- * Call onHostResume/onHostPause with the host; dispose before removing this view.
- * No whole-region/offline downloads. MapLibre's ambient cache is bounded at its 50 MB default.
- */
 class SatelliteMapView(context: Context) : FrameLayout(context) {
     private val mapView: MapView
     private var map: MapLibreMap? = null
@@ -103,7 +95,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         setBackgroundColor(Color.WHITE)
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
     }
-    // One small translucent pill; the whole 48 dp row around it opens the credits.
     private val creditText = TextView(context).apply {
         text = context.getString(R.string.map_v8_attribution)
         textSize = 10f
@@ -129,26 +120,21 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         setOnClickListener { showCredits() }
         addView(creditText, LayoutParams(-2, -2, Gravity.CENTER_VERTICAL or Gravity.START))
     }
-    // The same arrow as the marker. Shown only once the camera has stopped following it.
     private val followButton = mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
         imageTintList = null; visibility = GONE
     }
     private var plannedRoute: List<RunPoint> = emptyList()
-    /** From the current fix to a route's start, while still on the way there. */
     private var approachLine: Pair<Point, Point>? = null
     private var progressiveRoute = false
     private var trailEnd = -1
     private var trailPublishedAt = 0L
     private var trailHead: List<RunPoint> = emptyList()
-    /** Recent trail publications (uptime, last index): MapLibre renders each after a delay. */
     private val trailPublishes = ArrayDeque<Pair<Long, Int>>()
     private val trailHeadView = TrailHeadView(context).apply {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         isClickable = false; isFocusable = false
     }
     private val fallback = RouteView(context).apply { visibility = GONE }
-    // Follow uses the exact padded anchor; free camera projects this same native
-    // overlay on motion frames. GeoJSON symbol uploads never delay the moving marker.
     private val followMarkerView = FollowMarkerView(context).apply {
         visibility = GONE
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -182,7 +168,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         addView(waitingHint, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
     }
     private val waitingPanel = FrameLayout(context).apply {
-        isClickable = true // Do not let touches on loading content pan the hidden map.
+        isClickable = true
         setBackgroundColor(context.getColor(R.color.surface))
         addView(waitingContent, LayoutParams(-1, -1))
     }
@@ -265,13 +251,11 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             loaded.setStyle(Style.Builder().fromJson(BASE_STYLE)) { ready ->
                 if (disposed) return@setStyle
                 style = ready
-                // A planned route to follow sits under the recorded track: dashed, quieter.
                 ready.addSource(GeoJsonSource("planned"))
                 ready.addLayer(LineLayer("planned-outline", "planned").withProperties(
                     lineColor(Color.BLACK), lineWidth(6f), lineOpacity(0.45f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
                 ready.addLayer(LineLayer("planned-line", "planned").withProperties(
                     lineColor(Color.WHITE), lineWidth(3f), lineOpacity(0.9f), lineDasharray(arrayOf(2f, 1.5f)), lineJoin(Property.LINE_JOIN_ROUND)))
-                // Getting to the route: straight and thin, so it never reads as a path to follow.
                 ready.addSource(GeoJsonSource("approach"))
                 ready.addLayer(LineLayer("approach-line", "approach").withProperties(
                     lineColor(Color.WHITE), lineWidth(2f), lineOpacity(0.85f), lineDasharray(arrayOf(0.5f, 2f)), lineCap(Property.LINE_CAP_ROUND)))
@@ -304,8 +288,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (disposed || points === routePoints) return
         val firstRoute = routePoints.isEmpty() && points.isNotEmpty()
         if (navigationMode) {
-            // Process only newly appended fixes during recording. A replaced/recovered
-            // track rebuilds the course once, rather than rescanning every fix each second.
             val appended = points.size >= routePoints.size &&
                 (routePoints.isEmpty() || points[routePoints.lastIndex] == routePoints.last())
             if (!appended) course.reset()
@@ -322,11 +304,10 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         }
     }
 
-    /** Pass null while playback is in a pause or unavailable GPS interval. */
     fun setMarker(point: RunPoint?) {
         if (disposed) return
         val target = point?.takeIf { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
-        if (target == marker) return // A timer refresh must not restart an in-flight movement.
+        if (target == marker) return
         val previous = marker
         val from = displayedMarker
         val fromBearing = displayedBearing
@@ -368,7 +349,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** Disable interpolation while paused/recovered. GPS files are never modified. */
     fun setLiveMotionEnabled(enabled: Boolean) {
         if (liveMotionEnabled == enabled) return
         liveMotionEnabled = enabled
@@ -382,7 +362,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** Optional service status while awaiting the first fix; controls remain available. */
     fun setLocationWaitingMessage(message: String?) {
         if (locationWaitingMessage == message) return
         locationWaitingMessage = message
@@ -415,7 +394,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateMarker()
     }
 
-    /** Replay positions are already interpolated; do not apply live GPS lag a second time. */
     fun setReplayMode() {
         replayMode = true
         navigationMode = false
@@ -440,7 +418,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** A route to follow, drawn under the recorded track. Pass the same list to skip redrawing. */
     fun setPlannedRoute(points: List<RunPoint>?) {
         val next = points ?: emptyList()
         if (disposed || next === plannedRoute) return
@@ -448,7 +425,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         style?.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(next))
     }
 
-    /** A straight dashed line to the start of a route not yet joined; null clears it. */
     fun setApproachLine(fromLatitude: Double, fromLongitude: Double, toLatitude: Double, toLongitude: Double) =
         showApproach(Point.fromLngLat(fromLongitude, fromLatitude) to Point.fromLngLat(toLongitude, toLatitude))
     fun clearApproachLine() = showApproach(null)
@@ -460,7 +436,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         else source.setGeoJson(LineString.fromLngLats(listOf(next.first, next.second)))
     }
 
-    /** Replay only: the route appears behind the arrow as it moves, not ahead of it. */
     fun setProgressiveRoute(enabled: Boolean) {
         if (disposed || progressiveRoute == enabled) return
         progressiveRoute = enabled
@@ -469,7 +444,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateRoute()
     }
 
-    /** Live GPS uses an arrow once movement establishes a course. */
     fun setNavigationMode(enabled: Boolean) {
         if (disposed || navigationMode == enabled) return
         navigationMode = enabled
@@ -491,7 +465,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** Physical View pixels occupied by the host's floating controls and run island. */
     fun setOverlayInsets(leftPx: Int, topPx: Int, rightPx: Int, bottomPx: Int) {
         if (disposed) return
         val next = intArrayOf(leftPx, topPx, rightPx, bottomPx).map { it.coerceAtLeast(0) }.toIntArray()
@@ -526,7 +499,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (following) followMarker()
     }
 
-    /** Fit handles routes crossing the date line without zooming out to the entire world. */
     fun fitRoute() {
         if (disposed) return
         val valid = routePoints.filter { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
@@ -548,10 +520,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val ys = valid.map { mercatorY(it.latitude) }
         val spanX = max((lngs.max() - lngs.min()) / 360.0, 0.000002)
         val spanY = max(ys.max() - ys.min(), 0.000002)
-        // MapLibre's native viewport is measured in density-independent pixels:
-        // NativeMapView.resizeView divides Android's physical size by pixelRatio.
-        // Additional route-fit margins leave room for the map controls. Camera padding
-        // is passed in physical pixels; native MapLibre divides it by the same pixelRatio.
         val density = resources.displayMetrics.density.toDouble()
         val padding = cameraInsets()
         val usableWidth = max((width - padding[0] - padding[2]) / density - 128.0, 80.0)
@@ -572,7 +540,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         resumed = true
         requestMarkerFrame()
         followCamera.reset(); cameraCut = true
-        // Return directly to the last observed fix; never animate unseen background time.
         displayedMarker = marker
         displayedBearing = if (navigationMode) course.bearingDegrees else if (replayMode) displayedBearing else null
         updateMarker()
@@ -632,15 +599,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         Feature.fromGeometry(LineString.fromLngLats(segment.map { Point.fromLngLat(it.longitude, it.latitude) }))
     })
 
-    /**
-     * Draws only the path already covered, ending exactly at the arrow. The map trail is
-     * re-published at most a few times a second: replacing GeoJSON every frame starves
-     * its rendering. The head from there to the arrow is drawn natively per frame.
-     *
-     * While playing, the map trail stops 400 m behind the arrow and the head draws that stretch
-     * alone. The head is projected with the newest camera, and the map's last frame can still show
-     * an older one. Where both drew the same stretch, a turn split it into two lines (before 0.20).
-     */
     private fun updateTrail(force: Boolean) {
         val ready = style ?: return
         val arrow = displayedMarker
@@ -655,7 +613,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             while (trailPublishes.size > 8) trailPublishes.removeFirst()
             ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints.subList(0, publish + 1)))
         }
-        // Start from a publication old enough to be on screen, so the head always overlaps it.
         val shown = trailPublishes.lastOrNull { now - it.first >= TRAIL_RENDER_MS }?.second ?: trailPublishes.firstOrNull()?.second ?: trailEnd
         trailHead = ReplayTrail.head(routePoints, minOf(shown, trailEnd), passed, arrow).let { head ->
             if (head.size <= MAX_HEAD_POINTS) head
@@ -668,8 +625,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val loaded = map
         val head = trailHead
         if (disposed || !progressiveRoute || loaded == null || style == null || mapFailed || head.size < 2) { trailHeadView.show(null); return }
-        // Under a tilted camera, points outside the visible ground (behind the camera) project to
-        // nonsense and drew lines across the screen. Such points break the line instead.
         val bounds = runCatching { loaded.projection.visibleRegion.latLngBounds }.getOrNull()
         val padLat = bounds?.let { (it.latitudeNorth - it.latitudeSouth) * 0.25 } ?: 0.0
         val padLon = bounds?.let { (it.longitudeEast - it.longitudeWest) * 0.25 } ?: 0.0
@@ -682,7 +637,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     private fun updateMarker() { updateMarkerPresentation(); requestMarkerFrame() }
 
-    /** Coalesce to the next display frame after movement; paused maps never poll. */
     private fun requestMarkerFrame() {
         removeCallbacks(markerFrame)
         if (!disposed && resumed) postOnAnimation(markerFrame)
@@ -720,8 +674,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             val pose = followCamera.update(displayedBearing, SystemClock.uptimeMillis(), cameraCut,
                 reduceMotion = !ValueAnimator.areAnimatorsEnabled())
             cameraCut = false
-            // Perspective over imagery, not terrain relief. The target remains the
-            // displayed observed fix; only orientation is smoothed behind the arrow.
             loaded.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder(loaded.cameraPosition)
                 .target(LatLng(point.latitude, point.longitude)).zoom(18.0).bearing(pose.bearing).tilt(pose.tilt).padding(cameraInsets()).build()))
         }
@@ -746,8 +698,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         waitingSpinner.visibility = if (!waitingForPosition || liveMotionEnabled) VISIBLE else GONE
         waitingHint.visibility = if (waitingForPosition && liveMotionEnabled) VISIBLE else GONE
         waitingPanel.visibility = if (waiting) VISIBLE else GONE
-        // Keep the TextureView alive underneath the opaque loading panel. Making it
-        // invisible can defer GL surface creation and prevent the style from loading.
         mapView.importantForAccessibility = if (waiting) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else IMPORTANT_FOR_ACCESSIBILITY_AUTO
         fallback.visibility = if (mapFailed && !waiting) VISIBLE else GONE
         credits.visibility = if (waiting) GONE else VISIBLE
@@ -766,7 +716,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val padding = doubleArrayOf((overlayInsets[0] + dp(8)).toDouble(), (overlayInsets[1] + dp(8)).toDouble(),
             (overlayInsets[2] + dp(8)).toDouble(), (overlayInsets[3] + dp(56)).toDouble())
         if (following && (navigationMode || replayMode) && ValueAnimator.areAnimatorsEnabled()) {
-            // A little more road ahead, while the arrow stays clear of the run island.
             padding[1] += (height - padding[1] - padding[3]).coerceAtLeast(0.0) * .16
         }
         return padding
@@ -836,17 +785,14 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
 }
 
-/** The few metres between the published replay trail and the arrow, matching the route line's style. */
 private class TrailHeadView(context: Context) : View(context) {
     private val density = context.resources.displayMetrics.density
-    // Butt caps: the start sits on the map line's round end, the far end under the arrow.
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; color = Color.BLACK; strokeWidth = 7f * density; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.BUTT
     }
     private val line = Paint(outline).apply { color = Color.WHITE; strokeWidth = 4f * density }
     private val path = android.graphics.Path()
     private var visible = false
-    /** Null entries break the line: the next point starts a new piece. */
     fun show(points: List<android.graphics.PointF?>?) {
         path.reset()
         var previous: android.graphics.PointF? = null; var drawn = false
@@ -866,7 +812,6 @@ private class TrailHeadView(context: Context) : View(context) {
     }
 }
 
-/** One display marker, using the pinned Tabler arrow in follow and free-camera modes. */
 private class FollowMarkerView(context: Context) : View(context) {
     private val arrow = context.getDrawable(R.drawable.ic_navigation)!!.mutate()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -894,7 +839,6 @@ private class FollowMarkerView(context: Context) : View(context) {
     }
 }
 
-/** Natural Earth public-domain outline keeps PNOA off Portugal, France and other countries. */
 private object SpainCoverage {
     private var rings: List<List<Pair<Double, Double>>>? = null
     fun contains(context: Context, latitude: Double, longitude: Double): Boolean {

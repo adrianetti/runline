@@ -24,7 +24,6 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** A compact, accessible overview. Its type filter affects charts, not the history list. */
 class HistoryInsightsView(
     context: Context,
     runs: List<RunSession>,
@@ -146,7 +145,6 @@ private fun formatPace(seconds: Double, locale: Locale): String {
     return String.format(locale, "%d:%02d", total / 60, total % 60)
 }
 
-/** Four labelled observations rather than an unlabelled sparkline. */
 private class WeeklyDistanceChart(context: Context, period: HistoryPeriod, locale: Locale) : View(context) {
     private val density = resources.displayMetrics.density
     private val textSize = 12f * resources.displayMetrics.scaledDensity
@@ -190,7 +188,6 @@ private class WeeklyDistanceChart(context: Context, period: HistoryPeriod, local
     }
 }
 
-/** Pace uses an inverted axis: a faster (smaller) min/km value is higher. */
 private class PaceTrendChart(context: Context, period: HistoryPeriod, zone: ZoneId, locale: Locale) : View(context) {
     private val density = resources.displayMetrics.density
     private val textSize = 12f * resources.displayMetrics.scaledDensity

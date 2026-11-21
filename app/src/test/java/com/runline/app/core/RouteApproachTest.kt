@@ -13,12 +13,12 @@ class RouteApproachTest {
         assertEquals(ApproachCue(1_200, RouteSide.AHEAD, null), step(1_234.0))
         assertNull(step(1_100.0))
         assertEquals(950, step(960.0)?.meters)
-        assertNull(step(900.0)); assertNull(step(990.0)) // drifting back out does not repeat
+        assertNull(step(900.0)); assertNull(step(990.0))
         assertEquals(450, step(470.0)?.meters)
         assertEquals(200, step(199.0)?.meters)
         assertEquals(90, step(91.0)?.meters)
         assertEquals(40, step(44.0)?.meters)
-        assertNull(step(25.0)) // joining: "On the route" follows
+        assertNull(step(25.0))
     }
 
     @Test fun `compass point when there is no direction of travel yet`() {

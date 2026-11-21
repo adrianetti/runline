@@ -28,10 +28,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import kotlin.math.roundToInt
 
-/**
- * A route before the hike: where it goes, how hard it is, and whether there is daylight for it.
- * Start and Preview stay fixed under the scrolling details, so starting never means hunting.
- */
 class RouteDetailView(
     context: Context,
     val route: HikingRoute,
@@ -152,7 +148,6 @@ class RouteDetailView(
         panel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> insets() }
     }
 
-    /** Today's sunset at the start, and whether starting now would finish after it. */
     private fun daylight(locale: java.util.Locale): String? {
         val start = route.points.first()
         val sunset = SunTimes.sunset(LocalDate.now().toEpochDay(), start.latitude, start.longitude) ?: return null
@@ -191,7 +186,6 @@ class RouteDetailView(
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 }
 
-/** Distance–elevation profile of a planned route, with a true-ish aspect (at least 40 m tall). */
 class RouteProfileView(context: Context, private val route: HikingRoute) : View(context) {
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2f * resources.displayMetrics.density; color = context.getColor(R.color.on_surface); strokeJoin = Paint.Join.ROUND }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = context.getColor(R.color.surface_variant) }

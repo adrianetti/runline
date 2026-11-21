@@ -15,7 +15,7 @@ class HistorySummaryTest {
             RunMetrics.paceSecondsPerKm(meters, duration))
 
     @Test fun localMondayBoundariesAndDstKeepTheCurrentPartialWeekAndExcludeFutureData() {
-        val now = instant("2026-11-01T22:30:00Z") // Sunday 23:30, Madrid's clocks changed last week.
+        val now = instant("2026-11-01T22:30:00Z")
         val summary = HistorySummary.forPeriod(listOf(
             activity("before", "2026-10-04T21:59:59Z"),
             activity("first", "2026-10-04T22:00:00Z"),
@@ -40,8 +40,8 @@ class HistorySummaryTest {
         )
         val summary = HistorySummary.forPeriod(prepared, instant("2026-11-01T12:00:00Z"), zone, ActivityType.RUN)
         assertEquals(3, summary.activities.size)
-        assertEquals(4_500_000L, summary.activeDurationMs) // No-GPS activity still contributes its timer.
-        assertEquals(390.0, summary.paceSecondsPerKm!!, 0.001) // 65 minutes / 10 km, not mean(5:00, 6:40).
+        assertEquals(4_500_000L, summary.activeDurationMs)
+        assertEquals(390.0, summary.paceSecondsPerKm!!, 0.001)
         assertEquals(listOf("short", "long"), summary.paceTrend.map { it.id })
     }
 

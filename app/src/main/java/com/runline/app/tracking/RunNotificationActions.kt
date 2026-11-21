@@ -1,6 +1,5 @@
 package com.runline.app.tracking
 
-/** Recheck controls against the live recorder, including after process recovery. */
 internal object RunNotificationActions {
     fun isAllowed(action: String?, expectedRunId: String?, currentRunId: String?, status: RecordingStatus): Boolean {
         if (expectedRunId.isNullOrBlank() || expectedRunId != currentRunId) return false

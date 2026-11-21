@@ -2,7 +2,6 @@ package com.runline.app.core
 
 import kotlin.math.*
 
-/** GPS estimates of repeated loops, not named tracks or official lap timing. */
 data class LapSector(val number: Int, val distanceMeters: Double, val durationMs: Long, val elevationChangeMeters: Double?)
 data class DetectedLap(val number: Int, val distanceMeters: Double, val durationMs: Long,
                        val ascentMeters: Double?, val descentMeters: Double?, val sectors: List<LapSector>)
@@ -14,7 +13,6 @@ object LapAnalysis {
     fun analyze(points: List<RunPoint>): LapReport = LapTracker().apply { update(points) }.report()
 }
 
-/** Incremental loop detection; work is proportional to new fixes, not the full run on every tick. */
 class LapTracker {
     private data class Sample(val point: RunPoint, val distance: Double, val bearing: Double?)
     private data class Candidate(val samples: List<Sample>, val lap: DetectedLap)
@@ -61,7 +59,6 @@ class LapTracker {
                 complete(lapStart, end)
                 lapStart = end; departed = false
             }
-            // Bound an abandoned route search after moving away for too long.
             if (point.timestampMs - start.point.timestampMs > 90 * 60_000 || sample.distance - start.distance > 15_000) breakPath()
         } else if (sample.distance >= 300) {
             val key = cell(point)
@@ -80,7 +77,6 @@ class LapTracker {
             }
         }
         if (path.isNotEmpty()) {
-            // At most one search anchor per ~15m; the complete path still supports sector timing.
             val cell = cell(point)
             val bucket = cells.getOrPut(cell) { mutableListOf() }
             if (bucket.lastOrNull()?.let { sample.distance - path[it].distance >= 15 } != false) bucket += path.lastIndex

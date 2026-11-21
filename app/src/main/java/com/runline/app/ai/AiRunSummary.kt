@@ -11,7 +11,6 @@ import org.json.JSONObject
 import java.time.Instant
 import java.time.ZoneId
 
-/** Coordinate/photo-free summaries. Titles and notes require a separate explicit option. */
 object AiRunSummary {
     fun of(sourceRun: RunSession, details: ActivityDetails? = null, includeNotes: Boolean = false): JSONObject {
         val run = sourceRun.withTrustedElevation()

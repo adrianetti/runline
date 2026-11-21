@@ -2,7 +2,6 @@ package com.runline.app.music
 
 import android.content.Context
 
-/** Optional and off by default. A music problem never reaches the recorder. */
 object MusicSettings {
     private fun prefs(context: Context) = context.getSharedPreferences("music_settings", Context.MODE_PRIVATE)
 
@@ -25,6 +24,5 @@ object MusicSettings {
         RunMusic.reload()
     }
 
-    /** Disconnecting keeps the on/off choices but forgets everything that came from the account. */
     fun forgetAccount(context: Context) = save(context, load(context).copy(calm = null, steady = null, push = null))
 }

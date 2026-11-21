@@ -2,7 +2,6 @@ package com.runline.app.core
 
 import kotlin.random.Random
 
-/** Shuffle bags vary phrasing without repeating a line until its alternatives are used. */
 class PhraseRotation(seed: Int = Random.nextInt()) {
     private val random = Random(seed)
     private val bags = mutableMapOf<String, MutableList<Int>>()

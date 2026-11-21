@@ -1,6 +1,5 @@
 package com.runline.app.ai
 
-/** Only TTS onStart events enter this memory-only, per-activity history. */
 data class AiSpokenFeedback(val text: String, val source: String, val elapsedRealtimeMs: Long)
 
 object AiSpokenHistory {
@@ -12,7 +11,6 @@ object AiSpokenHistory {
         while (items.size > LIMIT) items.removeFirst()
         while (runs.size > 4) runs.remove(runs.keys.first())
     }
-    /** Enough of the run for the live coach to avoid repeating itself. */
     const val LIMIT = 16
     const val WINDOW_MS = 2_700_000L
     @Synchronized fun recent(runId: String, nowElapsedMs: Long): List<AiSpokenFeedback> =

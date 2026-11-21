@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** A small display model of actual heights; breaks are retained, never filled in. */
 data class ElevationTrace(val sections: List<List<Sample>>, val durationMs: Long) {
     data class Sample(val positionMs: Long, val heightMeters: Double)
 

@@ -11,7 +11,6 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 
-/** Offline route geometry only: no downloaded map, tile service, or location transmission. */
 class RouteView(context: Context) : View(context) {
     var points: List<RunPoint> = emptyList()
         set(value) { if (field === value) return; field = value; contentDescription = if (value.size < 2) context.getString(R.string.route_no_gps) else context.getString(R.string.route_samples, value.size); invalidate() }

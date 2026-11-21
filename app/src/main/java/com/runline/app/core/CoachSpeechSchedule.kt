@@ -1,15 +1,5 @@
 package com.runline.app.core
 
-/**
- * One slot per priority class, never a FIFO of late instructions. All times are monotonic.
- * NAVIGATION (turns, leaving or rejoining a route) waits only briefly after other speech and
- * expires fast, because a late turn instruction is a wrong one. ROUTE information (a place,
- * the next climb) shares the milestone slot with a shorter silence than a kilometre report.
- * AI is the live coach: its line is written for this moment, so it follows other speech after
- * a short breath and is dropped rather than spoken late. A MILESTONE (a kilometre, a lap,
- * halfway, the final stretch) belongs to a place on the route: it waits only a short breath,
- * so "kilometre 3" is not said 100 m later.
- */
 enum class CoachSpeechPriority(val rank: Int, val silenceMs: Long, val lifetimeMs: Long) {
     NAVIGATION(110, 3_000, 12_000),
     GOAL(100, 2_000, 90_000), ROUTE(85, 8_000, 45_000), MILESTONE(80, 10_000, 60_000),
@@ -20,7 +10,6 @@ enum class CoachSpeechPriority(val rank: Int, val silenceMs: Long, val lifetimeM
         fun of(cue: CoachCue): CoachSpeechPriority = when (cue) {
             is CoachCue.GoalReached -> GOAL
             is CoachCue.Kilometre, CoachCue.OneKilometreRemaining, is CoachCue.LapCompleted -> MILESTONE
-            // Halfway and the final stretch are places on the way, not a routine morale line.
             is CoachCue.Encouragement -> if (cue.kind == EncouragementKind.HALFWAY || cue.kind == EncouragementKind.FINAL_STRETCH) MILESTONE else MORALE
             is CoachCue.Terrain, CoachCue.EasingAfterHill -> TERRAIN
             else -> PACE
@@ -59,7 +48,6 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
             lastKilometre = cue.completed
         }
         if (request.priority == CoachSpeechPriority.NAVIGATION) {
-            // A newer instruction replaces an older one; coaching slots are left alone.
             dropped(navigation, "superseded"); navigation = Pending(request, nowMs)
         } else if (request.priority == CoachSpeechPriority.GOAL) {
             if (goalSeen) return false
@@ -87,15 +75,10 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
         if (last != null && nowMs - last < next.request.priority.silenceMs) return null
         when (next) { navigation -> navigation = null; goal -> goal = null; milestone -> milestone = null; else -> routine = null }
         taken = next
-        // A milestone already breaks the music. Do not follow it with an older routine cue.
         if (next.request.priority == CoachSpeechPriority.MILESTONE || next.request.priority == CoachSpeechPriority.ROUTE) { dropped(routine, "superseded"); routine = null }
         return next.request
     }
 
-    /**
-     * The audio output refused [request] (focus denied, engine not ready) before a word was said.
-     * It gets its slot back once, with its original age, unless something newer took the slot.
-     */
     fun retry(request: CoachSpeechRequest, offeredAtMs: Long, nowMs: Long): Boolean {
         prune(nowMs)
         if (request === lastRetried || !valid(request) || nowMs - offeredAtMs !in 0 until request.priority.lifetimeMs) return false
@@ -111,17 +94,14 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
         return true
     }
     private var lastRetried: CoachSpeechRequest? = null
-    /** When [request], just taken, was first offered: kept so a refused one can retry with its own age. */
     fun offeredAt(request: CoachSpeechRequest): Long? = taken?.takeIf { it.request === request }?.offeredAt
 
-    /** Completion/error/stop, not generation or onStart, begins the quiet interval. */
     fun finished(nowMs: Long) {
         observeTime(nowMs)
         lastFinishedAt = nowMs
     }
 
     fun invalidate() { invalidateCoaching(); dropped(navigation, "invalidated"); navigation = null }
-    /** Coaching context changed (a stop, stale pace): navigation keeps its own validity check. */
     fun invalidateCoaching() {
         val route = milestone?.takeIf { it.request.priority == CoachSpeechPriority.ROUTE }
         listOf(goal, milestone.takeIf { route == null }, routine).forEach { dropped(it, "invalidated") }
@@ -150,7 +130,6 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
 enum class CoachSpeechSource { LOCAL, AI }
 data class SpokenCoachAdvice(val text: String, val source: CoachSpeechSource, val elapsedRealtimeMs: Long)
 
-/** A queued/generated sentence is not speech history. Only the matching TTS start counts once. */
 class SpokenCoachGate {
     private var id: String? = null
     private var text = ""

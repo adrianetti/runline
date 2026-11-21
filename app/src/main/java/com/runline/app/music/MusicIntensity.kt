@@ -20,13 +20,11 @@ data class MusicConfig(
     val enabled: Boolean = false,
     val startWithRun: Boolean = true,
     val pauseWithRun: Boolean = true,
-    /** Change playlist with the run. Needs a Spotify connection and at least two playlists. */
     val adaptive: Boolean = true,
     val calm: PlaylistRef? = null,
     val steady: PlaylistRef? = null,
     val push: PlaylistRef? = null,
 ) {
-    /** A missing mood borrows its neighbour's playlist, so one playlist is enough to start. */
     fun playlist(mood: MusicMood): PlaylistRef? = when (mood) {
         MusicMood.CALM -> calm ?: steady ?: push
         MusicMood.STEADY -> steady ?: calm ?: push
@@ -36,19 +34,14 @@ data class MusicConfig(
     fun valid() = playlists.all { it.valid() }
 }
 
-/** What the music may know about the run. Measured facts only: no heart rate, no guessed fatigue. */
 data class MusicFacts(
     val activity: ActivityType = ActivityType.RUN,
     val activeMs: Long = 0,
-    /** Share of the distance or time goal already done; null without one. */
     val goalProgress: Double? = null,
-    /** Pace over about the last minute of movement. */
     val paceSeconds: Double? = null,
-    /** The slow edge of the applied pace goal. */
     val paceMaxSeconds: Double? = null,
     val uphill: Boolean = false,
     val effort: SmartRunEffort? = null,
-    /** False while standing still or without a fresh GPS fix: nothing to react to. */
     val moving: Boolean = true,
 ) {
     companion object {
@@ -59,7 +52,6 @@ data class MusicFacts(
                 coach.paceTargetRange?.endInclusive, uphill, coach.effortIntent, !stopped && gpsFresh)
         }
 
-        /** Seconds per kilometre over the last [windowMs] of one unbroken stretch, or null when too short to judge. */
         fun recentPace(points: List<RunPoint>, windowMs: Long = 60_000): Double? {
             val last = points.lastOrNull() ?: return null
             var start = points.lastIndex
@@ -73,13 +65,8 @@ data class MusicFacts(
     }
 }
 
-/** [intensity] runs from 1 (very calm) to 5 (all out). [urgent] asks for the change now, not at the next track. */
 data class MusicTarget(val intensity: Int, val urgent: Boolean = false)
 
-/**
- * Turns the run into the energy the music should have. A change has to hold for a while before
- * it counts, so one slow corner or a short bump never flips the playlist.
- */
 class MusicIntensity {
     private var held = 0
     private var candidate = 0
@@ -97,7 +84,6 @@ class MusicIntensity {
         if (warmingUp) level -= 1
         uphillSince = if (facts.uphill) uphillSince ?: nowMs else null
         if (uphillSince?.let { nowMs - it >= CLIMB_MS } == true) level += 1
-        // On an easy day a slow minute is the plan, not a reason to push.
         val behind = !easy && !warmingUp && facts.paceSeconds != null && facts.paceMaxSeconds != null &&
             facts.paceSeconds > facts.paceMaxSeconds * BEHIND_RATIO
         behindSince = if (behind) behindSince ?: nowMs else null

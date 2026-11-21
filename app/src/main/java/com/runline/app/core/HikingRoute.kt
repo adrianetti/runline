@@ -2,10 +2,8 @@ package com.runline.app.core
 
 import kotlin.math.*
 
-/** One vertex of a planned route; [distanceMeters] is the path distance from its start. */
 data class RoutePoint(val latitude: Double, val longitude: Double, val elevationMeters: Double?, val distanceMeters: Double)
 
-/** A named place along a route, from the GPX file. Display only. */
 data class RouteWaypoint(val latitude: Double, val longitude: Double, val name: String, val description: String? = null,
                          val elevationMeters: Double? = null)
 
@@ -17,23 +15,18 @@ data class RouteStats(
     val descentMeters: Double?,
     val minElevationMeters: Double?,
     val maxElevationMeters: Double?,
-    /** Moving time at a steady hiking effort; stops are not included. */
     val estimatedMinutes: Int,
-    /** Distance plus one kilometre per 100 m of ascent, a common hiking effort measure. */
     val effortKilometres: Double,
     val difficulty: RouteDifficulty,
     val loop: Boolean,
 )
 
-/** A planned path to follow. Geometry only: it is never a recording and never changes one. */
 class HikingRoute(val id: String, val name: String, val points: List<RoutePoint>, val waypoints: List<RouteWaypoint> = emptyList(),
                   val description: String? = null) {
     init { require(points.size >= 2 && id.isNotBlank()) }
     val distanceMeters: Double get() = points.last().distanceMeters
     val stats: RouteStats by lazy { RouteEstimates.stats(points) }
-    /** Cumulative ascent at each point (3 m deadband), for "ascent left" while following. */
     val ascentAt: DoubleArray by lazy { RouteEstimates.cumulativeAscent(points) }
-    /** Steady-effort minutes from the start to each point. */
     val minutesAt: DoubleArray by lazy { RouteEstimates.cumulativeMinutes(points) }
 
     fun runPoints(): List<RunPoint> = points.mapIndexed { index, p ->
@@ -43,7 +36,6 @@ class HikingRoute(val id: String, val name: String, val points: List<RoutePoint>
     companion object {
         const val MAX_POINTS = 100_000
 
-        /** Builds a route from raw vertices, dropping repeated and invalid coordinates. */
         fun of(id: String, name: String, raw: List<Triple<Double, Double, Double?>>, waypoints: List<RouteWaypoint> = emptyList(),
                description: String? = null): HikingRoute {
             require(raw.size <= MAX_POINTS)
@@ -68,7 +60,6 @@ object RouteGeometry {
         val h = sin((b - a) / 2).pow(2) + cos(a) * cos(b) * sin(Math.toRadians(lon2 - lon1) / 2).pow(2)
         return 2 * EARTH * asin(sqrt(min(1.0, h)))
     }
-    /** Initial bearing in degrees, 0 = north, clockwise. */
     fun bearing(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val a = Math.toRadians(lat1); val b = Math.toRadians(lat2); val d = Math.toRadians(lon2 - lon1)
         val y = sin(d) * cos(b); val x = cos(a) * sin(b) - sin(a) * cos(b) * cos(d)
@@ -80,7 +71,6 @@ object RouteEstimates {
     private const val STEP_METERS = 50.0
     private const val DEADBAND_METERS = 3.0
 
-    /** Tobler's hiking function, km/h, for a grade (rise over run). */
     fun toblerKmh(grade: Double) = 6 * exp(-3.5 * abs(grade + 0.05))
 
     fun difficulty(effortKilometres: Double) = when {
@@ -124,10 +114,6 @@ object RouteEstimates {
         return out
     }
 
-    /**
-     * Minutes from the start to each point. Grades come from heights resampled every 50 m,
-     * so GPS or model noise between close vertices cannot inflate the estimate.
-     */
     fun cumulativeMinutes(points: List<RoutePoint>): DoubleArray {
         val out = DoubleArray(points.size)
         val total = points.last().distanceMeters

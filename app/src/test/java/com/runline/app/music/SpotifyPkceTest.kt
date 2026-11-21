@@ -49,7 +49,6 @@ class SpotifyPkceTest {
         assertEquals(SpotifyPkce.Callback.Denied("cancelled"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(), "abc"))
         assertEquals(SpotifyPkce.Callback.Denied("cancelled"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(code = ""), "abc"))
         assertEquals(SpotifyPkce.Callback.Denied("INVALID_APP_ID"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(error = "INVALID_APP_ID"), "abc"))
-        // An error wins over a code, and a long one is cut before it can reach the screen.
         assertEquals(SpotifyPkce.Callback.Denied("no_code"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("AQD", "abc", "no_code"), "abc"))
         assertEquals(80, (SpotifyPkce.parseAppReply(SpotifyPkce.AppReply(error = "x".repeat(500)), "abc") as SpotifyPkce.Callback.Denied).error.length)
         assertEquals(SpotifyPkce.Callback.Denied("cancelled"), SpotifyPkce.parseAppReply(SpotifyPkce.AppReply("c".repeat(2001)), "abc"))

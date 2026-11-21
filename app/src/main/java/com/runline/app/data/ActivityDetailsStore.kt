@@ -12,7 +12,6 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.zip.CRC32
 
-/** Two revisioned, checksummed sidecars. Editing cannot replace a recorded route or draft. */
 class ActivityDetailsStore(
     private val directory: File,
     private val syncDirectory: (File) -> Unit = {},
@@ -33,12 +32,9 @@ class ActivityDetailsStore(
             atomicWrite(File(sidecar(id).path + ".backup"), payload)
             atomicWrite(sidecar(id), payload)
         } catch (error: Exception) {
-            // One durable copy is enough to commit; read() chooses its newer revision.
             if (runCatching { read(id) == next }.getOrDefault(false)) return
             throw error
         }
-        // Keep removed images until both new copies are committed. If interrupted, an old
-        // fallback document still has its images; unreferenced files are harmless.
         existing?.details?.photoIds?.filterNot { it in value.photoIds }?.forEach {
             runCatching { photoFile(id, it).delete() }
         }

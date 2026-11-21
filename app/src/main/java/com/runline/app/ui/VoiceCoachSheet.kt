@@ -25,7 +25,6 @@ import com.runline.app.core.CoachGoal
 import com.runline.app.core.SmartRunEffort
 import kotlin.math.roundToInt
 
-/** Optional settings; drafts survive rotation and never modify the recording itself. */
 class VoiceCoachSheet(
     private val activity: AppCompatActivity,
     state: Bundle?,
@@ -243,7 +242,6 @@ class VoiceCoachSheet(
     private fun decimal(value: Double) = String.format(activity.resources.configuration.locales[0], "%.1f", value)
 
     companion object {
-        /** Also used on Record so an applied smart target remains visible before Start. */
         fun goalSummary(context: Context, config: CoachConfig): String {
             val locale = context.resources.configuration.locales[0]
             fun number(value: Double) = String.format(locale, "%.1f", value)

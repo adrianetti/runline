@@ -97,7 +97,7 @@ class DiskRunStoreTest {
         store.appendPoint(point(1), record(1000))
         val finished = record(1000, listOf(point(1))).run
         val failing = DiskRunStore(dir, fault = { if (it == "before_replace:run-test-run.json") throw IOException("power cut") })
-        failing.complete(finished) // Must not report failure and offer Resume after a committed copy exists.
+        failing.complete(finished)
         assertEquals(finished, DiskRunStore(dir).get(base.id))
         assertNull(DiskRunStore(dir).loadDraftRecord())
     }
@@ -115,7 +115,7 @@ class DiskRunStoreTest {
         val dir = temporary.newFolder(); val store = DiskRunStore(dir); store.beginDraft(base)
         store.appendPoint(point(1), record(1000))
         val failingCleanup = DiskRunStore(dir, fault = { if (it == "before_delete:draft-points.jsonl") throw IOException("power cut") })
-        failingCleanup.discardDraft() // A committed discard must not offer Resume after cleanup failure.
+        failingCleanup.discardDraft()
         assertNull(DiskRunStore(dir).loadDraftRecord())
         DiskRunStore(dir).beginDraft(base.copy(id = "next-run"))
         assertEquals("next-run", DiskRunStore(dir).loadDraftRecord()!!.run.id)

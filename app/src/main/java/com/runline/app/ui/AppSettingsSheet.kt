@@ -5,7 +5,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.runline.app.R
 import com.runline.app.i18n.AppLanguage
 
-/** Global preferences have one home; recording menus contain session actions only. */
 class AppSettingsSheet(
     activity: AppCompatActivity,
     onProfile: () -> Unit,
@@ -36,8 +35,6 @@ class AppSettingsSheet(
         item(activity.getString(R.string.v8_language_value, language), R.drawable.ic_language, onLanguage)
         item(activity.getString(R.string.music_title), R.drawable.ic_music, onMusic)
         item(activity.getString(R.string.terrain_maps_title), R.drawable.ic_slope_up, onTerrain)
-        // Derived only: stops never remove fixes, so this can be changed after a run too.
-        // Same button style as the other rows keeps icon and label on one start edge.
         val autoPause = com.google.android.material.materialswitch.MaterialSwitch(activity).apply {
             isChecked = com.runline.app.tracking.RecordingSettings.autoPause(activity)
             contentDescription = activity.getString(R.string.v17_auto_pause)

@@ -2,21 +2,10 @@ package com.runline.app.core
 
 import kotlin.math.*
 
-/**
- * Analysis-only provenance; never persisted as an original GPS observation.
- * [STRUCTURE] carries no height: a detailed model covers the place, but a bridge,
- * underpass, embankment or wall makes the runner's level ambiguous there.
- */
 enum class TerrainModel { IGN_MDT05, MAPZEN, STRUCTURE }
 
-/**
- * Analysis only: where the runner was, at an ambiguous structure, relative to the
- * detailed ground model. [GROUND] follows the model; [ABOVE] is a deck or overpass over
- * lower modelled ground; [BELOW] is a passage under a bridge or embankment the model keeps.
- */
 enum class TerrainLevel { GROUND, ABOVE, BELOW }
 
-/** Public, versioned cache identity. Mercator cannot represent the polar caps. */
 data class WorldTileKey(val zoom: Int, val x: Int, val y: Int) {
     init { require(zoom in 8..12 && x in 0 until (1 shl zoom) && y in 0 until (1 shl zoom)) }
     val name get() = "mapzen-v1-$zoom-$x-$y"
@@ -37,7 +26,6 @@ data class WorldTileKey(val zoom: Int, val x: Int, val y: Int) {
             val size = 1 shl key.zoom; val y = key.y + dy
             return if (y in 0 until size) key.copy(x = Math.floorMod(key.x + dx, size), y = y) else null
         }
-        /** Enough neighbors for the uncertainty footprint and cross-tile interpolation. */
         fun needed(point: RunPoint): Set<WorldTileKey> {
             val key = at(point.latitude, point.longitude) ?: return emptySet()
             val xy = pixels(point.latitude, point.longitude, key.zoom)!!
@@ -57,14 +45,12 @@ class WorldTerrainGrid private constructor(private val heights: FloatArray) {
             return WorldTerrainGrid(FloatArray(pixels.size) { i ->
                 val p = pixels[i]; require(p ushr 24 == 255)
                 val value = ((p ushr 16 and 255) * 256 + (p ushr 8 and 255) + (p and 255) / 256.0 - 32768)
-                // Nodata and bathymetry are not a runner's elevation. Below-sea-level land remains valid.
                 if (value in -500.0..9000.0) value.toFloat() else Float.NaN
             })
         }
     }
 }
 
-/** Bilinear sampling uses adjacent tiles at pixel centers, including the date line. */
 fun sampleWorld(grids: Map<WorldTileKey, WorldTerrainGrid>, latitude: Double, longitude: Double,
                 zoom: Int = WorldTileKey.zoom(latitude)): Double? {
     val z = zoom; val xy = WorldTileKey.pixels(latitude, longitude, z) ?: return null
@@ -103,11 +89,9 @@ sealed class TerrainDownloadKey {
     }
 }
 
-/** One optional saved area. No route, country download or background location tracking. */
 data class TerrainDownloadArea(val latitude: Double, val longitude: Double) {
     init { require(latitude.isFinite() && longitude.isFinite() && abs(latitude) < 85.0 && longitude in -180.0..180.0) }
     val keys: Set<TerrainDownloadKey> get() = buildSet {
-        // Include both latitude bands when a 5 km area straddles a zoom transition.
         val span = 5000.0 / 111000
         listOf(latitude - span, latitude, latitude + span).map(WorldTileKey::zoom).distinct().forEach { zoom ->
             val center = WorldTileKey.at(latitude, longitude, zoom)!!

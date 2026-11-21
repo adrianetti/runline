@@ -7,7 +7,6 @@ import java.io.File
 
  data class AppStorage(val total: Long?, val terrain: Long) {
     companion object {
-        /** Worker only. Android dataBytes already includes cacheBytes. */
         fun read(context: Context): AppStorage {
             val total = runCatching {
                 context.getSystemService(StorageStatsManager::class.java).queryStatsForPackage(

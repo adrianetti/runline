@@ -53,7 +53,6 @@ class SpotifyApiTest {
         val playback = api.playback()!!
         assertEquals("https://api.spotify.com/v1/me/player", fake.calls.single().url)
         assertTrue(playback.playing); assertEquals("device-id-1234", playback.device!!.id); assertTrue(playback.device!!.active)
-        // The smallest cover from Spotify's own image host; any other origin is never fetched.
         assertEquals(SpotifyTrack("spotify:track:4uLU6hMCjMI75M1A2tKUQC", "Song", "One, Two", 200_000, "https://i.scdn.co/image/small"), playback.track)
         assertEquals("spotify:playlist:37i9dQZF1DX76Wlfdnj7AP", playback.contextUri); assertEquals(50_000L, playback.remainingMs)
     }
@@ -97,7 +96,6 @@ class SpotifyApiTest {
         assertEquals(SpotifyFailure.Reason.PREMIUM, reason(SpotifyResponse(403, """{"error":{"status":403,"message":"Player command failed: Premium required","reason":"PREMIUM_REQUIRED"}}""")).reason)
         assertEquals(SpotifyFailure.Reason.NO_DEVICE, reason(SpotifyResponse(404, """{"error":{"status":404,"message":"Player command failed: No active device found","reason":"NO_ACTIVE_DEVICE"}}""")).reason)
         assertEquals(SpotifyFailure.Reason.NOT_ALLOWED, reason(SpotifyResponse(403, "User not registered in the Developer Dashboard")).reason)
-        // Pausing what is already paused is one refused command, not a lost account.
         assertEquals(SpotifyFailure.Reason.RESPONSE, reason(SpotifyResponse(403, """{"error":{"status":403,"message":"Player command failed: Restriction violated","reason":"UNKNOWN"}}""")).reason)
         val limited = reason(SpotifyResponse(429, "", 12))
         assertEquals(SpotifyFailure.Reason.RATE_LIMIT, limited.reason); assertEquals(12, limited.retryAfterSeconds)

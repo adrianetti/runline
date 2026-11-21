@@ -23,17 +23,14 @@ data class AiConfig(
     val dailySuggestion: Boolean = false,
 ) {
     fun valid() = AiProviderCatalog.find(provider) != null && intervalMinutes in INTERVAL_MINUTES && validModel(liveModel) && validModel(reviewModel)
-    /** Locally configured, not a guarantee of network availability or model access. */
     fun isReady(hasKey: Boolean) = enabled && hasKey && valid()
     companion object {
-        /** How long the live coach stays quiet after it speaks; milestones still get their own line. */
         val INTERVAL_MINUTES = 1..10
         const val DEFAULT_INTERVAL_MINUTES = 2
         fun validModel(value: String) = value.matches(Regex("claude-[a-zA-Z0-9._-]{3,100}"))
     }
 }
 
-/** The app backup policy excludes all data; key ciphertext additionally lives in noBackupFilesDir. */
 object AiSettings {
     private val changes = java.util.concurrent.atomic.AtomicLong()
     fun revision(): Long = changes.get()

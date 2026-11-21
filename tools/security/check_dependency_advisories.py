@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Check a resolved Gradle Maven inventory against OSV; no credentials required.
-
-OSV performs ecosystem-aware version matching (including Maven qualifiers).
-Only public Maven coordinates and versions leave this process. The inventory
-must come from a successful, complete Gradle resolution, not a lockfile guess.
-See https://google.github.io/osv.dev/post-v1-querybatch/ for pagination semantics.
-"""
 import argparse
 from datetime import datetime, timezone
 import http.client
@@ -32,7 +25,7 @@ ADVISORY_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:\-]{1,199}\Z")
 
 
 class AuditError(Exception):
-    """A failed audit must never be interpreted as a clean dependency graph."""
+    pass
 
 
 def _object_without_duplicates(pairs):
@@ -101,7 +94,6 @@ def validate_inventory(data):
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, new_url):
-        # Coordinates should only be submitted to the documented OSV endpoint.
         return None
 
 
@@ -169,7 +161,6 @@ def audit(components, configurations, client):
                 for vulnerability in vulnerabilities:
                     if not isinstance(vulnerability, dict) or not isinstance(vulnerability.get("id"), str) or not ADVISORY_ID.fullmatch(vulnerability["id"]):
                         raise AuditError("OSV returned an invalid advisory ID")
-                    # No severity threshold or exception list: every returned ID fails.
                     findings[index].add(vulnerability["id"])
                 if sum(map(len, findings)) > MAX_FINDINGS:
                     raise AuditError("OSV findings exceed the supported limit")
@@ -204,7 +195,7 @@ def audit(components, configurations, client):
 
 
 def main(argv=None, client=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Check a resolved Gradle Maven inventory against OSV.")
     parser.add_argument("--input", required=True, type=Path, help="Resolved Gradle dependency inventory JSON")
     parser.add_argument("--output", required=True, type=Path, help="Audit report JSON (written on success and failure)")
     args = parser.parse_args(argv)
@@ -219,7 +210,6 @@ def main(argv=None, client=None):
         report = {"schemaVersion": 1, "status": "error", "error": str(error)}
         exit_code = 2
     try:
-        # Never leave a previous clean report behind after an unsuccessful audit.
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except OSError:

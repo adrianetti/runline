@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Install one checksum-pinned upstream binary, without executing an installer script."""
 import hashlib
 import io
 import os

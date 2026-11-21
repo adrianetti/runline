@@ -14,10 +14,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/**
- * Measured training facts from saved activities. Always local and recomputed, never a
- * judgement: no model call, no inferred fitness, nothing about health.
- */
 data class TrainingSnapshot(
     val runs28Days: Int,
     val kilometresPerWeek: Double,
@@ -52,7 +48,6 @@ data class TrainingSnapshot(
     }
 }
 
-/** What the AI concluded about the runner, kept apart from the user's own self-report. */
 data class RunnerInsights(
     val experience: RunningExperience,
     val summary: String,
@@ -95,7 +90,6 @@ data class RunnerInsights(
     }
 }
 
-/** Separate file, so an AI update never invalidates a review that is using the self-report. */
 class RunnerInsightsStore(context: Context) {
     private val file = AtomicFile(File(context.noBackupFilesDir, "runner-insights.json"))
     fun load(): RunnerInsights? = synchronized(LOCK) {
@@ -110,9 +104,7 @@ class RunnerInsightsStore(context: Context) {
     private companion object { val LOCK = Any() }
 }
 
-/** One structured request: the AI reads recorded history and keeps a short running profile. */
 object ProfileAi {
-    /** Update after each new saved run, at most every 6 hours, so it follows training without chattering. */
     fun due(previous: RunnerInsights?, runCount: Int, nowMs: Long): Boolean =
         runCount > 0 && (previous == null || (runCount != previous.runsConsidered && nowMs - previous.updatedAtMs >= 6 * 3_600_000L))
 

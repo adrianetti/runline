@@ -79,7 +79,6 @@ class CoachSpeechScheduleTest {
     }
 
     @Test fun `halfway and final stretch are milestones, not routine morale held for 85 seconds`() {
-        // 2026-11-14: halfway was ready 35 s after the last line and spoken 51 s later, 130 m past halfway.
         assertEquals(CoachSpeechPriority.MILESTONE, CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.HALFWAY)))
         assertEquals(CoachSpeechPriority.MILESTONE, CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.FINAL_STRETCH)))
         assertEquals(CoachSpeechPriority.MORALE, CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.STEADY)))
@@ -103,13 +102,10 @@ class CoachSpeechScheduleTest {
         assertNull(schedule.takeReady(48_000, true))
         assertEquals(opening, schedule.takeReady(48_100, true))
         schedule.finished(48_200)
-        // Refused twice: it is dropped, not retried for ever.
         assertFalse(schedule.retry(opening, 40_000, 48_200))
-        // Too old to be about this moment any more.
         val late = ai("Late")
         schedule.offer(late, 50_000); assertEquals(late, schedule.takeReady(57_000, true))
         assertFalse(schedule.retry(late, 50_000, 90_000))
-        // Something newer took the slot meanwhile.
         val older = ai("Older"); val newer = ai("Newer")
         schedule.offer(older, 100_000); assertEquals(older, schedule.takeReady(100_000, true))
         schedule.offer(newer, 100_050)

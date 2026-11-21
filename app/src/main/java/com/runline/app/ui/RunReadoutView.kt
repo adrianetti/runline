@@ -11,7 +11,6 @@ import com.runline.app.R
 import com.runline.app.core.TerrainEstimate
 import kotlin.math.roundToInt
 
-/** Shared visual hierarchy for live recording and playback: pace, distance, supporting data. */
 internal class RunReadoutView(context: Context) : LinearLayout(context) {
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val paceReadout = PaceReadoutView(context, compact)
@@ -88,7 +87,6 @@ internal class RunReadoutView(context: Context) : LinearLayout(context) {
     private fun column(title: String, number: RollingNumberView) = LinearLayout(context).apply {
         orientation = VERTICAL
         addView(label(title, 12), LayoutParams(-1, -2))
-        // Height follows sp as well as width, preserving large-font baselines.
         val heightSp = when (number) { pace -> if (compact) 44 else 66; else -> 40 }
         addView(number, LayoutParams(-1, scaled(heightSp)).apply { topMargin = dp(2) })
     }

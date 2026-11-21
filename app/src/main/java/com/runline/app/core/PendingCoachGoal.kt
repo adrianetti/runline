@@ -1,6 +1,5 @@
 package com.runline.app.core
 
-/** One high-priority completion cue, never a queue of late pace or kilometre prompts. */
 class PendingCoachGoal(private val maxAgeMs: Long = 20_000) {
     private var cue: CoachCue.GoalReached? = null
     private var offeredAtMs = 0L

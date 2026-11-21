@@ -5,7 +5,6 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Display choices only. No extra fixes, time or distance are added to a recording. */
 object ReplayPresentation {
     val speeds = listOf(1, 5, 10, 30, 60, 120, 240, 480)
 
@@ -13,7 +12,6 @@ object ReplayPresentation {
         abs(durationMs.coerceAtLeast(0).toDouble() / it - 30_000.0)
     }
 
-    /** A short observed window softens turns; it never looks across a GPS cut. */
     fun bearing(replay: RunReplay, positionMs: Long): Double? {
         val current = replay.at(positionMs) ?: return null
         val before = replay.at((positionMs - 2_000).coerceAtLeast(0))

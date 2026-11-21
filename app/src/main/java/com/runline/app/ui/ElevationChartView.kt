@@ -18,8 +18,7 @@ import com.runline.app.core.TerrainDirection
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** Scrubbing shares replay's clock. Vertical gestures remain the sheet's scroll. */
-@android.annotation.SuppressLint("ViewConstructor") // Constructed only in code with a recording.
+@android.annotation.SuppressLint("ViewConstructor")
 internal class ElevationChartView(
     context: Context,
     private val replay: RunReplay,
@@ -81,7 +80,6 @@ internal class ElevationChartView(
         private val path = Path()
         private val observedLow = trace.sections.flatten().minOfOrNull { it.heightMeters }
         private val observedHigh = trace.sections.flatten().maxOfOrNull { it.heightMeters }
-        // At least 10 m tall and centred, so a flat run reads as flat instead of a wall of 1 m bumps.
         private val span = if (observedLow == null || observedHigh == null) 1.0 else maxOf(observedHigh - observedLow, MIN_SPAN_METERS)
         private val low = observedLow?.let { it + (observedHigh!! - it) / 2 - span / 2 }
         private val high = low?.let { it + span }

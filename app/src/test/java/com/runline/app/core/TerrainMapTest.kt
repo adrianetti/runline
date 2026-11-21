@@ -21,7 +21,7 @@ class TerrainMapTest {
         }
         assertNull(SpainTerrainProjection.project(Double.NaN, 0.0))
         assertNull(SpainTerrainProjection.project(40.0, -75.0))
-        assertNull(SpainTerrainProjection.project(28.5, -16.0)) // Canary support is not implied.
+        assertNull(SpainTerrainProjection.project(28.5, -16.0))
     }
     @Test fun requestsContainOnlyAlignedAreaBounds() {
         val key = TerrainTileKey.at(points().first())!!
@@ -55,7 +55,7 @@ class TerrainMapTest {
         assertEquals(originalHeights, original.points.map { it.altitudeMeters })
         assertEquals(RunMetrics.distanceMeters(original.points), RunMetrics.distanceMeters(projected.points), 0.0)
         assertEquals(RunReplay(original).durationMs, RunReplay(projected).durationMs)
-        assertTrue(projected.points.all { it.verticalAccuracyMeters == null }) // Never invent sensor accuracy.
+        assertTrue(projected.points.all { it.verticalAccuracyMeters == null })
     }
     @Test fun absentDisabledOrAmbiguousMapsNeverFallBackToGpsAltitude() {
         val original = run(points()); val key = TerrainTileKey.at(original.points.first())!!

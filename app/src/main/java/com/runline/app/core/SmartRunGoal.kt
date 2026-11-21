@@ -22,7 +22,6 @@ data class SmartRunSuggestion(
     val rationale: String = "",
 )
 
-/** AI chooses training load. This boundary checks shape and compatibility with manual goals only. */
 object SmartRunGoal {
     fun validate(suggestion: SmartRunSuggestion): Boolean {
         if (suggestion.rationale.trim().length !in 1..240) return false
@@ -50,7 +49,6 @@ object SmartRunGoal {
         return true
     }
 
-    /** Pure mapping. Only the explicit UI Use action enables/saves this configuration. */
     fun toCoachConfig(suggestion: SmartRunSuggestion, base: CoachConfig): CoachConfig {
         val type = when (suggestion.goalType) {
             SmartRunGoalType.REST -> CoachGoal.NONE
