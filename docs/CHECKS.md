@@ -28,4 +28,4 @@ python3 tools/security/check_dependency_advisories.py --input build/reports/depe
 actionlint
 ```
 
-The public repository uses free GitHub checks. Every applicable check must pass for the exact PR head before merging; pending, failed, cancelled or incomplete checks do not qualify. A new commit requires fresh checks. The trusted-main inventory is intentionally skipped on PRs. Branch protection requires the Android, advisory, resource, workflow and security checks; direct main pushes and force pushes are not the release path.
+The public repository uses free GitHub checks. Every applicable check must pass for the exact PR head before merging; pending, failed, cancelled or incomplete checks do not qualify. A new commit requires fresh checks. The trusted-main inventory is intentionally skipped on PRs. Branch protection requires the merge-trust, Android, advisory, resource, workflow and security checks, so a change to gate files cannot merge until the owner adds the `gate-change` label. Direct main pushes and force pushes are not the release path.
