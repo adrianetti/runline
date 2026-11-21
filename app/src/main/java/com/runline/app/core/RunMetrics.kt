@@ -18,16 +18,27 @@ object RunMetrics {
             segment.zipWithNext().sumOf { (a, b) -> between(a, b) }
         }
 
-    fun paceSecondsPerKm(distanceMeters: Double, durationMs: Long): Double? {
+    fun paceSecondsPerKm(
+        distanceMeters: Double,
+        durationMs: Long,
+    ): Double? {
         if (!distanceMeters.isFinite() || distanceMeters <= 0.0 || durationMs <= 0L) return null
         return (durationMs.toDouble() / distanceMeters).takeIf { it.isFinite() }
     }
 
-    fun splits(run: RunSession, stops: List<StopInterval> = emptyList()): List<RunSplit> {
+    fun splits(
+        run: RunSession,
+        stops: List<StopInterval> = emptyList(),
+    ): List<RunSplit> {
         val ordered = stops.sortedBy { it.startMs }
-        fun stoppedWithin(start: Long, end: Long): Double = ordered.sumOf { stop ->
-            (minOf(end, stop.endMs) - maxOf(start, stop.startMs)).coerceAtLeast(0L).toDouble()
-        }
+
+        fun stoppedWithin(
+            start: Long,
+            end: Long,
+        ): Double =
+            ordered.sumOf { stop ->
+                (minOf(end, stop.endMs) - maxOf(start, stop.startMs)).coerceAtLeast(0L).toDouble()
+            }
         val splits = mutableListOf<RunSplit>()
         var splitDistance = 0.0
         var splitDuration = 0.0
@@ -45,8 +56,11 @@ object RunMetrics {
         for (segment in continuousSegments(run.points)) {
             for ((a, b) in segment.zipWithNext()) {
                 var remainingDistance = between(a, b)
-                var remainingDuration = (b.timestampMs.toDouble() - a.timestampMs.toDouble() -
-                    (if (ordered.isEmpty()) 0.0 else stoppedWithin(a.timestampMs, b.timestampMs))).coerceAtLeast(0.0)
+                var remainingDuration =
+                    (
+                        b.timestampMs.toDouble() - a.timestampMs.toDouble() -
+                            (if (ordered.isEmpty()) 0.0 else stoppedWithin(a.timestampMs, b.timestampMs))
+                    ).coerceAtLeast(0.0)
                 if (remainingDistance <= EPSILON) {
                     splitDuration += remainingDuration
                     totalDuration += remainingDuration
@@ -71,9 +85,10 @@ object RunMetrics {
             emit()
         } else if (splitDuration > 0.0 && splits.isNotEmpty()) {
             val last = splits.last()
-            splits[splits.lastIndex] = last.copy(
-                durationMs = last.durationMs + max(0L, totalDuration.roundToLong() - emittedDuration),
-            )
+            splits[splits.lastIndex] =
+                last.copy(
+                    durationMs = last.durationMs + max(0L, totalDuration.roundToLong() - emittedDuration),
+                )
         }
         return splits
     }
@@ -85,7 +100,10 @@ object RunMetrics {
             var anchor: Double? = null
             var model: TerrainModel? = null
             for (point in segment) {
-                if (point.terrainModel != model) { anchor = null; model = point.terrainModel }
+                if (point.terrainModel != model) {
+                    anchor = null
+                    model = point.terrainModel
+                }
                 val altitude = point.altitudeMeters?.takeIf { it.isFinite() }
                 if (altitude == null) {
                     anchor = null
@@ -109,13 +127,17 @@ object RunMetrics {
         return gain.takeIf { hasAltitudePair && it.isFinite() }
     }
 
-    private fun between(a: RunPoint, b: RunPoint): Double {
+    private fun between(
+        a: RunPoint,
+        b: RunPoint,
+    ): Double {
         val latitudeA = Math.toRadians(a.latitude)
         val latitudeB = Math.toRadians(b.latitude)
         val latitudeDelta = latitudeB - latitudeA
         val longitudeDelta = Math.toRadians(b.longitude - a.longitude)
-        val haversine = sin(latitudeDelta / 2).let { it * it } +
-            cos(latitudeA) * cos(latitudeB) * sin(longitudeDelta / 2).let { it * it }
+        val haversine =
+            sin(latitudeDelta / 2).let { it * it } +
+                cos(latitudeA) * cos(latitudeB) * sin(longitudeDelta / 2).let { it * it }
         return 2 * EARTH_RADIUS_METERS * asin(sqrt(haversine.coerceIn(0.0, 1.0)))
     }
 }

@@ -17,6 +17,7 @@ data class ActivityDetails(
         require(description.none { it.code == 0 })
         return copy(title = title.trim(), description = description.trim())
     }
+
     companion object {
         const val MAX_TITLE = 120
         const val MAX_DESCRIPTION = 4000
@@ -25,9 +26,19 @@ data class ActivityDetails(
     }
 }
 
-enum class RoutineType(val storageValue: String) {
-    NONE("none"), EASY("easy"), LONG("long"), TEMPO("tempo"), INTERVALS("intervals"),
-    RECOVERY("recovery"), RACE("race"), OTHER("other");
+enum class RoutineType(
+    val storageValue: String,
+) {
+    NONE("none"),
+    EASY("easy"),
+    LONG("long"),
+    TEMPO("tempo"),
+    INTERVALS("intervals"),
+    RECOVERY("recovery"),
+    RACE("race"),
+    OTHER("other"),
+    ;
+
     companion object {
         fun fromStorage(value: String?) = entries.firstOrNull { it.storageValue == value } ?: NONE
     }

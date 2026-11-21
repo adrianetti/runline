@@ -4,10 +4,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TerrainStructureTest {
-    private fun line(count: Int, model: (Int) -> TerrainModel?, height: (Int) -> Double? = { 650.0 }) = (0 until count).map { index ->
+    private fun line(
+        count: Int,
+        model: (Int) -> TerrainModel?,
+        height: (Int) -> Double? = { 650.0 },
+    ) = (0 until count).map { index ->
         val m = model(index)
-        RunPoint(37.17, -3.6 + index * 3.0 / (111195.0802335329 * Math.cos(Math.toRadians(37.17))), 1_000L + index * 1_000, 4f,
-            if (m == TerrainModel.STRUCTURE) null else height(index), terrainModel = m)
+        RunPoint(
+            37.17,
+            -3.6 + index * 3.0 / (111195.0802335329 * Math.cos(Math.toRadians(37.17))),
+            1_000L + index * 1_000,
+            4f,
+            if (m == TerrainModel.STRUCTURE) null else height(index),
+            terrainModel = m,
+        )
     }
 
     @Test fun `structure hides heights fifteen metres either side and nothing else`() {
@@ -23,9 +33,10 @@ class TerrainStructureTest {
     @Test fun `no structure returns the same list and a gap stops the margin`() {
         val clean = line(10, { TerrainModel.IGN_MDT05 })
         assertSame(clean, TerrainStructureGuard.apply(clean))
-        val gap = line(10, { if (it == 4) TerrainModel.STRUCTURE else TerrainModel.IGN_MDT05 }).mapIndexed { index, point ->
-            if (index >= 5) point.copy(segment = 1) else point
-        }
+        val gap =
+            line(10, { if (it == 4) TerrainModel.STRUCTURE else TerrainModel.IGN_MDT05 }).mapIndexed { index, point ->
+                if (index >= 5) point.copy(segment = 1) else point
+            }
         assertEquals(650.0, TerrainStructureGuard.apply(gap)[5].altitudeMeters!!, 0.0)
     }
 

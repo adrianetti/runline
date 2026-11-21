@@ -15,13 +15,21 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-data class NowPlaying(val title: String, val artist: String, val playing: Boolean, val problem: MusicProblem? = null,
-                      val trackUri: String? = null, val coverUrl: String? = null,
-                      val keysOnly: Boolean = false)
+data class NowPlaying(
+    val title: String,
+    val artist: String,
+    val playing: Boolean,
+    val problem: MusicProblem? = null,
+    val trackUri: String? = null,
+    val coverUrl: String? = null,
+    val keysOnly: Boolean = false,
+)
 
 enum class MusicProblem { OPEN_SPOTIFY, PREMIUM, RECONNECT }
 
-class RunMusic(context: Context) {
+class RunMusic(
+    context: Context,
+) {
     private val app = context.applicationContext
     private val audio = app.getSystemService(AudioManager::class.java)
     private val executor = Executors.newSingleThreadScheduledExecutor()
@@ -31,7 +39,9 @@ class RunMusic(context: Context) {
     private var trendCount = 0
     private var estimate = TerrainEstimate()
     private var ticks = 0
+
     @Volatile private var facts = MusicFacts()
+
     @Volatile private var recording = false
 
     private var config = MusicConfig()
@@ -45,21 +55,53 @@ class RunMusic(context: Context) {
     private var startUntil = 0L
     private var poll: ScheduledFuture<*>? = null
 
-    init { live = this }
+    init {
+        live = this
+    }
 
-    fun onRecording(run: RunSession) { recording = true; val id = run.id; executor.execute { guarded { begin(id) } } }
-    fun onPaused() { executor.execute { guarded { pauseMusic() } } }
-    fun idle() { recording = false; executor.execute { poll?.cancel(false); poll = null } }
-    fun close() { if (live === this) { live = null; nowPlaying = null }; idle(); executor.shutdown() }
+    fun onRecording(run: RunSession) {
+        recording = true
+        val id = run.id
+        executor.execute { guarded { begin(id) } }
+    }
 
-    fun update(run: RunSession, coach: CoachConfig, stopped: Boolean, gpsFresh: Boolean) {
+    fun onPaused() {
+        executor.execute { guarded { pauseMusic() } }
+    }
+
+    fun idle() {
+        recording = false
+        executor.execute {
+            poll?.cancel(false)
+            poll = null
+        }
+    }
+
+    fun close() {
+        if (live === this) {
+            live = null
+            nowPlaying = null
+        }
+        idle()
+        executor.shutdown()
+    }
+
+    fun update(
+        run: RunSession,
+        coach: CoachConfig,
+        stopped: Boolean,
+        gpsFresh: Boolean,
+    ) {
         if (ticks++ % 5 != 0) return
         facts = MusicFacts.from(run, coach, uphill(run), stopped, gpsFresh)
     }
 
     private fun uphill(run: RunSession): Boolean {
         if (run.id != trendRun || run.points.size < trendCount) {
-            trend.reset(); estimate = TerrainEstimate(); trendRun = run.id; trendCount = (run.points.size - 180).coerceAtLeast(0)
+            trend.reset()
+            estimate = TerrainEstimate()
+            trendRun = run.id
+            trendCount = (run.points.size - 180).coerceAtLeast(0)
         }
         val snapshot = TerrainRepository.get(app).snapshot
         for (index in trendCount until run.points.size) estimate = trend.update(snapshot.point(run.points[index]))
@@ -76,8 +118,18 @@ class RunMusic(context: Context) {
         load()
         val resumed = id == runId
         runId = id
-        if (!resumed) { dj = RunDj(); intensity.reset(); blocked = null; failures = 0; retryAt = 0; startUntil = 0 }
-        if (!config.enabled) { nowPlaying = null; return }
+        if (!resumed) {
+            dj = RunDj()
+            intensity.reset()
+            blocked = null
+            failures = 0
+            retryAt = 0
+            startUntil = 0
+        }
+        if (!config.enabled) {
+            nowPlaying = null
+            return
+        }
         val spotify = api?.takeIf { blocked == null }
         if (spotify == null) {
             if (if (resumed) pausedByUs else config.startWithRun && !audio.isMusicActive) key(KeyEvent.KEYCODE_MEDIA_PLAY)
@@ -85,39 +137,60 @@ class RunMusic(context: Context) {
             nowPlaying = NowPlaying("", "", true, blocked, keysOnly = true)
             return
         }
-        if (resumed) { if (pausedByUs) resume(spotify) } else if (config.startWithRun) start(spotify)
+        if (resumed) {
+            if (pausedByUs) resume(spotify)
+        } else if (config.startWithRun) {
+            start(spotify)
+        }
         pausedByUs = false
         schedule(1_500)
     }
 
-    private fun start(spotify: SpotifyApi, wake: Boolean = true) {
+    private fun start(
+        spotify: SpotifyApi,
+        wake: Boolean = true,
+    ) {
         val current = spotify.playback()
-        if (current?.playing == true) { startUntil = 0; return }
+        if (current?.playing == true) {
+            startUntil = 0
+            return
+        }
         var device = phone(listOfNotNull(current?.device)) ?: phone(spotify.devices())
         if (device == null && wake) {
             if (!audio.isMusicActive) key(KeyEvent.KEYCODE_MEDIA_PLAY)
-            repeat(4) { if (device == null) { Thread.sleep(2_000); device = phone(spotify.devices()) } }
+            repeat(4) {
+                if (device == null) {
+                    Thread.sleep(2_000)
+                    device = phone(spotify.devices())
+                }
+            }
         }
-        val target = device ?: run {
-            if (wake) startUntil = SystemClock.elapsedRealtime() + START_WINDOW_MS
-            publish(current, MusicProblem.OPEN_SPOTIFY); return
-        }
+        val target =
+            device ?: run {
+                if (wake) startUntil = SystemClock.elapsedRealtime() + START_WINDOW_MS
+                publish(current, MusicProblem.OPEN_SPOTIFY)
+                return
+            }
         startUntil = 0
         val context = config.playlist(MusicMood.of(intensity.update(facts, SystemClock.elapsedRealtime()).intensity))?.uri
         if (context != null && config.adaptive) {
             runCatching { spotify.shuffle(true, target.id) }
             spotify.play(target.id, contextUri = context)
             dj.started(SystemClock.elapsedRealtime())
-        } else spotify.play(target.id)
+        } else {
+            spotify.play(target.id)
+        }
     }
 
-    private fun phone(devices: List<SpotifyDevice>): SpotifyDevice? = devices.filter { !it.restricted }.let { usable ->
-        usable.firstOrNull { it.active } ?: usable.firstOrNull { it.type.equals("Smartphone", ignoreCase = true) }
-    }
+    private fun phone(devices: List<SpotifyDevice>): SpotifyDevice? =
+        devices.filter { !it.restricted }.let { usable ->
+            usable.firstOrNull { it.active } ?: usable.firstOrNull { it.type.equals("Smartphone", ignoreCase = true) }
+        }
 
     private fun resume(spotify: SpotifyApi) {
-        try { spotify.play() }
-        catch (error: SpotifyFailure) {
+        try {
+            spotify.play()
+        } catch (error: SpotifyFailure) {
             if (error.reason != SpotifyFailure.Reason.NO_DEVICE) throw error
             phone(spotify.devices())?.let { spotify.play(it.id) }
         }
@@ -127,12 +200,18 @@ class RunMusic(context: Context) {
         if (!config.enabled || !config.pauseWithRun) return
         val spotify = api?.takeIf { blocked == null }
         if (spotify == null) {
-            if (audio.isMusicActive) { key(KeyEvent.KEYCODE_MEDIA_PAUSE); pausedByUs = true }
+            if (audio.isMusicActive) {
+                key(KeyEvent.KEYCODE_MEDIA_PAUSE)
+                pausedByUs = true
+            }
             return
         }
         startUntil = 0
         val current = spotify.playback()
-        if (current?.playing == true) { spotify.pause(); pausedByUs = true }
+        if (current?.playing == true) {
+            spotify.pause()
+            pausedByUs = true
+        }
         publish(current?.copy(playing = false))
     }
 
@@ -141,16 +220,19 @@ class RunMusic(context: Context) {
         val spotify = api?.takeIf { blocked == null } ?: return
         if (!recording) return
         var delay = RunDj.POLL_MS
-        if (SystemClock.elapsedRealtime() >= retryAt) guarded {
-            val now = SystemClock.elapsedRealtime()
-            if (now < startUntil) start(spotify, wake = false)
-            val playback = spotify.playback()
-            publish(playback, if (playback == null && config.startWithRun) MusicProblem.OPEN_SPOTIFY else blocked)
-            dj.decide(playback, intensity.update(facts, now), config, now)?.let { playlist ->
-                runCatching { spotify.shuffle(true) }; spotify.play(contextUri = playlist)
+        if (SystemClock.elapsedRealtime() >= retryAt) {
+            guarded {
+                val now = SystemClock.elapsedRealtime()
+                if (now < startUntil) start(spotify, wake = false)
+                val playback = spotify.playback()
+                publish(playback, if (playback == null && config.startWithRun) MusicProblem.OPEN_SPOTIFY else blocked)
+                dj.decide(playback, intensity.update(facts, now), config, now)?.let { playlist ->
+                    runCatching { spotify.shuffle(true) }
+                    spotify.play(contextUri = playlist)
+                }
+                failures = 0
+                delay = dj.pollInMs
             }
-            failures = 0
-            delay = dj.pollInMs
         }
         schedule(delay)
     }
@@ -161,9 +243,13 @@ class RunMusic(context: Context) {
     }
 
     private fun togglePlayback() {
-        pausedByUs = false; startUntil = 0
+        pausedByUs = false
+        startUntil = 0
         val spotify = api?.takeIf { blocked == null }
-        if (spotify == null) { key(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); return }
+        if (spotify == null) {
+            key(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            return
+        }
         val current = spotify.playback()
         if (current?.playing == true) spotify.pause() else resume(spotify)
         publish(current?.copy(playing = current.playing != true))
@@ -171,19 +257,27 @@ class RunMusic(context: Context) {
 
     private fun skipTrack() {
         val spotify = api?.takeIf { blocked == null }
-        if (spotify == null) { key(KeyEvent.KEYCODE_MEDIA_NEXT); return }
+        if (spotify == null) {
+            key(KeyEvent.KEYCODE_MEDIA_NEXT)
+            return
+        }
         spotify.next()
         Thread.sleep(700)
         publish(spotify.playback())
     }
 
-    private fun publish(playback: SpotifyPlayback?, problem: MusicProblem? = blocked) {
+    private fun publish(
+        playback: SpotifyPlayback?,
+        problem: MusicProblem? = blocked,
+    ) {
         val track = playback?.track
         nowPlaying = NowPlaying(track?.name.orEmpty(), track?.artist.orEmpty(), playback?.playing == true, problem, track?.uri, track?.coverUrl)
     }
 
     private fun guarded(block: () -> Unit) {
-        try { block() } catch (error: SpotifyFailure) {
+        try {
+            block()
+        } catch (error: SpotifyFailure) {
             when (error.reason) {
                 SpotifyFailure.Reason.PREMIUM -> stop(MusicProblem.PREMIUM)
                 SpotifyFailure.Reason.AUTH, SpotifyFailure.Reason.NOT_ALLOWED -> stop(MusicProblem.RECONNECT)
@@ -192,11 +286,14 @@ class RunMusic(context: Context) {
                 SpotifyFailure.Reason.NO_DEVICE -> nowPlaying = nowPlaying?.copy(playing = false, problem = MusicProblem.OPEN_SPOTIFY)
                 SpotifyFailure.Reason.RESPONSE -> Unit
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
 
     private fun stop(problem: MusicProblem) {
-        blocked = problem; poll?.cancel(false); poll = null
+        blocked = problem
+        poll?.cancel(false)
+        poll = null
         nowPlaying = NowPlaying("", "", false, problem, keysOnly = true)
     }
 
@@ -207,11 +304,29 @@ class RunMusic(context: Context) {
 
     companion object {
         private const val START_WINDOW_MS = 3 * 60_000L
+
         @Volatile var nowPlaying: NowPlaying? = null
             private set
+
         @Volatile private var live: RunMusic? = null
-        fun toggle() { live?.let { music -> music.executor.execute { music.guarded { music.togglePlayback() } } } }
-        fun skip() { live?.let { music -> music.executor.execute { music.guarded { music.skipTrack() } } } }
-        fun reload() { live?.let { music -> music.executor.execute { music.guarded { music.load(); if (!music.config.enabled) nowPlaying = null else music.schedule(1_000) } } } }
+
+        fun toggle() {
+            live?.let { music -> music.executor.execute { music.guarded { music.togglePlayback() } } }
+        }
+
+        fun skip() {
+            live?.let { music -> music.executor.execute { music.guarded { music.skipTrack() } } }
+        }
+
+        fun reload() {
+            live?.let { music ->
+                music.executor.execute {
+                    music.guarded {
+                        music.load()
+                        if (!music.config.enabled) nowPlaying = null else music.schedule(1_000)
+                    }
+                }
+            }
+        }
     }
 }

@@ -9,21 +9,44 @@ import java.time.ZoneId
 
 class AiCoachingContextTest {
     private val today = LocalDate.of(2026, 11, 2)
-    private fun run(id: String = "active", at: Long = 1_000) = RunSession(id, at, at + 30_000, 30_000,
-        (0..30).map { RunPoint(37.123456 + it * 2.0 / 111_195.0802, -3.123456, at + it * 1_000, 3f, 100.0 + it * .16) })
+
+    private fun run(
+        id: String = "active",
+        at: Long = 1_000,
+    ) = RunSession(
+        id,
+        at,
+        at + 30_000,
+        30_000,
+        (0..30).map { RunPoint(37.123456 + it * 2.0 / 111_195.0802, -3.123456, at + it * 1_000, 3f, 100.0 + it * .16) },
+    )
+
     @Test fun profileAndNotesStayOutOfActualRequestByDefault() {
         val profile = RunnerProfile(RunningExperience.RETURNING, "PRIVATE PREFERENCE", "PRIVATE HEALTH")
-        val context = AiCoachingContext.build(today, history = listOf(run()), profile = profile,
-            details = { ActivityDetails("PRIVATE TITLE", "PRIVATE NOTES", 6, photoIds = listOf("PRIVATE PHOTO")) })
+        val context =
+            AiCoachingContext.build(
+                today,
+                history = listOf(run()),
+                profile = profile,
+                details = { ActivityDetails("PRIVATE TITLE", "PRIVATE NOTES", 6, photoIds = listOf("PRIVATE PHOTO")) },
+            )
         var captured = ""
-        val provider = AnthropicProvider(AiTransport { _, _, _, body, _ ->
-            captured = body!!; AiHttpResponse(200, """{"stop_reason":"end_turn","content":[{"type":"text","text":"NONE"}]}""")
-        })
+        val provider =
+            AnthropicProvider(
+                AiTransport { _, _, _, body, _ ->
+                    captured = body!!
+                    AiHttpResponse(200, """{"stop_reason":"end_turn","content":[{"type":"text","text":"NONE"}]}""")
+                },
+            )
         assertNull(LiveAiAdvice.request(provider, "fake-key", "claude-haiku-5-5", "English", context))
-        assertFalse(captured.contains("PRIVATE")); assertFalse(captured.contains("37.123456")); assertFalse(captured.contains("-3.123456"))
-        assertFalse(context.has("runner_profile")); assertFalse(context.toString().contains("latitude"))
+        assertFalse(captured.contains("PRIVATE"))
+        assertFalse(captured.contains("37.123456"))
+        assertFalse(captured.contains("-3.123456"))
+        assertFalse(context.has("runner_profile"))
+        assertFalse(context.toString().contains("latitude"))
         assertEquals(6, context.getJSONArray("recent_runs").getJSONObject(0).getInt("self_reported_effort_1_to_10"))
     }
+
     @Test fun explicitProfileConsentIsBoundedAndNeverInventsPersonalMeasurements() {
         val original = RunnerProfile(RunningExperience.STARTING, "p".repeat(900), "h".repeat(900), true)
         val restored = RunnerProfile.parse(original.json())
@@ -31,55 +54,88 @@ class AiCoachingContextTest {
         val profile = context.getJSONObject("runner_profile")
         assertEquals(600, profile.getString("training_preferences").length)
         assertEquals(600, profile.getString("self_reported_health_notes").length)
-        assertFalse(profile.has("age")); assertFalse(profile.has("heart_rate")); assertFalse(profile.has("diagnosis"))
+        assertFalse(profile.has("age"))
+        assertFalse(profile.has("heart_rate"))
+        assertFalse(profile.has("diagnosis"))
         assertFalse(AiCoachingContext.build(today, profile = restored.copy(includeInAi = false)).has("runner_profile"))
         assertNull(RunnerProfile().forAi())
     }
+
     @Test fun optionalAspirationIsBoundedAndNeverCreatesCalendarContext() {
         val context = AiCoachingContext.build(today, runnerGoal = RunnerGoal("Half marathon in April"))
         assertEquals("Half marathon in April", context.getJSONObject("runner_goal").getString("text"))
-        assertFalse(context.has("training_plan")); assertFalse(context.toString().contains("race_date"))
+        assertFalse(context.has("training_plan"))
+        assertFalse(context.toString().contains("race_date"))
         assertFalse(AiCoachingContext.build(today).has("runner_goal"))
         val long = AiCoachingContext.build(today, runnerGoal = RunnerGoal("g".repeat(900)))
         assertEquals(400, long.getJSONObject("runner_goal").getString("text").length)
     }
+
     @Test fun contextIsBoundedEvenWithLongHistoryAndConsentedNotes() {
-        val data = AiCoachingContext.build(today, activeRun = run("active"), history = (0..100).map { run("history$it", it * 40_000L) },
-            includeNotes = true, details = { ActivityDetails("t".repeat(120), "n".repeat(4000)) })
+        val data =
+            AiCoachingContext.build(
+                today,
+                activeRun = run("active"),
+                history = (0..100).map { run("history$it", it * 40_000L) },
+                includeNotes = true,
+                details = { ActivityDetails("t".repeat(120), "n".repeat(4000)) },
+            )
         assertEquals(8, data.getJSONArray("recent_runs").length())
-        assertEquals(500, data.getJSONArray("recent_runs").getJSONObject(0).getString("user_notes").length)
+        assertEquals(
+            500,
+            data
+                .getJSONArray("recent_runs")
+                .getJSONObject(0)
+                .getString("user_notes")
+                .length,
+        )
         assertTrue(data.toString().length < 12_000)
     }
+
     @Test fun terrainUsesObservedWindowAndBecomesUnknownAfterGap() {
         val source = run().copy(elevationSource = com.runline.app.core.TerrainSource.TERRAIN_MAP)
         val terrain = AiCoachingContext.build(today, activeRun = source).getJSONObject("recent_terrain")
-        assertEquals("UPHILL", terrain.getString("direction")); assertEquals(8.0, terrain.getDouble("grade_percent"), .05)
+        assertEquals("UPHILL", terrain.getString("direction"))
+        assertEquals(8.0, terrain.getDouble("grade_percent"), .05)
         val gap = source.copy(points = source.points + source.points.last().copy(timestampMs = 90_000))
         val unknown = AiCoachingContext.build(today, activeRun = gap).getJSONObject("recent_terrain")
-        assertEquals("UNKNOWN", unknown.getString("direction")); assertTrue(unknown.isNull("grade_percent"))
+        assertEquals("UNKNOWN", unknown.getString("direction"))
+        assertTrue(unknown.isNull("grade_percent"))
     }
+
     @Test fun speechHistoryContainsOnlyRecordedActualEventsAndExpires() {
-        val id = "speech-context-test"; AiSpokenHistory.clear(id)
+        val id = "speech-context-test"
+        AiSpokenHistory.clear(id)
         assertTrue(AiSpokenHistory.recent(id, 100).isEmpty())
         AiSpokenHistory.record(id, "not spoken", "GENERATED", 100)
         assertTrue(AiSpokenHistory.recent(id, 100).isEmpty())
         repeat(19) { AiSpokenHistory.record(id, "Actual cue $it", if (it % 2 == 0) "LOCAL" else "AI", 100L + it) }
         val recent = AiSpokenHistory.recent(id, 200)
-        assertEquals(AiSpokenHistory.LIMIT, recent.size); assertEquals("Actual cue 3", recent.first().text)
+        assertEquals(AiSpokenHistory.LIMIT, recent.size)
+        assertEquals("Actual cue 3", recent.first().text)
         val data = AiCoachingContext.build(today, spoken = recent, nowElapsedMs = 200).getJSONArray("recent_spoken_feedback")
-        assertEquals(AiSpokenHistory.LIMIT, data.length()); assertEquals("AI", data.getJSONObject(0).getString("source"))
-        assertTrue(AiSpokenHistory.recent(id, 200 + AiSpokenHistory.WINDOW_MS).isEmpty()); AiSpokenHistory.clear(id)
+        assertEquals(AiSpokenHistory.LIMIT, data.length())
+        assertEquals("AI", data.getJSONObject(0).getString("source"))
+        assertTrue(AiSpokenHistory.recent(id, 200 + AiSpokenHistory.WINDOW_MS).isEmpty())
+        AiSpokenHistory.clear(id)
     }
+
     @Test fun liveResponseCanBeSilentAndRemainsOneBoundedUnstructuredThought() {
-        assertNull(LiveAiAdvice.clean("  NONE  ")); assertNull(LiveAiAdvice.clean("none"))
-        assertNull(LiveAiAdvice.clean("word ".repeat(LiveAiAdvice.MAX_WORDS + 1))); assertNull(LiveAiAdvice.clean("{\"speech\":\"slow down\"}"))
+        assertNull(LiveAiAdvice.clean("  NONE  "))
+        assertNull(LiveAiAdvice.clean("none"))
+        assertNull(LiveAiAdvice.clean("word ".repeat(LiveAiAdvice.MAX_WORDS + 1)))
+        assertNull(LiveAiAdvice.clean("{\"speech\":\"slow down\"}"))
         assertEquals("Let this easy section stay comfortable.", LiveAiAdvice.clean("Let this easy section stay comfortable."))
     }
+
     @Test fun profileCodecDefaultsUnknownExperienceAndConsentToPrivate() {
         val value = RunnerProfile.parse(JSONObject("""{"version":1,"experience":"future","health_notes":"user note"}"""))
-        assertEquals(RunningExperience.UNSPECIFIED, value.experience); assertFalse(value.includeInAi)
-        assertEquals("user note", value.healthNotes); assertNull(value.forAi())
+        assertEquals(RunningExperience.UNSPECIFIED, value.experience)
+        assertFalse(value.includeInAi)
+        assertEquals("user note", value.healthNotes)
+        assertNull(value.forAi())
     }
+
     @Test fun privacyInvalidationClearsPreviouslySpokenProfileDerivedAdvice() {
         AiSpokenHistory.record("before-optout", "Private previous advice", "AI", 100)
         AiSpokenHistory.record("other-run", "Private previous advice", "AI", 100)
@@ -89,12 +145,27 @@ class AiCoachingContextTest {
     }
 
     @Test fun completedLoadUsesCalendarWeekAndLatestActualEffortWithoutCountingWalksOrFutureRuns() {
-        fun at(day: LocalDate, hour: Int = 8) = day.atTime(hour, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val runs = listOf(run("previous-week", at(today.minusDays(1))), run("morning", at(today)),
-            run("evening", at(today, 18)), run("walk", at(today))).copyTypeForLast(ActivityType.WALK) + run("future", at(today.plusDays(1)))
-        val data = AiCoachingContext.build(today, history = runs, details = {
-            ActivityDetails(effort = if (it == "morning") 9 else null)
-        }).getJSONObject("completed_training")
+        fun at(
+            day: LocalDate,
+            hour: Int = 8,
+        ) = day
+            .atTime(hour, 0)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val runs =
+            listOf(
+                run("previous-week", at(today.minusDays(1))),
+                run("morning", at(today)),
+                run("evening", at(today, 18)),
+                run("walk", at(today)),
+            ).copyTypeForLast(ActivityType.WALK) + run("future", at(today.plusDays(1)))
+        val data =
+            AiCoachingContext
+                .build(today, history = runs, details = {
+                    ActivityDetails(effort = if (it == "morning") 9 else null)
+                })
+                .getJSONObject("completed_training")
         assertEquals(today.toString(), data.getString("week_starts_on"))
         assertEquals(.12, data.getDouble("calendar_week_recorded_km"), .002)
         assertEquals(.18, data.getDouble("last_7_days_km"), .002)
@@ -103,8 +174,15 @@ class AiCoachingContextTest {
     }
 
     @Test fun appliedGoalCarriesTimeAndPaceBandWithoutInventingCompletedMileage() {
-        val goal = CoachConfig(enabled = true, goal = CoachGoal.TIME, targetMinutes = 25.0,
-            paceMinSecondsPerKm = 390, paceMaxSecondsPerKm = 450, effortIntent = SmartRunEffort.RECOVERY)
+        val goal =
+            CoachConfig(
+                enabled = true,
+                goal = CoachGoal.TIME,
+                targetMinutes = 25.0,
+                paceMinSecondsPerKm = 390,
+                paceMaxSecondsPerKm = 450,
+                effortIntent = SmartRunEffort.RECOVERY,
+            )
         val context = AiCoachingContext.build(today, activeGoal = goal)
         val active = context.getJSONObject("active_goal")
         assertEquals("TIME", active.getString("type"))
@@ -117,11 +195,21 @@ class AiCoachingContextTest {
     }
 
     @Test fun sparseHistoryDescribesRecordedWindowsWithoutManufacturingAWeeklyAllowance() {
-        fun at(day: LocalDate) = day.atTime(8, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        fun at(day: LocalDate) =
+            day
+                .atTime(8, 0)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
         val recent = run("recent", at(today.minusDays(2)))
         val older = run("older", at(today.minusDays(9)))
-        val data = AiCoachingContext.build(today, history = listOf(recent, recent, older),
-            details = { ActivityDetails(effort = if (it == "older") 8 else null) }).getJSONObject("completed_training")
+        val data =
+            AiCoachingContext
+                .build(
+                    today,
+                    history = listOf(recent, recent, older),
+                    details = { ActivityDetails(effort = if (it == "older") 8 else null) },
+                ).getJSONObject("completed_training")
         assertEquals(2, data.getInt("recorded_runs_last_30_days"))
         assertEquals(2, data.getInt("recorded_days_last_30_days"))
         assertEquals(2, data.getInt("days_since_last_recorded_run"))

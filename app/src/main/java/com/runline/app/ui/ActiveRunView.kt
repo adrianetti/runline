@@ -11,9 +11,9 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
 import com.runline.app.R
+import com.runline.app.core.ElevationProgress
 import com.runline.app.core.LivePace
 import com.runline.app.core.RunMetrics
-import com.runline.app.core.ElevationProgress
 import com.runline.app.core.RunPoint
 import com.runline.app.core.TerrainEstimate
 import com.runline.app.core.TerrainTrend
@@ -35,8 +35,12 @@ class ActiveRunView(
     private val panel = ElevationIsland(context)
     private val readout = RunReadoutView(context)
     private val gps = label(context.getString(R.string.active_loading), 12, muted = true)
-    private val terrainRepository = com.runline.app.terrain.TerrainRepository.get(context)
-    private val terrainProjector = com.runline.app.core.TerrainProjector()
+    private val terrainRepository =
+        com.runline.app.terrain.TerrainRepository
+            .get(context)
+    private val terrainProjector =
+        com.runline.app.core
+            .TerrainProjector()
     private var lastState = initial
     private val terrainListener: () -> Unit = { if (isAttachedToWindow) update(lastState) }
     private val terrainTrend = TerrainTrend(com.runline.app.core.TerrainSource.TERRAIN_MAP)
@@ -44,86 +48,149 @@ class ActiveRunView(
     private var terrainLast: RunPoint? = null
     private var terrainEstimate = TerrainEstimate()
     private val elevation = ElevationProgress()
-    private val routeIcon = android.widget.ImageView(context).apply {
-        setImageResource(R.drawable.ic_route); imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
+    private val routeIcon =
+        android.widget.ImageView(context).apply {
+            setImageResource(R.drawable.ic_route)
+            imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
     private val routeText = label("", 14).apply { maxLines = 3 }
     private var routeStart: Pair<Double, Double>? = null
-    private val directions = com.google.android.material.button.MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
-        setIconResource(R.drawable.ic_directions); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
-        minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0); visibility = GONE
-        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        contentDescription = context.getString(R.string.v21_directions); tooltipText = contentDescription
-        setOnClickListener { routeStart?.let { (lat, lon) -> RouteDirections.open(context, lat, lon) } }
-    }
-    private val routeRow = LinearLayout(context).apply {
-        gravity = Gravity.CENTER_VERTICAL; visibility = GONE
-        addView(routeIcon, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(8) })
-        addView(routeText, LinearLayout.LayoutParams(0, -2, 1f))
-        addView(directions, LinearLayout.LayoutParams(dp(48), dp(48)))
-        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
-    }
-    private val turnArrow = android.widget.ImageView(context).apply {
-        imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface)); importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
+    private val directions =
+        com.google.android.material.button.MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+            setIconResource(R.drawable.ic_directions)
+            iconPadding = 0
+            iconSize = dp(24)
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = dp(48)
+            minimumHeight = dp(48)
+            setPadding(dp(12), 0, dp(12), 0)
+            visibility = GONE
+            iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+            contentDescription = context.getString(R.string.v21_directions)
+            tooltipText = contentDescription
+            setOnClickListener { routeStart?.let { (lat, lon) -> RouteDirections.open(context, lat, lon) } }
+        }
+    private val routeRow =
+        LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = GONE
+            addView(routeIcon, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(8) })
+            addView(routeText, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(directions, LinearLayout.LayoutParams(dp(48), dp(48)))
+            accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+    private val turnArrow =
+        android.widget.ImageView(context).apply {
+            imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
     private val turnDistance = label("", if (compact) 22 else 26, bold = true).apply { fontFeatureSettings = "tnum" }
-    private val turnText = label("", 15).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
-    private val turnRow = LinearLayout(context).apply {
-        gravity = Gravity.CENTER_VERTICAL; visibility = GONE
-        addView(turnArrow, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(12) })
-        addView(turnDistance, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
-        addView(turnText, LinearLayout.LayoutParams(0, -2, 1f))
-        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
-    }
+    private val turnText =
+        label("", 15).apply {
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+    private val turnRow =
+        LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = GONE
+            addView(turnArrow, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(12) })
+            addView(turnDistance, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
+            addView(turnText, LinearLayout.LayoutParams(0, -2, 1f))
+            accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
+        }
     private val ahead = RouteAheadView(context).apply { visibility = GONE }
     private val audio = context.getSystemService(android.media.AudioManager::class.java)
     private var musicPlaying: Boolean? = null
     private var musicCoverUrl: String? = null
-    private val musicCover = android.widget.ImageView(context).apply {
-        scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
-    private val musicBrand = android.widget.ImageView(context).apply {
-        setImageResource(R.drawable.ic_spotify); imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        contentDescription = "Spotify"; visibility = GONE
-    }
-    private val musicTitle = label("", 14).apply {
-        maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; minHeight = dp(48); gravity = Gravity.CENTER_VERTICAL
-        setOnClickListener { com.runline.app.music.RunMusic.nowPlaying?.takeIf { !it.keysOnly }?.let { openSpotify(it.trackUri) } }
-    }
-    private val musicToggle = musicButton(R.drawable.ic_play, R.string.music_play) { com.runline.app.music.RunMusic.toggle() }
-    private val musicRow = LinearLayout(context).apply {
-        gravity = Gravity.CENTER_VERTICAL; visibility = GONE
-        addView(musicCover, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(10) })
-        addView(musicTitle, LinearLayout.LayoutParams(0, -2, 1f))
-        addView(musicBrand, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginStart = dp(8) })
-        addView(musicToggle, LinearLayout.LayoutParams(dp(48), dp(48)))
-        addView(musicButton(R.drawable.ic_skip, R.string.music_next) { com.runline.app.music.RunMusic.skip() }, LinearLayout.LayoutParams(dp(48), dp(48)))
-    }
-    private val heading = label(context.getString(when (initial.status) {
-        RecordingStatus.PAUSED -> R.string.active_paused
-        RecordingStatus.INTERRUPTED -> R.string.active_recovered
-        else -> R.string.active_recording
-    }), if (compact) 14 else 16, bold = true)
+    private val musicCover =
+        android.widget.ImageView(context).apply {
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+    private val musicBrand =
+        android.widget.ImageView(context).apply {
+            setImageResource(R.drawable.ic_spotify)
+            imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+            contentDescription = "Spotify"
+            visibility = GONE
+        }
+    private val musicTitle =
+        label("", 14).apply {
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            minHeight = dp(48)
+            gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener {
+                com.runline.app.music.RunMusic.nowPlaying
+                    ?.takeIf { !it.keysOnly }
+                    ?.let { openSpotify(it.trackUri) }
+            }
+        }
+    private val musicToggle =
+        musicButton(R.drawable.ic_play, R.string.music_play) {
+            com.runline.app.music.RunMusic
+                .toggle()
+        }
+    private val musicRow =
+        LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = GONE
+            addView(musicCover, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(10) })
+            addView(musicTitle, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(musicBrand, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginStart = dp(8) })
+            addView(musicToggle, LinearLayout.LayoutParams(dp(48), dp(48)))
+            addView(
+                musicButton(R.drawable.ic_skip, R.string.music_next) {
+                    com.runline.app.music.RunMusic
+                        .skip()
+                },
+                LinearLayout.LayoutParams(dp(48), dp(48)),
+            )
+        }
+    private val heading =
+        label(
+            context.getString(
+                when (initial.status) {
+                    RecordingStatus.PAUSED -> R.string.active_paused
+                    RecordingStatus.INTERRUPTED -> R.string.active_recovered
+                    else -> R.string.active_recording
+                },
+            ),
+            if (compact) 14 else 16,
+            bold = true,
+        )
 
     init {
         map.setNavigationMode(true)
         map.setFollowing(true)
         addView(map, LayoutParams(-1, -1))
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(floatingButton(context.getString(R.string.main_activities), R.drawable.ic_back).apply {
-            contentDescription = context.getString(R.string.active_open_activities)
-            setOnClickListener { onOpenRuns() }
-        }, LinearLayout.LayoutParams(-2, dp(48)))
-        header.addView(floatingButton("", R.drawable.ic_more).apply {
-            contentDescription = context.getString(R.string.active_options)
-            setPadding(dp(12), 0, dp(12), 0)
-            iconPadding = 0
-            setOnClickListener { onOptions(this) }
-        }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) })
-        addView(header, LayoutParams(-2, dp(48), Gravity.TOP or Gravity.START).apply {
-            topMargin = dp(16); marginStart = dp(16)
-        })
+        header.addView(
+            floatingButton(context.getString(R.string.main_activities), R.drawable.ic_back).apply {
+                contentDescription = context.getString(R.string.active_open_activities)
+                setOnClickListener { onOpenRuns() }
+            },
+            LinearLayout.LayoutParams(-2, dp(48)),
+        )
+        header.addView(
+            floatingButton("", R.drawable.ic_more).apply {
+                contentDescription = context.getString(R.string.active_options)
+                setPadding(dp(12), 0, dp(12), 0)
+                iconPadding = 0
+                setOnClickListener { onOptions(this) }
+            },
+            LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
+        )
+        addView(
+            header,
+            LayoutParams(-2, dp(48), Gravity.TOP or Gravity.START).apply {
+                topMargin = dp(16)
+                marginStart = dp(16)
+            },
+        )
 
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -134,29 +201,45 @@ class ActiveRunView(
         information.addView(gps, row(bottom = if (compact) 6 else 12))
         information.addView(readout, row())
         panel.setChartContent(readout)
-        val scroll = ScrollView(context).apply {
-            isFillViewport = false; clipToPadding = false
-            addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
-        }
+        val scroll =
+            ScrollView(context).apply {
+                isFillViewport = false
+                clipToPadding = false
+                addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
+            }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         panel.addView(musicRow, row(top = 4))
         val controls = LinearLayout(context)
         val paused = initial.status != RecordingStatus.RECORDING
-        controls.addView(action(if (paused) context.getString(R.string.active_resume) else context.getString(R.string.active_pause), if (paused) R.drawable.ic_play else R.drawable.ic_pause).apply {
-            setOnClickListener { if (paused) onResume() else onPause() }
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        if (paused) controls.addView(action(context.getString(R.string.active_finish), R.drawable.ic_stop, outlined = true).apply {
-            setOnClickListener { onFinish() }
-        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
+        controls.addView(
+            action(if (paused) context.getString(R.string.active_resume) else context.getString(R.string.active_pause), if (paused) R.drawable.ic_play else R.drawable.ic_pause).apply {
+                setOnClickListener { if (paused) onResume() else onPause() }
+            },
+            LinearLayout.LayoutParams(0, -2, 1f),
+        )
+        if (paused) {
+            controls.addView(
+                action(context.getString(R.string.active_finish), R.drawable.ic_stop, outlined = true).apply {
+                    setOnClickListener { onFinish() }
+                },
+                LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) },
+            )
+        }
         panel.addView(controls, row(top = 12))
-        addView(panel, LayoutParams(if (compact) dp(340) else -1, -2, Gravity.BOTTOM or Gravity.START).apply {
-            setMargins(dp(16), 0, dp(16), dp(16))
-        })
+        addView(
+            panel,
+            LayoutParams(if (compact) dp(340) else -1, -2, Gravity.BOTTOM or Gravity.START).apply {
+                setMargins(dp(16), 0, dp(16), dp(16))
+            },
+        )
         panel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateInsets() }
         update(initial)
     }
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    override fun onMeasure(
+        widthMeasureSpec: Int,
+        heightMeasureSpec: Int,
+    ) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
         val strip = if (musicRow.visibility == VISIBLE) dp(52) else 0
@@ -166,38 +249,65 @@ class ActiveRunView(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    override fun onSizeChanged(
+        w: Int,
+        h: Int,
+        oldw: Int,
+        oldh: Int,
+    ) {
         super.onSizeChanged(w, h, oldw, oldh)
         post { updateInsets() }
     }
 
     private fun updateInsets() {
         if (panel.height <= 0) return
-        if (compact) map.setOverlayInsets(panel.width + dp(32), dp(16), 0, 0)
-        else map.setOverlayInsets(0, dp(72), 0, panel.height + dp(16))
+        if (compact) {
+            map.setOverlayInsets(panel.width + dp(32), dp(16), 0, 0)
+        } else {
+            map.setOverlayInsets(0, dp(72), 0, panel.height + dp(16))
+        }
     }
 
-    override fun onAttachedToWindow() { super.onAttachedToWindow(); terrainRepository.listen(terrainListener); lastState.run?.points?.let(terrainRepository::request); update(lastState) }
-    override fun onDetachedFromWindow() { terrainRepository.unlisten(terrainListener); super.onDetachedFromWindow() }
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        terrainRepository.listen(terrainListener)
+        lastState.run?.points?.let(terrainRepository::request)
+        update(lastState)
+    }
+
+    override fun onDetachedFromWindow() {
+        terrainRepository.unlisten(terrainListener)
+        super.onDetachedFromWindow()
+    }
 
     private fun updateMusic() {
         val now = com.runline.app.music.RunMusic.nowPlaying
         musicRow.visibility = if (now == null) GONE else VISIBLE
         if (now == null) return
-        change(musicTitle, when (now.problem) {
-            com.runline.app.music.MusicProblem.OPEN_SPOTIFY -> context.getString(R.string.music_open_spotify)
-            com.runline.app.music.MusicProblem.PREMIUM -> context.getString(R.string.music_premium_short)
-            com.runline.app.music.MusicProblem.RECONNECT -> context.getString(R.string.music_reconnect_short)
-            null -> if (now.title.isEmpty()) context.getString(R.string.music_title) else listOf(now.title, now.artist).filter { it.isNotEmpty() }.joinToString(" · ")
-        })
+        change(
+            musicTitle,
+            when (now.problem) {
+                com.runline.app.music.MusicProblem.OPEN_SPOTIFY -> context.getString(R.string.music_open_spotify)
+                com.runline.app.music.MusicProblem.PREMIUM -> context.getString(R.string.music_premium_short)
+                com.runline.app.music.MusicProblem.RECONNECT -> context.getString(R.string.music_reconnect_short)
+                null -> if (now.title.isEmpty()) context.getString(R.string.music_title) else listOf(now.title, now.artist).filter { it.isNotEmpty() }.joinToString(" · ")
+            },
+        )
         musicTitle.isClickable = !now.keysOnly
         musicTitle.contentDescription = if (now.keysOnly) null else context.getString(R.string.music_open_spotify) + ". " + musicTitle.text
         musicBrand.visibility = if (now.keysOnly) GONE else VISIBLE
         if (now.coverUrl != musicCoverUrl || musicCover.drawable == null) {
-            val cover = now.coverUrl; musicCoverUrl = cover
-            musicCover.setImageResource(R.drawable.ic_music); musicCover.imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-            if (cover != null) com.runline.app.music.CoverArt.load(cover) { bitmap ->
-                if (bitmap != null && musicCoverUrl == cover) { musicCover.imageTintList = null; musicCover.setImageBitmap(bitmap) }
+            val cover = now.coverUrl
+            musicCoverUrl = cover
+            musicCover.setImageResource(R.drawable.ic_music)
+            musicCover.imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+            if (cover != null) {
+                com.runline.app.music.CoverArt.load(cover) { bitmap ->
+                    if (bitmap != null && musicCoverUrl == cover) {
+                        musicCover.imageTintList = null
+                        musicCover.setImageBitmap(bitmap)
+                    }
+                }
             }
         }
         val playing = if (now.keysOnly) audio.isMusicActive else now.playing
@@ -216,10 +326,13 @@ class ActiveRunView(
         val points = terrainProjector.project(run, terrainRepository.snapshot).points
         panel.setPoints(points)
         if (points.size < terrainCount || (terrainCount > 0 && points.getOrNull(terrainCount - 1) != terrainLast)) {
-            terrainTrend.reset(); terrainCount = 0; terrainEstimate = TerrainEstimate()
+            terrainTrend.reset()
+            terrainCount = 0
+            terrainEstimate = TerrainEstimate()
         }
         for (index in terrainCount until points.size) terrainEstimate = terrainTrend.update(points[index])
-        terrainCount = points.size; terrainLast = points.lastOrNull()
+        terrainCount = points.size
+        terrainLast = points.lastOrNull()
         val fresh = terrainLast?.let { System.currentTimeMillis() - it.timestampMs in 0L..15_000L } == true
         val currentTerrain = if (state.status == RecordingStatus.RECORDING && fresh) terrainEstimate else TerrainEstimate()
         map.setLiveMotionEnabled(state.status == RecordingStatus.RECORDING)
@@ -231,40 +344,62 @@ class ActiveRunView(
         val meters = RunMetrics.distanceMeters(points)
         elevation.update(points)
         val stopped = state.status == RecordingStatus.RECORDING && state.stoppedSinceMs != null
-        val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(context)
-        val duration = if (autoPause) com.runline.app.core.StopDetection.movingDurationMs(run, openStopSinceMs = state.stoppedSinceMs) else run.activeDurationMs
-        change(heading, context.getString(when {
-            stopped -> if (autoPause) R.string.v17_stopped_auto_paused else R.string.v17_stopped
-            state.status == RecordingStatus.PAUSED -> R.string.active_paused
-            state.status == RecordingStatus.INTERRUPTED -> R.string.active_recovered
-            else -> R.string.active_recording
-        }))
+        val autoPause =
+            com.runline.app.tracking.RecordingSettings
+                .autoPause(context)
+        val duration =
+            if (autoPause) {
+                com.runline.app.core.StopDetection
+                    .movingDurationMs(run, openStopSinceMs = state.stoppedSinceMs)
+            } else {
+                run.activeDurationMs
+            }
+        change(
+            heading,
+            context.getString(
+                when {
+                    stopped -> if (autoPause) R.string.v17_stopped_auto_paused else R.string.v17_stopped
+                    state.status == RecordingStatus.PAUSED -> R.string.active_paused
+                    state.status == RecordingStatus.INTERRUPTED -> R.string.active_recovered
+                    else -> R.string.active_recording
+                },
+            ),
+        )
         readout.update(
             paceSeconds = if (state.status == RecordingStatus.RECORDING && !state.gpsStale && !stopped) LivePace.secondsPerKm(points, System.currentTimeMillis()) else null,
-            distanceMeters = meters, durationMs = duration, terrain = currentTerrain,
-            climbedMeters = elevation.climbedMeters, descendedMeters = elevation.descendedMeters,
+            distanceMeters = meters,
+            durationMs = duration,
+            terrain = currentTerrain,
+            climbedMeters = elevation.climbedMeters,
+            descendedMeters = elevation.descendedMeters,
             averagePace = RunMetrics.paceSecondsPerKm(meters, duration),
-            animate = state.status == RecordingStatus.RECORDING, profile = panel.slopeProfile(),
+            animate = state.status == RecordingStatus.RECORDING,
+            profile = panel.slopeProfile(),
         )
-        val status = when {
-            state.status == RecordingStatus.INTERRUPTED -> state.message ?: context.getString(R.string.active_recovered_hint)
-            state.status == RecordingStatus.PAUSED -> state.message?.takeUnless { state.messageRes == R.string.tracking_paused } ?: context.getString(R.string.active_paused_hint)
-            state.message != null -> state.message
-            state.accuracyMeters != null -> context.getString(R.string.active_accuracy, state.accuracyMeters.roundToInt())
-            else -> context.getString(R.string.active_loading)
-        }
+        val status =
+            when {
+                state.status == RecordingStatus.INTERRUPTED -> state.message ?: context.getString(R.string.active_recovered_hint)
+                state.status == RecordingStatus.PAUSED -> state.message?.takeUnless { state.messageRes == R.string.tracking_paused } ?: context.getString(R.string.active_paused_hint)
+                state.message != null -> state.message
+                state.accuracyMeters != null -> context.getString(R.string.active_accuracy, state.accuracyMeters.roundToInt())
+                else -> context.getString(R.string.active_loading)
+            }
         change(gps, status)
         val routineStatus = state.messageRes in setOf(null, R.string.tracking_paused, R.string.tracking_recovered_hint)
         gps.visibility = if (compact && routineStatus) GONE else VISIBLE
         heading.contentDescription = "${heading.text}. $status"
     }
 
-    private fun showRoute(route: com.runline.app.tracking.LiveRoute?, recording: Boolean) {
+    private fun showRoute(
+        route: com.runline.app.tracking.LiveRoute?,
+        recording: Boolean,
+    ) {
         routeRow.visibility = if (route == null) GONE else VISIBLE
         showGuidance(route)
         if (route == null) return
         val p = route.progress
         val locale = resources.configuration.locales[0]
+
         fun km(m: Double) = String.format(locale, "%.1f", m / 1000)
         val wrongWay = p?.wrongWay == true && p.state == com.runline.app.core.RouteState.ON_ROUTE
         val off = p?.state == com.runline.app.core.RouteState.OFF_ROUTE || wrongWay
@@ -273,36 +408,86 @@ class ActiveRunView(
         directions.visibility = if (approaching && recording && (p?.distanceFromRouteMeters ?: 0.0) > 150 && routeStart != null) VISIBLE else GONE
         val here = lastState.run?.points?.lastOrNull()
         val start = routeStart
-        if (approaching && here != null && start != null) map.setApproachLine(here.latitude, here.longitude, start.first, start.second)
-        else map.clearApproachLine()
-        val text = when {
-            p == null -> route.name
-            wrongWay -> context.getString(R.string.v21_island_wrong_way)
-            else -> when (p.state) {
-            com.runline.app.core.RouteState.APPROACHING -> approachText(p)
-            com.runline.app.core.RouteState.OFF_ROUTE -> p.side?.let {
-                context.getString(R.string.v19_island_off, p.distanceFromRouteMeters.roundToInt(), context.getString(when (it) {
-                    com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
-                    com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead; com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
-                }))
-            } ?: context.getString(R.string.v19_island_off_plain, p.distanceFromRouteMeters.roundToInt())
-            com.runline.app.core.RouteState.FINISHED -> context.getString(R.string.v19_route_complete_short)
-            com.runline.app.core.RouteState.ON_ROUTE -> {
-                val arrival = System.currentTimeMillis() + (p.minutesRemaining * 60_000).toLong()
-                val time = { ms: Long -> java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT).withLocale(locale)
-                    .format(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault())) }
-                val clock = time(arrival)
-                val main = p.ascentRemainingMeters?.let { context.getString(R.string.v19_island_route, km(p.remainingMeters), it.roundToInt(), clock) }
-                    ?: context.getString(R.string.v19_island_route_no_ascent, km(p.remainingMeters), clock)
-                val sunset = route.sunsetMs?.takeIf { recording && arrival > it }?.let { "\n" + context.getString(R.string.v19_island_after_sunset, time(it)) }.orEmpty()
-                val next = p.nextWaypoint?.takeIf { it.name.isNotBlank() }?.let { w ->
-                    val ahead = p.nextWaypointMeters ?: 0.0
-                    "\n" + if (ahead < 1000) context.getString(R.string.v20_island_next_m, w.name, ((ahead / 10).roundToInt() * 10).coerceAtLeast(10))
-                        else context.getString(R.string.v19_island_next, w.name, km(ahead))
-                }.orEmpty()
-                main + sunset + climbLine(route.guidance, p.doneMeters) + next
+        if (approaching && here != null && start != null) {
+            map.setApproachLine(here.latitude, here.longitude, start.first, start.second)
+        } else {
+            map.clearApproachLine()
+        }
+        val text =
+            when {
+                p == null -> {
+                    route.name
+                }
+
+                wrongWay -> {
+                    context.getString(R.string.v21_island_wrong_way)
+                }
+
+                else -> {
+                    when (p.state) {
+                        com.runline.app.core.RouteState.APPROACHING -> {
+                            approachText(p)
+                        }
+
+                        com.runline.app.core.RouteState.OFF_ROUTE -> {
+                            p.side?.let {
+                                context.getString(
+                                    R.string.v19_island_off,
+                                    p.distanceFromRouteMeters.roundToInt(),
+                                    context.getString(
+                                        when (it) {
+                                            com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left
+                                            com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
+                                            com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead
+                                            com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
+                                        },
+                                    ),
+                                )
+                            } ?: context.getString(R.string.v19_island_off_plain, p.distanceFromRouteMeters.roundToInt())
+                        }
+
+                        com.runline.app.core.RouteState.FINISHED -> {
+                            context.getString(R.string.v19_route_complete_short)
+                        }
+
+                        com.runline.app.core.RouteState.ON_ROUTE -> {
+                            val arrival = System.currentTimeMillis() + (p.minutesRemaining * 60_000).toLong()
+                            val time = { ms: Long ->
+                                java.time.format.DateTimeFormatter
+                                    .ofLocalizedTime(java.time.format.FormatStyle.SHORT)
+                                    .withLocale(locale)
+                                    .format(
+                                        java.time.Instant
+                                            .ofEpochMilli(ms)
+                                            .atZone(java.time.ZoneId.systemDefault()),
+                                    )
+                            }
+                            val clock = time(arrival)
+                            val main =
+                                p.ascentRemainingMeters?.let { context.getString(R.string.v19_island_route, km(p.remainingMeters), it.roundToInt(), clock) }
+                                    ?: context.getString(R.string.v19_island_route_no_ascent, km(p.remainingMeters), clock)
+                            val sunset =
+                                route.sunsetMs
+                                    ?.takeIf { recording && arrival > it }
+                                    ?.let { "\n" + context.getString(R.string.v19_island_after_sunset, time(it)) }
+                                    .orEmpty()
+                            val next =
+                                p.nextWaypoint
+                                    ?.takeIf { it.name.isNotBlank() }
+                                    ?.let { w ->
+                                        val ahead = p.nextWaypointMeters ?: 0.0
+                                        "\n" +
+                                            if (ahead < 1000) {
+                                                context.getString(R.string.v20_island_next_m, w.name, ((ahead / 10).roundToInt() * 10).coerceAtLeast(10))
+                                            } else {
+                                                context.getString(R.string.v19_island_next, w.name, km(ahead))
+                                            }
+                                    }.orEmpty()
+                            main + sunset + climbLine(route.guidance, p.doneMeters) + next
+                        }
+                    }
+                }
             }
-        } }
         change(routeText, text)
         routeText.typeface = Typeface.create(if (off) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
         routeIcon.setImageResource(if (off) R.drawable.ic_warning else R.drawable.ic_route)
@@ -310,31 +495,61 @@ class ActiveRunView(
     }
 
     private fun approachText(p: com.runline.app.core.RouteProgress): String {
-        val meters = com.runline.app.core.RouteApproach.round(p.distanceFromRouteMeters)
-        val distance = if (meters >= 1000) context.getString(R.string.v20_island_km, String.format(resources.configuration.locales[0], "%.1f", meters / 1000.0))
-            else context.getString(R.string.v20_island_meters, meters)
-        val where = p.side?.let { context.getString(when (it) {
-            com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left; com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
-            com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead; com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
-        }) } ?: p.bearingToRouteDegrees?.let { context.getString(when (com.runline.app.core.Compass.of(it)) {
-            com.runline.app.core.Compass.NORTH -> R.string.v21_compass_n; com.runline.app.core.Compass.NORTH_EAST -> R.string.v21_compass_ne
-            com.runline.app.core.Compass.EAST -> R.string.v21_compass_e; com.runline.app.core.Compass.SOUTH_EAST -> R.string.v21_compass_se
-            com.runline.app.core.Compass.SOUTH -> R.string.v21_compass_s; com.runline.app.core.Compass.SOUTH_WEST -> R.string.v21_compass_sw
-            com.runline.app.core.Compass.WEST -> R.string.v21_compass_w; com.runline.app.core.Compass.NORTH_WEST -> R.string.v21_compass_nw
-        }) }
+        val meters =
+            com.runline.app.core.RouteApproach
+                .round(p.distanceFromRouteMeters)
+        val distance =
+            if (meters >= 1000) {
+                context.getString(R.string.v20_island_km, String.format(resources.configuration.locales[0], "%.1f", meters / 1000.0))
+            } else {
+                context.getString(R.string.v20_island_meters, meters)
+            }
+        val where =
+            p.side?.let {
+                context.getString(
+                    when (it) {
+                        com.runline.app.core.RouteSide.LEFT -> R.string.v19_side_left
+                        com.runline.app.core.RouteSide.RIGHT -> R.string.v19_side_right
+                        com.runline.app.core.RouteSide.AHEAD -> R.string.v19_side_ahead
+                        com.runline.app.core.RouteSide.BEHIND -> R.string.v19_side_behind
+                    },
+                )
+            } ?: p.bearingToRouteDegrees?.let {
+                context.getString(
+                    when (
+                        com.runline.app.core.Compass
+                            .of(it)
+                    ) {
+                        com.runline.app.core.Compass.NORTH -> R.string.v21_compass_n
+                        com.runline.app.core.Compass.NORTH_EAST -> R.string.v21_compass_ne
+                        com.runline.app.core.Compass.EAST -> R.string.v21_compass_e
+                        com.runline.app.core.Compass.SOUTH_EAST -> R.string.v21_compass_se
+                        com.runline.app.core.Compass.SOUTH -> R.string.v21_compass_s
+                        com.runline.app.core.Compass.SOUTH_WEST -> R.string.v21_compass_sw
+                        com.runline.app.core.Compass.WEST -> R.string.v21_compass_w
+                        com.runline.app.core.Compass.NORTH_WEST -> R.string.v21_compass_nw
+                    },
+                )
+            }
         return where?.let { context.getString(R.string.v21_island_start, distance, it) } ?: context.getString(R.string.v21_island_start_plain, distance)
     }
 
-    private fun climbLine(guidance: com.runline.app.core.RouteGuidanceView?, done: Double): String {
+    private fun climbLine(
+        guidance: com.runline.app.core.RouteGuidanceView?,
+        done: Double,
+    ): String {
         val climb = guidance?.climb ?: return ""
         val locale = resources.configuration.locales[0]
         val inside = (guidance.climbMeters ?: 0.0) <= 0
         val height = if (inside) kotlin.math.abs(climb.heightMeters) * ((climb.endMeters - done) / climb.lengthMeters).coerceIn(0.0, 1.0) else kotlin.math.abs(climb.heightMeters)
         val length = if (inside) (climb.endMeters - done).coerceAtLeast(0.0) else climb.lengthMeters
-        val res = when {
-            inside && climb.uphill -> R.string.v20_island_climbing; inside -> R.string.v20_island_descending
-            climb.uphill -> R.string.v20_island_climb; else -> R.string.v20_island_descent
-        }
+        val res =
+            when {
+                inside && climb.uphill -> R.string.v20_island_climbing
+                inside -> R.string.v20_island_descending
+                climb.uphill -> R.string.v20_island_climb
+                else -> R.string.v20_island_descent
+            }
         return "\n" + context.getString(res, height.roundToInt(), String.format(locale, "%.1f", length / 1000), climb.gradePercent.roundToInt())
     }
 
@@ -347,68 +562,146 @@ class ActiveRunView(
         if (maneuver != null) {
             val meters = g?.maneuverMeters ?: 0.0
             val locale = resources.configuration.locales[0]
-            val distance = when {
-                meters >= 1000 -> context.getString(R.string.v20_island_km, String.format(locale, "%.1f", meters / 1000))
-                meters >= 100 -> context.getString(R.string.v20_island_meters, (meters / 10).roundToInt() * 10)
-                else -> context.getString(R.string.v20_island_meters, (meters / 5).roundToInt() * 5)
-            }
-            val words = if (maneuver.kind == com.runline.app.core.TurnKind.ZIGZAG)
-                context.getString(R.string.v20_turn_zigzag, (maneuver.lengthMeters / 10).roundToInt() * 10)
-            else context.getString(when (maneuver.kind) {
-                com.runline.app.core.TurnKind.BEAR_LEFT -> R.string.v20_turn_bear_left; com.runline.app.core.TurnKind.BEAR_RIGHT -> R.string.v20_turn_bear_right
-                com.runline.app.core.TurnKind.LEFT -> R.string.v20_turn_left; com.runline.app.core.TurnKind.RIGHT -> R.string.v20_turn_right
-                com.runline.app.core.TurnKind.SHARP_LEFT -> R.string.v20_turn_sharp_left; com.runline.app.core.TurnKind.SHARP_RIGHT -> R.string.v20_turn_sharp_right
-                else -> R.string.v20_turn_around
-            })
+            val distance =
+                when {
+                    meters >= 1000 -> context.getString(R.string.v20_island_km, String.format(locale, "%.1f", meters / 1000))
+                    meters >= 100 -> context.getString(R.string.v20_island_meters, (meters / 10).roundToInt() * 10)
+                    else -> context.getString(R.string.v20_island_meters, (meters / 5).roundToInt() * 5)
+                }
+            val words =
+                if (maneuver.kind == com.runline.app.core.TurnKind.ZIGZAG) {
+                    context.getString(R.string.v20_turn_zigzag, (maneuver.lengthMeters / 10).roundToInt() * 10)
+                } else {
+                    context.getString(
+                        when (maneuver.kind) {
+                            com.runline.app.core.TurnKind.BEAR_LEFT -> R.string.v20_turn_bear_left
+                            com.runline.app.core.TurnKind.BEAR_RIGHT -> R.string.v20_turn_bear_right
+                            com.runline.app.core.TurnKind.LEFT -> R.string.v20_turn_left
+                            com.runline.app.core.TurnKind.RIGHT -> R.string.v20_turn_right
+                            com.runline.app.core.TurnKind.SHARP_LEFT -> R.string.v20_turn_sharp_left
+                            com.runline.app.core.TurnKind.SHARP_RIGHT -> R.string.v20_turn_sharp_right
+                            else -> R.string.v20_turn_around
+                        },
+                    )
+                }
             val instruction = words.replaceFirstChar { it.titlecase(locale) }
-            turnArrow.setImageResource(when (maneuver.kind) {
-                com.runline.app.core.TurnKind.BEAR_LEFT -> R.drawable.ic_turn_bear_left; com.runline.app.core.TurnKind.BEAR_RIGHT -> R.drawable.ic_turn_bear_right
-                com.runline.app.core.TurnKind.LEFT -> R.drawable.ic_turn_left; com.runline.app.core.TurnKind.RIGHT -> R.drawable.ic_turn_right
-                com.runline.app.core.TurnKind.SHARP_LEFT -> R.drawable.ic_turn_sharp_left; com.runline.app.core.TurnKind.SHARP_RIGHT -> R.drawable.ic_turn_sharp_right
-                com.runline.app.core.TurnKind.TURN_AROUND -> R.drawable.ic_turn_around; com.runline.app.core.TurnKind.ZIGZAG -> R.drawable.ic_turn_zigzag
-            })
-            change(turnDistance, distance); change(turnText, instruction)
+            turnArrow.setImageResource(
+                when (maneuver.kind) {
+                    com.runline.app.core.TurnKind.BEAR_LEFT -> R.drawable.ic_turn_bear_left
+                    com.runline.app.core.TurnKind.BEAR_RIGHT -> R.drawable.ic_turn_bear_right
+                    com.runline.app.core.TurnKind.LEFT -> R.drawable.ic_turn_left
+                    com.runline.app.core.TurnKind.RIGHT -> R.drawable.ic_turn_right
+                    com.runline.app.core.TurnKind.SHARP_LEFT -> R.drawable.ic_turn_sharp_left
+                    com.runline.app.core.TurnKind.SHARP_RIGHT -> R.drawable.ic_turn_sharp_right
+                    com.runline.app.core.TurnKind.TURN_AROUND -> R.drawable.ic_turn_around
+                    com.runline.app.core.TurnKind.ZIGZAG -> R.drawable.ic_turn_zigzag
+                },
+            )
+            change(turnDistance, distance)
+            change(turnText, instruction)
             turnRow.contentDescription = context.getString(R.string.v20_island_maneuver_description, instruction, distance)
         }
         val model = route?.route
         ahead.visibility = if (onRoute && model != null && ahead.set(model, p!!.doneMeters)) VISIBLE else GONE
     }
 
-    private fun label(textValue: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(context).apply {
-        text = textValue; textSize = size.toFloat(); includeFontPadding = false
+    private fun label(
+        textValue: String,
+        size: Int,
+        bold: Boolean = false,
+        muted: Boolean = false,
+    ) = TextView(context).apply {
+        text = textValue
+        textSize = size.toFloat()
+        includeFontPadding = false
         setTextColor(context.getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
         if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
-    private fun floatingButton(textValue: String, iconId: Int) = MaterialButton(context).apply {
-        text = textValue; isAllCaps = false; textSize = 14f
-        minHeight = dp(48); minimumHeight = dp(48); minWidth = 0; minimumWidth = 0
-        insetTop = 0; insetBottom = 0; cornerRadius = dp(24)
+
+    private fun floatingButton(
+        textValue: String,
+        iconId: Int,
+    ) = MaterialButton(context).apply {
+        text = textValue
+        isAllCaps = false
+        textSize = 14f
+        minHeight = dp(48)
+        minimumHeight = dp(48)
+        minWidth = 0
+        minimumWidth = 0
+        insetTop = 0
+        insetBottom = 0
+        cornerRadius = dp(24)
         backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.surface))
-        setTextColor(context.getColor(R.color.on_surface)); iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        setIconResource(iconId); iconSize = dp(22); iconPadding = dp(8); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+        setTextColor(context.getColor(R.color.on_surface))
+        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+        setIconResource(iconId)
+        iconSize = dp(22)
+        iconPadding = dp(8)
+        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
         setPadding(dp(16), 0, dp(16), 0)
     }
-    private fun action(textValue: String, iconId: Int, outlined: Boolean = false) = MaterialButton(context, null,
-        if (outlined) com.google.android.material.R.attr.materialButtonOutlinedStyle else com.google.android.material.R.attr.materialButtonStyle).apply {
-        text = textValue; isAllCaps = false; minHeight = dp(if (compact) 48 else 60); minimumHeight = minHeight
-        cornerRadius = dp(16); setIconResource(iconId); iconSize = dp(22); iconPadding = dp(8)
+
+    private fun action(
+        textValue: String,
+        iconId: Int,
+        outlined: Boolean = false,
+    ) = MaterialButton(
+        context,
+        null,
+        if (outlined) com.google.android.material.R.attr.materialButtonOutlinedStyle else com.google.android.material.R.attr.materialButtonStyle,
+    ).apply {
+        text = textValue
+        isAllCaps = false
+        minHeight = dp(if (compact) 48 else 60)
+        minimumHeight = minHeight
+        cornerRadius = dp(16)
+        setIconResource(iconId)
+        iconSize = dp(22)
+        iconPadding = dp(8)
         iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
         setPadding(dp(10), dp(8), dp(10), dp(8))
     }
+
     private fun openSpotify(trackUri: String?) {
         val app = context.packageManager.getLaunchIntentForPackage("com.spotify.music")
         val track = trackUri?.let { android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(it)).setPackage("com.spotify.music") }
         runCatching { context.startActivity(track ?: app) }.onFailure { runCatching { app?.let(context::startActivity) } }
     }
-    private fun musicButton(iconId: Int, description: Int, action: () -> Unit) = MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
-        setIconResource(iconId); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
-        minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0)
+
+    private fun musicButton(
+        iconId: Int,
+        description: Int,
+        action: () -> Unit,
+    ) = MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+        setIconResource(iconId)
+        iconPadding = 0
+        iconSize = dp(24)
+        minWidth = 0
+        minimumWidth = 0
+        minHeight = dp(48)
+        minimumHeight = dp(48)
+        setPadding(dp(12), 0, dp(12), 0)
         iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        contentDescription = context.getString(description); tooltipText = contentDescription
+        contentDescription = context.getString(description)
+        tooltipText = contentDescription
         setOnClickListener { action() }
     }
-    private fun row(top: Int = 0, bottom: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom) }
-    private fun change(view: TextView, value: String) { if (view.text != value) view.text = value }
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
+    private fun row(
+        top: Int = 0,
+        bottom: Int = 0,
+    ) = LinearLayout.LayoutParams(-1, -2).apply {
+        topMargin = dp(top)
+        bottomMargin = dp(bottom)
+    }
+
+    private fun change(
+        view: TextView,
+        value: String,
+    ) {
+        if (view.text != value) view.text = value
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 }

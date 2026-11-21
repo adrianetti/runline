@@ -1,6 +1,9 @@
 package com.runline.app.core
 
-data class StopInterval(val startMs: Long, val endMs: Long) {
+data class StopInterval(
+    val startMs: Long,
+    val endMs: Long,
+) {
     val durationMs get() = (endMs - startMs).coerceAtLeast(0)
 }
 
@@ -10,27 +13,33 @@ object StopDetection {
     private const val MAX_STEP_MS = 15_000L
     private const val MERGE_GAP_MS = 12_000L
 
-    fun detect(points: List<RunPoint>, type: ActivityType = ActivityType.RUN): List<StopInterval> {
+    fun detect(
+        points: List<RunPoint>,
+        type: ActivityType = ActivityType.RUN,
+    ): List<StopInterval> {
         val stillSpeed = if (type == ActivityType.RUN) .8 else .35
         val leaveSpeed = if (type == ActivityType.RUN) 2.5 else 1.2
         val found = mutableListOf<Triple<Long, Long, RunPoint>>()
         for (segment in continuousSegments(points)) {
             var open: Triple<Long, Long, RunPoint>? = null
             for (index in 1 until segment.size) {
-                val a = segment[index - 1]; val b = segment[index]
+                val a = segment[index - 1]
+                val b = segment[index]
                 val step = b.timestampMs - a.timestampMs
                 if (step !in MIN_STEP_MS..MAX_STEP_MS || !usable(a) || !usable(b)) continue
                 val meters = RunMetrics.distanceMeters(listOf(a, b))
                 if (meters * 1_000 / step >= stillSpeed) continue
                 val end = maxOf(a.timestampMs, b.timestampMs - (meters / leaveSpeed * 1_000).toLong())
                 val current = open
-                open = if (current != null && a.timestampMs - current.second <= MERGE_GAP_MS &&
-                    RunMetrics.distanceMeters(listOf(current.third, b)) <= b.accuracyMeters.toDouble().coerceIn(8.0, 15.0))
-                    Triple(current.first, maxOf(current.second, end), current.third)
-                else {
-                    current?.let(found::add)
-                    Triple(a.timestampMs, end, a)
-                }
+                open =
+                    if (current != null && a.timestampMs - current.second <= MERGE_GAP_MS &&
+                        RunMetrics.distanceMeters(listOf(current.third, b)) <= b.accuracyMeters.toDouble().coerceIn(8.0, 15.0)
+                    ) {
+                        Triple(current.first, maxOf(current.second, end), current.third)
+                    } else {
+                        current?.let(found::add)
+                        Triple(a.timestampMs, end, a)
+                    }
             }
             open?.let(found::add)
         }
@@ -38,7 +47,8 @@ object StopDetection {
     }
 
     fun totalMs(stops: List<StopInterval>): Long {
-        var total = 0L; var end = Long.MIN_VALUE
+        var total = 0L
+        var end = Long.MIN_VALUE
         stops.sortedBy { it.startMs }.forEach { stop ->
             if (stop.endMs <= end) return@forEach
             total += stop.endMs - maxOf(stop.startMs, end)
@@ -47,8 +57,12 @@ object StopDetection {
         return total
     }
 
-    fun movingDurationMs(run: RunSession, stops: List<StopInterval> = detect(run.points, run.activityType), openStopSinceMs: Long? = null,
-                         nowMs: Long = run.endedAtMs): Long {
+    fun movingDurationMs(
+        run: RunSession,
+        stops: List<StopInterval> = detect(run.points, run.activityType),
+        openStopSinceMs: Long? = null,
+        nowMs: Long = run.endedAtMs,
+    ): Long {
         val open = openStopSinceMs?.takeIf { nowMs - it >= MIN_STOP_MS }?.let { StopInterval(it, nowMs) }
         return (run.activeDurationMs - totalMs(stops + listOfNotNull(open))).coerceIn(0, run.activeDurationMs.coerceAtLeast(0))
     }
@@ -56,15 +70,27 @@ object StopDetection {
     private fun usable(point: RunPoint) = point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
 }
 
-class StillnessTracker(private val type: ActivityType = ActivityType.RUN) {
+class StillnessTracker(
+    private val type: ActivityType = ActivityType.RUN,
+) {
     private var anchor: RunPoint? = null
     private var stillSinceMs: Long? = null
     var stoppedSinceMs: Long? = null
         private set
 
-    fun reset() { anchor = null; stillSinceMs = null; stoppedSinceMs = null }
+    fun reset() {
+        anchor = null
+        stillSinceMs = null
+        stoppedSinceMs = null
+    }
 
-    fun update(latitude: Double, longitude: Double, timeMs: Long, accuracyMeters: Float, speedMetersPerSecond: Float?): Long? {
+    fun update(
+        latitude: Double,
+        longitude: Double,
+        timeMs: Long,
+        accuracyMeters: Float,
+        speedMetersPerSecond: Float?,
+    ): Long? {
         val stillSpeed = if (type == ActivityType.RUN) .6 else .3
         val fix = RunPoint(latitude, longitude, timeMs, accuracyMeters)
         val previous = anchor
@@ -73,12 +99,18 @@ class StillnessTracker(private val type: ActivityType = ActivityType.RUN) {
         val radius = accuracyMeters.toDouble().coerceIn(5.0, 10.0)
         val near = meters != null && seconds != null && meters <= radius && (seconds < 3.0 || meters / seconds < stillSpeed * 1.5)
         val slow = speedMetersPerSecond?.takeIf { it.isFinite() && it >= 0f }?.let { it < stillSpeed }
-        val still = when {
-            previous == null -> slow ?: false
-            meters != null && meters > radius -> false
-            else -> slow ?: near
+        val still =
+            when {
+                previous == null -> slow ?: false
+                meters != null && meters > radius -> false
+                else -> slow ?: near
+            }
+        if (!still) {
+            anchor = fix
+            stillSinceMs = null
+            stoppedSinceMs = null
+            return null
         }
-        if (!still) { anchor = fix; stillSinceMs = null; stoppedSinceMs = null; return null }
         if (!near) anchor = fix
         val since = stillSinceMs ?: timeMs.also { stillSinceMs = it }
         if (timeMs - since >= StopDetection.MIN_STOP_MS) stoppedSinceMs = since

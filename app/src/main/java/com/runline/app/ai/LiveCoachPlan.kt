@@ -2,18 +2,28 @@ package com.runline.app.ai
 
 enum class LiveTrigger { OPENING, MOMENT, CADENCE }
 
-enum class LiveMoment { KILOMETRE, LAP, HALFWAY, FINAL_STRETCH, ONE_KM_LEFT, GOAL_REACHED;
+enum class LiveMoment {
+    KILOMETRE,
+    LAP,
+    HALFWAY,
+    FINAL_STRETCH,
+    ONE_KM_LEFT,
+    GOAL_REACHED,
+    ;
+
     companion object {
         fun of(cue: com.runline.app.core.CoachCue): LiveMoment? = of(cue.toString())
-        fun of(cue: String): LiveMoment? = when {
-            cue.startsWith("Kilometre(") -> KILOMETRE
-            cue.startsWith("LapCompleted(") -> LAP
-            cue.startsWith("Encouragement(kind=HALFWAY") -> HALFWAY
-            cue.startsWith("Encouragement(kind=FINAL_STRETCH") -> FINAL_STRETCH
-            cue.startsWith("OneKilometreRemaining") -> ONE_KM_LEFT
-            cue.startsWith("GoalReached(") -> GOAL_REACHED
-            else -> null
-        }
+
+        fun of(cue: String): LiveMoment? =
+            when {
+                cue.startsWith("Kilometre(") -> KILOMETRE
+                cue.startsWith("LapCompleted(") -> LAP
+                cue.startsWith("Encouragement(kind=HALFWAY") -> HALFWAY
+                cue.startsWith("Encouragement(kind=FINAL_STRETCH") -> FINAL_STRETCH
+                cue.startsWith("OneKilometreRemaining") -> ONE_KM_LEFT
+                cue.startsWith("GoalReached(") -> GOAL_REACHED
+                else -> null
+            }
     }
 }
 
@@ -21,9 +31,16 @@ enum class LiveStyle { PUNCHY, WARM, NUMBER_FIRST, CUE_FIRST, CELEBRATE, CALM, L
 
 enum class LiveFocus { PACE_TREND, TECHNIQUE, HISTORY, MORALE, GOAL_PROJECTION, EFFORT_CHECK, SPLIT_DETAIL, ASPIRATION }
 
-data class LiveCall(val trigger: LiveTrigger, val moment: LiveMoment?, val focus: LiveFocus, val number: Int)
+data class LiveCall(
+    val trigger: LiveTrigger,
+    val moment: LiveMoment?,
+    val focus: LiveFocus,
+    val number: Int,
+)
 
-class LiveCoachPlan(initialAttempts: Int = 0) {
+class LiveCoachPlan(
+    initialAttempts: Int = 0,
+) {
     var attempts = initialAttempts.coerceIn(0, MAX_ATTEMPTS)
         private set
     private var seen = false
@@ -37,45 +54,75 @@ class LiveCoachPlan(initialAttempts: Int = 0) {
 
     val healthy: Boolean get() = failures < 2 && attempts < MAX_ATTEMPTS
 
-    fun spoken(activeMs: Long, ai: Boolean) {
+    fun spoken(
+        activeMs: Long,
+        ai: Boolean,
+    ) {
         lastSpeechAt = activeMs
         if (ai) nextCadenceAt = activeMs + interval
     }
 
-    fun milestone(activeMs: Long, moment: LiveMoment): LiveCall? {
+    fun milestone(
+        activeMs: Long,
+        moment: LiveMoment,
+    ): LiveCall? {
         if (!healthy) return null
         opened = true
-        attempts++; lastRequestAt = activeMs; nextCadenceAt = maxOf(nextCadenceAt, activeMs + SILENT_RETRY_MS)
-        return LiveCall(LiveTrigger.MOMENT, moment, when (moment) {
-            LiveMoment.KILOMETRE, LiveMoment.LAP -> LiveFocus.SPLIT_DETAIL
-            LiveMoment.GOAL_REACHED -> LiveFocus.MORALE
-            else -> LiveFocus.GOAL_PROJECTION
-        }, attempts)
+        attempts++
+        lastRequestAt = activeMs
+        nextCadenceAt = maxOf(nextCadenceAt, activeMs + SILENT_RETRY_MS)
+        return LiveCall(
+            LiveTrigger.MOMENT,
+            moment,
+            when (moment) {
+                LiveMoment.KILOMETRE, LiveMoment.LAP -> LiveFocus.SPLIT_DETAIL
+                LiveMoment.GOAL_REACHED -> LiveFocus.MORALE
+                else -> LiveFocus.GOAL_PROJECTION
+            },
+            attempts,
+        )
     }
 
-    fun next(activeMs: Long, intervalMinutes: Int): LiveCall? {
+    fun next(
+        activeMs: Long,
+        intervalMinutes: Int,
+    ): LiveCall? {
         interval = intervalMinutes.coerceIn(1, 10) * 60_000L
         if (!seen) {
             seen = true
-            if (activeMs > OPENING_LATEST_MS || attempts > 0) { opened = true; nextCadenceAt = activeMs + 30_000 }
+            if (activeMs > OPENING_LATEST_MS || attempts > 0) {
+                opened = true
+                nextCadenceAt = activeMs + 30_000
+            }
         }
         if (attempts >= MAX_ATTEMPTS) return null
         if (lastRequestAt?.let { activeMs - it < MIN_GAP_MS } == true) return null
-        val call = when {
-            !opened -> {
-                if (activeMs < OPENING_EARLIEST_MS) return null
-                opened = true
-                LiveCall(LiveTrigger.OPENING, null, LiveFocus.MORALE, attempts + 1)
+        val call =
+            when {
+                !opened -> {
+                    if (activeMs < OPENING_EARLIEST_MS) return null
+                    opened = true
+                    LiveCall(LiveTrigger.OPENING, null, LiveFocus.MORALE, attempts + 1)
+                }
+
+                activeMs >= nextCadenceAt && lastSpeechAt?.let { activeMs - it < QUIET_BEFORE_MS } != true -> {
+                    LiveCall(LiveTrigger.CADENCE, null, LiveFocus.entries[rotation++ % LiveFocus.entries.size], attempts + 1)
+                }
+
+                else -> {
+                    return null
+                }
             }
-            activeMs >= nextCadenceAt && lastSpeechAt?.let { activeMs - it < QUIET_BEFORE_MS } != true ->
-                LiveCall(LiveTrigger.CADENCE, null, LiveFocus.entries[rotation++ % LiveFocus.entries.size], attempts + 1)
-            else -> return null
-        }
-        attempts++; lastRequestAt = activeMs; nextCadenceAt = activeMs + interval
+        attempts++
+        lastRequestAt = activeMs
+        nextCadenceAt = activeMs + interval
         return call
     }
 
-    fun answered(activeMs: Long, spoke: Boolean) {
+    fun answered(
+        activeMs: Long,
+        spoke: Boolean,
+    ) {
         failures = 0
         if (!spoke) nextCadenceAt = minOf(nextCadenceAt, activeMs + SILENT_RETRY_MS)
     }

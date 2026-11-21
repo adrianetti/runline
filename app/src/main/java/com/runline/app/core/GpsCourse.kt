@@ -22,7 +22,8 @@ class GpsCourse {
 
     fun update(point: RunPoint) {
         if (!point.hasValidCoordinates() || point.timestampMs < 0L ||
-            !point.accuracyMeters.isFinite() || point.accuracyMeters !in 0f..30f) {
+            !point.accuracyMeters.isFinite() || point.accuracyMeters !in 0f..30f
+        ) {
             reset()
             return
         }
@@ -64,13 +65,17 @@ class GpsCourse {
         previous = point
     }
 
-    private fun distance(a: RunPoint, b: RunPoint): Double {
+    private fun distance(
+        a: RunPoint,
+        b: RunPoint,
+    ): Double {
         val latitudeA = Math.toRadians(a.latitude)
         val latitudeB = Math.toRadians(b.latitude)
         val latitudeDelta = latitudeB - latitudeA
         val longitudeDelta = Math.toRadians(b.longitude - a.longitude)
-        val haversine = sin(latitudeDelta / 2).let { it * it } +
-            cos(latitudeA) * cos(latitudeB) * sin(longitudeDelta / 2).let { it * it }
+        val haversine =
+            sin(latitudeDelta / 2).let { it * it } +
+                cos(latitudeA) * cos(latitudeB) * sin(longitudeDelta / 2).let { it * it }
         return 2 * 6_371_008.8 * asin(sqrt(haversine.coerceIn(0.0, 1.0)))
     }
 }

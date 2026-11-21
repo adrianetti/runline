@@ -5,7 +5,10 @@ import org.junit.Test
 import kotlin.math.abs
 
 class TerrainFootprintTest {
-    private fun hillside(radius: Double, height: (Double, Double) -> Double): Boolean {
+    private fun hillside(
+        radius: Double,
+        height: (Double, Double) -> Double,
+    ): Boolean {
         val offsets = TerrainFootprint.offsets(radius)
         return TerrainFootprint.hillside(offsets, offsets.map { (e, n) -> height(e, n) }) { e, n -> height(e, n) }
     }

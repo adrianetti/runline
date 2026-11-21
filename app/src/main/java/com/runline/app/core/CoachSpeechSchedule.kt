@@ -1,19 +1,29 @@
 package com.runline.app.core
 
-enum class CoachSpeechPriority(val rank: Int, val silenceMs: Long, val lifetimeMs: Long) {
+enum class CoachSpeechPriority(
+    val rank: Int,
+    val silenceMs: Long,
+    val lifetimeMs: Long,
+) {
     NAVIGATION(110, 3_000, 12_000),
-    GOAL(100, 2_000, 90_000), ROUTE(85, 8_000, 45_000), MILESTONE(80, 10_000, 60_000),
-    TERRAIN(50, 85_000, 60_000), AI(40, 8_000, 40_000),
-    PACE(30, 85_000, 25_000), MORALE(20, 85_000, 60_000);
+    GOAL(100, 2_000, 90_000),
+    ROUTE(85, 8_000, 45_000),
+    MILESTONE(80, 10_000, 60_000),
+    TERRAIN(50, 85_000, 60_000),
+    AI(40, 8_000, 40_000),
+    PACE(30, 85_000, 25_000),
+    MORALE(20, 85_000, 60_000),
+    ;
 
     companion object {
-        fun of(cue: CoachCue): CoachSpeechPriority = when (cue) {
-            is CoachCue.GoalReached -> GOAL
-            is CoachCue.Kilometre, CoachCue.OneKilometreRemaining, is CoachCue.LapCompleted -> MILESTONE
-            is CoachCue.Encouragement -> if (cue.kind == EncouragementKind.HALFWAY || cue.kind == EncouragementKind.FINAL_STRETCH) MILESTONE else MORALE
-            is CoachCue.Terrain, CoachCue.EasingAfterHill -> TERRAIN
-            else -> PACE
-        }
+        fun of(cue: CoachCue): CoachSpeechPriority =
+            when (cue) {
+                is CoachCue.GoalReached -> GOAL
+                is CoachCue.Kilometre, CoachCue.OneKilometreRemaining, is CoachCue.LapCompleted -> MILESTONE
+                is CoachCue.Encouragement -> if (cue.kind == EncouragementKind.HALFWAY || cue.kind == EncouragementKind.FINAL_STRETCH) MILESTONE else MORALE
+                is CoachCue.Terrain, CoachCue.EasingAfterHill -> TERRAIN
+                else -> PACE
+            }
     }
 }
 
@@ -25,8 +35,14 @@ data class CoachSpeechRequest(
     val isValid: () -> Boolean = { true },
 )
 
-class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Unit = { _, _ -> }) {
-    private data class Pending(val request: CoachSpeechRequest, val offeredAt: Long)
+class CoachSpeechSchedule(
+    private val onDrop: (CoachSpeechRequest, String) -> Unit = { _, _ -> },
+) {
+    private data class Pending(
+        val request: CoachSpeechRequest,
+        val offeredAt: Long,
+    )
+
     private var navigation: Pending? = null
     private var goal: Pending? = null
     private var milestone: Pending? = null
@@ -39,7 +55,10 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
 
     val pendingCount: Int get() = listOfNotNull(navigation, goal, milestone, routine).size
 
-    fun offer(request: CoachSpeechRequest, nowMs: Long): Boolean {
+    fun offer(
+        request: CoachSpeechRequest,
+        nowMs: Long,
+    ): Boolean {
         prune(nowMs)
         if (!valid(request)) return false
         val cue = request.cue
@@ -48,52 +67,84 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
             lastKilometre = cue.completed
         }
         if (request.priority == CoachSpeechPriority.NAVIGATION) {
-            dropped(navigation, "superseded"); navigation = Pending(request, nowMs)
+            dropped(navigation, "superseded")
+            navigation = Pending(request, nowMs)
         } else if (request.priority == CoachSpeechPriority.GOAL) {
             if (goalSeen) return false
             goalSeen = true
             goal = Pending(request, nowMs)
-            dropped(milestone, "superseded"); dropped(routine, "superseded")
-            milestone = null; routine = null
+            dropped(milestone, "superseded")
+            dropped(routine, "superseded")
+            milestone = null
+            routine = null
         } else if (request.priority == CoachSpeechPriority.MILESTONE || request.priority == CoachSpeechPriority.ROUTE) {
             if (goal != null) return false
             if (milestone != null && milestone!!.request.priority.rank > request.priority.rank) return false
-            dropped(milestone, "superseded"); milestone = Pending(request, nowMs)
+            dropped(milestone, "superseded")
+            milestone = Pending(request, nowMs)
         } else {
             if (goal != null) return false
             if (routine != null && routine!!.request.priority.rank > request.priority.rank) return false
-            dropped(routine, "superseded"); routine = Pending(request, nowMs)
+            dropped(routine, "superseded")
+            routine = Pending(request, nowMs)
         }
         return true
     }
 
-    fun takeReady(nowMs: Long, outputAvailable: Boolean): CoachSpeechRequest? {
+    fun takeReady(
+        nowMs: Long,
+        outputAvailable: Boolean,
+    ): CoachSpeechRequest? {
         prune(nowMs)
         if (!outputAvailable) return null
         val next = navigation ?: goal ?: milestone ?: routine ?: return null
         val last = lastFinishedAt
         if (last != null && nowMs - last < next.request.priority.silenceMs) return null
-        when (next) { navigation -> navigation = null; goal -> goal = null; milestone -> milestone = null; else -> routine = null }
+        when (next) {
+            navigation -> navigation = null
+            goal -> goal = null
+            milestone -> milestone = null
+            else -> routine = null
+        }
         taken = next
-        if (next.request.priority == CoachSpeechPriority.MILESTONE || next.request.priority == CoachSpeechPriority.ROUTE) { dropped(routine, "superseded"); routine = null }
+        if (next.request.priority == CoachSpeechPriority.MILESTONE || next.request.priority == CoachSpeechPriority.ROUTE) {
+            dropped(routine, "superseded")
+            routine = null
+        }
         return next.request
     }
 
-    fun retry(request: CoachSpeechRequest, offeredAtMs: Long, nowMs: Long): Boolean {
+    fun retry(
+        request: CoachSpeechRequest,
+        offeredAtMs: Long,
+        nowMs: Long,
+    ): Boolean {
         prune(nowMs)
         if (request === lastRetried || !valid(request) || nowMs - offeredAtMs !in 0 until request.priority.lifetimeMs) return false
         val pending = Pending(request, offeredAtMs)
         when {
-            request.priority == CoachSpeechPriority.NAVIGATION -> if (navigation == null) navigation = pending else return false
-            request.priority == CoachSpeechPriority.GOAL -> if (goal == null) goal = pending else return false
-            request.priority == CoachSpeechPriority.MILESTONE || request.priority == CoachSpeechPriority.ROUTE ->
+            request.priority == CoachSpeechPriority.NAVIGATION -> {
+                if (navigation == null) navigation = pending else return false
+            }
+
+            request.priority == CoachSpeechPriority.GOAL -> {
+                if (goal == null) goal = pending else return false
+            }
+
+            request.priority == CoachSpeechPriority.MILESTONE || request.priority == CoachSpeechPriority.ROUTE -> {
                 if (milestone == null && goal == null) milestone = pending else return false
-            else -> if (routine == null && goal == null) routine = pending else return false
+            }
+
+            else -> {
+                if (routine == null && goal == null) routine = pending else return false
+            }
         }
         lastRetried = request
         return true
     }
+
     private var lastRetried: CoachSpeechRequest? = null
+
     fun offeredAt(request: CoachSpeechRequest): Long? = taken?.takeIf { it.request === request }?.offeredAt
 
     fun finished(nowMs: Long) {
@@ -101,48 +152,106 @@ class CoachSpeechSchedule(private val onDrop: (CoachSpeechRequest, String) -> Un
         lastFinishedAt = nowMs
     }
 
-    fun invalidate() { invalidateCoaching(); dropped(navigation, "invalidated"); navigation = null }
+    fun invalidate() {
+        invalidateCoaching()
+        dropped(navigation, "invalidated")
+        navigation = null
+    }
+
     fun invalidateCoaching() {
         val route = milestone?.takeIf { it.request.priority == CoachSpeechPriority.ROUTE }
         listOf(goal, milestone.takeIf { route == null }, routine).forEach { dropped(it, "invalidated") }
-        goal = null; milestone = route; routine = null
+        goal = null
+        milestone = route
+        routine = null
     }
-    private fun dropped(value: Pending?, reason: String) { value?.let { runCatching { onDrop(it.request, reason) } } }
-    fun reset() { invalidate(); lastKilometre = 0; goalSeen = false; lastRetried = null; taken = null }
+
+    private fun dropped(
+        value: Pending?,
+        reason: String,
+    ) {
+        value?.let { runCatching { onDrop(it.request, reason) } }
+    }
+
+    fun reset() {
+        invalidate()
+        lastKilometre = 0
+        goalSeen = false
+        lastRetried = null
+        taken = null
+    }
 
     private fun prune(nowMs: Long) {
         observeTime(nowMs)
+
         fun Pending?.fresh(): Pending? {
             if (this == null) return null
             val fresh = nowMs >= offeredAt && nowMs - offeredAt < request.priority.lifetimeMs
-            if (!fresh || !valid(request)) { dropped(this, if (fresh) "context_changed" else "expired"); return null }
+            if (!fresh || !valid(request)) {
+                dropped(this, if (fresh) "context_changed" else "expired")
+                return null
+            }
             return this
         }
-        navigation = navigation.fresh(); goal = goal.fresh(); milestone = milestone.fresh(); routine = routine.fresh()
+        navigation = navigation.fresh()
+        goal = goal.fresh()
+        milestone = milestone.fresh()
+        routine = routine.fresh()
     }
+
     private fun observeTime(nowMs: Long) {
-        if (lastObservedAt?.let { nowMs < it } == true) { invalidate(); lastFinishedAt = nowMs }
+        if (lastObservedAt?.let { nowMs < it } == true) {
+            invalidate()
+            lastFinishedAt = nowMs
+        }
         lastObservedAt = nowMs
     }
+
     private fun valid(request: CoachSpeechRequest) = runCatching(request.isValid).getOrDefault(false)
 }
 
 enum class CoachSpeechSource { LOCAL, AI }
-data class SpokenCoachAdvice(val text: String, val source: CoachSpeechSource, val elapsedRealtimeMs: Long)
+
+data class SpokenCoachAdvice(
+    val text: String,
+    val source: CoachSpeechSource,
+    val elapsedRealtimeMs: Long,
+)
 
 class SpokenCoachGate {
     private var id: String? = null
     private var text = ""
     private var source = CoachSpeechSource.LOCAL
     private var isValid: () -> Boolean = { true }
-    fun expect(utteranceId: String, value: String, origin: CoachSpeechSource, valid: () -> Boolean = { true }) {
-        id = utteranceId; text = value; source = origin; isValid = valid
+
+    fun expect(
+        utteranceId: String,
+        value: String,
+        origin: CoachSpeechSource,
+        valid: () -> Boolean = { true },
+    ) {
+        id = utteranceId
+        text = value
+        source = origin
+        isValid = valid
     }
-    fun started(utteranceId: String?, nowMs: Long): SpokenCoachAdvice? {
+
+    fun started(
+        utteranceId: String?,
+        nowMs: Long,
+    ): SpokenCoachAdvice? {
         if (utteranceId == null || utteranceId != id) return null
         id = null
-        if (!runCatching(isValid).getOrDefault(false)) { clear(); return null }
+        if (!runCatching(isValid).getOrDefault(false)) {
+            clear()
+            return null
+        }
         return SpokenCoachAdvice(text, source, nowMs)
     }
-    fun clear() { id = null; text = ""; isValid = { true } }
+
+    fun clear() {
+        id = null
+        text = ""
+        isValid = { true }
+    }
 }

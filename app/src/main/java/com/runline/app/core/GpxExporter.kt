@@ -4,63 +4,87 @@ import java.math.BigDecimal
 import java.time.Instant
 
 object GpxExporter {
-    fun export(run: RunSession, details: ActivityDetails = ActivityDetails()): String = buildString {
-        val type = details.activityType ?: run.activityType
-        append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-        append("<gpx version=\"1.1\" creator=\"Runline\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:runline=\"https://github.com/adrianetti/runline/xmlns/1\">\n")
-        append("  <metadata><time>")
-        append(Instant.ofEpochMilli(run.startedAtMs))
-        append("</time></metadata>\n")
-        append("  <trk><name>")
-        append(escapeXml(details.title.takeIf { it.isNotBlank() } ?: "${type.gpxName} ${run.id}"))
-        append("</name>")
-        if (details.description.isNotBlank()) append("<desc>").append(escapeXml(details.description)).append("</desc>")
-        append("<type>").append(type.gpxType).append("</type>\n")
-        for (segment in continuousSegments(run.points)) {
-            append("    <trkseg>\n")
-            for (point in segment) {
-                append("      <trkpt lat=\"")
-                append(decimal(point.latitude))
-                append("\" lon=\"")
-                append(decimal(point.longitude))
-                append("\">")
-                point.altitudeMeters?.takeIf { it.isFinite() }?.let {
-                    append("<ele>").append(decimal(it)).append("</ele>")
+    fun export(
+        run: RunSession,
+        details: ActivityDetails = ActivityDetails(),
+    ): String =
+        buildString {
+            val type = details.activityType ?: run.activityType
+            append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+            append("<gpx version=\"1.1\" creator=\"Runline\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:runline=\"https://github.com/adrianetti/runline/xmlns/1\">\n")
+            append("  <metadata><time>")
+            append(Instant.ofEpochMilli(run.startedAtMs))
+            append("</time></metadata>\n")
+            append("  <trk><name>")
+            append(escapeXml(details.title.takeIf { it.isNotBlank() } ?: "${type.gpxName} ${run.id}"))
+            append("</name>")
+            if (details.description.isNotBlank()) append("<desc>").append(escapeXml(details.description)).append("</desc>")
+            append("<type>").append(type.gpxType).append("</type>\n")
+            for (segment in continuousSegments(run.points)) {
+                append("    <trkseg>\n")
+                for (point in segment) {
+                    append("      <trkpt lat=\"")
+                    append(decimal(point.latitude))
+                    append("\" lon=\"")
+                    append(decimal(point.longitude))
+                    append("\">")
+                    point.altitudeMeters?.takeIf { it.isFinite() }?.let {
+                        append("<ele>").append(decimal(it)).append("</ele>")
+                    }
+                    append("<time>").append(Instant.ofEpochMilli(point.timestampMs)).append("</time>")
+                    append("<extensions>")
+                    if (point.accuracyMeters.isFinite() && point.accuracyMeters >= 0) {
+                        append("<runline:horizontalAccuracyMeters>").append(decimal(point.accuracyMeters.toDouble())).append("</runline:horizontalAccuracyMeters>")
+                    }
+                    point.verticalAccuracyMeters?.takeIf { it.isFinite() && it >= 0 }?.let {
+                        append("<runline:verticalAccuracyMeters>").append(decimal(it.toDouble())).append("</runline:verticalAccuracyMeters>")
+                    }
+                    append("</extensions>")
+                    append("</trkpt>\n")
                 }
-                append("<time>").append(Instant.ofEpochMilli(point.timestampMs)).append("</time>")
-                append("<extensions>")
-                if (point.accuracyMeters.isFinite() && point.accuracyMeters >= 0) {
-                    append("<runline:horizontalAccuracyMeters>").append(decimal(point.accuracyMeters.toDouble())).append("</runline:horizontalAccuracyMeters>")
-                }
-                point.verticalAccuracyMeters?.takeIf { it.isFinite() && it >= 0 }?.let {
-                    append("<runline:verticalAccuracyMeters>").append(decimal(it.toDouble())).append("</runline:verticalAccuracyMeters>")
-                }
-                append("</extensions>")
-                append("</trkpt>\n")
+                append("    </trkseg>\n")
             }
-            append("    </trkseg>\n")
+            append("  </trk>\n</gpx>\n")
         }
-        append("  </trk>\n</gpx>\n")
-    }
 
     private fun decimal(number: Double): String = BigDecimal.valueOf(number).stripTrailingZeros().toPlainString()
 
-    private fun escapeXml(text: String): String = buildString {
-        var offset = 0
-        while (offset < text.length) {
-            val codePoint = Character.codePointAt(text, offset)
-            offset += Character.charCount(codePoint)
-            when (codePoint) {
-                '&'.code -> append("&amp;")
-                '<'.code -> append("&lt;")
-                '>'.code -> append("&gt;")
-                '"'.code -> append("&quot;")
-                '\''.code -> append("&apos;")
-                else -> if (codePoint == 9 || codePoint == 10 || codePoint == 13 ||
-                    codePoint in 0x20..0xD7FF || codePoint in 0xE000..0xFFFD ||
-                    codePoint in 0x10000..0x10FFFF
-                ) appendCodePoint(codePoint)
+    private fun escapeXml(text: String): String =
+        buildString {
+            var offset = 0
+            while (offset < text.length) {
+                val codePoint = Character.codePointAt(text, offset)
+                offset += Character.charCount(codePoint)
+                when (codePoint) {
+                    '&'.code -> {
+                        append("&amp;")
+                    }
+
+                    '<'.code -> {
+                        append("&lt;")
+                    }
+
+                    '>'.code -> {
+                        append("&gt;")
+                    }
+
+                    '"'.code -> {
+                        append("&quot;")
+                    }
+
+                    '\''.code -> {
+                        append("&apos;")
+                    }
+
+                    else -> {
+                        if (codePoint == 9 || codePoint == 10 || codePoint == 13 ||
+                            codePoint in 0x20..0xD7FF || codePoint in 0xE000..0xFFFD ||
+                            codePoint in 0x10000..0x10FFFF
+                        ) {
+                            appendCodePoint(codePoint)
+                        }
+                    }
+                }
             }
         }
-    }
 }

@@ -4,9 +4,12 @@ plugins { id("com.android.application") }
 
 abstract class RouteAssets : DefaultTask() {
     @get:InputDirectory abstract val source: DirectoryProperty
+
     @get:OutputDirectory abstract val output: DirectoryProperty
+
     @TaskAction fun copy() {
-        val from = source.get().asFile; val to = File(output.get().asFile, "routes")
+        val from = source.get().asFile
+        val to = File(output.get().asFile, "routes")
         output.get().asFile.deleteRecursively()
         from.walkTopDown().filter { it.isFile && (it.name == "index.json" || it.extension == "gpx") }.forEach { file ->
             file.copyTo(File(to, file.relativeTo(from).path), overwrite = true)
@@ -14,10 +17,11 @@ abstract class RouteAssets : DefaultTask() {
     }
 }
 val routeAssets = tasks.register<RouteAssets>("routeAssets") { source.set(rootProject.layout.projectDirectory.dir("routes")) }
-val signingValues = Properties().apply {
-    val config = rootProject.file(".signing/signing.properties")
-    if (config.isFile) config.inputStream().use { load(it) }
-}
+val signingValues =
+    Properties().apply {
+        val config = rootProject.file(".signing/signing.properties")
+        if (config.isFile) config.inputStream().use { load(it) }
+    }
 val personalStore = System.getenv("RUNLINE_STORE_FILE") ?: signingValues.getProperty("storeFile")
 val personalPassword = System.getenv("RUNLINE_SIGNING_PASSWORD") ?: signingValues.getProperty("storePassword")
 val hasPersonalSigning = personalStore != null && personalPassword != null && rootProject.file(personalStore).isFile
@@ -26,16 +30,25 @@ android {
     namespace = "com.runline.app"
     compileSdk = 37
     defaultConfig {
-        applicationId = "com.runline.app"; minSdk = 26; targetSdk = 34; versionCode = 31; versionName = "0.24.2"
+        applicationId = "com.runline.app"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = 31
+        versionName = "0.24.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     signingConfigs {
-        if (hasPersonalSigning) create("personal") {
-            storeFile = rootProject.file(personalStore!!)
-            storePassword = personalPassword
-            keyAlias = "runline"
-            keyPassword = System.getenv("RUNLINE_SIGNING_PASSWORD") ?: signingValues.getProperty("keyPassword")
+        if (hasPersonalSigning) {
+            create("personal") {
+                storeFile = rootProject.file(personalStore!!)
+                storePassword = personalPassword
+                keyAlias = "runline"
+                keyPassword = System.getenv("RUNLINE_SIGNING_PASSWORD") ?: signingValues.getProperty("keyPassword")
+            }
         }
     }
     buildTypes {

@@ -20,14 +20,15 @@ import org.junit.runner.RunWith
 class SpotifySignInAndroidTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val signIn = SpotifyPkce.SignIn("0123456789abcdef0123456789abcdef", "challenge", "state-1")
-    private fun answer(vararg values: Pair<String, String>) =
-        Intent().putExtra("REPLY", Bundle().apply { values.forEach { (key, value) -> putString(key, value) } })
+
+    private fun answer(vararg values: Pair<String, String>) = Intent().putExtra("REPLY", Bundle().apply { values.forEach { (key, value) -> putString(key, value) } })
 
     @Test fun spotifysResultCarriesTheCodeAndState() {
         val data = answer("RESPONSE_TYPE" to "code", "AUTHORIZATION_CODE" to "AQD-code_1", "STATE" to "state-1")
         assertEquals(SpotifyPkce.AppReply("AQD-code_1", "state-1"), SpotifyAppSignIn.reply(Activity.RESULT_OK, data))
         assertEquals(SpotifyPkce.AppReply("AQD-code_1"), SpotifyAppSignIn.reply(Activity.RESULT_OK, answer("RESPONSE_TYPE" to "code", "AUTHORIZATION_CODE" to "AQD-code_1")))
     }
+
     @Test fun aResultWithoutACodeIsAnError() {
         assertEquals("no_code", SpotifyAppSignIn.reply(Activity.RESULT_OK, null).error)
         assertEquals("no_code", SpotifyAppSignIn.reply(Activity.RESULT_OK, Intent()).error)
@@ -35,23 +36,30 @@ class SpotifySignInAndroidTest {
         assertEquals(SpotifyPkce.AppReply(error = "INVALID_APP_ID"), SpotifyAppSignIn.reply(-2, Intent().putExtra("ERROR", "INVALID_APP_ID")))
         assertEquals(SpotifyPkce.AppReply(error = "unknown"), SpotifyAppSignIn.reply(-2, null))
     }
+
     @Test fun leavingSpotifyIsNeitherACodeNorAnError() {
         assertEquals(SpotifyPkce.AppReply(), SpotifyAppSignIn.reply(Activity.RESULT_CANCELED, null))
         assertEquals(SpotifyPkce.AppReply(), SpotifyAppSignIn.reply(7, Intent().putExtra("ERROR", "ignored")))
     }
+
     @Test fun withoutSpotifyTheBrowserSignsInInItsOwnTask() {
         assertNull(SpotifyAppSignIn.intent(context, signIn))
         val browser = SpotifyAppSignIn.browser(context, signIn.url)
-        assertEquals(Intent.ACTION_VIEW, browser.action); assertEquals(signIn.url, browser.dataString)
+        assertEquals(Intent.ACTION_VIEW, browser.action)
+        assertEquals(signIn.url, browser.dataString)
         assertTrue(browser.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
-        assertNotEquals(SpotifyAppSignIn.PACKAGE, browser.`package`); assertNotEquals("android", browser.`package`)
+        assertNotEquals(SpotifyAppSignIn.PACKAGE, browser.`package`)
+        assertNotEquals("android", browser.`package`)
     }
+
     @Test fun aRefusalFromSpotifyShowsItsErrorTheFingerprintAndTheBrowser() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val automation = instrumentation.uiAutomation
         automation.serviceInfo = automation.serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS }
+
         fun shown(text: String) = automation.windows.any { window -> window.root?.findAccessibilityNodeInfosByText(text)?.isNotEmpty() == true }
-        SpotifyAccount.saveClientId(context, signIn.clientId); SpotifyAccount.begin(context)
+        SpotifyAccount.saveClientId(context, signIn.clientId)
+        SpotifyAccount.begin(context)
         try {
             ActivityScenario.launch<MainActivity>(Intent(context, MainActivity::class.java)).use { scenario ->
                 scenario.onActivity { MusicSheet(it, appReply = SpotifyPkce.AppReply(error = "INVALID_APP_ID")) { }.show() }
@@ -63,8 +71,11 @@ class SpotifySignInAndroidTest {
                 assertTrue("Guide stayed closed", shown(context.packageName) && shown(SpotifyAppSignIn.ownFingerprint(context)!!))
                 assertFalse(SpotifyAccount.isConnected(context))
             }
-        } finally { SpotifyAccount.disconnect(context) }
+        } finally {
+            SpotifyAccount.disconnect(context)
+        }
     }
+
     @Test fun thisBuildsFingerprintHasTheDashboardForm() {
         assertTrue(SpotifyAppSignIn.ownFingerprint(context).orEmpty().matches(Regex("([0-9A-F]{2}:){19}[0-9A-F]{2}")))
     }

@@ -6,25 +6,54 @@ import org.junit.Test
 class StopDetectionTest {
     private val metresPerDegree = 111195.0802335329
 
-    private class Track(private val start: Long = 1_000_000L) {
+    private class Track(
+        private val start: Long = 1_000_000L,
+    ) {
         val points = mutableListOf<RunPoint>()
-        var time = start; var east = 0.0; var segment = 0
-        fun move(seconds: Int, speed: Double, accuracy: Float = 4f) = repeat(seconds) {
-            time += 1_000; east += speed; add(accuracy)
+        var time = start
+        var east = 0.0
+        var segment = 0
+
+        fun move(
+            seconds: Int,
+            speed: Double,
+            accuracy: Float = 4f,
+        ) = repeat(seconds) {
+            time += 1_000
+            east += speed
+            add(accuracy)
         }
-        fun stand(seconds: Int, jitter: Double = 1.0, accuracy: Float = 10f) {
+
+        fun stand(
+            seconds: Int,
+            jitter: Double = 1.0,
+            accuracy: Float = 10f,
+        ) {
             var waited = 0
-            while (waited + 10 <= seconds) { waited += 10; time += 10_000; east += if (waited / 10 % 2 == 0) jitter else -jitter; add(accuracy) }
+            while (waited + 10 <= seconds) {
+                waited += 10
+                time += 10_000
+                east += if (waited / 10 % 2 == 0) jitter else -jitter
+                add(accuracy)
+            }
             time += (seconds - waited) * 1_000L
         }
-        private fun add(accuracy: Float) { points += RunPoint(37.17, -3.6 + east / (111195.0802335329 * Math.cos(Math.toRadians(37.17))), time, accuracy, segment = segment) }
+
+        private fun add(accuracy: Float) {
+            points += RunPoint(37.17, -3.6 + east / (111195.0802335329 * Math.cos(Math.toRadians(37.17))), time, accuracy, segment = segment)
+        }
+
         fun session() = RunSession("stops", start, time, time - start, points.toList())
     }
 
     @Test fun `traffic light and shoelace stops are found and moving time excludes them`() {
         val t = Track()
         t.points += RunPoint(37.17, -3.6, t.time, 4f)
-        t.move(120, 3.0); t.stand(35); t.move(200, 3.0); t.stand(60); t.move(60, 3.0)
+        t.move(120, 3.0)
+        t.stand(35)
+        t.move(200, 3.0)
+        t.stand(60)
+        t.move(60, 3.0)
         val stops = StopDetection.detect(t.points)
         assertEquals(2, stops.size)
         assertEquals(35_000.0, stops[0].durationMs.toDouble(), 6_000.0)
@@ -34,24 +63,52 @@ class StopDetectionTest {
     }
 
     @Test fun `continuous running, slow jogging and walking are never stops`() {
-        val run = Track().apply { points += RunPoint(37.17, -3.6, time, 4f); move(300, 3.2); move(120, 1.4); move(300, 2.6) }
+        val run =
+            Track().apply {
+                points += RunPoint(37.17, -3.6, time, 4f)
+                move(300, 3.2)
+                move(120, 1.4)
+                move(300, 2.6)
+            }
         assertTrue(StopDetection.detect(run.points).isEmpty())
-        val walk = Track().apply { points += RunPoint(37.17, -3.6, time, 4f); move(600, .9) }
+        val walk =
+            Track().apply {
+                points += RunPoint(37.17, -3.6, time, 4f)
+                move(600, .9)
+            }
         assertTrue(StopDetection.detect(walk.points, ActivityType.WALK).isEmpty())
     }
 
     @Test fun `brief hesitations under five seconds do not count`() {
-        val t = Track().apply { points += RunPoint(37.17, -3.6, time, 4f); move(60, 3.0); time += 3_000; move(60, 3.0) }
+        val t =
+            Track().apply {
+                points += RunPoint(37.17, -3.6, time, 4f)
+                move(60, 3.0)
+                time += 3_000
+                move(60, 3.0)
+            }
         assertTrue(StopDetection.detect(t.points).isEmpty())
     }
 
     @Test fun `stops never span a manual pause and never exceed active time`() {
         val t = Track()
         t.points += RunPoint(37.17, -3.6, t.time, 4f)
-        t.move(30, 3.0); t.stand(20); t.segment = 1; t.time += 120_000; t.move(30, 3.0)
+        t.move(30, 3.0)
+        t.stand(20)
+        t.segment = 1
+        t.time += 120_000
+        t.move(30, 3.0)
         val run = t.session().copy(activeDurationMs = 70_000)
         val stops = StopDetection.detect(run.points)
-        assertTrue(stops.all { it.endMs <= run.points.filter { p -> p.segment == 0 }.last().timestampMs })
+        assertTrue(
+            stops.all {
+                it.endMs <=
+                    run.points
+                        .filter { p -> p.segment == 0 }
+                        .last()
+                        .timestampMs
+            },
+        )
         assertTrue(StopDetection.movingDurationMs(run, stops) in 0..run.activeDurationMs)
         assertEquals(0L, StopDetection.movingDurationMs(run.copy(activeDurationMs = 1_000), stops))
     }
@@ -66,7 +123,9 @@ class StopDetectionTest {
     @Test fun `kilometre splits can exclude standstill time`() {
         val t = Track()
         t.points += RunPoint(37.17, -3.6, t.time, 4f)
-        t.move(150, 4.0); t.stand(40); t.move(150, 4.0)
+        t.move(150, 4.0)
+        t.stand(40)
+        t.move(150, 4.0)
         val run = t.session()
         val stops = StopDetection.detect(run.points)
         val withStops = RunMetrics.splits(run)
@@ -79,10 +138,17 @@ class StopDetectionTest {
     @Test fun `live tracker uses Doppler speed quickly and position as a fallback`() {
         val tracker = StillnessTracker()
         var time = 0L
-        repeat(4) { time += 1_000; assertNull(tracker.update(37.17, -3.6, time, 5f, .2f)) }
-        repeat(3) { time += 1_000; tracker.update(37.17, -3.6, time, 5f, .2f) }
+        repeat(4) {
+            time += 1_000
+            assertNull(tracker.update(37.17, -3.6, time, 5f, .2f))
+        }
+        repeat(3) {
+            time += 1_000
+            tracker.update(37.17, -3.6, time, 5f, .2f)
+        }
         assertEquals(1_000L, tracker.stoppedSinceMs)
-        time += 1_000; assertNull(tracker.update(37.1701, -3.6, time, 5f, 3f))
+        time += 1_000
+        assertNull(tracker.update(37.1701, -3.6, time, 5f, 3f))
         val fallback = StillnessTracker()
         repeat(8) { fallback.update(37.17, -3.6 + it * 1e-7, 10_000L + it * 1_000, 5f, null) }
         assertNotNull(fallback.stoppedSinceMs)

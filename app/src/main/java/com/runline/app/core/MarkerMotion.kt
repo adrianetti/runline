@@ -8,7 +8,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 object MarkerMotion {
-    fun canInterpolate(previous: RunPoint?, next: RunPoint?): Boolean {
+    fun canInterpolate(
+        previous: RunPoint?,
+        next: RunPoint?,
+    ): Boolean {
         if (previous == null || next == null || previous.segment != next.segment) return false
         if (!valid(previous) || !valid(next)) return false
         val span = next.timestampMs - previous.timestampMs
@@ -17,16 +20,23 @@ object MarkerMotion {
         val latitudeB = Math.toRadians(next.latitude)
         val latitudeDelta = latitudeB - latitudeA
         val longitudeDelta = Math.toRadians(next.longitude - previous.longitude)
-        val haversine = sin(latitudeDelta / 2).let { it * it } +
-            cos(latitudeA) * cos(latitudeB) * sin(longitudeDelta / 2).let { it * it }
+        val haversine =
+            sin(latitudeDelta / 2).let { it * it } +
+                cos(latitudeA) * cos(latitudeB) * sin(longitudeDelta / 2).let { it * it }
         val distance = 2 * 6_371_008.8 * asin(sqrt(haversine.coerceIn(0.0, 1.0)))
         return distance <= 15.0 * span / 1_000.0 + previous.accuracyMeters + next.accuracyMeters
     }
 
-    fun durationMs(previous: RunPoint, next: RunPoint): Long =
-        (next.timestampMs - previous.timestampMs).coerceIn(300L, 1_500L)
+    fun durationMs(
+        previous: RunPoint,
+        next: RunPoint,
+    ): Long = (next.timestampMs - previous.timestampMs).coerceIn(300L, 1_500L)
 
-    fun interpolate(from: RunPoint, to: RunPoint, fraction: Double): RunPoint {
+    fun interpolate(
+        from: RunPoint,
+        to: RunPoint,
+        fraction: Double,
+    ): RunPoint {
         val amount = fraction.takeIf(Double::isFinite)?.coerceIn(0.0, 1.0) ?: 1.0
         if (amount == 0.0) return from
         if (amount == 1.0) return to
@@ -41,12 +51,20 @@ object MarkerMotion {
             altitudeMeters = if (from.terrainModel == to.terrainModel && altitudeA != null && altitudeB != null) altitudeA + (altitudeB - altitudeA) * amount else null,
             segment = to.segment,
             terrainModel = if (from.terrainModel == to.terrainModel) from.terrainModel else null,
-            verticalAccuracyMeters = if (from.verticalAccuracyMeters != null && to.verticalAccuracyMeters != null)
-                maxOf(from.verticalAccuracyMeters, to.verticalAccuracyMeters) else null,
+            verticalAccuracyMeters =
+                if (from.verticalAccuracyMeters != null && to.verticalAccuracyMeters != null) {
+                    maxOf(from.verticalAccuracyMeters, to.verticalAccuracyMeters)
+                } else {
+                    null
+                },
         )
     }
 
-    fun interpolateBearing(from: Double?, to: Double?, fraction: Double): Double? {
+    fun interpolateBearing(
+        from: Double?,
+        to: Double?,
+        fraction: Double,
+    ): Double? {
         val end = to?.takeIf(Double::isFinite) ?: return null
         val start = from?.takeIf(Double::isFinite) ?: return normalize(end)
         val amount = fraction.takeIf(Double::isFinite)?.coerceIn(0.0, 1.0) ?: 1.0
@@ -55,6 +73,8 @@ object MarkerMotion {
     }
 
     private fun normalize(value: Double) = ((value % 360.0) + 360.0) % 360.0
-    private fun valid(point: RunPoint) = point.hasValidCoordinates() && abs(point.latitude) < 85.051129 &&
-        point.timestampMs >= 0 && point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
+
+    private fun valid(point: RunPoint) =
+        point.hasValidCoordinates() && abs(point.latitude) < 85.051129 &&
+            point.timestampMs >= 0 && point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
 }

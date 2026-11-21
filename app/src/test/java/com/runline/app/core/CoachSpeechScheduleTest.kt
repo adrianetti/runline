@@ -4,10 +4,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CoachSpeechScheduleTest {
-    private fun ai(text: String = "Keep this easy", valid: () -> Boolean = { true }) =
-        CoachSpeechRequest("ai", CoachSpeechPriority.AI, advice = text, isValid = valid)
-    private fun km(number: Int) = CoachSpeechRequest("km:$number", CoachSpeechPriority.MILESTONE,
-        cue = CoachCue.Kilometre(number, 330.0))
+    private fun ai(
+        text: String = "Keep this easy",
+        valid: () -> Boolean = { true },
+    ) = CoachSpeechRequest("ai", CoachSpeechPriority.AI, advice = text, isValid = valid)
+
+    private fun km(number: Int) =
+        CoachSpeechRequest(
+            "km:$number",
+            CoachSpeechPriority.MILESTONE,
+            cue = CoachCue.Kilometre(number, 330.0),
+        )
+
     private fun goal() = CoachSpeechRequest("goal", CoachSpeechPriority.GOAL, cue = CoachCue.GoalReached(null))
 
     @Test fun `the live coach follows other speech after a short breath, measured from its end`() {
@@ -23,7 +31,9 @@ class CoachSpeechScheduleTest {
 
     @Test fun `local routine cues still keep the long quiet interval after any speech`() {
         val schedule = CoachSpeechSchedule()
-        schedule.offer(ai(), 0); assertNotNull(schedule.takeReady(0, true)); schedule.finished(8_000)
+        schedule.offer(ai(), 0)
+        assertNotNull(schedule.takeReady(0, true))
+        schedule.finished(8_000)
         val morale = CoachSpeechRequest("morale", CoachSpeechPriority.MORALE, cue = CoachCue.Encouragement(EncouragementKind.STEADY))
         schedule.offer(morale, 40_000)
         assertNull(schedule.takeReady(92_000, true))
@@ -62,8 +72,15 @@ class CoachSpeechScheduleTest {
         var situation = CoachSituation(eligible = true, paceSeconds = 400.0, targetPaceSeconds = 330.0)
         val cue = CoachCue.SlowerThanTarget
         schedule.finished(0)
-        schedule.offer(CoachSpeechRequest("pace", CoachSpeechPriority.PACE, cue = cue,
-            isValid = { situation.allows(cue) }), 70_000)
+        schedule.offer(
+            CoachSpeechRequest(
+                "pace",
+                CoachSpeechPriority.PACE,
+                cue = cue,
+                isValid = { situation.allows(cue) },
+            ),
+            70_000,
+        )
         situation = situation.copy(paceSeconds = 310.0)
         assertNull(schedule.takeReady(85_000, true))
     }
@@ -85,8 +102,13 @@ class CoachSpeechScheduleTest {
         assertEquals(CoachSpeechPriority.GOAL, CoachSpeechPriority.of(CoachCue.GoalReached(null)))
         val schedule = CoachSpeechSchedule()
         schedule.finished(0)
-        val halfway = CoachSpeechRequest("half", CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.HALFWAY)),
-            cue = CoachCue.Encouragement(EncouragementKind.HALFWAY), advice = "Halfway")
+        val halfway =
+            CoachSpeechRequest(
+                "half",
+                CoachSpeechPriority.of(CoachCue.Encouragement(EncouragementKind.HALFWAY)),
+                cue = CoachCue.Encouragement(EncouragementKind.HALFWAY),
+                advice = "Halfway",
+            )
         schedule.offer(halfway, 35_000)
         assertEquals(halfway, schedule.takeReady(35_000, true))
     }
@@ -104,10 +126,13 @@ class CoachSpeechScheduleTest {
         schedule.finished(48_200)
         assertFalse(schedule.retry(opening, 40_000, 48_200))
         val late = ai("Late")
-        schedule.offer(late, 50_000); assertEquals(late, schedule.takeReady(57_000, true))
+        schedule.offer(late, 50_000)
+        assertEquals(late, schedule.takeReady(57_000, true))
         assertFalse(schedule.retry(late, 50_000, 90_000))
-        val older = ai("Older"); val newer = ai("Newer")
-        schedule.offer(older, 100_000); assertEquals(older, schedule.takeReady(100_000, true))
+        val older = ai("Older")
+        val newer = ai("Newer")
+        schedule.offer(older, 100_000)
+        assertEquals(older, schedule.takeReady(100_000, true))
         schedule.offer(newer, 100_050)
         assertFalse(schedule.retry(older, 100_000, 100_100))
     }
@@ -186,10 +211,12 @@ class CoachSpeechScheduleTest {
         assertEquals(0, schedule.pendingCount)
     }
 
-    private fun turn(text: String = "Turn left now.", valid: () -> Boolean = { true }) =
-        CoachSpeechRequest("route-turn", CoachSpeechPriority.NAVIGATION, advice = text, isValid = valid)
-    private fun place(text: String = "Puerta de las Granadas.") =
-        CoachSpeechRequest("route-place", CoachSpeechPriority.ROUTE, advice = text)
+    private fun turn(
+        text: String = "Turn left now.",
+        valid: () -> Boolean = { true },
+    ) = CoachSpeechRequest("route-turn", CoachSpeechPriority.NAVIGATION, advice = text, isValid = valid)
+
+    private fun place(text: String = "Puerta de las Granadas.") = CoachSpeechRequest("route-place", CoachSpeechPriority.ROUTE, advice = text)
 
     @Test fun `a turn waits only 3 s after other speech, where a milestone would wait 30 s`() {
         val schedule = CoachSpeechSchedule()
@@ -228,7 +255,9 @@ class CoachSpeechScheduleTest {
 
     @Test fun `a standstill clears coaching but keeps route guidance`() {
         val schedule = CoachSpeechSchedule()
-        schedule.offer(ai(), 0); schedule.offer(place(), 0); schedule.offer(turn(), 0)
+        schedule.offer(ai(), 0)
+        schedule.offer(place(), 0)
+        schedule.offer(turn(), 0)
         schedule.invalidateCoaching()
         assertEquals(2, schedule.pendingCount)
         assertEquals(CoachSpeechPriority.NAVIGATION, schedule.takeReady(1_000, true)?.priority)

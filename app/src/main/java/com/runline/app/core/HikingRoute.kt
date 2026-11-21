@@ -2,10 +2,20 @@ package com.runline.app.core
 
 import kotlin.math.*
 
-data class RoutePoint(val latitude: Double, val longitude: Double, val elevationMeters: Double?, val distanceMeters: Double)
+data class RoutePoint(
+    val latitude: Double,
+    val longitude: Double,
+    val elevationMeters: Double?,
+    val distanceMeters: Double,
+)
 
-data class RouteWaypoint(val latitude: Double, val longitude: Double, val name: String, val description: String? = null,
-                         val elevationMeters: Double? = null)
+data class RouteWaypoint(
+    val latitude: Double,
+    val longitude: Double,
+    val name: String,
+    val description: String? = null,
+    val elevationMeters: Double? = null,
+)
 
 enum class RouteDifficulty { EASY, MODERATE, HARD, VERY_HARD }
 
@@ -21,23 +31,37 @@ data class RouteStats(
     val loop: Boolean,
 )
 
-class HikingRoute(val id: String, val name: String, val points: List<RoutePoint>, val waypoints: List<RouteWaypoint> = emptyList(),
-                  val description: String? = null) {
-    init { require(points.size >= 2 && id.isNotBlank()) }
+class HikingRoute(
+    val id: String,
+    val name: String,
+    val points: List<RoutePoint>,
+    val waypoints: List<RouteWaypoint> = emptyList(),
+    val description: String? = null,
+) {
+    init {
+        require(points.size >= 2 && id.isNotBlank())
+    }
+
     val distanceMeters: Double get() = points.last().distanceMeters
     val stats: RouteStats by lazy { RouteEstimates.stats(points) }
     val ascentAt: DoubleArray by lazy { RouteEstimates.cumulativeAscent(points) }
     val minutesAt: DoubleArray by lazy { RouteEstimates.cumulativeMinutes(points) }
 
-    fun runPoints(): List<RunPoint> = points.mapIndexed { index, p ->
-        RunPoint(p.latitude, p.longitude, index * 1000L, 5f, p.elevationMeters)
-    }
+    fun runPoints(): List<RunPoint> =
+        points.mapIndexed { index, p ->
+            RunPoint(p.latitude, p.longitude, index * 1000L, 5f, p.elevationMeters)
+        }
 
     companion object {
         const val MAX_POINTS = 100_000
 
-        fun of(id: String, name: String, raw: List<Triple<Double, Double, Double?>>, waypoints: List<RouteWaypoint> = emptyList(),
-               description: String? = null): HikingRoute {
+        fun of(
+            id: String,
+            name: String,
+            raw: List<Triple<Double, Double, Double?>>,
+            waypoints: List<RouteWaypoint> = emptyList(),
+            description: String? = null,
+        ): HikingRoute {
             require(raw.size <= MAX_POINTS)
             val points = ArrayList<RoutePoint>(raw.size)
             for ((lat, lon, ele) in raw) {
@@ -55,14 +79,30 @@ class HikingRoute(val id: String, val name: String, val points: List<RoutePoint>
 
 object RouteGeometry {
     private const val EARTH = 6371008.8
-    fun meters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val a = Math.toRadians(lat1); val b = Math.toRadians(lat2)
+
+    fun meters(
+        lat1: Double,
+        lon1: Double,
+        lat2: Double,
+        lon2: Double,
+    ): Double {
+        val a = Math.toRadians(lat1)
+        val b = Math.toRadians(lat2)
         val h = sin((b - a) / 2).pow(2) + cos(a) * cos(b) * sin(Math.toRadians(lon2 - lon1) / 2).pow(2)
         return 2 * EARTH * asin(sqrt(min(1.0, h)))
     }
-    fun bearing(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val a = Math.toRadians(lat1); val b = Math.toRadians(lat2); val d = Math.toRadians(lon2 - lon1)
-        val y = sin(d) * cos(b); val x = cos(a) * sin(b) - sin(a) * cos(b) * cos(d)
+
+    fun bearing(
+        lat1: Double,
+        lon1: Double,
+        lat2: Double,
+        lon2: Double,
+    ): Double {
+        val a = Math.toRadians(lat1)
+        val b = Math.toRadians(lat2)
+        val d = Math.toRadians(lon2 - lon1)
+        val y = sin(d) * cos(b)
+        val x = cos(a) * sin(b) - sin(a) * cos(b) * cos(d)
         return (Math.toDegrees(atan2(y, x)) + 360) % 360
     }
 }
@@ -73,41 +113,63 @@ object RouteEstimates {
 
     fun toblerKmh(grade: Double) = 6 * exp(-3.5 * abs(grade + 0.05))
 
-    fun difficulty(effortKilometres: Double) = when {
-        effortKilometres < 10 -> RouteDifficulty.EASY
-        effortKilometres < 20 -> RouteDifficulty.MODERATE
-        effortKilometres < 30 -> RouteDifficulty.HARD
-        else -> RouteDifficulty.VERY_HARD
-    }
+    fun difficulty(effortKilometres: Double) =
+        when {
+            effortKilometres < 10 -> RouteDifficulty.EASY
+            effortKilometres < 20 -> RouteDifficulty.MODERATE
+            effortKilometres < 30 -> RouteDifficulty.HARD
+            else -> RouteDifficulty.VERY_HARD
+        }
 
     fun stats(points: List<RoutePoint>): RouteStats {
         val distance = points.last().distanceMeters
         val heights = points.mapNotNull { it.elevationMeters }
         val known = heights.size >= points.size / 2 && heights.size >= 2
-        var gain = 0.0; var loss = 0.0
+        var gain = 0.0
+        var loss = 0.0
         if (known) {
             var anchor: Double? = null
             for (h in points.mapNotNull { it.elevationMeters }) {
                 val a = anchor
-                if (a == null) anchor = h
-                else if (abs(h - a) >= DEADBAND_METERS) { if (h > a) gain += h - a else loss += a - h; anchor = h }
+                if (a == null) {
+                    anchor = h
+                } else if (abs(h - a) >= DEADBAND_METERS) {
+                    if (h > a) gain += h - a else loss += a - h
+                    anchor = h
+                }
             }
         }
         val minutes = cumulativeMinutes(points).last()
         val effort = distance / 1000 + (if (known) gain / 100 else 0.0)
-        val first = points.first(); val last = points.last()
-        return RouteStats(distance, gain.takeIf { known }, loss.takeIf { known }, heights.minOrNull()?.takeIf { known },
-            heights.maxOrNull()?.takeIf { known }, minutes.roundToInt(), effort, difficulty(effort),
-            RouteGeometry.meters(first.latitude, first.longitude, last.latitude, last.longitude) <= 400 && distance > 1000)
+        val first = points.first()
+        val last = points.last()
+        return RouteStats(
+            distance,
+            gain.takeIf { known },
+            loss.takeIf { known },
+            heights.minOrNull()?.takeIf { known },
+            heights.maxOrNull()?.takeIf { known },
+            minutes.roundToInt(),
+            effort,
+            difficulty(effort),
+            RouteGeometry.meters(first.latitude, first.longitude, last.latitude, last.longitude) <= 400 && distance > 1000,
+        )
     }
 
     fun cumulativeAscent(points: List<RoutePoint>): DoubleArray {
-        val out = DoubleArray(points.size); var anchor: Double? = null; var gain = 0.0
+        val out = DoubleArray(points.size)
+        var anchor: Double? = null
+        var gain = 0.0
         points.forEachIndexed { i, p ->
             val h = p.elevationMeters
             if (h != null) {
                 val a = anchor
-                if (a == null) anchor = h else if (abs(h - a) >= DEADBAND_METERS) { if (h > a) gain += h - a; anchor = h }
+                if (a == null) {
+                    anchor = h
+                } else if (abs(h - a) >= DEADBAND_METERS) {
+                    if (h > a) gain += h - a
+                    anchor = h
+                }
             }
             out[i] = gain
         }
@@ -120,16 +182,20 @@ object RouteEstimates {
         val samples = max(1, ceil(total / STEP_METERS).toInt())
         val stepMinutes = DoubleArray(samples + 1)
         var cursor = 0
+
         fun heightAt(d: Double): Double? {
             while (cursor + 1 < points.size && points[cursor + 1].distanceMeters < d) cursor++
-            val a = points[cursor]; val b = points.getOrNull(cursor + 1) ?: return a.elevationMeters
-            val ha = a.elevationMeters ?: return b.elevationMeters; val hb = b.elevationMeters ?: return ha
+            val a = points[cursor]
+            val b = points.getOrNull(cursor + 1) ?: return a.elevationMeters
+            val ha = a.elevationMeters ?: return b.elevationMeters
+            val hb = b.elevationMeters ?: return ha
             val span = b.distanceMeters - a.distanceMeters
             return if (span <= 0) ha else ha + (hb - ha) * ((d - a.distanceMeters) / span).coerceIn(0.0, 1.0)
         }
         var previous = heightAt(0.0)
         for (k in 1..samples) {
-            val d = min(total, k * STEP_METERS); val length = d - (k - 1) * STEP_METERS
+            val d = min(total, k * STEP_METERS)
+            val length = d - (k - 1) * STEP_METERS
             val h = heightAt(d)
             val grade = if (previous != null && h != null && length > 0) ((h - previous) / length).coerceIn(-0.6, 0.6) else 0.0
             stepMinutes[k] = stepMinutes[k - 1] + length / 1000 / toblerKmh(grade) * 60

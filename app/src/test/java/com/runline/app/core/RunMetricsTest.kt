@@ -1,7 +1,5 @@
 package com.runline.app.core
 
-import java.io.StringReader
-import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -9,6 +7,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.xml.sax.InputSource
+import java.io.StringReader
+import javax.xml.parsers.DocumentBuilderFactory
 
 class RunMetricsTest {
     private fun point(
@@ -19,7 +19,10 @@ class RunMetricsTest {
         altitude: Double? = null,
     ) = RunPoint(latitude, longitude, time, 5f, altitude, segment)
 
-    private fun run(points: List<RunPoint>, id: String = "test-run") = RunSession(
+    private fun run(
+        points: List<RunPoint>,
+        id: String = "test-run",
+    ) = RunSession(
         id = id,
         startedAtMs = points.firstOrNull()?.timestampMs ?: 0L,
         endedAtMs = points.lastOrNull()?.timestampMs ?: 0L,
@@ -34,12 +37,15 @@ class RunMetricsTest {
     }
 
     @Test fun pauseDoesNotAddRelocationDistanceOrPausedTime() {
-        val activity = run(listOf(
-            point(0.0, 0),
-            point(0.005, 180_000),
-            point(0.5, 780_000, segment = 1),
-            point(0.505, 960_000, segment = 1),
-        ))
+        val activity =
+            run(
+                listOf(
+                    point(0.0, 0),
+                    point(0.005, 180_000),
+                    point(0.5, 780_000, segment = 1),
+                    point(0.505, 960_000, segment = 1),
+                ),
+            )
         assertEquals(1111.9508, RunMetrics.distanceMeters(activity.points), 0.01)
         val splits = RunMetrics.splits(activity)
         assertEquals(2, splits.size)
@@ -69,10 +75,17 @@ class RunMetricsTest {
     }
 
     @Test fun stationaryTimeCountsUntilTheRunnerExplicitlyPauses() {
-        val splits = RunMetrics.splits(run(listOf(
-            point(0.0, 0), point(0.001, 60_000),
-            point(0.001, 90_000), point(0.002, 150_000),
-        )))
+        val splits =
+            RunMetrics.splits(
+                run(
+                    listOf(
+                        point(0.0, 0),
+                        point(0.001, 60_000),
+                        point(0.001, 90_000),
+                        point(0.002, 150_000),
+                    ),
+                ),
+            )
         assertEquals(150_000L, splits.sumOf { it.durationMs })
         assertEquals(222.39016, splits.sumOf { it.distanceMeters }, 0.001)
     }
@@ -98,11 +111,16 @@ class RunMetricsTest {
     }
 
     @Test fun invalidCoordinatesBreakTheTrackInsteadOfConnectingAcrossMissingData() {
-        val activity = run(listOf(
-            point(0.0, 0), point(Double.NaN, 60_000),
-            point(0.002, 120_000), point(0.003, 180_000),
-            point(0.004, 240_000, latitude = 91.0),
-        ))
+        val activity =
+            run(
+                listOf(
+                    point(0.0, 0),
+                    point(Double.NaN, 60_000),
+                    point(0.002, 120_000),
+                    point(0.003, 180_000),
+                    point(0.004, 240_000, latitude = 91.0),
+                ),
+            )
         assertEquals(111.19508, RunMetrics.distanceMeters(activity.points), 0.001)
         assertEquals(60_000L, RunMetrics.splits(activity).sumOf { it.durationMs })
     }
@@ -113,11 +131,15 @@ class RunMetricsTest {
     }
 
     @Test fun gpxIsValidXmlAndRetainsSegmentsCoordinatesAltitudeAndTime() {
-        val activity = run(listOf(
-            point(-3.5987654321, 0, latitude = 37.1765432109, altitude = 700.25),
-            point(-3.5977654321, 60_000, latitude = 37.1775432109, altitude = 701.5),
-            point(-3.5967654321, 180_000, segment = 1, latitude = 37.1785432109),
-        ), id = "run <morning> & \"friends\"")
+        val activity =
+            run(
+                listOf(
+                    point(-3.5987654321, 0, latitude = 37.1765432109, altitude = 700.25),
+                    point(-3.5977654321, 60_000, latitude = 37.1775432109, altitude = 701.5),
+                    point(-3.5967654321, 180_000, segment = 1, latitude = 37.1785432109),
+                ),
+                id = "run <morning> & \"friends\"",
+            )
         val xml = GpxExporter.export(activity)
         val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
         val document = factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))

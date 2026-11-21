@@ -11,10 +11,15 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-class RoutePlaces(context: Context) {
+class RoutePlaces(
+    context: Context,
+) {
     private val app = context.applicationContext
 
-    fun lookup(points: List<RoutePoint>, locale: Locale): List<RouteImportNaming.Place?> {
+    fun lookup(
+        points: List<RoutePoint>,
+        locale: Locale,
+    ): List<RouteImportNaming.Place?> {
         if (!Geocoder.isPresent()) return points.map { null }
         val geocoder = Geocoder(app, locale)
         return points.map { point ->
@@ -22,24 +27,46 @@ class RoutePlaces(context: Context) {
         }
     }
 
-    private fun addresses(geocoder: Geocoder, point: RoutePoint): List<Address> {
+    private fun addresses(
+        geocoder: Geocoder,
+        point: RoutePoint,
+    ): List<Address> {
         if (Build.VERSION.SDK_INT < 33) {
             @Suppress("DEPRECATION")
             return geocoder.getFromLocation(point.latitude, point.longitude, RESULTS).orEmpty()
         }
         val result = AtomicReference<List<Address>>(emptyList())
         val done = CountDownLatch(1)
-        geocoder.getFromLocation(point.latitude, point.longitude, RESULTS, object : Geocoder.GeocodeListener {
-            override fun onGeocode(addresses: MutableList<Address>) { result.set(addresses.toList()); done.countDown() }
-            override fun onError(errorMessage: String?) { done.countDown() }
-        })
+        geocoder.getFromLocation(
+            point.latitude,
+            point.longitude,
+            RESULTS,
+            object : Geocoder.GeocodeListener {
+                override fun onGeocode(addresses: MutableList<Address>) {
+                    result.set(addresses.toList())
+                    done.countDown()
+                }
+
+                override fun onError(errorMessage: String?) {
+                    done.countDown()
+                }
+            },
+        )
         done.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         return result.get()
     }
 
-    private fun parts(a: Address) = RouteImportNaming.AddressParts(
-        feature = a.featureName, premises = a.premises, street = a.thoroughfare, district = a.subLocality,
-        town = a.locality, area = a.subAdminArea, region = a.adminArea, country = a.countryName)
+    private fun parts(a: Address) =
+        RouteImportNaming.AddressParts(
+            feature = a.featureName,
+            premises = a.premises,
+            street = a.thoroughfare,
+            district = a.subLocality,
+            town = a.locality,
+            area = a.subAdminArea,
+            region = a.adminArea,
+            country = a.countryName,
+        )
 
     private companion object {
         const val RESULTS = 3

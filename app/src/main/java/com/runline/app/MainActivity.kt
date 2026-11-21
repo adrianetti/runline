@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.os.PowerManager
-import android.view.MenuItem
 import android.content.res.Configuration
 import android.graphics.Typeface
 import android.location.LocationManager
@@ -14,55 +12,57 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.ArrayAdapter
-import com.google.android.material.textfield.TextInputLayout
-import com.runline.app.core.ActivityType
-import com.runline.app.i18n.AppLanguage
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
+import androidx.core.view.forEach
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
-import com.runline.app.sharing.ActivityExporter
+import com.google.android.material.textfield.TextInputLayout
+import com.runline.app.ai.AiActivityCompletion
+import com.runline.app.ai.AiSettings
+import com.runline.app.coaching.VoiceCoachSettings
+import com.runline.app.core.ActivityType
+import com.runline.app.core.CoachConfig
 import com.runline.app.core.RunMetrics
+import com.runline.app.core.RunReplay
 import com.runline.app.core.RunSession
 import com.runline.app.data.RunStore
+import com.runline.app.i18n.AppLanguage
+import com.runline.app.sharing.ActivityExporter
 import com.runline.app.tracking.TrackingService
-import com.runline.app.tracking.RecordingStatus as TrackingStatus
-import com.runline.app.ui.SatelliteMapView
-import com.runline.app.ui.RunReplayView
 import com.runline.app.ui.ActiveRunView
-import com.runline.app.ui.VoiceCoachSheet
-import com.runline.app.ui.HistoryInsightsView
 import com.runline.app.ui.ActivityDetailsEditor
-import com.runline.app.ui.RunnerProfileSheet
-import com.runline.app.ui.IconChoices
-import com.runline.app.ui.AppSettingsSheet
-import com.runline.app.ai.AiSettings
 import com.runline.app.ui.AiSettingsSheet
-import com.runline.app.core.CoachConfig
+import com.runline.app.ui.AppSettingsSheet
+import com.runline.app.ui.HistoryInsightsView
+import com.runline.app.ui.IconChoices
+import com.runline.app.ui.RunReplayView
 import com.runline.app.ui.RunReviewSheet
-import com.runline.app.ai.AiActivityCompletion
-import com.runline.app.coaching.VoiceCoachSettings
-import androidx.appcompat.widget.PopupMenu
-import androidx.core.view.forEach
-import androidx.core.net.toUri
-import androidx.core.content.edit
-import com.runline.app.core.RunReplay
+import com.runline.app.ui.RunnerProfileSheet
+import com.runline.app.ui.SatelliteMapView
+import com.runline.app.ui.VoiceCoachSheet
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import com.runline.app.tracking.RecordingStatus as TrackingStatus
 
 class MainActivity : AppCompatActivity() {
     private lateinit var root: LinearLayout
@@ -93,33 +93,59 @@ class MainActivity : AppCompatActivity() {
     private var terrainSettings: com.runline.app.ui.TerrainSettingsSheet? = null
     private var dailySuggestion: com.runline.app.ui.DailySuggestionView? = null
     private val preparation by lazy { androidx.lifecycle.ViewModelProvider(this)[com.runline.app.ui.RunPreparation::class.java] }
-    private val terrainWarmup by lazy { com.runline.app.terrain.TerrainWarmup(this) }
+    private val terrainWarmup by lazy {
+        com.runline.app.terrain
+            .TerrainWarmup(this)
+    }
     private var about: com.runline.app.ui.AboutSheet? = null
     private var idleDay: java.time.LocalDate? = null
     private var runnerProfile: RunnerProfileSheet? = null
     private var runReview: RunReviewSheet? = null
     private var diagnostics: com.runline.app.ui.DiagnosticsSheet? = null
-    private val routes by lazy { com.runline.app.data.RouteStore(this) }
+    private val routes by lazy {
+        com.runline.app.data
+            .RouteStore(this)
+    }
     private var routeId: String? = null
     private var routesBusy = false
     private var pendingRouteUri: Uri? = null
-    private val spotifySignIn = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
-        val reply = com.runline.app.music.SpotifyAppSignIn.reply(result.resultCode, result.data)
-        musicSheet?.takeIf { it.isShowing }?.onAppReply(reply) ?: showMusic(appReply = reply)
-    }
-    private val importRoute = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) importRouteFrom(uri)
-    }
-    private val saveRouteAs = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
-        val id = routeId
-        if (uri != null && id != null) Thread {
-            val ok = runCatching { routes.gpx(id)!!.let { bytes -> contentResolver.openOutputStream(uri, "wt")!!.use { it.write(bytes) } } }.isSuccess
-            runOnUiThread { notice(getString(if (ok) R.string.v19_route_saved else R.string.v19_route_save_failed)) }
-        }.start()
-    }
-    private val ticker = object : Runnable {
-        override fun run() { refreshRecording(); handler.postDelayed(this, 1000) }
-    }
+    private val spotifySignIn =
+        registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts
+                .StartActivityForResult(),
+        ) { result ->
+            val reply =
+                com.runline.app.music.SpotifyAppSignIn
+                    .reply(result.resultCode, result.data)
+            musicSheet?.takeIf { it.isShowing }?.onAppReply(reply) ?: showMusic(appReply = reply)
+        }
+    private val importRoute =
+        registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts
+                .OpenDocument(),
+        ) { uri ->
+            if (uri != null) importRouteFrom(uri)
+        }
+    private val saveRouteAs =
+        registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts
+                .CreateDocument("application/gpx+xml"),
+        ) { uri ->
+            val id = routeId
+            if (uri != null && id != null) {
+                Thread {
+                    val ok = runCatching { routes.gpx(id)!!.let { bytes -> contentResolver.openOutputStream(uri, "wt")!!.use { it.write(bytes) } } }.isSuccess
+                    runOnUiThread { notice(getString(if (ok) R.string.v19_route_saved else R.string.v19_route_save_failed)) }
+                }.start()
+            }
+        }
+    private val ticker =
+        object : Runnable {
+            override fun run() {
+                refreshRecording()
+                handler.postDelayed(this, 1000)
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppLanguage.beforeCreate(this)
@@ -130,39 +156,73 @@ class MainActivity : AppCompatActivity() {
         pendingAction = savedInstanceState?.getString("pendingAction") ?: TrackingService.ACTION_START
         store = RunStore(this)
         val isNight = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        WindowCompat.getInsetsController(window, window.decorView).apply { isAppearanceLightStatusBars = !isNight; isAppearanceLightNavigationBars = !isNight }
-        if (Build.VERSION.SDK_INT < 27) window.navigationBarColor = android.graphics.Color.BLACK
-        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(getColor(R.color.surface)) }
-        setContentView(root)
-        toolbar = MaterialToolbar(this).apply { title = "Runline"; setTitleTextColor(getColor(R.color.on_surface)) }
-        root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(64)))
-        tabs = TabLayout(this).apply {
-            isInlineLabel = true
-            addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_run)); addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_history))
-            addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_map))
-            tabIconTint = ColorStateList.valueOf(getColor(R.color.primary))
-            setSelectedTabIndicatorColor(getColor(R.color.primary))
-            setTabTextColors(getColor(R.color.on_surface_variant), getColor(R.color.primary))
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !isNight
+            isAppearanceLightNavigationBars = !isNight
         }
+        if (Build.VERSION.SDK_INT < 27) window.navigationBarColor = android.graphics.Color.BLACK
+        root =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(getColor(R.color.surface))
+            }
+        setContentView(root)
+        toolbar =
+            MaterialToolbar(this).apply {
+                title = "Runline"
+                setTitleTextColor(getColor(R.color.on_surface))
+            }
+        root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(64)))
+        tabs =
+            TabLayout(this).apply {
+                isInlineLabel = true
+                addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_run))
+                addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_history))
+                addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_map))
+                tabIconTint = ColorStateList.valueOf(getColor(R.color.primary))
+                setSelectedTabIndicatorColor(getColor(R.color.primary))
+                setTabTextColors(getColor(R.color.on_surface_variant), getColor(R.color.primary))
+            }
         root.addView(tabs, LinearLayout.LayoutParams(-1, dp(48)))
-        body = com.runline.app.ui.SwipeTabs(this,
-            enabled = { tabs.visibility == View.VISIBLE && screen in setOf("record", "history", "routes") },
-            swipe = { direction ->
-                val next = (tabs.selectedTabPosition + direction).coerceIn(0, 2)
-                if (next != tabs.selectedTabPosition) {
-                    tabs.getTabAt(next)?.select()
-                    if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
-                        body.translationX = dp(24).toFloat() * direction
-                        body.animate().translationX(0f).setDuration(180).start()
-                    }
-                }
-            }).apply { orientation = LinearLayout.VERTICAL }
+        body =
+            com.runline.app.ui
+                .SwipeTabs(
+                    this,
+                    enabled = { tabs.visibility == View.VISIBLE && screen in setOf("record", "history", "routes") },
+                    swipe = { direction ->
+                        val next = (tabs.selectedTabPosition + direction).coerceIn(0, 2)
+                        if (next != tabs.selectedTabPosition) {
+                            tabs.getTabAt(next)?.select()
+                            if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+                                body.translationX = dp(24).toFloat() * direction
+                                body
+                                    .animate()
+                                    .translationX(0f)
+                                    .setDuration(180)
+                                    .start()
+                            }
+                        }
+                    },
+                ).apply { orientation = LinearLayout.VERTICAL }
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
-        tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) { screen = when (tab.position) { 0 -> "record"; 1 -> "history"; else -> "routes" }; render(); prepareIdle() }
-            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
-            override fun onTabReselected(tab: TabLayout.Tab) = Unit
-        })
+        tabs.addOnTabSelectedListener(
+            object : TabLayout.OnTabSelectedListener {
+                override fun onTabSelected(tab: TabLayout.Tab) {
+                    screen =
+                        when (tab.position) {
+                            0 -> "record"
+                            1 -> "history"
+                            else -> "routes"
+                        }
+                    render()
+                    prepareIdle()
+                }
+
+                override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+
+                override fun onTabReselected(tab: TabLayout.Tab) = Unit
+            },
+        )
         exporter = ActivityExporter(this, { id -> runCatching { store.get(id) }.getOrNull() }, ::notice)
         exporter.restoreState(savedInstanceState)
         lastSavedId = getSharedPreferences("activity_completion", MODE_PRIVATE).getString("seen_id", null)
@@ -173,21 +233,32 @@ class MainActivity : AppCompatActivity() {
         restoredReplayPosition = savedInstanceState?.getLong("replayPosition") ?: 0L
         restoredReplaySpeed = savedInstanceState?.getInt("replaySpeed") ?: 0
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
-            intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING); screen = "record"
+            intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING)
+            screen = "record"
         }
         if (screen == "detail" && currentRun == null) screen = "history"
         if ((screen == "route" || screen == "routePreview") && routeId == null) screen = "routes"
         if (screen == "history") tabs.getTabAt(1)?.select()
-        if (screen == "routes" || screen == "route" || screen == "routePreview") { val keep = screen; tabs.getTabAt(2)?.select(); screen = keep }
+        if (screen == "routes" || screen == "route" || screen == "routePreview") {
+            val keep = screen
+            tabs.getTabAt(2)?.select()
+            screen = keep
+        }
         render()
         supportFragmentManager.setFragmentResultListener(com.runline.app.ui.RouteImportDialog.RESULT, this) { _, result ->
             routeId = result.getString("id")
-            tabs.getTabAt(2)?.select(); screen = "route"; render()
+            tabs.getTabAt(2)?.select()
+            screen = "route"
+            render()
             notice(getString(R.string.v19_routes_imported))
         }
         pendingRouteUri = savedInstanceState?.getString("pendingRouteUri")?.let(Uri::parse)
-            ?: if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0)
-                com.runline.app.ui.RouteImportIntents.uri(intent) else null
+            ?: if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
+                com.runline.app.ui.RouteImportIntents
+                    .uri(intent)
+            } else {
+                null
+            }
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
         if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         if (!openSpotifyCallback() && savedInstanceState?.getBoolean("musicSheet") == true) showMusic()
@@ -197,7 +268,15 @@ class MainActivity : AppCompatActivity() {
         savedInstanceState?.getBundle("coachSheet")?.let { showCoach(it) }
         savedInstanceState?.getBundle("aiSettings")?.let { aiSettings = AiSettingsSheet(this, it) { onAiChanged() }.also { sheet -> sheet.show() } }
         savedInstanceState?.getBundle("runnerProfile")?.let { runnerProfile = RunnerProfileSheet(this, it).also { sheet -> sheet.show() } }
-        savedInstanceState?.getBundle("runReview")?.takeIf { AiSettings.isReady(this) || currentRun?.let { com.runline.app.ai.AiReviewStore(this).get(it.id) } != null }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
+        savedInstanceState
+            ?.getBundle("runReview")
+            ?.takeIf {
+                AiSettings.isReady(this) || currentRun?.let {
+                    com.runline.app.ai
+                        .AiReviewStore(this)
+                        .get(it.id)
+                } != null
+            }?.let { draft -> currentRun?.let { run -> runReview = RunReviewSheet(this, run, draft).also { it.show() } } }
         AiActivityCompletion.onAppOpen(this)
         savedInstanceState?.getString("diagnostics")?.let { showDiagnostics(it.ifBlank { null }) }
         if (savedInstanceState == null) openReviewIntent()
@@ -205,34 +284,90 @@ class MainActivity : AppCompatActivity() {
             draft.getString("runId")?.let { id -> runCatching { store.get(id) }.getOrNull()?.let { showActivityEditor(it, draft) } }
         }
     }
+
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent); setIntent(intent)
-        pendingRouteUri = com.runline.app.ui.RouteImportIntents.uri(intent)
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingRouteUri =
+            com.runline.app.ui.RouteImportIntents
+                .uri(intent)
         openReviewIntent()
         openSpotifyCallback()
         if (intent.getBooleanExtra(TrackingService.EXTRA_OPEN_RECORDING, false)) {
             intent.removeExtra(TrackingService.EXTRA_OPEN_RECORDING)
-            screen = "record"; tabs.getTabAt(0)?.select(); render()
+            screen = "record"
+            tabs.getTabAt(0)?.select()
+            render()
         }
     }
+
     override fun onPostResume() {
         super.onPostResume()
-        pendingRouteUri?.let { uri -> pendingRouteUri = null; importRouteFrom(uri) }
+        pendingRouteUri?.let { uri ->
+            pendingRouteUri = null
+            importRouteFrom(uri)
+        }
     }
-    override fun onResume() { super.onResume(); TrackingService.refreshLanguage(); route?.onHostResume(); replayView?.onHostResume(); handler.removeCallbacks(ticker); handler.post(ticker); if (::exporter.isInitialized) exporter.onResume(); prepareIdle() }
-    override fun onLowMemory() { super.onLowMemory(); route?.onLowMemory(); replayView?.map?.onLowMemory() }
-    override fun onDestroy() { about?.close(); dailySuggestion?.dispose(); terrainWarmup.stop(); terrainSettings?.close(); diagnostics?.close(); runnerProfile?.close(); appSettings?.close(); musicSheet?.close(); detailsEditor?.close(); aiSettings?.close(); runReview?.close(); coachSheet?.close(); handler.removeCallbacks(ticker); route?.dispose(); replayView?.dispose(); if (::exporter.isInitialized) exporter.close(); super.onDestroy() }
-    override fun onPause() { terrainWarmup.stop(); coachSheet?.onHostPause(); handler.removeCallbacks(ticker); route?.onHostPause(); replayView?.onHostPause(); super.onPause() }
+
+    override fun onResume() {
+        super.onResume()
+        TrackingService.refreshLanguage()
+        route?.onHostResume()
+        replayView?.onHostResume()
+        handler.removeCallbacks(ticker)
+        handler.post(ticker)
+        if (::exporter.isInitialized) exporter.onResume()
+        prepareIdle()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        route?.onLowMemory()
+        replayView?.map?.onLowMemory()
+    }
+
+    override fun onDestroy() {
+        about?.close()
+        dailySuggestion?.dispose()
+        terrainWarmup.stop()
+        terrainSettings?.close()
+        diagnostics?.close()
+        runnerProfile?.close()
+        appSettings?.close()
+        musicSheet?.close()
+        detailsEditor?.close()
+        aiSettings?.close()
+        runReview?.close()
+        coachSheet?.close()
+        handler.removeCallbacks(ticker)
+        route?.dispose()
+        replayView?.dispose()
+        if (::exporter.isInitialized) exporter.close()
+        super.onDestroy()
+    }
+
+    override fun onPause() {
+        terrainWarmup.stop()
+        coachSheet?.onHostPause()
+        handler.removeCallbacks(ticker)
+        route?.onHostPause()
+        replayView?.onHostPause()
+        super.onPause()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("pendingRouteUri", pendingRouteUri?.toString())
         outState.putString("activityType", selectedActivity.storageValue)
         outState.putString("historyType", historyType?.storageValue)
         outState.putString("pendingAction", pendingAction)
         diagnostics?.takeIf { it.isShowing }?.let { outState.putString("diagnostics", it.runId ?: "") }
-        outState.putString("screen", screen); outState.putString("runId", currentRun?.id); outState.putString("routeId", routeId)
+        outState.putString("screen", screen)
+        outState.putString("runId", currentRun?.id)
+        outState.putString("routeId", routeId)
         outState.putLong("replayPosition", replayView?.positionMs ?: restoredReplayPosition)
         outState.putInt("replaySpeed", replayView?.playbackSpeed ?: restoredReplaySpeed)
-        exporter.saveState(outState); super.onSaveInstanceState(outState)
+        exporter.saveState(outState)
+        super.onSaveInstanceState(outState)
         outState.putBoolean("about", about?.isShowing == true)
         outState.putBoolean("appSettings", appSettings?.isShowing == true)
         outState.putBoolean("musicSheet", musicSheet?.isShowing == true)
@@ -245,19 +380,35 @@ class MainActivity : AppCompatActivity() {
         runnerProfile?.takeIf { it.isShowing }?.let { outState.putBundle("runnerProfile", it.saveState()) }
         runReview?.takeIf { it.isShowing }?.let { outState.putBundle("runReview", it.saveState()) }
     }
+
     @Deprecated("Uses platform Back for this single-activity prototype")
     override fun onBackPressed() {
-        if (screen == "detail") { screen = "history"; tabs.getTabAt(1)?.select(); render() }
-        else if (screen == "routePreview") { screen = "route"; render() }
-        else if (screen == "route") { screen = "routes"; render() }
-        else if (screen == "history" || screen == "routes") { tabs.getTabAt(0)?.select() }
-        else super.onBackPressed()
+        if (screen == "detail") {
+            screen = "history"
+            tabs.getTabAt(1)?.select()
+            render()
+        } else if (screen == "routePreview") {
+            screen = "route"
+            render()
+        } else if (screen == "route") {
+            screen = "routes"
+            render()
+        } else if (screen == "history" || screen == "routes") {
+            tabs.getTabAt(0)?.select()
+        } else {
+            super.onBackPressed()
+        }
     }
 
     private fun render() {
-        route?.dispose(); replayView?.dispose(); replayView = null
-        dailySuggestion?.dispose(); dailySuggestion = null
-        body.removeAllViews(); route = null; activeRunView = null
+        route?.dispose()
+        replayView?.dispose()
+        replayView = null
+        dailySuggestion?.dispose()
+        dailySuggestion = null
+        body.removeAllViews()
+        route = null
+        activeRunView = null
         val state = TrackingService.state(this)
         val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
         val full = screen == "detail" || screen == "route" || screen == "routePreview"
@@ -268,100 +419,165 @@ class MainActivity : AppCompatActivity() {
         toolbar.navigationIcon?.setTint(getColor(R.color.on_surface))
         toolbar.navigationContentDescription = getString(R.string.main_back_activities)
         configureMenu()
-        toolbar.setNavigationOnClickListener { screen = "history"; tabs.getTabAt(1)?.select(); render() }
-        when (screen) { "history" -> renderHistory(); "detail" -> currentRun?.let { renderDetail(it) }; "routes" -> renderRoutes(); "route" -> renderRoute(); "routePreview" -> renderRoutePreview(); else -> renderRecord() }
+        toolbar.setNavigationOnClickListener {
+            screen = "history"
+            tabs.getTabAt(1)?.select()
+            render()
+        }
+        when (screen) {
+            "history" -> renderHistory()
+            "detail" -> currentRun?.let { renderDetail(it) }
+            "routes" -> renderRoutes()
+            "route" -> renderRoute()
+            "routePreview" -> renderRoutePreview()
+            else -> renderRecord()
+        }
     }
+
     private fun scrollContent(): LinearLayout {
-        val scroll = ScrollView(this).apply { isFillViewport = false; clipToPadding = false }
-        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(24), dp(24), dp(24)) }
-        scroll.addView(column, ViewGroup.LayoutParams(-1, -2)); body.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        val scroll =
+            ScrollView(this).apply {
+                isFillViewport = false
+                clipToPadding = false
+            }
+        val column =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(24), dp(24), dp(24), dp(24))
+            }
+        scroll.addView(column, ViewGroup.LayoutParams(-1, -2))
+        body.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         return column
     }
+
     private fun renderRecord() {
         val state = TrackingService.state(this)
         renderedStatus = state.status.name
         if (state.run != null && state.status != TrackingStatus.RECOVERY_ERROR) {
-            activeRunView = ActiveRunView(this, state,
-                onOpenRuns = { tabs.getTabAt(1)?.select() }, onOptions = ::showRunOptions,
-                onPause = { command(TrackingService.ACTION_PAUSE) },
-                onResume = { requestRecording(TrackingService.ACTION_RESUME) },
-                onFinish = { command(TrackingService.ACTION_FINISH) },
-            ).also { view ->
-                route = view.map
-                body.addView(view, LinearLayout.LayoutParams(-1, -1))
-                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.map.onHostResume()
-            }
+            activeRunView =
+                ActiveRunView(
+                    this,
+                    state,
+                    onOpenRuns = { tabs.getTabAt(1)?.select() },
+                    onOptions = ::showRunOptions,
+                    onPause = { command(TrackingService.ACTION_PAUSE) },
+                    onResume = { requestRecording(TrackingService.ACTION_RESUME) },
+                    onFinish = { command(TrackingService.ACTION_FINISH) },
+                ).also { view ->
+                    route = view.map
+                    body.addView(view, LinearLayout.LayoutParams(-1, -1))
+                    if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.map.onHostResume()
+                }
             return
         }
         val content = scrollContent()
         if (state.status == TrackingStatus.RECOVERY_ERROR) {
             content.addView(text(getString(R.string.main_recovery_title), 24, bold = true))
             content.addView(text(getString(R.string.main_recovery_body), 14, muted = true), margin(top = 16))
-            content.addView(button(getString(R.string.main_keep_reset), iconId = R.drawable.ic_shield_check) {
-                MaterialAlertDialogBuilder(this).setTitle(R.string.main_archive_title).setMessage(R.string.main_archive_body)
-                    .setPositiveButton(R.string.main_keep_reset) { _, _ -> command(TrackingService.ACTION_ARCHIVE_DRAFT) }
-                    .setNegativeButton(R.string.main_cancel, null).show()
-            }, margin(top = 24))
+            content.addView(
+                button(getString(R.string.main_keep_reset), iconId = R.drawable.ic_shield_check) {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.main_archive_title)
+                        .setMessage(R.string.main_archive_body)
+                        .setPositiveButton(R.string.main_keep_reset) { _, _ -> command(TrackingService.ACTION_ARCHIVE_DRAFT) }
+                        .setNegativeButton(R.string.main_cancel, null)
+                        .show()
+                },
+                margin(top = 24),
+            )
             return
         }
         content.addView(text(getString(R.string.main_ready), 30, bold = true), margin(bottom = 24))
         val types = ActivityType.entries
         var picker: com.runline.app.ui.TapDropdown? = null
-        val field = com.runline.app.ui.TapDropdown.field(this) { picker }.apply {
-            hint = getString(R.string.main_activity_type)
-            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
-            endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-        }
-        val choice = com.runline.app.ui.TapDropdown(field.context).apply {
-            inputType = android.text.InputType.TYPE_NULL
-            setAdapter(ArrayAdapter(context, android.R.layout.simple_list_item_1, types.map(::activityName)))
-            setText(activityName(selectedActivity), false)
-            minHeight = dp(64); setPadding(dp(16), dp(12), dp(16), dp(12))
-            setOnItemClickListener { _, _, index, _ ->
-                selectedActivity = types[index]
-                getPreferences(0).edit().putString("activityType", selectedActivity.storageValue).apply()
-                preparation.intent = null; render(); prepareIdle()
+        val field =
+            com.runline.app.ui.TapDropdown.field(this) { picker }.apply {
+                hint = getString(R.string.main_activity_type)
+                boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+                endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
             }
-        }
+        val choice =
+            com.runline.app.ui.TapDropdown(field.context).apply {
+                inputType = android.text.InputType.TYPE_NULL
+                setAdapter(ArrayAdapter(context, android.R.layout.simple_list_item_1, types.map(::activityName)))
+                setText(activityName(selectedActivity), false)
+                minHeight = dp(64)
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                setOnItemClickListener { _, _, index, _ ->
+                    selectedActivity = types[index]
+                    getPreferences(0).edit().putString("activityType", selectedActivity.storageValue).apply()
+                    preparation.intent = null
+                    render()
+                    prepareIdle()
+                }
+            }
         picker = choice
         field.addView(choice, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, margin(bottom = 16))
         val controls = LinearLayout(this).apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }
-        val voice = iconControl(if (VoiceCoachSettings.load(this).enabled) R.drawable.ic_speaker else R.drawable.ic_speaker_off,
-            getString(if (VoiceCoachSettings.load(this).enabled) R.string.v16_voice_on else R.string.v16_voice_off))
+        val voice =
+            iconControl(
+                if (VoiceCoachSettings.load(this).enabled) R.drawable.ic_speaker else R.drawable.ic_speaker_off,
+                getString(if (VoiceCoachSettings.load(this).enabled) R.string.v16_voice_on else R.string.v16_voice_off),
+            )
         voice.setOnClickListener {
             val next = VoiceCoachSettings.load(this).copy(enabled = !VoiceCoachSettings.load(this).enabled)
             if (VoiceCoachSettings.save(this, next)) {
-                TrackingService.refreshCoaching(); render()
+                TrackingService.refreshCoaching()
+                render()
                 val snackbar = Snackbar.make(root, getString(if (next.enabled) R.string.v16_voice_on else R.string.v16_voice_off), Snackbar.LENGTH_LONG)
                 if (next.enabled) snackbar.setAction(R.string.v16_voice_settings) { showCoach(editGoal = false) }
                 snackbar.show()
-            } else notice(getString(R.string.ai_error_storage))
+            } else {
+                notice(getString(R.string.ai_error_storage))
+            }
         }
         voice.isSelected = VoiceCoachSettings.load(this).enabled
         controls.addView(voice)
-        controls.addView(iconControl(R.drawable.ic_more, getString(R.string.v16_run_options)).apply {
-            setOnClickListener { PopupMenu(this@MainActivity, this).apply {
-                menu.add(0, 1, 0, R.string.v16_voice_settings)
-                menu.add(0, 2, 1, R.string.coach_ui_goal)
-                setOnMenuItemClickListener { showCoach(editGoal = it.itemId == 2); true }; show()
-            } }
-        })
+        controls.addView(
+            iconControl(R.drawable.ic_more, getString(R.string.v16_run_options)).apply {
+                setOnClickListener {
+                    PopupMenu(this@MainActivity, this).apply {
+                        menu.add(0, 1, 0, R.string.v16_voice_settings)
+                        menu.add(0, 2, 1, R.string.coach_ui_goal)
+                        setOnMenuItemClickListener {
+                            showCoach(editGoal = it.itemId == 2)
+                            true
+                        }
+                        show()
+                    }
+                }
+            },
+        )
         content.addView(controls, margin(top = 8))
         renderFollowRoute(content)
-        if (selectedActivity == ActivityType.RUN) dailySuggestion = com.runline.app.ui.DailySuggestionView(this, preparation) { render() }.also { content.addView(it, margin(top = 12)) }
+        if (selectedActivity == ActivityType.RUN) {
+            dailySuggestion =
+                com.runline.app.ui
+                    .DailySuggestionView(this, preparation) { render() }
+                    .also { content.addView(it, margin(top = 12)) }
+        }
         preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }?.let {
             content.addView(text(VoiceCoachSheet.goalSummary(this, it.goal), 16), margin(top = 12))
         }
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
+        val actions =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(24), dp(8), dp(24), dp(16))
+            }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
     }
-    private fun activityName(type: ActivityType) = getString(when(type) {
-        ActivityType.RUN -> R.string.main_type_run
-        ActivityType.WALK -> R.string.main_type_walk
-        ActivityType.HIKE -> R.string.main_type_hike
-    })
+
+    private fun activityName(type: ActivityType) =
+        getString(
+            when (type) {
+                ActivityType.RUN -> R.string.main_type_run
+                ActivityType.WALK -> R.string.main_type_walk
+                ActivityType.HIKE -> R.string.main_type_hike
+            },
+        )
+
     private fun refreshRecording() {
         val state = TrackingService.state(this)
         val completion = getSharedPreferences("activity_completion", MODE_PRIVATE)
@@ -378,123 +594,279 @@ class MainActivity : AppCompatActivity() {
             }
         }
         if (screen != "record") return
-        if (state.status.name != renderedStatus) { render(); if (state.run == null) prepareIdle() } else updateMetrics()
+        if (state.status.name != renderedStatus) {
+            render()
+            if (state.run == null) prepareIdle()
+        } else {
+            updateMetrics()
+        }
     }
+
     private fun updateMetrics() {
         activeRunView?.update(TrackingService.state(this))
         if (screen == "record" && activeRunView == null && idleDay != java.time.LocalDate.now()) prepareIdle()
         dailySuggestion?.render()
     }
+
     private fun prepareIdle() {
         if (!::body.isInitialized || screen != "record" || TrackingService.state(this).run != null) return
-        idleDay = java.time.LocalDate.now(); terrainWarmup.start()
-        if (selectedActivity == ActivityType.RUN) com.runline.app.ai.SmartRunAi.refresh(this)
+        idleDay = java.time.LocalDate.now()
+        terrainWarmup.start()
+        if (selectedActivity == ActivityType.RUN) {
+            com.runline.app.ai.SmartRunAi
+                .refresh(this)
+        }
     }
-    private fun iconControl(icon: Int, label: String) = MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
-        setIconResource(icon); iconPadding = 0; iconSize = dp(24); minWidth = 0; minimumWidth = 0
-        minHeight = dp(48); minimumHeight = dp(48); setPadding(dp(12), 0, dp(12), 0)
-        contentDescription = label; tooltipText = label; layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+
+    private fun iconControl(
+        icon: Int,
+        label: String,
+    ) = MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+        setIconResource(icon)
+        iconPadding = 0
+        iconSize = dp(24)
+        minWidth = 0
+        minimumWidth = 0
+        minHeight = dp(48)
+        minimumHeight = dp(48)
+        setPadding(dp(12), 0, dp(12), 0)
+        contentDescription = label
+        tooltipText = label
+        layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
     }
-    private fun followedRoute(): String? = getPreferences(0).getString("followRoute", null)?.takeIf { id ->
-        runCatching { routes.entry(id, language()) != null }.getOrDefault(false)
-    }
+
+    private fun followedRoute(): String? =
+        getPreferences(0).getString("followRoute", null)?.takeIf { id ->
+            runCatching { routes.entry(id, language()) != null }.getOrDefault(false)
+        }
+
     private fun language() = resources.configuration.locales[0].language
+
     private fun renderFollowRoute(content: LinearLayout) {
         val id = followedRoute()
         val entry = id?.let { runCatching { routes.entry(it, language()) }.getOrNull() }
         if (entry == null) {
-            content.addView(MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
-                text = getString(R.string.v19_record_choose_route); isAllCaps = false; setIconResource(R.drawable.ic_map)
-                iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; minHeight = dp(48)
-                setOnClickListener { tabs.getTabAt(2)?.select() }
-            }, margin(top = 4))
+            content.addView(
+                MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+                    text = getString(R.string.v19_record_choose_route)
+                    isAllCaps = false
+                    setIconResource(R.drawable.ic_map)
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    minHeight = dp(48)
+                    setOnClickListener { tabs.getTabAt(2)?.select() }
+                },
+                margin(top = 4),
+            )
             return
         }
-        val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(4), 0, dp(4)) }
-        row.addView(android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.ic_route); imageTintList = ColorStateList.valueOf(getColor(R.color.on_surface))
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(12) })
+        val row =
+            LinearLayout(this).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(4), dp(4), 0, dp(4))
+            }
+        row.addView(
+            android.widget.ImageView(this).apply {
+                setImageResource(R.drawable.ic_route)
+                imageTintList = ColorStateList.valueOf(getColor(R.color.on_surface))
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            },
+            LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(12) },
+        )
         val km = String.format(resources.configuration.locales[0], "%.1f", entry.distanceMeters / 1000)
-        row.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(text(getString(R.string.v19_record_route, entry.name), 16, bold = true).apply { maxLines = 2 })
-            addView(text(getString(R.string.v19_km, km), 14, muted = true))
-            isClickable = true; isFocusable = true
-            setOnClickListener { routeId = entry.id; screen = "route"; tabs.getTabAt(2)?.select(); screen = "route"; render() }
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(iconControl(R.drawable.ic_close, getString(R.string.v19_record_route_remove)).apply {
-            setOnClickListener { getPreferences(0).edit { remove("followRoute") }; render() }
-        })
+        row.addView(
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(text(getString(R.string.v19_record_route, entry.name), 16, bold = true).apply { maxLines = 2 })
+                addView(text(getString(R.string.v19_km, km), 14, muted = true))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    routeId = entry.id
+                    screen = "route"
+                    tabs.getTabAt(2)?.select()
+                    screen = "route"
+                    render()
+                }
+            },
+            LinearLayout.LayoutParams(0, -2, 1f),
+        )
+        row.addView(
+            iconControl(R.drawable.ic_close, getString(R.string.v19_record_route_remove)).apply {
+                setOnClickListener {
+                    getPreferences(0).edit { remove("followRoute") }
+                    render()
+                }
+            },
+        )
         content.addView(row, margin(top = 12))
     }
+
     private fun renderRoutes() {
         val content = scrollContent()
         val entries = runCatching { routes.list(language()) }.getOrDefault(emptyList())
-        content.addView(com.runline.app.ui.RoutesView(this, entries, followedRoute(),
-            stats = { id -> runCatching { routes.load(id)?.stats }.getOrNull() },
-            onOpen = { id -> routeId = id; screen = "route"; render() },
-            onImport = { runCatching { importRoute.launch(arrayOf("*/*")) }
-                .onFailure { notice(getString(R.string.route_import_picker_failed)) } },
-            onRefresh = ::refreshRoutes,
-            onAbout = {
-                MaterialAlertDialogBuilder(this).setTitle(R.string.v19_routes_about).setMessage(R.string.v19_routes_about_body)
-                    .setPositiveButton(R.string.v19_routes_open_repo) { _, _ -> runCatching { startActivity(Intent(Intent.ACTION_VIEW, com.runline.app.data.RouteStore.REPOSITORY_URL.toUri())) } }
-                    .setNegativeButton(R.string.main_close, null).show()
-            }))
+        content.addView(
+            com.runline.app.ui.RoutesView(
+                this,
+                entries,
+                followedRoute(),
+                stats = { id -> runCatching { routes.load(id)?.stats }.getOrNull() },
+                onOpen = { id ->
+                    routeId = id
+                    screen = "route"
+                    render()
+                },
+                onImport = {
+                    runCatching { importRoute.launch(arrayOf("*/*")) }
+                        .onFailure { notice(getString(R.string.route_import_picker_failed)) }
+                },
+                onRefresh = ::refreshRoutes,
+                onAbout = {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.v19_routes_about)
+                        .setMessage(R.string.v19_routes_about_body)
+                        .setPositiveButton(R.string.v19_routes_open_repo) { _, _ ->
+                            runCatching {
+                                startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        com.runline.app.data.RouteStore.REPOSITORY_URL
+                                            .toUri(),
+                                    ),
+                                )
+                            }
+                        }.setNegativeButton(R.string.main_close, null)
+                        .show()
+                },
+            ),
+        )
     }
+
     private fun refreshRoutes() {
         if (routesBusy) return
-        routesBusy = true; notice(getString(R.string.v19_routes_refreshing))
+        routesBusy = true
+        notice(getString(R.string.v19_routes_refreshing))
         Thread {
             val ok = runCatching { routes.refresh() }.isSuccess
-            runOnUiThread { routesBusy = false; notice(getString(if (ok) R.string.v19_routes_refreshed else R.string.v19_routes_refresh_failed)); if (screen == "routes") render() }
+            runOnUiThread {
+                routesBusy = false
+                notice(getString(if (ok) R.string.v19_routes_refreshed else R.string.v19_routes_refresh_failed))
+                if (screen == "routes") render()
+            }
         }.start()
     }
+
     private fun importRouteFrom(uri: Uri) {
-        if (supportFragmentManager.isStateSaved) { pendingRouteUri = uri; return }
-        if (supportFragmentManager.findFragmentByTag(com.runline.app.ui.RouteImportDialog.TAG) != null) {
-            notice(getString(R.string.route_import_busy)); return
+        if (supportFragmentManager.isStateSaved) {
+            pendingRouteUri = uri
+            return
         }
-        com.runline.app.ui.RouteImportDialog.create(uri).showNow(supportFragmentManager, com.runline.app.ui.RouteImportDialog.TAG)
+        if (supportFragmentManager.findFragmentByTag(com.runline.app.ui.RouteImportDialog.TAG) != null) {
+            notice(getString(R.string.route_import_busy))
+            return
+        }
+        com.runline.app.ui.RouteImportDialog
+            .create(uri)
+            .showNow(supportFragmentManager, com.runline.app.ui.RouteImportDialog.TAG)
     }
+
     private fun renderRoute() {
-        val id = routeId ?: run { screen = "routes"; render(); return }
+        val id =
+            routeId ?: run {
+                screen = "routes"
+                render()
+                return
+            }
         val hiking = runCatching { routes.load(id) }.getOrNull()
-        if (hiking == null) { notice(getString(R.string.v19_route_unavailable)); screen = "routes"; render(); return }
+        if (hiking == null) {
+            notice(getString(R.string.v19_route_unavailable))
+            screen = "routes"
+            render()
+            return
+        }
         val entry = runCatching { routes.entry(id, language()) }.getOrNull()
         val catalog = runCatching { routes.catalog().routes.firstOrNull { it.id == id } }.getOrNull()
         val recording = TrackingService.state(this).run != null
-        val view = com.runline.app.ui.RouteDetailView(this, hiking, entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording,
-            onBack = { screen = "routes"; render() },
-            onMore = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
-            onStart = {
-                getPreferences(0).edit { putString("followRoute", id) }
-                if (entry?.imported != true) selectedActivity = entry?.activity ?: ActivityType.HIKE
-                getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
-                preparation.intent = null
-                screen = "record"; tabs.getTabAt(0)?.select(); render()
-                requestRecording(TrackingService.ACTION_START)
-            },
-            onPreview = { screen = "routePreview"; render() },
-            onOpenRecording = { screen = "record"; tabs.getTabAt(0)?.select(); render() })
+        val view =
+            com.runline.app.ui.RouteDetailView(
+                this,
+                hiking,
+                entry,
+                catalog?.summary(language()),
+                catalog?.notes(language()).orEmpty(),
+                recording,
+                onBack = {
+                    screen = "routes"
+                    render()
+                },
+                onMore = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
+                onStart = {
+                    getPreferences(0).edit { putString("followRoute", id) }
+                    if (entry?.imported != true) selectedActivity = entry?.activity ?: ActivityType.HIKE
+                    getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
+                    preparation.intent = null
+                    screen = "record"
+                    tabs.getTabAt(0)?.select()
+                    render()
+                    requestRecording(TrackingService.ACTION_START)
+                },
+                onPreview = {
+                    screen = "routePreview"
+                    render()
+                },
+                onOpenRecording = {
+                    screen = "record"
+                    tabs.getTabAt(0)?.select()
+                    render()
+                },
+            )
         route = view.map
         body.addView(view, LinearLayout.LayoutParams(-1, -1))
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.map.onHostResume()
-        runCatching { com.runline.app.terrain.TerrainRepository.get(this).request(hiking.runPoints()) }
-    }
-    private fun renderRoutePreview() {
-        val id = routeId ?: run { screen = "routes"; render(); return }
-        val hiking = runCatching { routes.load(id) }.getOrNull() ?: run { screen = "routes"; render(); return }
-        val entry = runCatching { routes.entry(id, language()) }.getOrNull()
-        val activity = if (entry?.imported == true) selectedActivity else entry?.activity ?: ActivityType.HIKE
-        replayView = RunReplayView(this, RunReplay(com.runline.app.core.RoutePreview.session(hiking, activity)), preview = true,
-            onBack = { screen = "route"; render() }).also { view ->
-            body.addView(view, LinearLayout.LayoutParams(-1, -1))
-            if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
+        runCatching {
+            com.runline.app.terrain.TerrainRepository
+                .get(this)
+                .request(hiking.runPoints())
         }
     }
-    private fun showRouteOptions(anchor: View, id: String, imported: Boolean) {
+
+    private fun renderRoutePreview() {
+        val id =
+            routeId ?: run {
+                screen = "routes"
+                render()
+                return
+            }
+        val hiking =
+            runCatching { routes.load(id) }.getOrNull() ?: run {
+                screen = "routes"
+                render()
+                return
+            }
+        val entry = runCatching { routes.entry(id, language()) }.getOrNull()
+        val activity = if (entry?.imported == true) selectedActivity else entry?.activity ?: ActivityType.HIKE
+        replayView =
+            RunReplayView(
+                this,
+                RunReplay(
+                    com.runline.app.core.RoutePreview
+                        .session(hiking, activity),
+                ),
+                preview = true,
+                onBack = {
+                    screen = "route"
+                    render()
+                },
+            ).also { view ->
+                body.addView(view, LinearLayout.LayoutParams(-1, -1))
+                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
+            }
+    }
+
+    private fun showRouteOptions(
+        anchor: View,
+        id: String,
+        imported: Boolean,
+    ) {
         PopupMenu(this, anchor).apply {
             menu.add(0, 4, 0, R.string.v21_directions).setIcon(R.drawable.ic_directions)
             menu.add(0, 1, 0, R.string.v19_route_share_gpx).setIcon(R.drawable.ic_share)
@@ -504,63 +876,122 @@ class MainActivity : AppCompatActivity() {
             setForceShowIcon(true)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    4 -> runCatching { routes.load(id)?.points?.first() }.getOrNull()
-                        ?.let { com.runline.app.ui.RouteDirections.open(this@MainActivity, it.latitude, it.longitude) }
-                    1 -> shareRoute(id)
-                    2 -> runCatching { saveRouteAs.launch(routes.fileName(id, language())) }
-                    3 -> MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.v19_route_delete)
-                        .setMessage(getString(R.string.v19_route_delete_confirm, routes.entry(id, language())?.name ?: ""))
-                        .setPositiveButton(R.string.v19_route_delete_action) { _, _ ->
-                            runCatching { routes.delete(id) }
-                            if (getPreferences(0).getString("followRoute", null) == id) getPreferences(0).edit { remove("followRoute") }
-                            screen = "routes"; render()
-                        }.setNegativeButton(R.string.main_cancel, null).show()
+                    4 -> {
+                        runCatching { routes.load(id)?.points?.first() }
+                            .getOrNull()
+                            ?.let {
+                                com.runline.app.ui.RouteDirections
+                                    .open(this@MainActivity, it.latitude, it.longitude)
+                            }
+                    }
+
+                    1 -> {
+                        shareRoute(id)
+                    }
+
+                    2 -> {
+                        runCatching { saveRouteAs.launch(routes.fileName(id, language())) }
+                    }
+
+                    3 -> {
+                        MaterialAlertDialogBuilder(this@MainActivity)
+                            .setTitle(R.string.v19_route_delete)
+                            .setMessage(getString(R.string.v19_route_delete_confirm, routes.entry(id, language())?.name ?: ""))
+                            .setPositiveButton(R.string.v19_route_delete_action) { _, _ ->
+                                runCatching { routes.delete(id) }
+                                if (getPreferences(0).getString("followRoute", null) == id) getPreferences(0).edit { remove("followRoute") }
+                                screen = "routes"
+                                render()
+                            }.setNegativeButton(R.string.main_cancel, null)
+                            .show()
+                    }
                 }
                 true
             }
             show()
         }
     }
+
     private fun shareRoute(id: String) {
         runCatching {
             val bytes = routes.gpx(id)!!
             val folder = java.io.File(cacheDir, "exports").apply { mkdirs() }
-            val file = java.io.File(folder, routes.fileName(id, language())); file.writeBytes(bytes)
-            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", file)
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("application/gpx+xml").putExtra(Intent.EXTRA_STREAM, uri)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), getString(R.string.v19_route_share_gpx)))
+            val file = java.io.File(folder, routes.fileName(id, language()))
+            file.writeBytes(bytes)
+            val uri =
+                androidx.core.content.FileProvider
+                    .getUriForFile(this, "$packageName.files", file)
+            startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND)
+                        .setType("application/gpx+xml")
+                        .putExtra(Intent.EXTRA_STREAM, uri)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                    getString(R.string.v19_route_share_gpx),
+                ),
+            )
         }.onFailure { notice(getString(R.string.v19_route_save_failed)) }
     }
+
     private fun renderHistory() {
         val content = scrollContent()
-        val runs = try { store.list() } catch (e: Exception) { notice(getString(R.string.main_history_failed)); emptyList() }
+        val runs =
+            try {
+                store.list()
+            } catch (e: Exception) {
+                notice(getString(R.string.main_history_failed))
+                emptyList()
+            }
         if (runs.isNotEmpty()) {
             content.addView(HistoryInsightsView(this, runs, historyType) { historyType = it })
             val heading = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
             heading.addView(text(getString(R.string.main_activities), 24, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
-            heading.addView(iconControl(R.drawable.ic_more, getString(R.string.v16_history_options)).apply {
-                setOnClickListener { PopupMenu(this@MainActivity, this).apply {
-                    menu.add(0, 1, 0, R.string.main_share_all); menu.add(0, 2, 1, R.string.main_export_all)
-                    setOnMenuItemClickListener { showHistoryTransfer(runs, it.itemId == 1); true }; show()
-                } }
-            })
+            heading.addView(
+                iconControl(R.drawable.ic_more, getString(R.string.v16_history_options)).apply {
+                    setOnClickListener {
+                        PopupMenu(this@MainActivity, this).apply {
+                            menu.add(0, 1, 0, R.string.main_share_all)
+                            menu.add(0, 2, 1, R.string.main_export_all)
+                            setOnMenuItemClickListener {
+                                showHistoryTransfer(runs, it.itemId == 1)
+                                true
+                            }
+                            show()
+                        }
+                    }
+                },
+            )
             content.addView(heading, margin(top = 24, bottom = 12))
         }
         if (runs.isEmpty()) {
             content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
             content.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { tabs.getTabAt(0)?.select() })
         } else {
-            val autoPause = com.runline.app.tracking.RecordingSettings.autoPause(this)
+            val autoPause =
+                com.runline.app.tracking.RecordingSettings
+                    .autoPause(this)
             runs.forEach { run ->
                 val distance = RunMetrics.distanceMeters(run.points)
-                val time = if (autoPause) com.runline.app.core.StopDetection.movingDurationMs(run) else run.activeDurationMs
-                val row = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL; setPadding(dp(4), dp(20), dp(4), dp(20)); minimumHeight = dp(80)
-                    isClickable = true; isFocusable = true
-                    val attrs = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)); background = attrs.getDrawable(0); attrs.recycle()
-                    setOnClickListener { openRun(run) }
-                    contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(time))
-                }
+                val time =
+                    if (autoPause) {
+                        com.runline.app.core.StopDetection
+                            .movingDurationMs(run)
+                    } else {
+                        run.activeDurationMs
+                    }
+                val row =
+                    LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dp(4), dp(20), dp(4), dp(20))
+                        minimumHeight = dp(80)
+                        isClickable = true
+                        isFocusable = true
+                        val attrs = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))
+                        background = attrs.getDrawable(0)
+                        attrs.recycle()
+                        setOnClickListener { openRun(run) }
+                        contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(time))
+                    }
                 val details = runCatching { store.details(run.id) }.getOrNull()
                 details?.title?.takeIf { it.isNotBlank() }?.let { title ->
                     row.addView(text(title, 20, bold = true).apply { maxLines = 2 }, margin(bottom = 6))
@@ -569,101 +1000,194 @@ class MainActivity : AppCompatActivity() {
                 row.addView(text(getString(R.string.main_activity_date, activityName(run.activityType), date(run.startedAtMs)), 14, muted = true))
                 row.addView(text(getString(R.string.main_distance_km, number(distance / 1000, 2)), 26, bold = true), margin(top = 6))
                 row.addView(text(getString(R.string.main_history_stats, duration(time), pace(RunMetrics.paceSecondsPerKm(distance, time))), 14, muted = true), margin(top = 4))
-                content.addView(row); content.addView(divider())
+                content.addView(row)
+                content.addView(divider())
             }
         }
     }
-    private fun openRun(run: RunSession) { currentRun = run; restoredReplayPosition = 0L; restoredReplaySpeed = 0; screen = "detail"; render() }
-    private fun renderDetail(run: RunSession) {
-        replayView = RunReplayView(this, RunReplay(run),
-            onBack = { screen = "history"; tabs.getTabAt(1)?.select(); render() },
-            onExport = { showActivityTransfer(run) }, onMore = ::showDetailOptions,
-            onEdit = { showActivityEditor(run) }, onReview = { showRunReview(run) },
-        ).also { view ->
-            view.restore(restoredReplayPosition, restoredReplaySpeed)
-            body.addView(view, LinearLayout.LayoutParams(-1, -1))
-            if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
-        }
+
+    private fun openRun(run: RunSession) {
+        currentRun = run
+        restoredReplayPosition = 0L
+        restoredReplaySpeed = 0
+        screen = "detail"
+        render()
     }
+
+    private fun renderDetail(run: RunSession) {
+        replayView =
+            RunReplayView(
+                this,
+                RunReplay(run),
+                onBack = {
+                    screen = "history"
+                    tabs.getTabAt(1)?.select()
+                    render()
+                },
+                onExport = { showActivityTransfer(run) },
+                onMore = ::showDetailOptions,
+                onEdit = { showActivityEditor(run) },
+                onReview = { showRunReview(run) },
+            ).also { view ->
+                view.restore(restoredReplayPosition, restoredReplaySpeed)
+                body.addView(view, LinearLayout.LayoutParams(-1, -1))
+                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
+            }
+    }
+
     private fun configureMenu() {
         toolbar.menu.clear()
         toolbar.menu.add(0, 15, 0, R.string.v8_settings).apply {
-            setIcon(R.drawable.ic_settings); icon?.setTint(getColor(R.color.on_surface))
+            setIcon(R.drawable.ic_settings)
+            icon?.setTint(getColor(R.color.on_surface))
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.setOnMenuItemClickListener { showSettings(); true }
+        toolbar.setOnMenuItemClickListener {
+            showSettings()
+            true
+        }
     }
+
     private fun showSettings() {
         appSettings?.close()
         appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }, ::showTerrainSettings, ::showMusic).also { it.show() }
     }
-    private fun showMusic(callback: String? = null, appReply: com.runline.app.music.SpotifyPkce.AppReply? = null) {
+
+    private fun showMusic(
+        callback: String? = null,
+        appReply: com.runline.app.music.SpotifyPkce.AppReply? = null,
+    ) {
         musicSheet?.close()
-        musicSheet = com.runline.app.ui.MusicSheet(this, callback, appReply) { spotifySignIn.launch(it) }.also { it.show() }
+        musicSheet =
+            com.runline.app.ui
+                .MusicSheet(this, callback, appReply) { spotifySignIn.launch(it) }
+                .also { it.show() }
     }
+
     private fun openSpotifyCallback(): Boolean {
-        val link = intent?.dataString?.takeIf { intent.action == Intent.ACTION_VIEW && com.runline.app.music.SpotifyPkce.isCallback(it) &&
-            intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0 } ?: return false
+        val link =
+            intent?.dataString?.takeIf {
+                intent.action == Intent.ACTION_VIEW &&
+                    com.runline.app.music.SpotifyPkce
+                        .isCallback(it) &&
+                    intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0
+            } ?: return false
         intent.data = null
         musicSheet?.takeIf { it.isShowing }?.onCallback(link) ?: showMusic(link)
         return true
     }
+
     private fun showDetailOptions(anchor: View) {
-        PopupMenu(this, anchor).apply {
-            menu.add(0, 13, 0, R.string.v7_edit_activity)
-            if (AiSettings.isReady(this@MainActivity) || currentRun?.let { com.runline.app.ai.AiReviewStore(this@MainActivity).get(it.id) } != null) menu.add(0, 14, 1, R.string.v7_run_review)
-            menu.add(0, 16, 2, R.string.diag_v12_coach)
-            menu.add(0, 4, 2, R.string.main_delete_activity)
-            setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    13 -> currentRun?.let { showActivityEditor(it) }
-                    14 -> currentRun?.let { showRunReview(it) }
-                    16 -> currentRun?.let { showDiagnostics(it.id) }
-                    4 -> currentRun?.let { run -> MaterialAlertDialogBuilder(this@MainActivity)
-                        .setTitle(R.string.main_delete_title).setMessage(R.string.main_delete_body)
-                        .setNegativeButton(R.string.main_keep, null).setPositiveButton(R.string.main_delete) { _, _ ->
-                            try { store.delete(run.id); AiActivityCompletion.onDeleted(this@MainActivity, run.id); screen = "history"; tabs.getTabAt(1)?.select(); render() }
-                            catch (_: Exception) { notice(getString(R.string.main_delete_failed)) }
-                        }.show() }
-                }; true
-            }
-        }.show()
+        PopupMenu(this, anchor)
+            .apply {
+                menu.add(0, 13, 0, R.string.v7_edit_activity)
+                if (AiSettings.isReady(this@MainActivity) || currentRun?.let {
+                        com.runline.app.ai
+                            .AiReviewStore(this@MainActivity)
+                            .get(it.id)
+                    } != null
+                ) {
+                    menu.add(0, 14, 1, R.string.v7_run_review)
+                }
+                menu.add(0, 16, 2, R.string.diag_v12_coach)
+                menu.add(0, 4, 2, R.string.main_delete_activity)
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        13 -> {
+                            currentRun?.let { showActivityEditor(it) }
+                        }
+
+                        14 -> {
+                            currentRun?.let { showRunReview(it) }
+                        }
+
+                        16 -> {
+                            currentRun?.let { showDiagnostics(it.id) }
+                        }
+
+                        4 -> {
+                            currentRun?.let { run ->
+                                MaterialAlertDialogBuilder(this@MainActivity)
+                                    .setTitle(R.string.main_delete_title)
+                                    .setMessage(R.string.main_delete_body)
+                                    .setNegativeButton(R.string.main_keep, null)
+                                    .setPositiveButton(R.string.main_delete) { _, _ ->
+                                        try {
+                                            store.delete(run.id)
+                                            AiActivityCompletion.onDeleted(this@MainActivity, run.id)
+                                            screen = "history"
+                                            tabs.getTabAt(1)?.select()
+                                            render()
+                                        } catch (_: Exception) {
+                                            notice(getString(R.string.main_delete_failed))
+                                        }
+                                    }.show()
+                            }
+                        }
+                    }
+                    true
+                }
+            }.show()
     }
+
     private fun showRunOptions(anchor: View) {
-        PopupMenu(this, anchor).apply {
-            menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
-            setForceShowIcon(true)
-            menu.add(0, 1, 1, R.string.main_protection).setIcon(R.drawable.ic_shield_check)
-            if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 3, R.string.main_discard_activity)
-            setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    10 -> showCoach()
-                    1 -> showProtection()
-                    3 -> discardRun()
-                }; true
-            }
-        }.show()
+        PopupMenu(this, anchor)
+            .apply {
+                menu.add(0, 10, 0, R.string.coach_ui_title).setIcon(R.drawable.ic_speaker)
+                setForceShowIcon(true)
+                menu.add(0, 1, 1, R.string.main_protection).setIcon(R.drawable.ic_shield_check)
+                if (TrackingService.state(this@MainActivity).status != TrackingStatus.RECORDING) menu.add(0, 3, 3, R.string.main_discard_activity)
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        10 -> showCoach()
+                        1 -> showProtection()
+                        3 -> discardRun()
+                    }
+                    true
+                }
+            }.show()
     }
+
     private fun showLanguage() {
         val tags = arrayOf("", "en", "es")
         val current = AppLanguage.selectedTag(this).substringBefore(',')
-        MaterialAlertDialogBuilder(this).setTitle(R.string.main_language)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.main_language)
             .setSingleChoiceItems(arrayOf(getString(R.string.main_phone_language), "English", "Español"), tags.indexOf(current).coerceAtLeast(0)) { dialog, which ->
-                dialog.dismiss(); AppLanguage.select(this, tags[which])
-            }.setNegativeButton(R.string.main_cancel, null).show()
+                dialog.dismiss()
+                AppLanguage.select(this, tags[which])
+            }.setNegativeButton(R.string.main_cancel, null)
+            .show()
     }
-    private fun showAbout() { about?.close(); about = com.runline.app.ui.AboutSheet(this).also { it.show() } }
+
+    private fun showAbout() {
+        about?.close()
+        about =
+            com.runline.app.ui
+                .AboutSheet(this)
+                .also { it.show() }
+    }
+
     private fun showProtection() {
         val unrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
-        val notifications = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
-        MaterialAlertDialogBuilder(this).setTitle(R.string.main_protection)
-            .setMessage(getString(R.string.main_protection_body,
-                getString(if (unrestricted) R.string.main_unrestricted else R.string.main_optimized),
-                getString(if (notifications) R.string.main_on else R.string.main_off)))
-            .setPositiveButton(R.string.main_app_settings) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+        val notifications =
+            androidx.core.app.NotificationManagerCompat
+                .from(this)
+                .areNotificationsEnabled()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.main_protection)
+            .setMessage(
+                getString(
+                    R.string.main_protection_body,
+                    getString(if (unrestricted) R.string.main_unrestricted else R.string.main_optimized),
+                    getString(if (notifications) R.string.main_on else R.string.main_off),
+                ),
+            ).setPositiveButton(R.string.main_app_settings) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
             .setNeutralButton(R.string.main_notifications) { _, _ -> startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) }
-            .setNegativeButton(R.string.main_done, null).show()
+            .setNegativeButton(R.string.main_done, null)
+            .show()
     }
+
     private fun requestRecording(action: String) {
         pendingAction = action
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -672,166 +1196,374 @@ class MainActivity : AppCompatActivity() {
         }
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED && !getPreferences(0).getBoolean("notificationAsked", false)) {
             getPreferences(0).edit().putBoolean("notificationAsked", true).apply()
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101); return
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+            return
         }
         val manager = getSystemService(LocationManager::class.java)
         if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_location_title)).setMessage(getString(R.string.main_location_body))
-                .setPositiveButton(getString(R.string.main_location_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }.setNegativeButton(getString(R.string.main_cancel), null).show(); return
+            MaterialAlertDialogBuilder(this)
+                .setTitle(getString(R.string.main_location_title))
+                .setMessage(getString(R.string.main_location_body))
+                .setPositiveButton(getString(R.string.main_location_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
+                .setNegativeButton(getString(R.string.main_cancel), null)
+                .show()
+            return
         }
         command(action)
     }
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100) {
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) requestRecording(pendingAction)
-            else MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_precise_title)).setMessage(getString(R.string.main_precise_body))
-                .setPositiveButton(getString(R.string.main_app_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }.setNegativeButton(getString(R.string.main_close), null).show()
-        } else if (requestCode == 101) requestRecording(pendingAction)
-        else if (requestCode == 102) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                requestRecording(pendingAction)
+            } else {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.main_precise_title))
+                    .setMessage(getString(R.string.main_precise_body))
+                    .setPositiveButton(getString(R.string.main_app_settings)) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+                    .setNegativeButton(getString(R.string.main_close), null)
+                    .show()
+            }
+        } else if (requestCode == 101) {
+            requestRecording(pendingAction)
+        } else if (requestCode == 102) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) terrainSettings?.locate()
-            else {
+                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            ) {
+                terrainSettings?.locate()
+            } else {
                 terrainSettings?.permissionDenied()
-                MaterialAlertDialogBuilder(this).setMessage(R.string.terrain_location_permission)
+                MaterialAlertDialogBuilder(this)
+                    .setMessage(R.string.terrain_location_permission)
                     .setPositiveButton(R.string.main_app_settings) { _, _ -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
-                    .setNegativeButton(R.string.main_cancel, null).show()
+                    .setNegativeButton(R.string.main_cancel, null)
+                    .show()
             }
         }
     }
+
     private fun command(action: String) {
         if (android.os.SystemClock.elapsedRealtime() < actionPendingUntil) return
         actionPendingUntil = android.os.SystemClock.elapsedRealtime() + 700
         try {
             val selected = preparation.intent
-            val target = if (selected?.source != "smart") selected else selected.takeIf {
-                selectedActivity == ActivityType.RUN && AiSettings.load(this).dailySuggestion && com.runline.app.ai.SmartRunAi.snapshot(this)?.id == it.suggestionId
-            }
+            val target =
+                if (selected?.source != "smart") {
+                    selected
+                } else {
+                    selected.takeIf {
+                        selectedActivity == ActivityType.RUN && AiSettings.load(this).dailySuggestion && com.runline.app.ai.SmartRunAi
+                            .snapshot(this)
+                            ?.id == it.suggestionId
+                    }
+                }
             if (action == TrackingService.ACTION_START) terrainWarmup.stop()
             val follow = followedRoute()?.takeIf { action == TrackingService.ACTION_START }
-            val intent = (target ?: com.runline.app.core.SessionIntent.free()).let { if (follow != null) it.copy(routeId = follow) else it }
-            TrackingService.command(this, action, selectedActivity, intent); handler.postDelayed({ refreshRecording() }, 150) }
-        catch (e: Exception) { notice(getString(R.string.main_start_failed)) }
-    }
-    private fun discardRun() {
-        MaterialAlertDialogBuilder(this).setTitle(getString(R.string.main_discard_title)).setMessage(getString(R.string.main_discard_body))
-            .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }.setNegativeButton(getString(R.string.main_keep), null).show()
-    }
-    private fun showActivityTransfer(run: RunSession) {
-        IconChoices.show(this, R.string.main_activity_file, listOf(
-            IconChoices.Choice(getString(R.string.v17_download_gpx), R.drawable.ic_download),
-            IconChoices.Choice(getString(R.string.v17_share_gpx), R.drawable.ic_share),
-            IconChoices.Choice(getString(R.string.v17_save_gpx), R.drawable.ic_folder),
-            IconChoices.Choice(getString(R.string.v17_share_data), R.drawable.ic_archive),
-            IconChoices.Choice(getString(R.string.v17_download_data), R.drawable.ic_download),
-        )) { which ->
-            when (which) { 0 -> exporter.start(run); 1 -> exporter.share(run); 2 -> exporter.saveAs(run)
-                3 -> exporter.shareBundle(run); 4 -> exporter.startBundle(run) }
+            val intent =
+                (
+                    target ?: com.runline.app.core.SessionIntent
+                        .free()
+                ).let { if (follow != null) it.copy(routeId = follow) else it }
+            TrackingService.command(this, action, selectedActivity, intent)
+            handler.postDelayed({ refreshRecording() }, 150)
+        } catch (e: Exception) {
+            notice(getString(R.string.main_start_failed))
         }
     }
-    private fun showHistoryTransfer(runs: List<RunSession>, share: Boolean) {
-        IconChoices.show(this, if (share) R.string.main_share_all else R.string.main_export_all, listOf(
-            IconChoices.Choice(getString(R.string.main_summary_csv), R.drawable.ic_history),
-            IconChoices.Choice(getString(R.string.main_archive_zip), R.drawable.ic_archive),
-        )) { format ->
-            if (share) { if (format == 0) exporter.shareSummary(runs) else exporter.shareArchive(runs) }
-            else IconChoices.show(this, R.string.main_export_all, listOf(
-                IconChoices.Choice(getString(R.string.main_downloads), R.drawable.ic_download),
-                IconChoices.Choice(getString(R.string.main_save_to), R.drawable.ic_folder),
-            )) { destination ->
-                if (format == 0) { if (destination == 0) exporter.startSummary(runs) else exporter.saveSummaryAs(runs) }
-                else { if (destination == 0) exporter.startArchive(runs) else exporter.saveArchiveAs(runs) }
+
+    private fun discardRun() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.main_discard_title))
+            .setMessage(getString(R.string.main_discard_body))
+            .setPositiveButton(getString(R.string.main_discard)) { _, _ -> command(TrackingService.ACTION_DISCARD) }
+            .setNegativeButton(getString(R.string.main_keep), null)
+            .show()
+    }
+
+    private fun showActivityTransfer(run: RunSession) {
+        IconChoices.show(
+            this,
+            R.string.main_activity_file,
+            listOf(
+                IconChoices.Choice(getString(R.string.v17_download_gpx), R.drawable.ic_download),
+                IconChoices.Choice(getString(R.string.v17_share_gpx), R.drawable.ic_share),
+                IconChoices.Choice(getString(R.string.v17_save_gpx), R.drawable.ic_folder),
+                IconChoices.Choice(getString(R.string.v17_share_data), R.drawable.ic_archive),
+                IconChoices.Choice(getString(R.string.v17_download_data), R.drawable.ic_download),
+            ),
+        ) { which ->
+            when (which) {
+                0 -> exporter.start(run)
+                1 -> exporter.share(run)
+                2 -> exporter.saveAs(run)
+                3 -> exporter.shareBundle(run)
+                4 -> exporter.startBundle(run)
             }
         }
     }
-    private fun showRunnerProfile() { runnerProfile?.close(); runnerProfile = RunnerProfileSheet(this).also { it.show() } }
+
+    private fun showHistoryTransfer(
+        runs: List<RunSession>,
+        share: Boolean,
+    ) {
+        IconChoices.show(
+            this,
+            if (share) R.string.main_share_all else R.string.main_export_all,
+            listOf(
+                IconChoices.Choice(getString(R.string.main_summary_csv), R.drawable.ic_history),
+                IconChoices.Choice(getString(R.string.main_archive_zip), R.drawable.ic_archive),
+            ),
+        ) { format ->
+            if (share) {
+                if (format == 0) exporter.shareSummary(runs) else exporter.shareArchive(runs)
+            } else {
+                IconChoices.show(
+                    this,
+                    R.string.main_export_all,
+                    listOf(
+                        IconChoices.Choice(getString(R.string.main_downloads), R.drawable.ic_download),
+                        IconChoices.Choice(getString(R.string.main_save_to), R.drawable.ic_folder),
+                    ),
+                ) { destination ->
+                    if (format == 0) {
+                        if (destination == 0) exporter.startSummary(runs) else exporter.saveSummaryAs(runs)
+                    } else {
+                        if (destination == 0) exporter.startArchive(runs) else exporter.saveArchiveAs(runs)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showRunnerProfile() {
+        runnerProfile?.close()
+        runnerProfile = RunnerProfileSheet(this).also { it.show() }
+    }
+
     private fun showTerrainSettings() {
         terrainSettings?.close()
-        terrainSettings = com.runline.app.ui.TerrainSettingsSheet(this) {
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 102)
-            else terrainSettings?.locate()
-        }.also { it.show() }
+        terrainSettings =
+            com.runline.app.ui
+                .TerrainSettingsSheet(this) {
+                    if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 102)
+                    } else {
+                        terrainSettings?.locate()
+                    }
+                }.also { it.show() }
     }
-    private fun onAiChanged() { AiActivityCompletion.onAppOpen(this); handler.post { if (screen == "record" && TrackingService.state(this).run == null) { render(); prepareIdle() } } }
-    private fun showAiSettings() { aiSettings?.close(); aiSettings = AiSettingsSheet(this) { onAiChanged() }.also { it.show() } }
+
+    private fun onAiChanged() {
+        AiActivityCompletion.onAppOpen(this)
+        handler.post {
+            if (screen == "record" && TrackingService.state(this).run == null) {
+                render()
+                prepareIdle()
+            }
+        }
+    }
+
+    private fun showAiSettings() {
+        aiSettings?.close()
+        aiSettings = AiSettingsSheet(this) { onAiChanged() }.also { it.show() }
+    }
+
     private fun showDiagnostics(id: String? = null) {
         diagnostics?.close()
-        diagnostics = com.runline.app.ui.DiagnosticsSheet(this, id) { runId, at ->
-            runCatching { store.get(runId) }.getOrNull()?.let { run ->
-                var offset = 0L
-                var position = 0L
-                com.runline.app.core.RunReplay(run).segments.forEach { points ->
-                    if (at >= points.first().timestampMs) position = offset + (at - points.first().timestampMs).coerceIn(0, points.last().timestampMs - points.first().timestampMs)
-                    offset += points.last().timestampMs - points.first().timestampMs
-                }
-                currentRun = run; restoredReplayPosition = position; restoredReplaySpeed = 0; screen = "detail"; render()
-            }
-        }.also { it.show() }
+        diagnostics =
+            com.runline.app.ui
+                .DiagnosticsSheet(this, id) { runId, at ->
+                    runCatching { store.get(runId) }.getOrNull()?.let { run ->
+                        var offset = 0L
+                        var position = 0L
+                        com.runline.app.core.RunReplay(run).segments.forEach { points ->
+                            if (at >= points.first().timestampMs) position = offset + (at - points.first().timestampMs).coerceIn(0, points.last().timestampMs - points.first().timestampMs)
+                            offset += points.last().timestampMs - points.first().timestampMs
+                        }
+                        currentRun = run
+                        restoredReplayPosition = position
+                        restoredReplaySpeed = 0
+                        screen = "detail"
+                        render()
+                    }
+                }.also { it.show() }
     }
+
     private fun openReviewIntent() {
         val id = intent.getStringExtra(com.runline.app.ai.AutomaticReviews.EXTRA_RUN) ?: return
         intent.removeExtra(com.runline.app.ai.AutomaticReviews.EXTRA_RUN)
         runCatching { store.get(id) }.getOrNull()?.let { run ->
-            openRun(run); showRunReview(run)
+            openRun(run)
+            showRunReview(run)
         }
     }
+
     private fun showRunReview(run: RunSession) {
-        if (!AiSettings.isReady(this) && com.runline.app.ai.AiReviewStore(this).get(run.id) == null) return
-        runReview?.close(); runReview = RunReviewSheet(this, run).also { it.show() }
+        if (!AiSettings.isReady(this) && com.runline.app.ai
+                .AiReviewStore(this)
+                .get(run.id) == null
+        ) {
+            return
+        }
+        runReview?.close()
+        runReview = RunReviewSheet(this, run).also { it.show() }
     }
-    private fun showActivityEditor(run: RunSession, state: Bundle? = null) {
+
+    private fun showActivityEditor(
+        run: RunSession,
+        state: Bundle? = null,
+    ) {
         detailsEditor?.close()
-        detailsEditor = ActivityDetailsEditor(this, run, state) {
-            currentRun = store.get(run.id) ?: run
-            restoredReplayPosition = replayView?.positionMs ?: restoredReplayPosition
-            restoredReplaySpeed = replayView?.playbackSpeed ?: restoredReplaySpeed
-            render()
-        }.also { it.show() }
+        detailsEditor =
+            ActivityDetailsEditor(this, run, state) {
+                currentRun = store.get(run.id) ?: run
+                restoredReplayPosition = replayView?.positionMs ?: restoredReplayPosition
+                restoredReplaySpeed = replayView?.playbackSpeed ?: restoredReplaySpeed
+                render()
+            }.also { it.show() }
     }
-    private fun showCoach(state: Bundle? = null, initialConfig: CoachConfig? = null, editGoal: Boolean = true) {
+
+    private fun showCoach(
+        state: Bundle? = null,
+        initialConfig: CoachConfig? = null,
+        editGoal: Boolean = true,
+    ) {
         val active = TrackingService.state(this).run
         val canEditGoal = active == null && (state?.getBoolean("goalEditable", editGoal) ?: editGoal)
         val preferences = VoiceCoachSettings.load(this)
-        val visibleConfig = initialConfig ?: if (active != null) com.runline.app.data.SessionIntentStore(this).get(active.id)?.applyTo(preferences) ?: preferences
-            else if (!canEditGoal) (preparation.intent ?: com.runline.app.core.SessionIntent.free()).applyTo(preferences) else preparation.intent?.applyTo(preferences) ?: preferences
+        val visibleConfig =
+            initialConfig ?: if (active != null) {
+                com.runline.app.data
+                    .SessionIntentStore(this)
+                    .get(active.id)
+                    ?.applyTo(preferences) ?: preferences
+            } else if (!canEditGoal) {
+                (
+                    preparation.intent ?: com.runline.app.core.SessionIntent
+                        .free()
+                ).applyTo(preferences)
+            } else {
+                preparation.intent?.applyTo(preferences) ?: preferences
+            }
         coachSheet?.close()
-        coachSheet = VoiceCoachSheet(this, state, initialConfig = visibleConfig, allowSmartGoal = false, goalEditable = canEditGoal) {
-            TrackingService.refreshCoaching()
-            if (canEditGoal && TrackingService.state(this).run == null) preparation.intent = com.runline.app.core.SessionIntent(VoiceCoachSettings.load(this), "manual")
-            if (screen == "record" && activeRunView == null) render()
-        }.also { it.show() }
+        coachSheet =
+            VoiceCoachSheet(this, state, initialConfig = visibleConfig, allowSmartGoal = false, goalEditable = canEditGoal) {
+                TrackingService.refreshCoaching()
+                if (canEditGoal && TrackingService.state(this).run == null) {
+                    preparation.intent =
+                        com.runline.app.core
+                            .SessionIntent(VoiceCoachSettings.load(this), "manual")
+                }
+                if (screen == "record" && activeRunView == null) render()
+            }.also { it.show() }
     }
+
     @Deprecated("Platform document result is supported on the minimum SDK")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ) {
         super.onActivityResult(requestCode, resultCode, data)
         if (detailsEditor?.handleActivityResult(requestCode, resultCode, data) == true) return
         exporter.handleActivityResult(requestCode, resultCode, data)
     }
-    private fun notice(message: String) { Snackbar.make(root, message, Snackbar.LENGTH_LONG).show() }
-    private fun text(value: String, size: Int, bold: Boolean = false, muted: Boolean = false) = TextView(this).apply {
-        text = value; textSize = size.toFloat(); setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
+
+    private fun notice(message: String) {
+        Snackbar.make(root, message, Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun text(
+        value: String,
+        size: Int,
+        bold: Boolean = false,
+        muted: Boolean = false,
+    ) = TextView(this).apply {
+        text = value
+        textSize = size.toFloat()
+        setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
         if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        includeFontPadding = false; setLineSpacing(dp(3).toFloat(), 1f)
+        includeFontPadding = false
+        setLineSpacing(dp(3).toFloat(), 1f)
     }
-    private fun metric(label: String, value: String): Pair<LinearLayout, TextView> {
+
+    private fun metric(
+        label: String,
+        value: String,
+    ): Pair<LinearLayout, TextView> {
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        column.addView(text(label, 13, muted = true)); val amount = text(value, 24, bold = true).apply { fontFeatureSettings = "tnum" }
-        column.addView(amount, margin(top = 7)); return Pair(column, amount)
+        column.addView(text(label, 13, muted = true))
+        val amount = text(value, 24, bold = true).apply { fontFeatureSettings = "tnum" }
+        column.addView(amount, margin(top = 7))
+        return Pair(column, amount)
     }
-    private fun button(label: String, outlined: Boolean = false, iconId: Int = 0, action: () -> Unit) = MaterialButton(this, null,
-        if (outlined) com.google.android.material.R.attr.materialButtonOutlinedStyle else com.google.android.material.R.attr.materialButtonStyle).apply {
-        text = label; isAllCaps = false; minHeight = dp(64); minimumHeight = dp(64); cornerRadius = dp(16)
-        if (iconId != 0) { setIconResource(iconId); iconSize = dp(24); iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START; iconPadding = dp(12) }
-        setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { action() }
+
+    private fun button(
+        label: String,
+        outlined: Boolean = false,
+        iconId: Int = 0,
+        action: () -> Unit,
+    ) = MaterialButton(
+        this,
+        null,
+        if (outlined) com.google.android.material.R.attr.materialButtonOutlinedStyle else com.google.android.material.R.attr.materialButtonStyle,
+    ).apply {
+        text = label
+        isAllCaps = false
+        minHeight = dp(64)
+        minimumHeight = dp(64)
+        cornerRadius = dp(16)
+        if (iconId != 0) {
+            setIconResource(iconId)
+            iconSize = dp(24)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            iconPadding = dp(12)
+        }
+        setPadding(dp(16), dp(12), dp(16), dp(12))
+        setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(-1, -2)
     }
-    private fun divider() = View(this).apply { setBackgroundColor(getColor(R.color.surface_variant)); layoutParams = LinearLayout.LayoutParams(-1, dp(1)) }
-    private fun margin(top: Int = 0, bottom: Int = 0, left: Int = 0) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top); bottomMargin = dp(bottom); marginStart = dp(left) }
+
+    private fun divider() =
+        View(this).apply {
+            setBackgroundColor(getColor(R.color.surface_variant))
+            layoutParams = LinearLayout.LayoutParams(-1, dp(1))
+        }
+
+    private fun margin(
+        top: Int = 0,
+        bottom: Int = 0,
+        left: Int = 0,
+    ) = LinearLayout.LayoutParams(-1, -2).apply {
+        topMargin = dp(top)
+        bottomMargin = dp(bottom)
+        marginStart = dp(left)
+    }
+
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+
     private fun date(millis: Long) = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE, d MMM · HH:mm", resources.configuration.locales[0]))
-    private fun duration(millis: Long): String { val seconds = (millis / 1000).coerceAtLeast(0); return if (seconds >= 3600) String.format(resources.configuration.locales[0], "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) else String.format(resources.configuration.locales[0], "%02d:%02d", seconds / 60, seconds % 60) }
-    private fun number(value: Double?, decimals: Int): String = if (value == null || !value.isFinite()) "—" else String.format(resources.configuration.locales[0], "%.${decimals}f", value)
-    private fun pace(seconds: Double?): String { if (seconds == null || !seconds.isFinite() || seconds < 0) return "—"; val rounded = seconds.roundToInt(); return String.format(resources.configuration.locales[0], "%d:%02d", rounded / 60, rounded % 60) }
+
+    private fun duration(millis: Long): String {
+        val seconds = (millis / 1000).coerceAtLeast(0)
+        return if (seconds >= 3600) String.format(resources.configuration.locales[0], "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) else String.format(resources.configuration.locales[0], "%02d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private fun number(
+        value: Double?,
+        decimals: Int,
+    ): String = if (value == null || !value.isFinite()) "—" else String.format(resources.configuration.locales[0], "%.${decimals}f", value)
+
+    private fun pace(seconds: Double?): String {
+        if (seconds == null || !seconds.isFinite() || seconds < 0) return "—"
+        val rounded = seconds.roundToInt()
+        return String.format(resources.configuration.locales[0], "%d:%02d", rounded / 60, rounded % 60)
+    }
 }

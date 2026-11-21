@@ -22,7 +22,10 @@ data class DraftRecord(
     val revision: Long = 0,
     val recoveredWithDamage: Boolean = false,
 ) {
-    fun mayRestart(currentBootCount: Int, nowElapsedMs: Long): Boolean =
+    fun mayRestart(
+        currentBootCount: Int,
+        nowElapsedMs: Long,
+    ): Boolean =
         wantsRecording && bootCount >= 0 && bootCount == currentBootCount &&
             checkpointElapsedMs > 0 && nowElapsedMs >= checkpointElapsedMs
 }
@@ -38,12 +41,25 @@ class DiskRunStore(
     private val journal = File(directory, "draft-points.jsonl")
     private val resolution = File(directory, "draft-resolved.json")
     private var revision = 0L
-    init { if (!directory.exists() && !directory.mkdirs()) throw IOException("Could not create run storage.") }
 
-    fun list(): List<RunSession> = directory.listFiles().orEmpty()
-        .filter { it.name.startsWith("run-") && (it.name.endsWith(".json") || it.name.endsWith(".json.backup") || it.name.endsWith(".json.bak")) }
-        .map { it.name.removePrefix("run-").removeSuffix(".backup").removeSuffix(".bak").removeSuffix(".json") }.distinct()
-        .mapNotNull { id -> runCatching { get(id) }.getOrNull() }.sortedByDescending { it.startedAtMs }
+    init {
+        if (!directory.exists() && !directory.mkdirs()) throw IOException("Could not create run storage.")
+    }
+
+    fun list(): List<RunSession> =
+        directory
+            .listFiles()
+            .orEmpty()
+            .filter { it.name.startsWith("run-") && (it.name.endsWith(".json") || it.name.endsWith(".json.backup") || it.name.endsWith(".json.bak")) }
+            .map {
+                it.name
+                    .removePrefix("run-")
+                    .removeSuffix(".backup")
+                    .removeSuffix(".bak")
+                    .removeSuffix(".json")
+            }.distinct()
+            .mapNotNull { id -> runCatching { get(id) }.getOrNull() }
+            .sortedByDescending { it.startedAtMs }
 
     fun get(id: String): RunSession? {
         val main = runFile(id)
@@ -62,25 +78,36 @@ class DiskRunStore(
     }
 
     fun complete(run: RunSession) {
-        try { save(run) } catch (error: Exception) {
-            val exactCopyExists = listOf(runFile(run.id), File(runFile(run.id).path + ".backup")).any {
-                runCatching { decodeRun(unseal(it.readText())) == run }.getOrDefault(false)
-            }
+        try {
+            save(run)
+        } catch (error: Exception) {
+            val exactCopyExists =
+                listOf(runFile(run.id), File(runFile(run.id).path + ".backup")).any {
+                    runCatching { decodeRun(unseal(it.readText())) == run }.getOrDefault(false)
+                }
             if (!exactCopyExists) throw error
             runCatching { resolveDraft(run.id, "completed") }
             return
         }
-        runCatching { resolveDraft(run.id, "completed"); clearDraft() }
+        runCatching {
+            resolveDraft(run.id, "completed")
+            clearDraft()
+        }
     }
 
     fun delete(id: String) {
-        val related = listOf(header, mirror, seed, File(header.path + ".bak")).any {
-            runCatching { decodeRecord(unseal(it.readText())).run.id == id }.getOrDefault(false)
-        } || runCatching {
-            val first = journal.bufferedReader().use { it.readLine() }
-            unseal(first).optJSONObject("record")?.optString("id") == id
-        }.getOrDefault(false)
-        if (related) { resolveDraft(id, "deleted"); clearDraft() }
+        val related =
+            listOf(header, mirror, seed, File(header.path + ".bak")).any {
+                runCatching { decodeRecord(unseal(it.readText())).run.id == id }.getOrDefault(false)
+            } ||
+                runCatching {
+                    val first = journal.bufferedReader().use { it.readLine() }
+                    unseal(first).optJSONObject("record")?.optString("id") == id
+                }.getOrDefault(false)
+        if (related) {
+            resolveDraft(id, "deleted")
+            clearDraft()
+        }
         val main = runFile(id)
         listOf(main, File(main.path + ".backup"), File(main.path + ".bak"), File(main.path + ".new"), File(main.path + ".backup.new")).forEach(::checkedDelete)
         syncDirectory(directory)
@@ -96,10 +123,13 @@ class DiskRunStore(
         val candidates = listOf(header, mirror, seed, File(header.path + ".bak"))
         val headers = candidates.mapNotNull { file -> runCatching { decodeRecord(unseal(file.readText())) }.getOrNull() }
         val lines = if (journal.exists()) journal.readLines() else emptyList()
-        val journalSeed = lines.firstOrNull()?.let { line -> runCatching {
-            val entry = unseal(line)
-            if (entry.optString("kind") == "seed") decodeRecord(entry.getJSONObject("record")) else null
-        }.getOrNull() }
+        val journalSeed =
+            lines.firstOrNull()?.let { line ->
+                runCatching {
+                    val entry = unseal(line)
+                    if (entry.optString("kind") == "seed") decodeRecord(entry.getJSONObject("record")) else null
+                }.getOrNull()
+            }
         val metadata = headers + listOfNotNull(journalSeed)
         if (metadata.isEmpty()) {
             if (activeFiles().any { it.exists() && it.length() > 0 }) throw IOException("The unfinished run has no readable metadata.")
@@ -112,7 +142,12 @@ class DiskRunStore(
             return null
         }
         var latest = chosen
-        val hasTornTail = journal.exists() && journal.length() > 0 && RandomAccessFile(journal, "r").use { file -> file.seek(file.length() - 1); file.read() != 10 }
+        val hasTornTail =
+            journal.exists() && journal.length() > 0 &&
+                RandomAccessFile(journal, "r").use { file ->
+                    file.seek(file.length() - 1)
+                    file.read() != 10
+                }
         var damaged = hasTornTail || (header.exists() && runCatching { unseal(header.readText()) }.isFailure)
         var segmentOffset = 0
         var lastSegment = -1
@@ -121,20 +156,26 @@ class DiskRunStore(
             try {
                 val entry = unseal(line)
                 when (entry.optString("kind")) {
-                    "seed" -> Unit
+                    "seed" -> {
+                        Unit
+                    }
+
                     "point" -> {
                         require(entry.getString("runId") == id)
                         val p = decodePoint(entry.getJSONObject("point"))
                         val corrected = p.copy(segment = maxOf(p.segment + segmentOffset, lastSegment))
-                        points.add(corrected); lastSegment = corrected.segment
+                        points.add(corrected)
+                        lastSegment = corrected.segment
                         val checkpoint = decodeRecord(entry.getJSONObject("record"))
                         require(checkpoint.run.id == id)
                         if (checkpoint.revision > latest.revision) latest = checkpoint
                     }
+
                     else -> {
                         val p = decodePoint(entry)
                         val corrected = p.copy(segment = maxOf(p.segment + segmentOffset, lastSegment))
-                        points.add(corrected); lastSegment = corrected.segment
+                        points.add(corrected)
+                        lastSegment = corrected.segment
                     }
                 }
             } catch (_: Exception) {
@@ -170,11 +211,18 @@ class DiskRunStore(
 
     fun checkpoint(run: RunSession) = checkpoint(DraftRecord(run))
 
-    fun appendPoint(point: RunPoint, record: DraftRecord) {
+    fun appendPoint(
+        point: RunPoint,
+        record: DraftRecord,
+    ) {
         repairTailIfNeeded()
         val updated = record.copy(run = record.run.copy(points = emptyList()), revision = ++revision)
-        val entry = JSONObject().put("kind", "point").put("runId", record.run.id)
-            .put("point", encodePoint(point)).put("record", encodeRecord(updated))
+        val entry =
+            JSONObject()
+                .put("kind", "point")
+                .put("runId", record.run.id)
+                .put("point", encodePoint(point))
+                .put("record", encodeRecord(updated))
         FileOutputStream(journal, true).use { output ->
             output.write((seal(entry) + "\n").toByteArray(Charsets.UTF_8))
             output.fd.sync()
@@ -189,23 +237,30 @@ class DiskRunStore(
 
     fun discardDraft() {
         val id = loadDraftRecord()?.run?.id ?: return
-        try { resolveDraft(id, "discarded") } catch (error: Exception) {
-            val committed = runCatching {
-                val marker = unseal(resolution.readText())
-                marker.getString("id") == id && marker.getString("state") == "discarded"
-            }.getOrDefault(false)
+        try {
+            resolveDraft(id, "discarded")
+        } catch (error: Exception) {
+            val committed =
+                runCatching {
+                    val marker = unseal(resolution.readText())
+                    marker.getString("id") == id && marker.getString("state") == "discarded"
+                }.getOrDefault(false)
             if (!committed) throw error
         }
         runCatching { clearDraft() }
     }
 
-    private fun resolveDraft(id: String, state: String) = atomicWrite(resolution, seal(JSONObject().put("id", id).put("state", state)))
+    private fun resolveDraft(
+        id: String,
+        state: String,
+    ) = atomicWrite(resolution, seal(JSONObject().put("id", id).put("state", state)))
 
     fun clearDraft() {
         checkedDelete(journal)
         listOf(header, mirror, File(header.path + ".bak"), File(header.path + ".new"), File(mirror.path + ".new"), File(seed.path + ".new"), seed).forEach(::checkedDelete)
         syncDirectory(directory)
-        checkedDelete(File(resolution.path + ".new")); checkedDelete(resolution)
+        checkedDelete(File(resolution.path + ".new"))
+        checkedDelete(resolution)
         syncDirectory(directory)
     }
 
@@ -222,20 +277,40 @@ class DiskRunStore(
             if (file.read() == 10) return
             archiveFiles(listOf(journal))
             val tail = journal.readText().substringAfterLast('\n')
-            val complete = runCatching {
-                val value = unseal(tail)
-                when (value.optString("kind")) {
-                    "seed" -> decodeRecord(value.getJSONObject("record"))
-                    "point" -> { decodePoint(value.getJSONObject("point")); decodeRecord(value.getJSONObject("record")) }
-                    else -> decodePoint(value)
-                }
-            }.isSuccess
+            val complete =
+                runCatching {
+                    val value = unseal(tail)
+                    when (value.optString("kind")) {
+                        "seed" -> {
+                            decodeRecord(value.getJSONObject("record"))
+                        }
+
+                        "point" -> {
+                            decodePoint(value.getJSONObject("point"))
+                            decodeRecord(value.getJSONObject("record"))
+                        }
+
+                        else -> {
+                            decodePoint(value)
+                        }
+                    }
+                }.isSuccess
             if (complete) {
-                file.seek(file.length()); file.write(10); file.fd.sync(); return
+                file.seek(file.length())
+                file.write(10)
+                file.fd.sync()
+                return
             }
             var end = file.length()
-            while (end > 0) { file.seek(--end); if (file.read() == 10) { end++; break } }
-            file.setLength(end); file.fd.sync()
+            while (end > 0) {
+                file.seek(--end)
+                if (file.read() == 10) {
+                    end++
+                    break
+                }
+            }
+            file.setLength(end)
+            file.fd.sync()
         }
     }
 
@@ -251,15 +326,34 @@ class DiskRunStore(
                 output.fd.sync()
             }
         }
-        syncDirectory(archive); syncDirectory(archive.parentFile!!); syncDirectory(directory)
+        syncDirectory(archive)
+        syncDirectory(archive.parentFile!!)
+        syncDirectory(directory)
     }
 
-    private fun activeFiles() = listOf(header, mirror, seed, journal, File(header.path + ".bak"),
-        File(header.path + ".new"), File(mirror.path + ".new"), File(seed.path + ".new"), resolution, File(resolution.path + ".new"))
+    private fun activeFiles() =
+        listOf(
+            header,
+            mirror,
+            seed,
+            journal,
+            File(header.path + ".bak"),
+            File(header.path + ".new"),
+            File(mirror.path + ".new"),
+            File(seed.path + ".new"),
+            resolution,
+            File(resolution.path + ".new"),
+        )
 
-    private fun atomicWrite(file: File, content: String) {
+    private fun atomicWrite(
+        file: File,
+        content: String,
+    ) {
         val temporary = File(file.path + ".new")
-        FileOutputStream(temporary).use { stream -> stream.write(content.toByteArray(Charsets.UTF_8)); stream.fd.sync() }
+        FileOutputStream(temporary).use { stream ->
+            stream.write(content.toByteArray(Charsets.UTF_8))
+            stream.fd.sync()
+        }
         fault("before_replace:${file.name}")
         Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         syncDirectory(directory)
@@ -290,27 +384,63 @@ class DiskRunStore(
         return JSONObject(payload)
     }
 
-    private fun encodeRecord(record: DraftRecord) = encodeRun(record.run).apply {
-        put("wantsRecording", record.wantsRecording); put("bootCount", record.bootCount)
-        put("checkpointElapsedMs", record.checkpointElapsedMs); put("revision", record.revision)
-    }
-    private fun decodeRecord(value: JSONObject) = DraftRecord(decodeRun(value), value.optBoolean("wantsRecording", false),
-        value.optInt("bootCount", -1), value.optLong("checkpointElapsedMs", 0), value.optLong("revision", 0))
-    private fun encodeRun(run: RunSession) = JSONObject().apply {
-        put("version", 2); put("id", run.id); put("startedAtMs", run.startedAtMs); put("endedAtMs", run.endedAtMs)
-        put("activeDurationMs", run.activeDurationMs); put("activityType", run.activityType.storageValue); put("points", JSONArray().apply { run.points.forEach { put(encodePoint(it)) } })
-    }
-    private fun decodeRun(value: JSONObject): RunSession = RunSession(value.getString("id"), value.getLong("startedAtMs"),
-        value.getLong("endedAtMs"), value.getLong("activeDurationMs"), value.getJSONArray("points").let { a -> (0 until a.length()).map { decodePoint(a.getJSONObject(it)) } },
-        ActivityType.fromStorage(value.optString("activityType", null)))
-        .also { require(it.id.matches(Regex("[A-Za-z0-9_-]+")) && it.activeDurationMs >= 0 && it.startedAtMs >= 0) }
-    private fun encodePoint(p: RunPoint) = JSONObject().apply {
-        put("latitude", p.latitude); put("longitude", p.longitude); put("timestampMs", p.timestampMs)
-        put("accuracyMeters", p.accuracyMeters.toDouble()); put("altitudeMeters", p.altitudeMeters ?: JSONObject.NULL); put("segment", p.segment)
-        put("verticalAccuracyMeters", p.verticalAccuracyMeters?.toDouble() ?: JSONObject.NULL)
-    }
-    private fun decodePoint(o: JSONObject): RunPoint = RunPoint(o.getDouble("latitude"), o.getDouble("longitude"),
-        o.getLong("timestampMs"), o.getDouble("accuracyMeters").toFloat(), if (o.isNull("altitudeMeters")) null else o.getDouble("altitudeMeters"), o.getInt("segment"),
-        o.optDouble("verticalAccuracyMeters", Double.NaN).takeIf { it.isFinite() && it >= 0 }?.toFloat())
-        .also { require(it.latitude.isFinite() && it.latitude in -90.0..90.0 && it.longitude.isFinite() && it.longitude in -180.0..180.0 && it.timestampMs >= 0 && it.accuracyMeters.isFinite() && it.accuracyMeters >= 0 && it.segment >= 0) }
+    private fun encodeRecord(record: DraftRecord) =
+        encodeRun(record.run).apply {
+            put("wantsRecording", record.wantsRecording)
+            put("bootCount", record.bootCount)
+            put("checkpointElapsedMs", record.checkpointElapsedMs)
+            put("revision", record.revision)
+        }
+
+    private fun decodeRecord(value: JSONObject) =
+        DraftRecord(
+            decodeRun(value),
+            value.optBoolean("wantsRecording", false),
+            value.optInt("bootCount", -1),
+            value.optLong("checkpointElapsedMs", 0),
+            value.optLong("revision", 0),
+        )
+
+    private fun encodeRun(run: RunSession) =
+        JSONObject().apply {
+            put("version", 2)
+            put("id", run.id)
+            put("startedAtMs", run.startedAtMs)
+            put("endedAtMs", run.endedAtMs)
+            put("activeDurationMs", run.activeDurationMs)
+            put("activityType", run.activityType.storageValue)
+            put("points", JSONArray().apply { run.points.forEach { put(encodePoint(it)) } })
+        }
+
+    private fun decodeRun(value: JSONObject): RunSession =
+        RunSession(
+            value.getString("id"),
+            value.getLong("startedAtMs"),
+            value.getLong("endedAtMs"),
+            value.getLong("activeDurationMs"),
+            value.getJSONArray("points").let { a -> (0 until a.length()).map { decodePoint(a.getJSONObject(it)) } },
+            ActivityType.fromStorage(value.optString("activityType", null)),
+        ).also { require(it.id.matches(Regex("[A-Za-z0-9_-]+")) && it.activeDurationMs >= 0 && it.startedAtMs >= 0) }
+
+    private fun encodePoint(p: RunPoint) =
+        JSONObject().apply {
+            put("latitude", p.latitude)
+            put("longitude", p.longitude)
+            put("timestampMs", p.timestampMs)
+            put("accuracyMeters", p.accuracyMeters.toDouble())
+            put("altitudeMeters", p.altitudeMeters ?: JSONObject.NULL)
+            put("segment", p.segment)
+            put("verticalAccuracyMeters", p.verticalAccuracyMeters?.toDouble() ?: JSONObject.NULL)
+        }
+
+    private fun decodePoint(o: JSONObject): RunPoint =
+        RunPoint(
+            o.getDouble("latitude"),
+            o.getDouble("longitude"),
+            o.getLong("timestampMs"),
+            o.getDouble("accuracyMeters").toFloat(),
+            if (o.isNull("altitudeMeters")) null else o.getDouble("altitudeMeters"),
+            o.getInt("segment"),
+            o.optDouble("verticalAccuracyMeters", Double.NaN).takeIf { it.isFinite() && it >= 0 }?.toFloat(),
+        ).also { require(it.latitude.isFinite() && it.latitude in -90.0..90.0 && it.longitude.isFinite() && it.longitude in -180.0..180.0 && it.timestampMs >= 0 && it.accuracyMeters.isFinite() && it.accuracyMeters >= 0 && it.segment >= 0) }
 }

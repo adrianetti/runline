@@ -7,36 +7,61 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
-data class RunnerGoalSnapshot(val goal: RunnerGoal, val revision: Long)
+data class RunnerGoalSnapshot(
+    val goal: RunnerGoal,
+    val revision: Long,
+)
 
-class RunnerGoalStore(context: Context) {
+class RunnerGoalStore(
+    context: Context,
+) {
     private val app = context.applicationContext
     private val file = AtomicFile(File(app.noBackupFilesDir, "runner-goal.json"))
+
     fun load(): RunnerGoal = snapshot().goal
-    fun snapshot(): RunnerGoalSnapshot = synchronized(LOCK) {
-        val exists = file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()
-        val goal = if (exists) runCatching {
-            val bytes = file.readFully(); require(bytes.size <= 8_000)
-            RunnerGoal.parse(JSONObject(bytes.toString(Charsets.UTF_8)))
-        }.getOrDefault(RunnerGoal()) else {
-            RunnerGoal.fromLegacy(TrainingPlanStore(app).load()).also { runCatching { write(it) } }
+
+    fun snapshot(): RunnerGoalSnapshot =
+        synchronized(LOCK) {
+            val exists = file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()
+            val goal =
+                if (exists) {
+                    runCatching {
+                        val bytes = file.readFully()
+                        require(bytes.size <= 8_000)
+                        RunnerGoal.parse(JSONObject(bytes.toString(Charsets.UTF_8)))
+                    }.getOrDefault(RunnerGoal())
+                } else {
+                    RunnerGoal.fromLegacy(TrainingPlanStore(app).load()).also { runCatching { write(it) } }
+                }
+            RunnerGoalSnapshot(goal, revision())
         }
-        RunnerGoalSnapshot(goal, revision())
-    }
+
     fun save(goal: RunnerGoal) {
-        synchronized(LOCK) { write(goal.bounded()); changes.incrementAndGet() }
+        synchronized(LOCK) {
+            write(goal.bounded())
+            changes.incrementAndGet()
+        }
         AiSpokenHistory.clearAll()
         SmartRunAi.clear()
     }
+
     fun clear() = save(RunnerGoal())
+
     private fun write(goal: RunnerGoal) {
         val out = file.startWrite()
-        try { out.write(goal.json().toString().toByteArray(Charsets.UTF_8)); file.finishWrite(out) }
-        catch (error: Exception) { file.failWrite(out); throw error }
+        try {
+            out.write(goal.json().toString().toByteArray(Charsets.UTF_8))
+            file.finishWrite(out)
+        } catch (error: Exception) {
+            file.failWrite(out)
+            throw error
+        }
     }
+
     companion object {
         private val LOCK = Any()
         private val changes = AtomicLong()
+
         fun revision(): Long = changes.get()
     }
 }

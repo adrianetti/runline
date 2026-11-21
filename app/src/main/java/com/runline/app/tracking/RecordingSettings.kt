@@ -5,8 +5,13 @@ import androidx.core.content.edit
 
 object RecordingSettings {
     private const val FILE = "recording"
+
     fun autoPause(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("auto_pause", true)
-    fun setAutoPause(context: Context, enabled: Boolean) {
+
+    fun setAutoPause(
+        context: Context,
+        enabled: Boolean,
+    ) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putBoolean("auto_pause", enabled) }
         TrackingService.refreshCoaching()
     }

@@ -20,8 +20,13 @@ class MarkerMotionTest {
     }
 
     @Test fun pausesMissingSamplesClockRegressionsAndTeleportsSnapInstead() {
-        for (point in listOf(end.copy(segment = 2), end.copy(timestampMs = 16_001L),
-            end.copy(timestampMs = 1_000L), end.copy(timestampMs = 0L), end.copy(longitude = 30.0))) {
+        for (point in listOf(
+            end.copy(segment = 2),
+            end.copy(timestampMs = 16_001L),
+            end.copy(timestampMs = 1_000L),
+            end.copy(timestampMs = 0L),
+            end.copy(longitude = 30.0),
+        )) {
             assertFalse(MarkerMotion.canInterpolate(start, point))
         }
         assertFalse(MarkerMotion.canInterpolate(null, end))
@@ -29,9 +34,14 @@ class MarkerMotionTest {
     }
 
     @Test fun malformedAccuracyCoordinatesAndTimesNeverAnimate() {
-        for (point in listOf(end.copy(latitude = Double.NaN), end.copy(longitude = 181.0),
-            end.copy(latitude = 89.0), end.copy(accuracyMeters = Float.NaN),
-            end.copy(accuracyMeters = 31f), end.copy(timestampMs = -1))) {
+        for (point in listOf(
+            end.copy(latitude = Double.NaN),
+            end.copy(longitude = 181.0),
+            end.copy(latitude = 89.0),
+            end.copy(accuracyMeters = Float.NaN),
+            end.copy(accuracyMeters = 31f),
+            end.copy(timestampMs = -1),
+        )) {
             assertFalse(MarkerMotion.canInterpolate(start, point))
             assertFalse(MarkerMotion.canInterpolate(point, end))
         }

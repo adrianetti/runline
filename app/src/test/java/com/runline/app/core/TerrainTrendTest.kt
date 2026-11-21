@@ -4,12 +4,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TerrainTrendTest {
-    private fun point(meters: Double, seconds: Long, height: Double? = 100.0, segment: Int = 0) =
-        RunPoint(meters / 111_195.0802, 0.0, seconds * 1_000, 3f, height, segment)
-    private fun slope(grade: Double, count: Int = 31): List<RunPoint> =
-        (0 until count).map { point(it * 2.0, it.toLong(), 100.0 + it * 2.0 * grade / 100) }
+    private fun point(
+        meters: Double,
+        seconds: Long,
+        height: Double? = 100.0,
+        segment: Int = 0,
+    ) = RunPoint(meters / 111_195.0802, 0.0, seconds * 1_000, 3f, height, segment)
+
+    private fun slope(
+        grade: Double,
+        count: Int = 31,
+    ): List<RunPoint> = (0 until count).map { point(it * 2.0, it.toLong(), 100.0 + it * 2.0 * grade / 100) }
+
     private fun estimate(points: List<RunPoint>): TerrainEstimate {
-        val trend = TerrainTrend(); return points.map(trend::update).last()
+        val trend = TerrainTrend()
+        return points.map(trend::update).last()
     }
 
     @Test fun identifiesMeasuredUpDownAndFlatWithBoundedDistance() {
@@ -23,10 +32,14 @@ class TerrainTrendTest {
 
     @Test fun missingPoorAndShortWindowsAreUnknownNeverFlat() {
         assertEquals(TerrainDirection.UNKNOWN, estimate(slope(0.0, 10)).direction)
-        for (bad in listOf(slope(8.0).last().copy(altitudeMeters = null),
-            slope(8.0).last().copy(accuracyMeters = 21f), slope(8.0).last().copy(altitudeMeters = Double.NaN))) {
+        for (bad in listOf(
+            slope(8.0).last().copy(altitudeMeters = null),
+            slope(8.0).last().copy(accuracyMeters = 21f),
+            slope(8.0).last().copy(altitudeMeters = Double.NaN),
+        )) {
             val value = estimate(slope(8.0).dropLast(1) + bad)
-            assertEquals(TerrainDirection.UNKNOWN, value.direction); assertNull(value.gradePercent)
+            assertEquals(TerrainDirection.UNKNOWN, value.direction)
+            assertNull(value.gradePercent)
         }
     }
 
@@ -42,8 +55,12 @@ class TerrainTrendTest {
 
     @Test fun resetsOnGapSegmentClockRegressionAndImplausibleJump() {
         val climb = slope(8.0)
-        for (next in listOf(point(62.0, 50, 105.0), point(62.0, 31, 105.0, 1),
-            point(62.0, 20, 105.0), point(160.0, 31, 110.0))) {
+        for (next in listOf(
+            point(62.0, 50, 105.0),
+            point(62.0, 31, 105.0, 1),
+            point(62.0, 20, 105.0),
+            point(160.0, 31, 110.0),
+        )) {
             assertEquals(TerrainDirection.UNKNOWN, estimate(climb + next).direction)
         }
     }

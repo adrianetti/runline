@@ -12,6 +12,7 @@ data class RunnerProfile(
     val aiManaged: Boolean = false,
 ) {
     fun bounded() = copy(preferences = preferences.trim().take(TEXT_LIMIT), healthNotes = healthNotes.trim().take(TEXT_LIMIT))
+
     fun forAi(insights: RunnerInsights? = null): JSONObject? {
         val assessed = insights?.takeIf { aiManaged }
         if (!includeInAi && assessed == null) return null
@@ -26,16 +27,30 @@ data class RunnerProfile(
             assessed?.let { put("ai_maintained_profile", it.forAi()) }
         }
     }
-    fun json(): JSONObject = bounded().let { JSONObject().put("version", 1).put("experience", it.experience.name)
-        .put("preferences", it.preferences).put("health_notes", it.healthNotes).put("include_in_ai", it.includeInAi)
-        .put("ai_managed", it.aiManaged) }
+
+    fun json(): JSONObject =
+        bounded().let {
+            JSONObject()
+                .put("version", 1)
+                .put("experience", it.experience.name)
+                .put("preferences", it.preferences)
+                .put("health_notes", it.healthNotes)
+                .put("include_in_ai", it.includeInAi)
+                .put("ai_managed", it.aiManaged)
+        }
+
     companion object {
         const val TEXT_LIMIT = 600
+
         fun parse(json: JSONObject): RunnerProfile {
             require(json.getInt("version") == 1)
-            return RunnerProfile(runCatching { RunningExperience.valueOf(json.optString("experience")) }.getOrDefault(RunningExperience.UNSPECIFIED),
-                json.optString("preferences", ""), json.optString("health_notes", ""), json.optBoolean("include_in_ai", false),
-                json.optBoolean("ai_managed", false)).bounded()
+            return RunnerProfile(
+                runCatching { RunningExperience.valueOf(json.optString("experience")) }.getOrDefault(RunningExperience.UNSPECIFIED),
+                json.optString("preferences", ""),
+                json.optString("health_notes", ""),
+                json.optBoolean("include_in_ai", false),
+                json.optBoolean("ai_managed", false),
+            ).bounded()
         }
     }
 }

@@ -6,9 +6,16 @@ class RunDj {
     var pollInMs: Long = POLL_MS
         private set
 
-    fun started(nowMs: Long) { lastSwitchAt = nowMs }
+    fun started(nowMs: Long) {
+        lastSwitchAt = nowMs
+    }
 
-    fun decide(playback: SpotifyPlayback?, target: MusicTarget, config: MusicConfig, nowMs: Long): String? {
+    fun decide(
+        playback: SpotifyPlayback?,
+        target: MusicTarget,
+        config: MusicConfig,
+        nowMs: Long,
+    ): String? {
         pollInMs = POLL_MS
         if (!config.adaptive || playback == null || !playback.playing) return null
         val current = playback.contextUri

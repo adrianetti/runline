@@ -9,10 +9,19 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 object ActivityArchive {
-    data class Entry(val run: RunSession, val filename: String, val details: ActivityDetails = ActivityDetails())
+    data class Entry(
+        val run: RunSession,
+        val filename: String,
+        val details: ActivityDetails = ActivityDetails(),
+    )
 
-    fun entries(runs: List<RunSession>, locale: Locale, zone: ZoneId, details: Map<String, ActivityDetails> = emptyMap(),
-                activityName: (ActivityType) -> String): List<Entry> {
+    fun entries(
+        runs: List<RunSession>,
+        locale: Locale,
+        zone: ZoneId,
+        details: Map<String, ActivityDetails> = emptyMap(),
+        activityName: (ActivityType) -> String,
+    ): List<Entry> {
         val used = mutableSetOf<String>()
         return runs.sortedWith(compareByDescending<RunSession> { it.startedAtMs }.thenBy { it.id }).map { run ->
             val annotations = details[run.id] ?: ActivityDetails()
@@ -24,9 +33,16 @@ object ActivityArchive {
         }
     }
 
-    fun writeZip(entries: List<Entry>, zone: ZoneId, output: OutputStream) {
+    fun writeZip(
+        entries: List<Entry>,
+        zone: ZoneId,
+        output: OutputStream,
+    ) {
         ZipOutputStream(output, Charsets.UTF_8).use { zip ->
-            fun put(name: String, value: String) {
+            fun put(
+                name: String,
+                value: String,
+            ) {
                 zip.putNextEntry(ZipEntry(name))
                 zip.write(value.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
@@ -37,43 +53,67 @@ object ActivityArchive {
         }
     }
 
-    fun summaryCsv(entries: List<Entry>, zone: ZoneId): String = buildString {
-        append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file,title,description,effort,routine,moving_seconds,stop_count,stopped_seconds,moving_pace_seconds_per_km\r\n")
-        for ((run, filename, details) in entries) {
-            val analysis = RunReplay(run).summary
-            val distance = RunMetrics.distanceMeters(run.points)
-            val pace = RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)
-            val stops = StopDetection.detect(run.points, run.activityType)
-            val moving = StopDetection.movingDurationMs(run, stops)
-            val speed = if (run.activeDurationMs > 0 && distance > 0) distance * 3_600.0 / run.activeDurationMs else null
-            val fields = listOf(
-                run.id, run.activityType.storageValue,
-                Instant.ofEpochMilli(run.startedAtMs).toString(), Instant.ofEpochMilli(run.activityEndedAtMs).toString(),
-                Instant.ofEpochMilli(run.startedAtMs).atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME), zone.id,
-                number(run.activeDurationMs / 1000.0), number((run.activityEndedAtMs - run.startedAtMs) / 1000.0),
-                number(analysis.observedDurationMs / 1000.0), number(distance / 1_000), number(pace), number(speed),
-                number(analysis.elevationGainMeters), number(analysis.elevationLossMeters),
-                run.points.size.toString(), continuousSegments(run.points).size.toString(), filename,
-                safeSpreadsheetText(details.title), safeSpreadsheetText(details.description),
-                details.effort?.toString() ?: "", details.routine.storageValue.takeUnless { details.routine == RoutineType.NONE } ?: "",
-                number(moving / 1000.0), stops.size.toString(), number(StopDetection.totalMs(stops) / 1000.0),
-                number(RunMetrics.paceSecondsPerKm(distance, moving)),
-            )
-            append(fields.joinToString(",", transform = ::csvCell)).append("\r\n")
+    fun summaryCsv(
+        entries: List<Entry>,
+        zone: ZoneId,
+    ): String =
+        buildString {
+            append("activity_id,activity_type,started_at_utc,ended_at_utc,local_start,time_zone,active_seconds,elapsed_seconds,gps_observed_seconds,distance_km,average_pace_seconds_per_km,average_speed_kmh,ascent_m,descent_m,gps_point_count,gpx_segment_count,gpx_file,title,description,effort,routine,moving_seconds,stop_count,stopped_seconds,moving_pace_seconds_per_km\r\n")
+            for ((run, filename, details) in entries) {
+                val analysis = RunReplay(run).summary
+                val distance = RunMetrics.distanceMeters(run.points)
+                val pace = RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs)
+                val stops = StopDetection.detect(run.points, run.activityType)
+                val moving = StopDetection.movingDurationMs(run, stops)
+                val speed = if (run.activeDurationMs > 0 && distance > 0) distance * 3_600.0 / run.activeDurationMs else null
+                val fields =
+                    listOf(
+                        run.id,
+                        run.activityType.storageValue,
+                        Instant.ofEpochMilli(run.startedAtMs).toString(),
+                        Instant.ofEpochMilli(run.activityEndedAtMs).toString(),
+                        Instant.ofEpochMilli(run.startedAtMs).atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                        zone.id,
+                        number(run.activeDurationMs / 1000.0),
+                        number((run.activityEndedAtMs - run.startedAtMs) / 1000.0),
+                        number(analysis.observedDurationMs / 1000.0),
+                        number(distance / 1_000),
+                        number(pace),
+                        number(speed),
+                        number(analysis.elevationGainMeters),
+                        number(analysis.elevationLossMeters),
+                        run.points.size.toString(),
+                        continuousSegments(run.points).size.toString(),
+                        filename,
+                        safeSpreadsheetText(details.title),
+                        safeSpreadsheetText(details.description),
+                        details.effort?.toString() ?: "",
+                        details.routine.storageValue.takeUnless { details.routine == RoutineType.NONE } ?: "",
+                        number(moving / 1000.0),
+                        stops.size.toString(),
+                        number(StopDetection.totalMs(stops) / 1000.0),
+                        number(RunMetrics.paceSecondsPerKm(distance, moving)),
+                    )
+                append(fields.joinToString(",", transform = ::csvCell)).append("\r\n")
+            }
         }
-    }
 
-    private fun number(value: Double?): String = value?.takeIf(Double::isFinite)?.let {
-        String.format(Locale.ROOT, "%.3f", it)
-    } ?: ""
+    private fun number(value: Double?): String =
+        value?.takeIf(Double::isFinite)?.let {
+            String.format(Locale.ROOT, "%.3f", it)
+        } ?: ""
 
-    internal fun safeSpreadsheetText(value: String): String =
-        if (value.trimStart().firstOrNull() in setOf('=', '+', '-', '@') || value.firstOrNull() in setOf('\t', '\r', '\n')) "'" + value else value
+    internal fun safeSpreadsheetText(value: String): String = if (value.trimStart().firstOrNull() in setOf('=', '+', '-', '@') || value.firstOrNull() in setOf('\t', '\r', '\n')) "'" + value else value
 
-    internal fun csvCell(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' })
-        "\"${value.replace("\"", "\"\"")}\"" else value
+    internal fun csvCell(value: String): String =
+        if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
+            "\"${value.replace("\"", "\"\"")}\""
+        } else {
+            value
+        }
 
-    val README = """
+    val README =
+        """
         Runline activity export
         =======================
         summary.csv has one row per saved activity, with English column names, decimal points,
@@ -108,5 +148,5 @@ object ActivityArchive {
 
         For feedback: compare like activity types, inspect distance/time/elevation trends and
         distinguish missing values from zero. These observations do not establish GPS accuracy.
-    """.trimIndent() + "\n"
+        """.trimIndent() + "\n"
 }

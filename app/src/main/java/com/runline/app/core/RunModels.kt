@@ -1,14 +1,20 @@
 package com.runline.app.core
 
-enum class ActivityType(val storageValue: String, val gpxType: String, val gpxName: String) {
+enum class ActivityType(
+    val storageValue: String,
+    val gpxType: String,
+    val gpxName: String,
+) {
     RUN("run", "running", "Run"),
     WALK("walk", "walking", "Walk"),
-    HIKE("hike", "hiking", "Hike");
+    HIKE("hike", "hiking", "Hike"),
+    ;
 
     companion object {
-        fun fromStorage(value: String?): ActivityType = entries.firstOrNull {
-            it.storageValue.equals(value, ignoreCase = true)
-        } ?: RUN
+        fun fromStorage(value: String?): ActivityType =
+            entries.firstOrNull {
+                it.storageValue.equals(value, ignoreCase = true)
+            } ?: RUN
     }
 }
 
@@ -24,13 +30,18 @@ data class RunPoint(
     val terrainLevel: TerrainLevel? = null,
 )
 
-internal fun RunPoint.hasUsableAltitude(): Boolean = altitudeMeters?.isFinite() == true &&
-    (verticalAccuracyMeters == null || (verticalAccuracyMeters.isFinite() && verticalAccuracyMeters in 0f..8f))
+internal fun RunPoint.hasUsableAltitude(): Boolean =
+    altitudeMeters?.isFinite() == true &&
+        (verticalAccuracyMeters == null || (verticalAccuracyMeters.isFinite() && verticalAccuracyMeters in 0f..8f))
 
-internal fun canJoinAltitude(a: RunPoint?, b: RunPoint): Boolean = a != null &&
-    a.terrainModel == b.terrainModel &&
-    MarkerMotion.canInterpolate(a, b) && a.hasUsableAltitude() && b.hasUsableAltitude() &&
-    kotlin.math.abs(b.altitudeMeters!! - a.altitudeMeters!!) <= maxOf(4.0, RunMetrics.distanceMeters(listOf(a, b)) * .5)
+internal fun canJoinAltitude(
+    a: RunPoint?,
+    b: RunPoint,
+): Boolean =
+    a != null &&
+        a.terrainModel == b.terrainModel &&
+        MarkerMotion.canInterpolate(a, b) && a.hasUsableAltitude() && b.hasUsableAltitude() &&
+        kotlin.math.abs(b.altitudeMeters!! - a.altitudeMeters!!) <= maxOf(4.0, RunMetrics.distanceMeters(listOf(a, b)) * .5)
 
 data class RunSession(
     val id: String,
@@ -45,7 +56,12 @@ data class RunSession(
 val RunSession.activityEndedAtMs: Long get() {
     val latest = endedAtMs.coerceAtLeast(startedAtMs)
     val timerEnd = startedAtMs + activeDurationMs.coerceAtLeast(0)
-    val lastFix = points.asSequence().map { it.timestampMs }.filter { it in startedAtMs..latest }.maxOrNull()
+    val lastFix =
+        points
+            .asSequence()
+            .map { it.timestampMs }
+            .filter { it in startedAtMs..latest }
+            .maxOrNull()
     return maxOf(timerEnd, lastFix ?: timerEnd).coerceIn(startedAtMs, latest)
 }
 
@@ -64,6 +80,7 @@ internal fun continuousSegments(points: List<RunPoint>): List<List<RunPoint>> {
     var current = mutableListOf<RunPoint>()
     var segment: Int? = null
     var latestTimestamp = Long.MIN_VALUE
+
     fun finish() {
         if (current.isNotEmpty()) result.add(current)
         current = mutableListOf()

@@ -28,19 +28,26 @@ class ElevationProgress {
 
     private fun accept(point: RunPoint) {
         if (segment != point.segment) {
-            segment = point.segment; highWater = Long.MIN_VALUE; anchor = null; previous = null
+            segment = point.segment
+            highWater = Long.MIN_VALUE
+            anchor = null
+            previous = null
         }
         if (!point.hasValidCoordinates() || point.timestampMs < 0 || point.timestampMs <= highWater) {
-            anchor = null; previous = null; return
+            anchor = null
+            previous = null
+            return
         }
         highWater = point.timestampMs
         if (previous?.let { point.timestampMs - it.timestampMs > RunReplay.MAX_GPS_GAP_MS || point.terrainModel != it.terrainModel } == true) anchor = null
         previous = point
         val altitude = point.altitudeMeters?.takeIf { it.isFinite() }
         val prior = anchor
-        if (altitude == null) anchor = null
-        else if (prior == null) anchor = altitude
-        else {
+        if (altitude == null) {
+            anchor = null
+        } else if (prior == null) {
+            anchor = altitude
+        } else {
             hasPair = true
             val delta = altitude - prior
             if (abs(delta) >= 3.0) {
@@ -49,8 +56,16 @@ class ElevationProgress {
             }
         }
     }
+
     private fun reset() {
-        count = 0; lastInput = null; previous = null; segment = null; highWater = Long.MIN_VALUE
-        anchor = null; gain = 0.0; loss = 0.0; hasPair = false
+        count = 0
+        lastInput = null
+        previous = null
+        segment = null
+        highWater = Long.MIN_VALUE
+        anchor = null
+        gain = 0.0
+        loss = 0.0
+        hasPair = false
     }
 }

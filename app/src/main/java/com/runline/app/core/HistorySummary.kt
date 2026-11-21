@@ -15,7 +15,11 @@ data class HistoryActivity(
     val paceSecondsPerKm: Double?,
 )
 
-data class HistoryWeek(val startsOn: LocalDate, val distanceMeters: Double, val activityCount: Int)
+data class HistoryWeek(
+    val startsOn: LocalDate,
+    val distanceMeters: Double,
+    val activityCount: Int,
+)
 
 data class HistoryPeriod(
     val startsOn: LocalDate,
@@ -29,11 +33,18 @@ data class HistoryPeriod(
 }
 
 object HistorySummary {
-    fun prepare(runs: List<RunSession>): List<HistoryActivity> = runs.map { run ->
-        val distance = RunMetrics.distanceMeters(run.points)
-        HistoryActivity(run.id, run.activityType, run.startedAtMs, run.activeDurationMs,
-            distance, RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs))
-    }
+    fun prepare(runs: List<RunSession>): List<HistoryActivity> =
+        runs.map { run ->
+            val distance = RunMetrics.distanceMeters(run.points)
+            HistoryActivity(
+                run.id,
+                run.activityType,
+                run.startedAtMs,
+                run.activeDurationMs,
+                distance,
+                RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs),
+            )
+        }
 
     fun forPeriod(
         prepared: List<HistoryActivity>,
@@ -41,25 +52,42 @@ object HistorySummary {
         zone: ZoneId,
         activityType: ActivityType? = null,
     ): HistoryPeriod {
-        val thisMonday = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
-            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val thisMonday =
+            Instant
+                .ofEpochMilli(nowMs)
+                .atZone(zone)
+                .toLocalDate()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val firstMonday = thisMonday.minusWeeks(3)
         val startMs = firstMonday.atStartOfDay(zone).toInstant().toEpochMilli()
-        val included = prepared.filter {
-            it.startedAtMs in startMs..nowMs && (activityType == null || it.activityType == activityType)
-        }.sortedBy { it.startedAtMs }
-        val weeks = (0L..3L).map { index ->
-            val monday = firstMonday.plusWeeks(index)
-            val weekStart = monday.atStartOfDay(zone).toInstant().toEpochMilli()
-            val weekEnd = monday.plusWeeks(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            val activities = included.filter { it.startedAtMs >= weekStart && it.startedAtMs < weekEnd }
-            HistoryWeek(monday, activities.sumOf { it.distanceMeters }, activities.size)
-        }
+        val included =
+            prepared
+                .filter {
+                    it.startedAtMs in startMs..nowMs && (activityType == null || it.activityType == activityType)
+                }.sortedBy { it.startedAtMs }
+        val weeks =
+            (0L..3L).map { index ->
+                val monday = firstMonday.plusWeeks(index)
+                val weekStart = monday.atStartOfDay(zone).toInstant().toEpochMilli()
+                val weekEnd =
+                    monday
+                        .plusWeeks(1)
+                        .atStartOfDay(zone)
+                        .toInstant()
+                        .toEpochMilli()
+                val activities = included.filter { it.startedAtMs >= weekStart && it.startedAtMs < weekEnd }
+                HistoryWeek(monday, activities.sumOf { it.distanceMeters }, activities.size)
+            }
         val timedRoutes = included.filter { it.paceSecondsPerKm != null }
         val timedDistance = timedRoutes.sumOf { it.distanceMeters }
         val timedDuration = timedRoutes.sumOf { it.activeDurationMs }
-        return HistoryPeriod(firstMonday, weeks, included,
-            included.sumOf { it.distanceMeters }, included.sumOf { it.activeDurationMs },
-            RunMetrics.paceSecondsPerKm(timedDistance, timedDuration))
+        return HistoryPeriod(
+            firstMonday,
+            weeks,
+            included,
+            included.sumOf { it.distanceMeters },
+            included.sumOf { it.activeDurationMs },
+            RunMetrics.paceSecondsPerKm(timedDistance, timedDuration),
+        )
     }
 }

@@ -1,8 +1,20 @@
 package com.runline.app.core
 
-class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>, latestIsObserved: Boolean) {
-    data class Sample(val positionMs: Long, val heightMeters: Double)
-    private data class Fix(val positionMs: Long, val point: RunPoint, val drawable: Boolean)
+class ObservedElevationTrace private constructor(
+    segments: List<List<RunPoint>>,
+    latestIsObserved: Boolean,
+) {
+    data class Sample(
+        val positionMs: Long,
+        val heightMeters: Double,
+    )
+
+    private data class Fix(
+        val positionMs: Long,
+        val point: RunPoint,
+        val drawable: Boolean,
+    )
+
     val sections: List<List<Sample>>
     val durationMs: Long
     private val bySegment: List<List<Fix>>
@@ -13,41 +25,49 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
     init {
         val paths = mutableListOf<List<Sample>>()
         var clock = 0L
-        bySegment = segments.map { points ->
-            val start = points.first().timestampMs
-            val fixes = points.map { Fix(clock + it.timestampMs - start, it, false) }.toMutableList()
-            var path = mutableListOf<Int>()
-            fun finish() {
-                if (path.size >= 2) {
-                    paths += path.map { index ->
-                        fixes[index] = fixes[index].copy(drawable = true)
-                        Sample(fixes[index].positionMs, fixes[index].point.altitudeMeters!!)
+        bySegment =
+            segments.map { points ->
+                val start = points.first().timestampMs
+                val fixes = points.map { Fix(clock + it.timestampMs - start, it, false) }.toMutableList()
+                var path = mutableListOf<Int>()
+
+                fun finish() {
+                    if (path.size >= 2) {
+                        paths +=
+                            path.map { index ->
+                                fixes[index] = fixes[index].copy(drawable = true)
+                                Sample(fixes[index].positionMs, fixes[index].point.altitudeMeters!!)
+                            }
                     }
+                    path = mutableListOf()
                 }
-                path = mutableListOf()
+                fixes.forEachIndexed { index, fix ->
+                    if (index > 0 && !canJoinAltitude(fixes[index - 1].point, fix.point)) finish()
+                    if (validHeight(fix.point)) path += index else finish()
+                }
+                finish()
+                clock += points.last().timestampMs - start
+                fixes
             }
-            fixes.forEachIndexed { index, fix ->
-                if (index > 0 && !canJoinAltitude(fixes[index - 1].point, fix.point)) finish()
-                if (validHeight(fix.point)) path += index else finish()
-            }
-            finish()
-            clock += points.last().timestampMs - start
-            fixes
-        }
         sections = paths
-        alongBySegment = segments.map { points ->
-            DoubleArray(points.size).also { along ->
-                for (index in 1 until points.size) along[index] = along[index - 1] + RunMetrics.distanceMeters(listOf(points[index - 1], points[index]))
+        alongBySegment =
+            segments.map { points ->
+                DoubleArray(points.size).also { along ->
+                    for (index in 1 until points.size) along[index] = along[index - 1] + RunMetrics.distanceMeters(listOf(points[index - 1], points[index]))
+                }
             }
-        }
         durationMs = clock
         latestCursor = if (latestIsObserved) at(clock, bySegment.lastIndex) else null
     }
 
-    fun at(positionMs: Long, segmentIndex: Int): Sample? {
+    fun at(
+        positionMs: Long,
+        segmentIndex: Int,
+    ): Sample? {
         val fixes = bySegment.getOrNull(segmentIndex) ?: return null
         if (fixes.isEmpty() || positionMs < fixes.first().positionMs || positionMs > fixes.last().positionMs) return null
-        var low = 0; var high = fixes.lastIndex
+        var low = 0
+        var high = fixes.lastIndex
         while (low < high) {
             val middle = (low + high + 1) ushr 1
             if (fixes[middle].positionMs <= positionMs) low = middle else high = middle - 1
@@ -61,11 +81,15 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         return Sample(positionMs, a.point.altitudeMeters!! + (b.point.altitudeMeters!! - a.point.altitudeMeters) * fraction)
     }
 
-    fun distanceAt(positionMs: Long, segmentIndex: Int): Double? {
+    fun distanceAt(
+        positionMs: Long,
+        segmentIndex: Int,
+    ): Double? {
         val fixes = bySegment.getOrNull(segmentIndex) ?: return null
         val along = alongBySegment.getOrNull(segmentIndex) ?: return null
         if (fixes.isEmpty() || positionMs < fixes.first().positionMs || positionMs > fixes.last().positionMs) return null
-        var low = 0; var high = fixes.lastIndex
+        var low = 0
+        var high = fixes.lastIndex
         while (low < high) {
             val middle = (low + high + 1) ushr 1
             if (fixes[middle].positionMs <= positionMs) low = middle else high = middle - 1
@@ -80,22 +104,25 @@ class ObservedElevationTrace private constructor(segments: List<List<RunPoint>>,
         fun fromReplay(replay: RunReplay) = ObservedElevationTrace(replay.segments, true)
 
         fun fromPoints(points: List<RunPoint>): ObservedElevationTrace {
-            val segments = buildList {
-                continuousSegments(points).forEach { source ->
-                    var segment = mutableListOf<RunPoint>()
-                    source.forEach { point ->
-                        if (segment.isNotEmpty() && point.timestampMs - segment.last().timestampMs > RunReplay.MAX_GPS_GAP_MS) {
-                            add(segment); segment = mutableListOf()
+            val segments =
+                buildList {
+                    continuousSegments(points).forEach { source ->
+                        var segment = mutableListOf<RunPoint>()
+                        source.forEach { point ->
+                            if (segment.isNotEmpty() && point.timestampMs - segment.last().timestampMs > RunReplay.MAX_GPS_GAP_MS) {
+                                add(segment)
+                                segment = mutableListOf()
+                            }
+                            segment += point
                         }
-                        segment += point
+                        if (segment.isNotEmpty()) add(segment)
                     }
-                    if (segment.isNotEmpty()) add(segment)
                 }
-            }
             return ObservedElevationTrace(segments, segments.lastOrNull()?.lastOrNull() == points.lastOrNull())
         }
 
-        private fun validHeight(point: RunPoint) = point.hasUsableAltitude() &&
-            point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
+        private fun validHeight(point: RunPoint) =
+            point.hasUsableAltitude() &&
+                point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
     }
 }

@@ -13,10 +13,24 @@ data class TerrainEstimate(
     val source: TerrainSource = TerrainSource.UNKNOWN,
 )
 
-class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
-    private data class Sample(val point: RunPoint, val distance: Double)
-    private data class Bin(val distance: Double, val height: Double)
-    private data class Fit(val grade: Double, val residual: Double)
+class TerrainTrend(
+    private val source: TerrainSource = TerrainSource.GPS,
+) {
+    private data class Sample(
+        val point: RunPoint,
+        val distance: Double,
+    )
+
+    private data class Bin(
+        val distance: Double,
+        val height: Double,
+    )
+
+    private data class Fit(
+        val grade: Double,
+        val residual: Double,
+    )
+
     private val samples = ArrayDeque<Sample>()
     private var previous: RunPoint? = null
     private var traveled = 0.0
@@ -25,41 +39,64 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
     private var estimate = TerrainEstimate()
 
     fun reset() {
-        samples.clear(); previous = null; traveled = 0.0
-        direction = TerrainDirection.UNKNOWN; smoothedGrade = null; estimate = TerrainEstimate()
+        samples.clear()
+        previous = null
+        traveled = 0.0
+        direction = TerrainDirection.UNKNOWN
+        smoothedGrade = null
+        estimate = TerrainEstimate()
     }
 
     fun update(point: RunPoint): TerrainEstimate {
         if (point == previous) return estimate
-        if (!usable(point)) { reset(); return estimate }
+        if (!usable(point)) {
+            reset()
+            return estimate
+        }
         val prior = previous
+
         fun restart(): TerrainEstimate {
-            reset(); previous = point; samples.addLast(Sample(point, 0.0)); return estimate
+            reset()
+            previous = point
+            samples.addLast(Sample(point, 0.0))
+            return estimate
         }
         if (prior == null || prior.terrainModel != point.terrainModel || !MarkerMotion.canInterpolate(prior, point)) return restart()
         val distance = RunMetrics.distanceMeters(listOf(prior, point))
         val elapsed = point.timestampMs - prior.timestampMs
         if (distance * 1_000 / elapsed > 12.0) return restart()
         if (abs(point.altitudeMeters!! - prior.altitudeMeters!!) > maxOf(4.0, distance * .5)) return restart()
-        previous = point; traveled += distance
+        previous = point
+        traveled += distance
         samples.addLast(Sample(point, traveled))
         val global = point.terrainModel == TerrainModel.MAPZEN
-        while (samples.size > 1 && (traveled - samples.first().distance > (if (global) 180.0 else 90.0) ||
-                point.timestampMs - samples.first().point.timestampMs > (if (global) 240_000L else 120_000L) || samples.size > 300)) samples.removeFirst()
+        while (samples.size > 1 && (
+                traveled - samples.first().distance > (if (global) 180.0 else 90.0) ||
+                    point.timestampMs - samples.first().point.timestampMs > (if (global) 240_000L else 120_000L) || samples.size > 300
+            )
+        ) {
+            samples.removeFirst()
+        }
         val first = samples.first()
         val span = traveled - first.distance
+
         fun unknown(): TerrainEstimate {
-            direction = TerrainDirection.UNKNOWN; smoothedGrade = null
+            direction = TerrainDirection.UNKNOWN
+            smoothedGrade = null
             return TerrainEstimate(windowMeters = span).also { estimate = it }
         }
         if (samples.size < 8 || span < (if (global) 120.0 else 55.0) || point.timestampMs - first.point.timestampMs < 20_000L ||
-            RunMetrics.distanceMeters(listOf(first.point, point)) < 25.0) return unknown()
+            RunMetrics.distanceMeters(listOf(first.point, point)) < 25.0
+        ) {
+            return unknown()
+        }
         val moving = samples.firstOrNull { point.timestampMs - it.point.timestampMs <= 10_000L } ?: return unknown()
         val seconds = (point.timestampMs - moving.point.timestampMs) / 1_000.0
         if (seconds < 4.0 || RunMetrics.distanceMeters(listOf(moving.point, point)) / seconds < .6) return unknown()
-        val bins = samples.groupBy { floor((it.distance - first.distance) / 5.0).toInt() }.values.map {
-            Bin(it.map { sample -> sample.distance }.median(), it.map { sample -> sample.point.altitudeMeters!! }.median())
-        }
+        val bins =
+            samples.groupBy { floor((it.distance - first.distance) / 5.0).toInt() }.values.map {
+                Bin(it.map { sample -> sample.distance }.median(), it.map { sample -> sample.point.altitudeMeters!! }.median())
+            }
         val fit = fit(bins, 20.0) ?: return unknown()
         if (!fit.grade.isFinite() || abs(fit.grade) > 40.0 || fit.residual > 1.2) return unknown()
         val tail = bins.filter { traveled - it.distance <= (if (global) 70.0 else 35.0) }
@@ -71,22 +108,28 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
         smoothedGrade = grade
         val enter = if (source == TerrainSource.TERRAIN_MAP) 1.5 else 3.0
         val leave = if (source == TerrainSource.TERRAIN_MAP) .5 else 1.5
-        direction = when {
-            grade >= enter -> TerrainDirection.UPHILL
-            grade <= -enter -> TerrainDirection.DOWNHILL
-            direction == TerrainDirection.UPHILL && grade > leave -> TerrainDirection.UPHILL
-            direction == TerrainDirection.DOWNHILL && grade < -leave -> TerrainDirection.DOWNHILL
-            else -> TerrainDirection.FLAT
-        }
+        direction =
+            when {
+                grade >= enter -> TerrainDirection.UPHILL
+                grade <= -enter -> TerrainDirection.DOWNHILL
+                direction == TerrainDirection.UPHILL && grade > leave -> TerrainDirection.UPHILL
+                direction == TerrainDirection.DOWNHILL && grade < -leave -> TerrainDirection.DOWNHILL
+                else -> TerrainDirection.FLAT
+            }
         return TerrainEstimate(direction, grade, span, source).also { estimate = it }
     }
 
-    private fun fit(bins: List<Bin>, separation: Double): Fit? {
+    private fun fit(
+        bins: List<Bin>,
+        separation: Double,
+    ): Fit? {
         if (bins.size < 3) return null
         val slopes = ArrayList<Double>()
-        for (a in bins.indices) for (b in a + 1 until bins.size) {
-            val dx = bins[b].distance - bins[a].distance
-            if (dx >= separation) slopes += (bins[b].height - bins[a].height) / dx
+        for (a in bins.indices) {
+            for (b in a + 1 until bins.size) {
+                val dx = bins[b].distance - bins[a].distance
+                if (dx >= separation) slopes += (bins[b].height - bins[a].height) / dx
+            }
         }
         if (slopes.isEmpty()) return null
         val slope = slopes.median()
@@ -96,32 +139,46 @@ class TerrainTrend(private val source: TerrainSource = TerrainSource.GPS) {
     }
 
     private fun List<Double>.median(): Double {
-        val values = sorted(); val middle = size / 2
+        val values = sorted()
+        val middle = size / 2
         return if (size % 2 == 0) (values[middle - 1] + values[middle]) / 2 else values[middle]
     }
-    private fun usable(point: RunPoint) = point.hasValidCoordinates() && point.timestampMs >= 0 &&
-        point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..20f && point.hasUsableAltitude()
+
+    private fun usable(point: RunPoint) =
+        point.hasValidCoordinates() && point.timestampMs >= 0 &&
+            point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..20f && point.hasUsableAltitude()
 }
 
-class ReplayTerrain(replay: RunReplay) {
-    private data class Sample(val position: Long, val estimate: TerrainEstimate)
+class ReplayTerrain(
+    replay: RunReplay,
+) {
+    private data class Sample(
+        val position: Long,
+        val estimate: TerrainEstimate,
+    )
+
     private val bySegment: List<List<Sample>>
 
     init {
         var offset = 0L
-        bySegment = replay.segments.map { points ->
-            val trend = TerrainTrend(replay.session.elevationSource)
-            val start = points.first().timestampMs
-            points.map { Sample(offset + it.timestampMs - start, trend.update(it)) }.also {
-                offset += points.last().timestampMs - start
+        bySegment =
+            replay.segments.map { points ->
+                val trend = TerrainTrend(replay.session.elevationSource)
+                val start = points.first().timestampMs
+                points.map { Sample(offset + it.timestampMs - start, trend.update(it)) }.also {
+                    offset += points.last().timestampMs - start
+                }
             }
-        }
     }
 
-    fun at(positionMs: Long, segmentIndex: Int): TerrainEstimate {
+    fun at(
+        positionMs: Long,
+        segmentIndex: Int,
+    ): TerrainEstimate {
         val samples = bySegment.getOrNull(segmentIndex) ?: return TerrainEstimate()
         if (samples.isEmpty() || positionMs < samples.first().position || positionMs > samples.last().position) return TerrainEstimate()
-        var low = 0; var high = samples.lastIndex
+        var low = 0
+        var high = samples.lastIndex
         while (low < high) {
             val middle = (low + high + 1) ushr 1
             if (samples[middle].position <= positionMs) low = middle else high = middle - 1

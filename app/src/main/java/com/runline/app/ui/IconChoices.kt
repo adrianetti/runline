@@ -11,22 +11,43 @@ import com.runline.app.R
 import kotlin.math.roundToInt
 
 internal object IconChoices {
-    data class Choice(val label: String, val icon: Int)
+    data class Choice(
+        val label: String,
+        val icon: Int,
+    )
 
-    fun show(activity: AppCompatActivity, title: Int, choices: List<Choice>, onPick: (Int) -> Unit) {
+    fun show(
+        activity: AppCompatActivity,
+        title: Int,
+        choices: List<Choice>,
+        onPick: (Int) -> Unit,
+    ) {
         fun dp(value: Int) = (value * activity.resources.displayMetrics.density).roundToInt()
-        val adapter = object : ArrayAdapter<Choice>(activity, android.R.layout.simple_list_item_1, choices) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
-                (super.getView(position, convertView, parent) as TextView).apply {
-                    val choice = choices[position]
-                    text = choice.label; textSize = 16f; minHeight = dp(56)
-                    setPaddingRelative(dp(24), 0, dp(24), 0)
-                    compoundDrawablePadding = dp(20)
-                    setCompoundDrawablesRelative(AppCompatResources.getDrawable(context, choice.icon)?.mutate()?.apply {
-                        setTint(context.getColor(R.color.on_surface)); setBounds(0, 0, dp(24), dp(24))
-                    }, null, null, null)
-                }
-        }
+        val adapter =
+            object : ArrayAdapter<Choice>(activity, android.R.layout.simple_list_item_1, choices) {
+                override fun getView(
+                    position: Int,
+                    convertView: View?,
+                    parent: ViewGroup,
+                ): View =
+                    (super.getView(position, convertView, parent) as TextView).apply {
+                        val choice = choices[position]
+                        text = choice.label
+                        textSize = 16f
+                        minHeight = dp(56)
+                        setPaddingRelative(dp(24), 0, dp(24), 0)
+                        compoundDrawablePadding = dp(20)
+                        setCompoundDrawablesRelative(
+                            AppCompatResources.getDrawable(context, choice.icon)?.mutate()?.apply {
+                                setTint(context.getColor(R.color.on_surface))
+                                setBounds(0, 0, dp(24), dp(24))
+                            },
+                            null,
+                            null,
+                            null,
+                        )
+                    }
+            }
         MaterialAlertDialogBuilder(activity).setTitle(title).setAdapter(adapter) { _, which -> onPick(which) }.show()
     }
 }
