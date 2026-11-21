@@ -3,19 +3,26 @@ import contextlib
 import http.client
 import io
 import json
-from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
 import urllib.error
+from pathlib import Path
+from unittest.mock import patch
 
 import check_dependency_advisories as checker
 
+EXPECTED_TIMEOUT_SECONDS = 30
+
 
 def inventory(count=1):
-    return {"schemaVersion": 1, "configurations": [":buildscript:classpath", ":app:releaseRuntimeClasspath"],
-            "components": [{"group": "example.test", "name": f"library{i}", "version": "1.2.3-Final",
-                            "configurations": [":buildscript:classpath"]} for i in range(count)]}
+    return {
+        "schemaVersion": 1,
+        "configurations": [":buildscript:classpath", ":app:releaseRuntimeClasspath"],
+        "components": [
+            {"group": "example.test", "name": f"library{i}", "version": "1.2.3-Final", "configurations": [":buildscript:classpath"]}
+            for i in range(count)
+        ],
+    }
 
 
 def vuln(identifier="GHSA-1234-5678-9abc"):
@@ -35,7 +42,7 @@ class FakeHttp:
 
     def open(self, request, timeout):
         assert request.full_url == checker.ENDPOINT
-        assert timeout == 30
+        assert timeout == EXPECTED_TIMEOUT_SECONDS
         assert request.get_method() == "POST"
         self.requests.append(json.loads(request.data))
         response = self.responses.pop(0)
@@ -56,7 +63,9 @@ class DependencyAdvisoriesTest(unittest.TestCase):
         report = self.run_audit(fake, data)
         self.assertEqual("clean", report["status"])
         self.assertEqual(0, report["advisoryCount"])
-        self.assertEqual([{"queries": [{"package": {"ecosystem": "Maven", "name": "example.test:library0"}, "version": "32.0.1-jre"}]}], fake.requests)
+        self.assertEqual(
+            [{"queries": [{"package": {"ecosystem": "Maven", "name": "example.test:library0"}, "version": "32.0.1-jre"}]}], fake.requests
+        )
 
     def test_any_advisory_fails_without_severity_filter_and_versions_stay_distinct(self):
         fake = FakeHttp({"results": [{"vulns": [vuln()]}, {}]})
@@ -106,11 +115,18 @@ class DependencyAdvisoriesTest(unittest.TestCase):
             self.run_audit(FakeHttp(repeated))
 
     def test_malformed_results_fail_closed(self):
-        for response in ({}, {"results": []}, {"results": [{}, {}]}, {"results": None},
-                         {"results": [None]}, {"results": [{"error": "unavailable"}]},
-                         {"results": [{"vulns": None}]}, {"results": [{"vulns": [{}]}]},
-                         {"results": [{"vulns": [{"id": "bad\nID"}]}]},
-                         {"results": [{"next_page_token": None}]}):
+        for response in (
+            {},
+            {"results": []},
+            {"results": [{}, {}]},
+            {"results": None},
+            {"results": [None]},
+            {"results": [{"error": "unavailable"}]},
+            {"results": [{"vulns": None}]},
+            {"results": [{"vulns": [{}]}]},
+            {"results": [{"vulns": [{"id": "bad\nID"}]}]},
+            {"results": [{"next_page_token": None}]},
+        ):
             with self.subTest(response=response), self.assertRaises(checker.AuditError):
                 self.run_audit(FakeHttp(response))
 
@@ -122,8 +138,11 @@ class DependencyAdvisoriesTest(unittest.TestCase):
             self.assertEqual(1, len(fake.requests))
 
     def test_http_429_and_503_retry_then_succeed_with_bounded_backoff(self):
-        fake = FakeHttp(urllib.error.HTTPError(checker.ENDPOINT, 429, "rate", {}, None),
-                        urllib.error.HTTPError(checker.ENDPOINT, 503, "busy", {}, None), {"results": [{}]})
+        fake = FakeHttp(
+            urllib.error.HTTPError(checker.ENDPOINT, 429, "rate", {}, None),
+            urllib.error.HTTPError(checker.ENDPOINT, 503, "busy", {}, None),
+            {"results": [{}]},
+        )
         self.assertEqual("clean", self.run_audit(fake)["status"])
         self.assertEqual([1, 2], fake.sleeps)
         self.assertEqual(3, fake.client.requests)
@@ -155,10 +174,21 @@ class DependencyAdvisoriesTest(unittest.TestCase):
             self.run_audit(FakeHttp(b'{"results": [{}]}'))
 
     def test_incomplete_or_malformed_inventory_is_rejected(self):
-        invalid = [None, {}, {**inventory(), "schemaVersion": True}, {**inventory(), "components": []},
-                   {**inventory(), "configurations": []}]
-        for field, value in (("version", "latest.release"), ("version", "1.+"), ("version", "[1,2)"), ("group", "bad\nname"),
-                             ("configurations", []), ("configurations", ["not-resolved"])):
+        invalid = [
+            None,
+            {},
+            {**inventory(), "schemaVersion": True},
+            {**inventory(), "components": []},
+            {**inventory(), "configurations": []},
+        ]
+        for field, value in (
+            ("version", "latest.release"),
+            ("version", "1.+"),
+            ("version", "[1,2)"),
+            ("group", "bad\nname"),
+            ("configurations", []),
+            ("configurations", ["not-resolved"]),
+        ):
             data = inventory()
             data["components"][0][field] = value
             invalid.append(data)

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-from pathlib import Path
 import shutil
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from check_android_surface import ANDROID, ROOT, check
+
 
 class AndroidSurfaceTest(unittest.TestCase):
     def setUp(self):
@@ -26,15 +27,18 @@ class AndroidSurfaceTest(unittest.TestCase):
         change(tree.getroot().find("application"))
         tree.write(path)
 
+    def set_application_attribute(self, attribute, value):
+        self.edit_manifest(lambda app: app.set(ANDROID + attribute, value))
+
     def test_current_manifest_passes(self):
         self.assertEqual([], check(self.root))
 
     def test_backup_or_cleartext_or_debug_is_rejected(self):
         for attribute in ("allowBackup", "usesCleartextTraffic", "debuggable"):
             with self.subTest(attribute=attribute):
-                self.edit_manifest(lambda app: app.set(ANDROID + attribute, "true"))
+                self.set_application_attribute(attribute, "true")
                 self.assertTrue(check(self.root))
-                self.edit_manifest(lambda app: app.set(ANDROID + attribute, "false"))
+                self.set_application_attribute(attribute, "false")
 
     def test_exported_service_is_rejected(self):
         self.edit_manifest(lambda app: app.find("service").set(ANDROID + "exported", "true"))
@@ -52,6 +56,7 @@ class AndroidSurfaceTest(unittest.TestCase):
         section.remove(next(e for e in section if e.get("domain") == "sharedpref"))
         tree.write(path)
         self.assertTrue(any("device-transfer" in message for message in check(self.root)))
+
 
 if __name__ == "__main__":
     unittest.main()
