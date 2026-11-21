@@ -1,0 +1,9 @@
+{
+  "entries": [
+    "architecture:ai->app:app/src/main/java/com/runline/app/ai/AutomaticReviews.kt",
+    "architecture:ai->tracking:app/src/main/java/com/runline/app/ai/SmartRunAi.kt",
+    "architecture:coaching->ai:app/src/main/java/com/runline/app/coaching/CoachSpeech.kt",
+    "architecture:diagnostics->ai:app/src/main/java/com/runline/app/diagnostics/Diagnostics.kt",
+    "tests:wall-clock:app/src/test/java/com/runline/app/ai/LiveCoachBacktest.kt"
+  ]
+}

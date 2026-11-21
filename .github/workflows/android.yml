@@ -20,9 +20,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Check out source
+      - name: Check out source and its base
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 2
           persist-credentials: false
       - name: Prepare stable app signing
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -53,8 +54,10 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Verify icon sources
         run: python3 tools/import_icons.py --check
-      - name: Test, lint and build
-        run: ./gradlew testDebugUnitTest assembleDebug assembleDebugAndroidTest assembleRelease lintDebug --no-daemon
+      - name: Test with coverage, strict lint and build
+        run: ./gradlew testDebugUnitTest createDebugUnitTestCoverageReport assembleDebug assembleDebugAndroidTest assembleRelease lintDebug --no-daemon
+      - name: Hold every package at or above its coverage floor
+        run: python3 tools/trust/check_ratchets.py --base HEAD^1 --coverage-report app/build/reports/coverage/test/debug/report.xml
       - name: GPX import tests on Android 14
         timeout-minutes: 15
         run: |

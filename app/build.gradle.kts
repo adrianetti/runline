@@ -52,11 +52,23 @@ android {
         }
     }
     buildTypes {
-        debug { if (hasPersonalSigning) signingConfig = signingConfigs.getByName("personal") }
+        debug {
+            enableUnitTestCoverage = true
+            if (hasPersonalSigning) signingConfig = signingConfigs.getByName("personal")
+        }
         release {
             isMinifyEnabled = false
             if (hasPersonalSigning) signingConfig = signingConfigs.getByName("personal")
         }
+    }
+    lint {
+        abortOnError = true
+        warningsAsErrors = true
+        checkAllWarnings = true
+        checkReleaseBuilds = true
+        checkTestSources = true
+        baseline = file("lint-baseline.xml")
+        disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
     }
 }
 androidComponents { onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(routeAssets, RouteAssets::output) } }

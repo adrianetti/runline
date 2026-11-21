@@ -1,0 +1,91 @@
+name: Merge trust
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Merge trust gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the change and its base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Set up Java 17
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Restore checksum-pinned linters
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/trust-tools
+          key: trust-tools-${{ runner.os }}-${{ hashFiles('config/trust/toolchain.json') }}
+      - name: Run static merge-trust gates on a pull request
+        if: github.event_name == 'pull_request'
+        env:
+          TRUST_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: python3 tools/trust/verify.py --static --base HEAD^1
+      - name: Run static merge-trust gates on main
+        if: github.event_name != 'pull_request'
+        run: python3 tools/trust/verify.py --static --base HEAD^1 --no-label-check
+      - name: Upload merge-trust report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Merge-trust-${{ github.run_number }}
+          path: build/reports/trust/
+          if-no-files-found: warn
+          retention-days: 14
+
+  bytecode:
+    name: Bytecode equivalence
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'no-behavior-change')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out the change and its base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Set up Java 17
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          log-accepted-android-sdk-licenses: false
+          packages: 'platform-tools platforms;android-37.0 build-tools;36.0.0'
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: true
+      - name: Prove compiled classes are unchanged
+        run: python3 tools/trust/check_bytecode.py --base-ref HEAD^1
+      - name: Upload bytecode report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Bytecode-equivalence-${{ github.run_number }}
+          path: build/reports/trust/bytecode.json
+          if-no-files-found: warn
+          retention-days: 14

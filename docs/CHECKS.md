@@ -2,7 +2,9 @@
 
 Runline uses GitHub Actions on pushes to `main` and pull requests. Workflow files and tool versions are committed, actions are pinned to full commit IDs, and normal checks have read-only repository permissions. Pull requests never receive the app signing key. There is no automatic merge of dependency changes.
 
-- **Android tests, lint and APK:** JVM tests, Android lint and debug/release compilation. Lint errors fail the job; existing warnings remain visible in uploaded reports. Main push builds also produce the signed APK. Review builds use no private signing credentials.
+- **Merge trust gates:** one deterministic entry point, `tools/trust/verify.py`, runs the same gates locally and in CI, then writes a report to the job summary and `build/reports/trust/`. The gates cover the comment ban, ktlint, detekt with every rule, ruff, package layering, test determinism and test count, suppressions, baselines that only shrink, owner-labelled gate changes and the pinned toolchain. Seeded bad changes test every gate. The rules are in [the agent contract](../AGENTS.md).
+- **Bytecode equivalence:** on pull requests labelled `no-behavior-change`, CI compiles the base and the head and fails if any debug, release, unit-test or instrumentation class differs. Line-number tables, local-variable names and debugger `nop` padding are ignored.
+- **Android tests, lint and APK:** JVM tests with JaCoCo line coverage, Android lint and debug/release compilation. Lint runs every check, including test sources, with warnings as errors; the findings that existed when the gate was introduced are recorded in `app/lint-baseline.xml`, and that file may only shrink. Coverage per package must stay at or above the floors in `config/trust/coverage.json`. Main push builds also produce the signed APK. Review builds use no private signing credentials.
 - **Resources and wrapper:** validate the Gradle wrapper JAR, all English/Spanish resource keys/types/format arguments, pinned Tabler assets and whitespace. The Gradle distribution has a pinned SHA-256 checksum.
 - **Workflow lint:** actionlint validates workflow syntax, expressions and embedded shell. Its downloaded binary is versioned and checksum-verified.
 - **Dependency advisory audit:** resolves actual Maven versions across every resolvable project and buildscript configuration, including lint, debug, release and tests, then queries OSV. Any known finding or incomplete check fails the job; there is no severity filter or ignored-advisory list. It runs on PRs, main pushes, manual dispatch and weekly, with read-only permissions. Seventeen offline tests cover the checker. Only public dependency coordinates and versions are sent to OSV; reports are uploaded even when the audit fails.
@@ -18,10 +20,7 @@ A clean Maven audit does not mean the whole toolchain is vulnerability-free. Gra
 Local checks:
 
 ```sh
-python3 tools/check_resources.py
-python3 tools/import_icons.py --check
-python3 tools/check_routes.py
-./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
+python3 tools/trust/verify.py
 python3 tools/security/test_dependency_advisories.py
 ./gradlew --no-daemon --no-configuration-cache --init-script tools/security/export_dependencies.init.gradle exportDependencyAudit
 python3 tools/security/check_dependency_advisories.py --input build/reports/dependency-audit.json --output build/reports/dependency-advisories.json

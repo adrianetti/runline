@@ -1,0 +1,42 @@
+[project]
+name = "runline-tools"
+version = "0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+extend-exclude = ["third_party", "build", "app"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D",
+    "CPY",
+    "COM812",
+    "ISC001",
+    "T201",
+    "S310",
+    "S314",
+    "S603",
+    "S607",
+    "INP001",
+    "EM101",
+    "EM102",
+    "TRY003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/*/test_*.py" = ["PT", "S101", "SLF001", "ANN", "PLR0904"]
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-branches = 12
+max-statements = 50
+max-returns = 6
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+line-ending = "lf"
