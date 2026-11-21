@@ -50,6 +50,8 @@ Use JDK 17, Android SDK 37.0 and Build Tools 36.0.0. Set `ANDROID_HOME` to your 
 
 ## Contribute
 
+AI agents write most of Runline. Changes merge only when the [merge-trust gates](AGENTS.md) pass: run `python3 tools/trust/verify.py`.
+
 [MIT licensed](LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md). Third-party assets and map services keep their own licenses. Global EOX imagery has noncommercial restrictions; source availability does not remove those terms.
 
 Google Play publication is deferred until a developer account and the remaining release checks are ready. Signed GitHub APKs remain the update channel.
