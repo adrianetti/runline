@@ -4,30 +4,39 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TerrainStructureTest {
-    private fun line(count: Int, model: (Int) -> TerrainModel?, height: (Int) -> Double? = { 650.0 }) = (0 until count).map { index ->
+    private fun line(
+        count: Int,
+        model: (Int) -> TerrainModel?,
+        height: (Int) -> Double? = { 650.0 },
+    ) = (0 until count).map { index ->
         val m = model(index)
-        RunPoint(37.17, -3.6 + index * 3.0 / (111195.0802335329 * Math.cos(Math.toRadians(37.17))), 1_000L + index * 1_000, 4f,
-            if (m == TerrainModel.STRUCTURE) null else height(index), terrainModel = m)
+        RunPoint(
+            37.17,
+            -3.6 + index * 3.0 / (111195.0802335329 * Math.cos(Math.toRadians(37.17))),
+            1_000L + index * 1_000,
+            4f,
+            if (m == TerrainModel.STRUCTURE) null else height(index),
+            terrainModel = m,
+        )
     }
 
     @Test fun `structure hides heights fifteen metres either side and nothing else`() {
         val points = line(40, { if (it == 20) TerrainModel.STRUCTURE else TerrainModel.IGN_MDT05 })
         val guarded = TerrainStructureGuard.apply(points)
         val hidden = guarded.indices.filter { guarded[it].altitudeMeters == null }
-        // 3 m spacing: indices 15..25 lie within 15 m of index 20.
         assertEquals((15..25).toList(), hidden)
         assertTrue(hidden.all { guarded[it].terrainModel == TerrainModel.STRUCTURE })
         assertSame(points[0], guarded[0])
-        // Original GPS fixes are never changed: guarding only returns a derived copy.
         assertEquals(650.0, points[16].altitudeMeters!!, 0.0)
     }
 
     @Test fun `no structure returns the same list and a gap stops the margin`() {
         val clean = line(10, { TerrainModel.IGN_MDT05 })
         assertSame(clean, TerrainStructureGuard.apply(clean))
-        val gap = line(10, { if (it == 4) TerrainModel.STRUCTURE else TerrainModel.IGN_MDT05 }).mapIndexed { index, point ->
-            if (index >= 5) point.copy(segment = 1) else point
-        }
+        val gap =
+            line(10, { if (it == 4) TerrainModel.STRUCTURE else TerrainModel.IGN_MDT05 }).mapIndexed { index, point ->
+                if (index >= 5) point.copy(segment = 1) else point
+            }
         assertEquals(650.0, TerrainStructureGuard.apply(gap)[5].altitudeMeters!!, 0.0)
     }
 

@@ -5,8 +5,13 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GpsCourseTest {
-    private fun point(lat: Double = 0.0, lng: Double = 0.0, time: Long = 0L, accuracy: Float = 3f, segment: Int = 0) =
-        RunPoint(lat, lng, time, accuracy, segment = segment)
+    private fun point(
+        lat: Double = 0.0,
+        lng: Double = 0.0,
+        time: Long = 0L,
+        accuracy: Float = 3f,
+        segment: Int = 0,
+    ) = RunPoint(lat, lng, time, accuracy, segment = segment)
 
     @Test fun derivesCardinalCoursesFromMovementInsteadOfAssumingNorthAtStart() {
         val destinations = listOf(0.0001 to 0.0, 0.0 to 0.0001, -0.0001 to 0.0, 0.0 to -0.0001)
@@ -70,9 +75,12 @@ class GpsCourseTest {
 
     @Test fun invalidAccuracyCoordinatesTimeAndTeleportDoNotProduceFalseCourse() {
         for (fix in listOf(
-            point(lng = Double.NaN, time = 6_000L), point(lng = 0.0001, time = 6_000L, accuracy = Float.NaN),
-            point(lng = 0.0001, time = 6_000L, accuracy = 31f), point(lng = 0.0001, time = -1L),
-            point(lng = 0.0002, time = 4_000L), point(lng = 0.0002, time = 5_000L),
+            point(lng = Double.NaN, time = 6_000L),
+            point(lng = 0.0001, time = 6_000L, accuracy = Float.NaN),
+            point(lng = 0.0001, time = 6_000L, accuracy = 31f),
+            point(lng = 0.0001, time = -1L),
+            point(lng = 0.0002, time = 4_000L),
+            point(lng = 0.0002, time = 5_000L),
             point(lng = 1.0, time = 6_000L),
         )) {
             val course = eastboundCourse()
@@ -88,8 +96,9 @@ class GpsCourseTest {
         assertEquals(90.0, course.bearingDegrees!!, 0.001)
     }
 
-    private fun eastboundCourse() = GpsCourse().apply {
-        update(point())
-        update(point(lng = 0.0001, time = 5_000L))
-    }
+    private fun eastboundCourse() =
+        GpsCourse().apply {
+            update(point())
+            update(point(lng = 0.0001, time = 5_000L))
+        }
 }

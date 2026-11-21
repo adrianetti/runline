@@ -1,0 +1,15 @@
+{
+  "line_floors": {
+    "total": 34.4,
+    "ai": 59.3,
+    "core": 97.4,
+    "data": 50.1,
+    "diagnostics": 42.7,
+    "music": 43.4,
+    "sharing": 17.0,
+    "terrain": 6.1,
+    "tracking": 0.6,
+    "training": 92.1,
+    "updates": 19.6
+  }
+}

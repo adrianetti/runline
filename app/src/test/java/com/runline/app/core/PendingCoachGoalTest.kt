@@ -7,12 +7,28 @@ class PendingCoachGoalTest {
     @Test fun `goal crossing during another prompt is spoken once after that prompt finishes`() {
         var currentText: String? = null
         var releases = 0
-        val lease = SpeechLease(object : SpeechOutput {
-            override fun requestFocus() = true
-            override fun abandonFocus() { releases++ }
-            override fun speak(text: String, id: String): Boolean { currentText = text; return true }
-            override fun stopSpeech() { currentText = null }
-        })
+        val lease =
+            SpeechLease(
+                object : SpeechOutput {
+                    override fun requestFocus() = true
+
+                    override fun abandonFocus() {
+                        releases++
+                    }
+
+                    override fun speak(
+                        text: String,
+                        id: String,
+                    ): Boolean {
+                        currentText = text
+                        return true
+                    }
+
+                    override fun stopSpeech() {
+                        currentText = null
+                    }
+                },
+            )
         val pending = PendingCoachGoal()
         assertTrue(lease.begin("one kilometre", "km"))
         pending.offer(CoachCue.GoalReached(true), 1_000)

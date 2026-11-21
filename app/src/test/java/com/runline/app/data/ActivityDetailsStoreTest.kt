@@ -13,6 +13,7 @@ import java.nio.file.Files
 
 class ActivityDetailsStoreTest {
     private fun directory() = Files.createTempDirectory("activity-details-test").toFile().apply { deleteOnExit() }
+
     private val id = "saved-activity"
     private val photo = "11111111-2222-3333-4444-555555555555.jpg"
 
@@ -59,23 +60,32 @@ class ActivityDetailsStoreTest {
     }
 
     @Test fun corruptCopyFallsBackAndTwoCorruptCopiesRemainUntouched() {
-        val root = directory(); val store = ActivityDetailsStore(root)
+        val root = directory()
+        val store = ActivityDetailsStore(root)
         store.save(id, ActivityDetails(title = "A lap"))
-        val main = File(root, "details-$id.json"); val backup = File(main.path + ".backup")
+        val main = File(root, "details-$id.json")
+        val backup = File(main.path + ".backup")
         main.writeText("broken-main")
         assertEquals("A lap", store.get(id).title)
         backup.writeText("broken-backup")
         assertThrows(IOException::class.java) { store.get(id) }
         assertThrows(IOException::class.java) { store.save(id, ActivityDetails(title = "Do not overwrite")) }
-        assertEquals("broken-main", main.readText()); assertEquals("broken-backup", backup.readText())
+        assertEquals("broken-main", main.readText())
+        assertEquals("broken-backup", backup.readText())
     }
 
     @Test fun invalidMetadataAndTraversalCannotWrite() {
         val store = ActivityDetailsStore(directory())
-        listOf(ActivityDetails(effort = 0), ActivityDetails(effort = 11), ActivityDetails(title = "x".repeat(121)),
-            ActivityDetails(description = "x".repeat(4001)), ActivityDetails(title = "line\nbreak"),
-            ActivityDetails(description = "nul\u0000"), ActivityDetails(photoIds = listOf("../secret")),
-            ActivityDetails(photoIds = listOf(photo, photo))).forEach {
+        listOf(
+            ActivityDetails(effort = 0),
+            ActivityDetails(effort = 11),
+            ActivityDetails(title = "x".repeat(121)),
+            ActivityDetails(description = "x".repeat(4001)),
+            ActivityDetails(title = "line\nbreak"),
+            ActivityDetails(description = "nul\u0000"),
+            ActivityDetails(photoIds = listOf("../secret")),
+            ActivityDetails(photoIds = listOf(photo, photo)),
+        ).forEach {
             assertThrows(IllegalArgumentException::class.java) { store.save(id, it) }
         }
         assertThrows(IllegalArgumentException::class.java) { store.get("../outside") }
@@ -84,24 +94,30 @@ class ActivityDetailsStoreTest {
     }
 
     @Test fun photosMustExistAndRemovedPhotosAreDeletedOnlyAfterCommit() {
-        val root = directory(); val store = ActivityDetailsStore(root)
+        val root = directory()
+        val store = ActivityDetailsStore(root)
         assertThrows(IllegalArgumentException::class.java) { store.save(id, ActivityDetails(photoIds = listOf(photo))) }
-        store.photoDirectory(id).mkdirs(); store.photoFile(id, photo).writeText("private-image")
+        store.photoDirectory(id).mkdirs()
+        store.photoFile(id, photo).writeText("private-image")
         store.save(id, ActivityDetails(photoIds = listOf(photo)))
         val failing = ActivityDetailsStore(root, fault = { throw IOException("injected") })
         assertThrows(IOException::class.java) { failing.save(id, ActivityDetails()) }
-        assertTrue(store.photoFile(id, photo).exists()); assertEquals(listOf(photo), store.get(id).photoIds)
+        assertTrue(store.photoFile(id, photo).exists())
+        assertEquals(listOf(photo), store.get(id).photoIds)
         store.save(id, ActivityDetails())
-        assertFalse(store.photoFile(id, photo).exists()); assertTrue(store.get(id).photoIds.isEmpty())
+        assertFalse(store.photoFile(id, photo).exists())
+        assertTrue(store.get(id).photoIds.isEmpty())
     }
 
     @Test fun deleteRemovesAnnotationsAndPhotosWithoutTouchingAnotherActivity() {
         val store = ActivityDetailsStore(directory())
-        store.photoDirectory(id).mkdirs(); store.photoFile(id, photo).writeText("private-image")
+        store.photoDirectory(id).mkdirs()
+        store.photoFile(id, photo).writeText("private-image")
         store.save(id, ActivityDetails(title = "Remove", photoIds = listOf(photo)))
         store.save("keep", ActivityDetails(title = "Keep"))
         store.delete(id)
-        assertEquals(ActivityDetails(), store.get(id)); assertFalse(store.photoFile(id, photo).exists())
+        assertEquals(ActivityDetails(), store.get(id))
+        assertFalse(store.photoFile(id, photo).exists())
         assertEquals("Keep", store.get("keep").title)
     }
 }

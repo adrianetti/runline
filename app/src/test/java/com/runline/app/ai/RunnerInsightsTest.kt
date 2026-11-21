@@ -13,7 +13,13 @@ class RunnerInsightsTest {
     private val day = 86_400_000L
     private val now = 1_800_000_000_000L
 
-    private fun run(id: String, daysAgo: Int, km: Double, seconds: Long, type: ActivityType = ActivityType.RUN): RunSession {
+    private fun run(
+        id: String,
+        daysAgo: Int,
+        km: Double,
+        seconds: Long,
+        type: ActivityType = ActivityType.RUN,
+    ): RunSession {
         val start = now - daysAgo * day
         val steps = 100
         val points = (0..steps).map { RunPoint(37.17, -3.6 + km * 1000 / steps * it / 88_600.0, start + seconds * 1000 / steps * it, 4f) }
@@ -21,8 +27,14 @@ class RunnerInsightsTest {
     }
 
     @Test fun `snapshot measures recent volume, longest run, typical moving pace and effort`() {
-        val runs = listOf(run("a", 1, 10.0, 3720), run("b", 3, 4.7, 1800), run("c", 8, 3.0, 1080), run("d", 40, 12.0, 4800),
-            run("walk", 2, 6.0, 4000, ActivityType.WALK))
+        val runs =
+            listOf(
+                run("a", 1, 10.0, 3720),
+                run("b", 3, 4.7, 1800),
+                run("c", 8, 3.0, 1080),
+                run("d", 40, 12.0, 4800),
+                run("walk", 2, 6.0, 4000, ActivityType.WALK),
+            )
         val efforts = mapOf("a" to 7, "b" to 5)
         val snapshot = TrainingSnapshot.of(runs, { ActivityDetails(effort = efforts[it]) }, now, ZoneOffset.UTC)
         assertEquals(3, snapshot.runs28Days)
@@ -31,7 +43,6 @@ class RunnerInsightsTest {
         assertEquals(6.0, snapshot.averageEffort!!, 1e-9)
         assertEquals(4, snapshot.totalRuns)
         assertNotNull(snapshot.typicalPaceSeconds)
-        // A walk retyped as a run in its details counts as a run.
         val retyped = TrainingSnapshot.of(runs, { if (it == "walk") ActivityDetails(activityType = ActivityType.RUN) else ActivityDetails() }, now, ZoneOffset.UTC)
         assertEquals(4, retyped.runs28Days)
     }
@@ -41,9 +52,12 @@ class RunnerInsightsTest {
         val parsed = RunnerInsights.parse(valid.toString(), now, 4, "model")
         assertEquals(RunningExperience.REGULAR, parsed.experience)
         assertEquals(parsed, RunnerInsights.stored(parsed.json()))
-        listOf(JSONObject(valid.toString()).put("extra", "x"), JSONObject(valid.toString()).put("experience", "UNSPECIFIED"),
-            JSONObject(valid.toString()).put("summary", "see https://example.com"), JSONObject(valid.toString()).put("focus", "x".repeat(200)))
-            .forEach { bad -> assertThrows(Exception::class.java) { RunnerInsights.parse(bad.toString(), now, 4, "model") } }
+        listOf(
+            JSONObject(valid.toString()).put("extra", "x"),
+            JSONObject(valid.toString()).put("experience", "UNSPECIFIED"),
+            JSONObject(valid.toString()).put("summary", "see https://example.com"),
+            JSONObject(valid.toString()).put("focus", "x".repeat(200)),
+        ).forEach { bad -> assertThrows(Exception::class.java) { RunnerInsights.parse(bad.toString(), now, 4, "model") } }
     }
 
     @Test fun `updates follow new runs at most every six hours`() {
@@ -64,7 +78,6 @@ class RunnerInsightsTest {
         assertNull(private.copy(aiManaged = false).forAi(insights))
         val consented = private.copy(includeInAi = true).forAi(insights)!!
         assertEquals("knee", consented.getString("self_reported_health_notes"))
-        // With AI management, the AI's experience replaces the manual choice rather than contradicting it.
         assertFalse(consented.has("experience"))
         assertEquals(true, RunnerProfile.parse(private.json()).aiManaged)
         assertEquals(false, RunnerProfile.parse(JSONObject(private.json().toString()).apply { remove("ai_managed") }).aiManaged)

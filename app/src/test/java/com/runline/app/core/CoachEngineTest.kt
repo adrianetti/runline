@@ -8,12 +8,21 @@ class CoachEngineTest {
     private var elapsed = 0L
     private var metres = 0.0
     private var segment = 0
+
     private fun session() = RunSession("coach-test", 1000, 1000 + elapsed, elapsed, points.toList())
-    private fun advance(engine: CoachEngine, speed: Double, seconds: Int = 5, fresh: Boolean = true): CoachCue? {
-        elapsed += seconds * 1000L; metres += speed * seconds
+
+    private fun advance(
+        engine: CoachEngine,
+        speed: Double,
+        seconds: Int = 5,
+        fresh: Boolean = true,
+    ): CoachCue? {
+        elapsed += seconds * 1000L
+        metres += speed * seconds
         points += RunPoint(0.0, metres / 111195.0802335329, 1000 + elapsed, 4f, segment = segment)
         return engine.update(session(), recording = true, gpsFresh = fresh)
     }
+
     private fun initial(config: CoachConfig): CoachEngine {
         points += RunPoint(0.0, 0.0, 1000, 4f)
         return CoachEngine(config, session())
@@ -58,15 +67,24 @@ class CoachEngineTest {
         val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.PACE, paceSecondsPerKm = 300, kilometreAnnouncements = false, encouragement = false))
         repeat(14) { advance(engine, 2.0) }
         repeat(20) { assertNull(advance(engine, 2.0, fresh = false)) }
-        engine.pause(); segment++
+        engine.pause()
+        segment++
         repeat(5) { assertNull(advance(engine, 2.0)) }
         val after = (1..12).mapNotNull { advance(engine, 2.0) }
         assertTrue(after.any { it == CoachCue.SlowerThanTarget })
     }
 
     @Test fun `goal time uses active duration and does not claim a late finish was in time`() {
-        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.DISTANCE_TIME,
-            distanceKm = 0.2, targetMinutes = 1.0, kilometreAnnouncements = false))
+        val engine =
+            initial(
+                CoachConfig(
+                    enabled = true,
+                    goal = CoachGoal.DISTANCE_TIME,
+                    distanceKm = 0.2,
+                    targetMinutes = 1.0,
+                    kilometreAnnouncements = false,
+                ),
+            )
         val goal = (1..30).mapNotNull { advance(engine, 2.0) }.filterIsInstance<CoachCue.GoalReached>().single()
         assertEquals(false, goal.withinTime)
     }
@@ -78,8 +96,15 @@ class CoachEngineTest {
     }
 
     @Test fun `turning off kilometre announcements keeps distance goals available`() {
-        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.DISTANCE,
-            distanceKm = 1.5, kilometreAnnouncements = false))
+        val engine =
+            initial(
+                CoachConfig(
+                    enabled = true,
+                    goal = CoachGoal.DISTANCE,
+                    distanceKm = 1.5,
+                    kilometreAnnouncements = false,
+                ),
+            )
         val cues = (1..35).mapNotNull { advance(engine, 10.0) }
         assertTrue(cues.none { it is CoachCue.Kilometre })
         assertEquals(1, cues.filterIsInstance<CoachCue.GoalReached>().size)

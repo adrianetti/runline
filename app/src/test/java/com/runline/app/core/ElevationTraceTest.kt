@@ -4,20 +4,38 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ElevationTraceTest {
-    private fun point(time: Long, height: Double? = 100.0, segment: Int = 0) =
-        RunPoint(40.0, -3.0, time, 3f, height, segment)
+    private fun point(
+        time: Long,
+        height: Double? = 100.0,
+        segment: Int = 0,
+    ) = RunPoint(40.0, -3.0, time, 3f, height, segment)
 
     @Test fun preservesMeasuredClimbAndDescentWithoutSyntheticSmoothing() {
-        val trace = ElevationTrace.from(listOf(100.0, 108.0, 103.0).mapIndexed { index, height ->
-            point(index * 5_000L, height).copy(latitude = 40.0 + index * 20 / 111195.0802)
-        })
+        val trace =
+            ElevationTrace.from(
+                listOf(100.0, 108.0, 103.0).mapIndexed { index, height ->
+                    point(index * 5_000L, height).copy(latitude = 40.0 + index * 20 / 111195.0802)
+                },
+            )
         assertEquals(listOf(100.0, 108.0, 103.0), trace.sections.single().map { it.heightMeters })
         assertEquals(10_000L, trace.durationMs)
     }
 
     @Test fun missingHeightsAndGpsGapsAreSeparatePaths() {
-        val trace = ElevationTrace.from(listOf(point(0), point(1_000), point(2_000, null),
-            point(3_000), point(4_000), point(30_000), point(31_000), point(32_000, segment = 1), point(33_000, segment = 1)))
+        val trace =
+            ElevationTrace.from(
+                listOf(
+                    point(0),
+                    point(1_000),
+                    point(2_000, null),
+                    point(3_000),
+                    point(4_000),
+                    point(30_000),
+                    point(31_000),
+                    point(32_000, segment = 1),
+                    point(33_000, segment = 1),
+                ),
+            )
         assertEquals(4, trace.sections.size)
         assertEquals(listOf(0L, 3_000L, 4_000L, 5_000L), trace.sections.map { it.first().positionMs })
     }

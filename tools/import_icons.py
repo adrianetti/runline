@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-"""Rebuild Runline's pinned Tabler subset as Android VectorDrawables.
-
-Default and --check are offline. --fetch downloads only the pinned revision below.
-Original SVG paths and license are retained under third_party/tabler-icons/.
-"""
 from __future__ import annotations
+
 import argparse
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
-from pathlib import Path
 import sys
-from urllib.request import urlopen
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "ed177a085b652fe04ec4f37ced867c94621e7840"
@@ -20,30 +16,70 @@ ORIGIN = f"https://raw.githubusercontent.com/tabler/tabler-icons/{REVISION}"
 SOURCE = ROOT / "third_party/tabler-icons"
 DESTINATION = ROOT / "app/src/main/res/drawable"
 ICONS = {
-    "run": "run", "play": "player-play", "pause": "player-pause", "stop": "player-stop",
-    "history": "history", "route": "route", "download": "download",
-    "share": "share", "trash": "trash", "info": "info-circle", "battery": "battery",
-    "shield_check": "shield-check", "back": "arrow-left", "more": "dots",
-    "external_link": "external-link", "clock": "clock", "check": "check",
-    "settings": "settings", "close": "x", "navigation": "navigation", "speaker": "volume",
-    "edit": "pencil", "photo": "photo", "calendar": "calendar-event",
-    "language": "language", "ai": "brain", "user": "user", "effort": "gauge",
-    "speaker_off": "volume-off", "update": "alert-circle", "refresh": "refresh",
-    "slope_up": "trending-up", "slope_down": "trending-down", "flat": "arrow-right",
-    "folder": "folder", "archive": "file-zip",
-    "map": "map-2", "warning": "alert-triangle", "sunset": "sunset", "hike": "trekking",
-    "turn_bear_left": "arrow-bear-left", "turn_bear_right": "arrow-bear-right",
-    "turn_left": "corner-up-left", "turn_right": "corner-up-right",
-    "turn_sharp_left": "arrow-sharp-turn-left", "turn_sharp_right": "arrow-sharp-turn-right",
-    "turn_around": "arrow-back-up", "turn_zigzag": "arrow-zig-zag", "straight": "arrow-up",
-    "preview": "drone", "climb": "mountain", "add": "plus", "directions": "directions",
-    "music": "music", "skip": "player-skip-forward", "spotify": "brand-spotify",
+    "run": "run",
+    "play": "player-play",
+    "pause": "player-pause",
+    "stop": "player-stop",
+    "history": "history",
+    "route": "route",
+    "download": "download",
+    "share": "share",
+    "trash": "trash",
+    "info": "info-circle",
+    "battery": "battery",
+    "shield_check": "shield-check",
+    "back": "arrow-left",
+    "more": "dots",
+    "external_link": "external-link",
+    "clock": "clock",
+    "check": "check",
+    "settings": "settings",
+    "close": "x",
+    "navigation": "navigation",
+    "speaker": "volume",
+    "edit": "pencil",
+    "photo": "photo",
+    "calendar": "calendar-event",
+    "language": "language",
+    "ai": "brain",
+    "user": "user",
+    "effort": "gauge",
+    "speaker_off": "volume-off",
+    "update": "alert-circle",
+    "refresh": "refresh",
+    "slope_up": "trending-up",
+    "slope_down": "trending-down",
+    "flat": "arrow-right",
+    "folder": "folder",
+    "archive": "file-zip",
+    "map": "map-2",
+    "warning": "alert-triangle",
+    "sunset": "sunset",
+    "hike": "trekking",
+    "turn_bear_left": "arrow-bear-left",
+    "turn_bear_right": "arrow-bear-right",
+    "turn_left": "corner-up-left",
+    "turn_right": "corner-up-right",
+    "turn_sharp_left": "arrow-sharp-turn-left",
+    "turn_sharp_right": "arrow-sharp-turn-right",
+    "turn_around": "arrow-back-up",
+    "turn_zigzag": "arrow-zig-zag",
+    "straight": "arrow-up",
+    "preview": "drone",
+    "climb": "mountain",
+    "add": "plus",
+    "directions": "directions",
+    "music": "music",
+    "skip": "player-skip-forward",
+    "spotify": "brand-spotify",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)
 
+
 def number(value: float) -> str:
     return format(value, ".12g")
+
 
 def path_data(node: ET.Element) -> str:
     tag = node.tag.rsplit("}", 1)[-1]
@@ -53,21 +89,34 @@ def path_data(node: ET.Element) -> str:
         return node.attrib["d"]
     if tag == "circle":
         x, y, radius = (float(node.get(a, "0")) for a in ("cx", "cy", "r"))
-        return f"M{number(x-radius)},{number(y)} a{number(radius)},{number(radius)} 0 1,0 {number(2*radius)},0 a{number(radius)},{number(radius)} 0 1,0 {number(-2*radius)},0"
+        arc = f"a{number(radius)},{number(radius)} 0 1,0"
+        return f"M{number(x - radius)},{number(y)} {arc} {number(2 * radius)},0 {arc} {number(-2 * radius)},0"
     if tag == "line":
-        return f"M{node.get('x1','0')},{node.get('y1','0')} L{node.get('x2','0')},{node.get('y2','0')}"
+        return f"M{node.get('x1', '0')},{node.get('y1', '0')} L{node.get('x2', '0')},{node.get('y2', '0')}"
     if tag in ("polyline", "polygon"):
         return "M" + node.attrib["points"] + (" Z" if tag == "polygon" else "")
     raise ValueError(f"Unsupported SVG geometry: {tag}")
 
-def vector(resource: str, source_name: str, launcher: bool = False) -> str:
+
+def vector(resource: str, source_name: str, *, launcher: bool = False) -> str:
     source = ET.parse(SOURCE / "svg" / f"{source_name}.svg").getroot()
     if source.get("viewBox") != "0 0 24 24":
         raise ValueError("The subset must use Tabler's standard 24-unit viewport")
-    a = lambda name: f"{{{ANDROID}}}{name}"
-    root = ET.Element("vector", {a("width"): "48dp" if launcher else "24dp", a("height"): "48dp" if launcher else "24dp", a("viewportWidth"): "24", a("viewportHeight"): "24"})
+
+    def android_attribute(name: str) -> str:
+        return f"{{{ANDROID}}}{name}"
+
+    root = ET.Element(
+        "vector",
+        {
+            android_attribute("width"): "48dp" if launcher else "24dp",
+            android_attribute("height"): "48dp" if launcher else "24dp",
+            android_attribute("viewportWidth"): "24",
+            android_attribute("viewportHeight"): "24",
+        },
+    )
     if launcher:
-        ET.SubElement(root, "path", {a("fillColor"): "#151515", a("pathData"): "M0,0 H24 V24 H0 Z"})
+        ET.SubElement(root, "path", {android_attribute("fillColor"): "#151515", android_attribute("pathData"): "M0,0 H24 V24 H0 Z"})
     for child in source:
         if child.tag.rsplit("}", 1)[-1] in ("title", "desc", "metadata"):
             continue
@@ -77,38 +126,54 @@ def vector(resource: str, source_name: str, launcher: bool = False) -> str:
         fill = child.get("fill", source.get("fill", "none"))
         if fill not in ("none", "currentColor"):
             raise ValueError(f"Unexpected fill {fill!r}")
-        # The map's navigation marker keeps Tabler's exact path with a white interior,
-        # so satellite imagery cannot obscure its direction. Other icons stay outline-only.
         attrs = {
-            a("fillColor"): "#FFFFFF" if resource == "navigation" else ("@android:color/transparent" if fill == "none" else ("#FFFFFF" if launcher else "#151515")),
-            a("strokeColor"): "#FFFFFF" if launcher else "#151515",
-            a("strokeWidth"): child.get("stroke-width", source.get("stroke-width", "2")),
-            a("strokeLineCap"): child.get("stroke-linecap", source.get("stroke-linecap", "round")),
-            a("strokeLineJoin"): child.get("stroke-linejoin", source.get("stroke-linejoin", "round")),
-            a("pathData"): path_data(child),
+            android_attribute("fillColor"): "#FFFFFF"
+            if resource == "navigation"
+            else ("@android:color/transparent" if fill == "none" else ("#FFFFFF" if launcher else "#151515")),
+            android_attribute("strokeColor"): "#FFFFFF" if launcher else "#151515",
+            android_attribute("strokeWidth"): child.get("stroke-width", source.get("stroke-width", "2")),
+            android_attribute("strokeLineCap"): child.get("stroke-linecap", source.get("stroke-linecap", "round")),
+            android_attribute("strokeLineJoin"): child.get("stroke-linejoin", source.get("stroke-linejoin", "round")),
+            android_attribute("pathData"): path_data(child),
         }
         ET.SubElement(root, "path", attrs)
     ET.indent(root, space="    ")
-    return '<?xml version="1.0" encoding="utf-8"?>\n' + f'<!-- Tabler Icons / {source_name}; MIT; source revision {REVISION}. Generated by tools/import_icons.py. -->\n' + ET.tostring(root, encoding="unicode") + "\n"
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        f"<!-- Tabler Icons / {source_name}; MIT; source revision {REVISION}. Generated by tools/import_icons.py. -->\n"
+        + ET.tostring(root, encoding="unicode")
+        + "\n"
+    )
+
 
 def fetch() -> None:
     SOURCE.mkdir(parents=True, exist_ok=True)
     (SOURCE / "svg").mkdir(exist_ok=True)
     paths = {f"icons/outline/{name}.svg": SOURCE / "svg" / f"{name}.svg" for name in ICONS.values()}
     paths["LICENSE"] = SOURCE / "LICENSE"
+
     def get(item: tuple[str, Path]) -> None:
         remote, local = item
         with urlopen(f"{ORIGIN}/{remote}", timeout=30) as response:
             payload = response.read()
         local.write_bytes(payload)
+
     with ThreadPoolExecutor(max_workers=6) as pool:
         list(pool.map(get, paths.items()))
-    manifest = {"repository": "https://github.com/tabler/tabler-icons", "revision": REVISION,
-                "license": "MIT", "files": {remote: {"sha256": hashlib.sha256(local.read_bytes()).hexdigest(), "url": f"{ORIGIN}/{remote}"} for remote, local in paths.items()}}
+    manifest = {
+        "repository": "https://github.com/tabler/tabler-icons",
+        "revision": REVISION,
+        "license": "MIT",
+        "files": {
+            remote: {"sha256": hashlib.sha256(local.read_bytes()).hexdigest(), "url": f"{ORIGIN}/{remote}"}
+            for remote, local in paths.items()
+        },
+    }
     (SOURCE / "provenance.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Rebuild the pinned Tabler subset as Android VectorDrawables.")
     parser.add_argument("--fetch", action="store_true", help="Fetch the pinned originals and then regenerate")
     parser.add_argument("--check", action="store_true", help="Check checked-in drawables without modifying files")
     args = parser.parse_args()
@@ -137,6 +202,7 @@ def main() -> int:
         return 1
     print(f"{'Verified' if args.check else 'Generated'} {len(expected)} Tabler VectorDrawables at pinned revision {REVISION[:12]}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

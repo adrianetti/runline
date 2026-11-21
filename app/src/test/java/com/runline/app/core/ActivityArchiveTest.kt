@@ -1,5 +1,7 @@
 package com.runline.app.core
 
+import org.junit.Assert.*
+import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Instant
@@ -7,18 +9,18 @@ import java.time.ZoneId
 import java.util.Locale
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
-import org.junit.Assert.*
-import org.junit.Test
 
 class ActivityArchiveTest {
     private val start = Instant.parse("2026-11-01T15:30:00Z").toEpochMilli()
     private val zone = ZoneId.of("Europe/Madrid")
-    private val points = listOf(
-        RunPoint(37.0, -3.0, start, 4f, 100.0),
-        RunPoint(37.0, -2.999, start + 10_000, 4f, 110.0),
-        RunPoint(37.01, -2.99, start + 40_000, 4f, 150.0, segment = 1),
-        RunPoint(37.01, -2.989, start + 50_000, 4f, 145.0, segment = 1),
-    )
+    private val points =
+        listOf(
+            RunPoint(37.0, -3.0, start, 4f, 100.0),
+            RunPoint(37.0, -2.999, start + 10_000, 4f, 110.0),
+            RunPoint(37.01, -2.99, start + 40_000, 4f, 150.0, segment = 1),
+            RunPoint(37.01, -2.989, start + 50_000, 4f, 145.0, segment = 1),
+        )
+
     private fun run(id: String = "walk") = RunSession(id, start, start + 50_000, 30_000, points, ActivityType.WALK)
 
     @Test fun zipContainsUniqueReadableGpxFilesAndCompleteAnalysisWithoutChangingSource() {
@@ -71,10 +73,15 @@ class ActivityArchiveTest {
     }
 
     @Test fun csvRetainsGpsGapsAsUnobservedTimeAndUnknownAltitude() {
-        val session = run().copy(activeDurationMs = 60_000, points = listOf(
-            RunPoint(37.0, -3.0, start, 4f, 100.0),
-            RunPoint(37.0, -2.999, start + 60_000, 4f, 150.0),
-        ))
+        val session =
+            run().copy(
+                activeDurationMs = 60_000,
+                points =
+                    listOf(
+                        RunPoint(37.0, -3.0, start, 4f, 100.0),
+                        RunPoint(37.0, -2.999, start + 60_000, 4f, 150.0),
+                    ),
+            )
         val entries = ActivityArchive.entries(listOf(session), Locale.ENGLISH, zone) { "Walk" }
         val rows = parseCsv(ActivityArchive.summaryCsv(entries, zone))
         val result = rows[0].zip(rows[1]).toMap()
@@ -90,7 +97,6 @@ class ActivityArchiveTest {
         assertEquals("Runline summary (3).csv", ActivityExportFileName.availableName("Runline summary.csv", listOf("Runline summary.csv", "Runline summary (2).csv")))
     }
 
-
     @Test fun editedMetadataAppearsInGpxAndCsvWithoutTurningTextIntoSpreadsheetFormulas() {
         val notes = ActivityDetails("=Three <laps> & \"friends\"", "@Warmup, then\nsteady <effort>.", 7, ActivityType.RUN, RoutineType.TEMPO)
         val entries = ActivityArchive.entries(listOf(run()), Locale.ENGLISH, zone, mapOf("walk" to notes)) { it.gpxName }
@@ -98,9 +104,15 @@ class ActivityArchiveTest {
         val row = rows[0].zip(rows[1]).toMap()
         assertEquals("'" + notes.title, row["title"])
         assertEquals("'" + notes.description, row["description"])
-        assertEquals("7", row["effort"]); assertEquals("tempo", row["routine"]); assertEquals("run", row["activity_type"])
-        val xml = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }.newDocumentBuilder()
-            .parse(ByteArrayInputStream(GpxExporter.export(entries.single().run, notes).toByteArray()))
+        assertEquals("7", row["effort"])
+        assertEquals("tempo", row["routine"])
+        assertEquals("run", row["activity_type"])
+        val xml =
+            DocumentBuilderFactory
+                .newInstance()
+                .apply { isNamespaceAware = true }
+                .newDocumentBuilder()
+                .parse(ByteArrayInputStream(GpxExporter.export(entries.single().run, notes).toByteArray()))
         assertEquals(notes.title, xml.getElementsByTagNameNS("*", "name").item(0).textContent)
         assertEquals(notes.description, xml.getElementsByTagNameNS("*", "desc").item(0).textContent)
         assertEquals("running", xml.getElementsByTagNameNS("*", "type").item(0).textContent)
@@ -109,8 +121,9 @@ class ActivityArchiveTest {
     }
 
     @Test fun formulaTextGuardIncludesWhitespaceAndLeavesOrdinaryNotesReadable() {
-        for (text in listOf("=2+2", "+SUM(A1)", "-1+2", "@lookup", "  =1", "\tplain", "\rline", "\nline"))
+        for (text in listOf("=2+2", "+SUM(A1)", "-1+2", "@lookup", "  =1", "\tplain", "\rline", "\nline")) {
             assertEquals("'" + text, ActivityArchive.safeSpreadsheetText(text))
+        }
         assertEquals("Three park laps 🏃", ActivityArchive.safeSpreadsheetText("Three park laps 🏃"))
         assertEquals("", ActivityArchive.safeSpreadsheetText(""))
     }
@@ -137,12 +150,34 @@ class ActivityArchiveTest {
         while (index < text.length) {
             val c = text[index++]
             when {
-                c == '"' && quoted && index < text.length && text[index] == '"' -> { value.append('"'); index++ }
-                c == '"' -> quoted = !quoted
-                c == ',' && !quoted -> { row += value.toString(); value.setLength(0) }
-                c == '\r' && !quoted -> Unit
-                c == '\n' && !quoted -> { row += value.toString(); value.setLength(0); rows += row; row = mutableListOf() }
-                else -> value.append(c)
+                c == '"' && quoted && index < text.length && text[index] == '"' -> {
+                    value.append('"')
+                    index++
+                }
+
+                c == '"' -> {
+                    quoted = !quoted
+                }
+
+                c == ',' && !quoted -> {
+                    row += value.toString()
+                    value.setLength(0)
+                }
+
+                c == '\r' && !quoted -> {
+                    Unit
+                }
+
+                c == '\n' && !quoted -> {
+                    row += value.toString()
+                    value.setLength(0)
+                    rows += row
+                    row = mutableListOf()
+                }
+
+                else -> {
+                    value.append(c)
+                }
             }
         }
         check(!quoted)

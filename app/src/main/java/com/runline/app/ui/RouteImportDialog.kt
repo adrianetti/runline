@@ -29,36 +29,57 @@ import java.util.UUID
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
-/** Retains parsing/saving across rotation without retaining an Activity or its views. */
-class RouteImportModel(application: Application) : AndroidViewModel(application) {
+class RouteImportModel(
+    application: Application,
+) : AndroidViewModel(application) {
     sealed class State {
         data object Reading : State()
-        data class Ready(val draft: PreparedRouteImport, val shape: RouteImportNaming.Shape,
-                         val places: List<RouteImportNaming.Place?>, val saveFailed: Boolean = false) : State()
+
+        data class Ready(
+            val draft: PreparedRouteImport,
+            val shape: RouteImportNaming.Shape,
+            val places: List<RouteImportNaming.Place?>,
+            val saveFailed: Boolean = false,
+        ) : State()
+
         data object Saving : State()
-        data class Saved(val id: String) : State()
+
+        data class Saved(
+            val id: String,
+        ) : State()
+
         data object Failed : State()
     }
+
     val state = MutableLiveData<State>()
     private val worker = Executors.newSingleThreadExecutor()
     private val store = RouteStore(application)
     private val placeLookup = RoutePlaces(application)
 
-    fun prepare(uri: Uri, id: String, locale: Locale) {
+    fun prepare(
+        uri: Uri,
+        id: String,
+        locale: Locale,
+    ) {
         if (state.value != null) return
         state.value = State.Reading
         worker.execute {
-            val result = runCatching {
-                // The process may have died just after confirmation committed this stable draft ID.
-                if (store.entry(id, "en") != null) State.Saved(id) else {
-                    val draft = store.prepareImport(uri, id)
-                    val shape = RouteImportNaming.shape(draft.route)
-                    // A name from the file wins, so only ask the geocoder when the suggestion needs places.
-                    val places = if (draft.suppliedName != null) emptyList()
-                    else runCatching { placeLookup.lookup(RouteImportNaming.namingPoints(draft.route, shape), locale) }.getOrDefault(emptyList())
-                    State.Ready(draft, shape, places)
-                }
-            }.getOrElse { State.Failed }
+            val result =
+                runCatching {
+                    if (store.entry(id, "en") != null) {
+                        State.Saved(id)
+                    } else {
+                        val draft = store.prepareImport(uri, id)
+                        val shape = RouteImportNaming.shape(draft.route)
+                        val places =
+                            if (draft.suppliedName != null) {
+                                emptyList()
+                            } else {
+                                runCatching { placeLookup.lookup(RouteImportNaming.namingPoints(draft.route, shape), locale) }.getOrDefault(emptyList())
+                            }
+                        State.Ready(draft, shape, places)
+                    }
+                }.getOrElse { State.Failed }
             state.postValue(result)
         }
     }
@@ -67,15 +88,18 @@ class RouteImportModel(application: Application) : AndroidViewModel(application)
         val ready = state.value as? State.Ready ?: return
         state.value = State.Saving
         worker.execute {
-            val result = runCatching<State> { State.Saved(store.commitImport(ready.draft, name).id) }
-                .getOrElse { ready.copy(saveFailed = true) }
+            val result =
+                runCatching<State> { State.Saved(store.commitImport(ready.draft, name).id) }
+                    .getOrElse { ready.copy(saveFailed = true) }
             state.postValue(result)
         }
     }
-    override fun onCleared() { worker.shutdownNow() }
+
+    override fun onCleared() {
+        worker.shutdownNow()
+    }
 }
 
-/** A single decision: keep/edit the suggested name, then add. Cancel never saves the draft. */
 class RouteImportDialog : DialogFragment() {
     private lateinit var model: RouteImportModel
     private lateinit var input: TextInputEditText
@@ -90,28 +114,45 @@ class RouteImportDialog : DialogFragment() {
         val context = requireContext()
         model = ViewModelProvider(this)[RouteImportModel::class.java]
         nameInitialized = savedInstanceState?.getBoolean("nameInitialized") == true
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8))
-        }
-        status = TextView(context).apply { textSize = 14f; setTextColor(context.getColor(R.color.on_surface_variant)); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+        val content =
+            LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(24), dp(8), dp(24), dp(8))
+            }
+        status =
+            TextView(context).apply {
+                textSize = 14f
+                setTextColor(context.getColor(R.color.on_surface_variant))
+                accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            }
         content.addView(status, LinearLayout.LayoutParams(-1, -2))
         progress = ProgressBar(context)
-        content.addView(progress, LinearLayout.LayoutParams(dp(32), dp(32)).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL; topMargin = dp(16) })
+        content.addView(
+            progress,
+            LinearLayout.LayoutParams(dp(32), dp(32)).apply {
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+                topMargin = dp(16)
+            },
+        )
         field = TextInputLayout(context).apply { hint = getString(R.string.route_import_name) }
-        input = TextInputEditText(field.context).apply {
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            // Long suggested names wrap instead of scrolling sideways; Enter still confirms the keyboard.
-            setHorizontallyScrolling(false); maxLines = 3
-            filters = arrayOf(InputFilter.LengthFilter(RouteImportNaming.MAX_NAME))
-            // Tapping the suggestion selects it, so typing replaces it in one go.
-            setSelectAllOnFocus(true)
-            setText(savedInstanceState?.getString("name").orEmpty())
-        }
+        input =
+            TextInputEditText(field.context).apply {
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                setHorizontallyScrolling(false)
+                maxLines = 3
+                filters = arrayOf(InputFilter.LengthFilter(RouteImportNaming.MAX_NAME))
+                setSelectAllOnFocus(true)
+                setText(savedInstanceState?.getString("name").orEmpty())
+            }
         field.addView(input, LinearLayout.LayoutParams(-1, -2))
         content.addView(field, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
-        val dialog = MaterialAlertDialogBuilder(context).setTitle(R.string.route_import_add)
-            .setView(ScrollView(context).apply { addView(content) })
-            .setNegativeButton(R.string.main_cancel, null).setPositiveButton(R.string.route_import_add, null).create()
+        val dialog =
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.route_import_add)
+                .setView(ScrollView(context).apply { addView(content) })
+                .setNegativeButton(R.string.main_cancel, null)
+                .setPositiveButton(R.string.route_import_add, null)
+                .create()
         dialog.setCanceledOnTouchOutside(false)
         model.state.observe(this) { render(it) }
         model.prepare(Uri.parse(requireArguments().getString("uri")), requireArguments().getString("id")!!, locale())
@@ -138,20 +179,37 @@ class RouteImportDialog : DialogFragment() {
         field.visibility = if (ready != null || saving) View.VISIBLE else View.GONE
         input.isEnabled = !saving
         when (state) {
-            RouteImportModel.State.Reading -> status.setText(R.string.route_import_reading)
-            RouteImportModel.State.Saving -> status.setText(R.string.route_import_saving)
-            RouteImportModel.State.Failed -> { status.setText(R.string.route_import_invalid); alert.getButton(AlertDialog.BUTTON_NEGATIVE)?.setText(R.string.main_close) }
+            RouteImportModel.State.Reading -> {
+                status.setText(R.string.route_import_reading)
+            }
+
+            RouteImportModel.State.Saving -> {
+                status.setText(R.string.route_import_saving)
+            }
+
+            RouteImportModel.State.Failed -> {
+                status.setText(R.string.route_import_invalid)
+                alert.getButton(AlertDialog.BUTTON_NEGATIVE)?.setText(R.string.main_close)
+            }
+
             is RouteImportModel.State.Ready -> {
                 val route = state.draft.route
                 val words = RouteImportNaming.Words(getString(R.string.route_name_loop), getString(R.string.route_name_out_back), getString(R.string.route_name_route))
                 suggestion = state.draft.suppliedName ?: RouteImportNaming.suggestion(route, state.shape, state.places, words, locale())
-                // A glance that the right file was picked: shape, distance and climb.
                 val km = String.format(locale(), "%.1f", route.distanceMeters / 1000)
-                val facts = listOfNotNull(RouteFormat.shape(requireContext(), state.shape), getString(R.string.v19_km, km),
-                    route.stats.ascentMeters?.let { getString(R.string.v19_ascent_short, it.roundToInt()) }).joinToString(" · ")
+                val facts =
+                    listOfNotNull(
+                        RouteFormat.shape(requireContext(), state.shape),
+                        getString(R.string.v19_km, km),
+                        route.stats.ascentMeters?.let { getString(R.string.v19_ascent_short, it.roundToInt()) },
+                    ).joinToString(" · ")
                 status.text = if (state.saveFailed) getString(R.string.route_import_save_failed) else facts
-                if (!nameInitialized) { input.setText(suggestion); nameInitialized = true }
+                if (!nameInitialized) {
+                    input.setText(suggestion)
+                    nameInitialized = true
+                }
             }
+
             is RouteImportModel.State.Saved -> {
                 if (delivered) return
                 delivered = true
@@ -166,13 +224,22 @@ class RouteImportDialog : DialogFragment() {
         outState.putBoolean("nameInitialized", nameInitialized)
         if (::input.isInitialized) outState.putString("name", input.text.toString())
     }
+
     private fun locale(): Locale = resources.configuration.locales[0]
+
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+
     companion object {
         const val TAG = "routeImport"
         const val RESULT = "routeImported"
-        fun create(uri: Uri) = RouteImportDialog().apply {
-            arguments = Bundle().apply { putString("uri", uri.toString()); putString("id", "import-${UUID.randomUUID()}") }
-        }
+
+        fun create(uri: Uri) =
+            RouteImportDialog().apply {
+                arguments =
+                    Bundle().apply {
+                        putString("uri", uri.toString())
+                        putString("id", "import-${UUID.randomUUID()}")
+                    }
+            }
     }
 }

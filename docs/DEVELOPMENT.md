@@ -10,7 +10,10 @@ The wrapper pins Gradle 9.9.1; the build pins AGP 9.5.1 and Kotlin 2.4.21 throug
 
 ```sh
 ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
+python3 tools/trust/verify.py
 ```
+
+The second command runs every merge-trust gate; see the [agent contract](../AGENTS.md).
 
 The development APK is `app/build/outputs/apk/debug/app-debug.apk`. Test/lint reports are under `app/build/reports/` and `app/build/test-results/`. See [repository checks](CHECKS.md) for resources, workflow lint, dependency and security checks, including the known upstream Gradle limitation.
 

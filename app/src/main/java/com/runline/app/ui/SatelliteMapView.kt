@@ -24,8 +24,8 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
-import com.runline.app.core.GpsCourse
 import com.runline.app.core.FollowCamera
+import com.runline.app.core.GpsCourse
 import com.runline.app.core.MarkerMotion
 import com.runline.app.core.MarkerViewport
 import com.runline.app.core.ReplayTrail
@@ -53,15 +53,9 @@ import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import kotlin.math.*
 
-/**
- * A display-only map. It never requests GPS or writes to RunStore. Remote hosts receive
- * only the requested map tiles, not the session or its timestamps. Live recording is
- * independent of this view and of tile availability.
- *
- * Call onHostResume/onHostPause with the host; dispose before removing this view.
- * No whole-region/offline downloads. MapLibre's ambient cache is bounded at its 50 MB default.
- */
-class SatelliteMapView(context: Context) : FrameLayout(context) {
+class SatelliteMapView(
+    context: Context,
+) : FrameLayout(context) {
     private val mapView: MapView
     private var map: MapLibreMap? = null
     private var style: Style? = null
@@ -89,127 +83,167 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     private var pnoaVisible = false
     private var pnoaUnavailable = false
     private var readyTiles = false
-    private val loadingTimeout = Runnable {
-        if (!disposed && !readyTiles) {
-            tileMessage = context.getString(R.string.map_tiles_not_loaded)
-            updateLocationPresentation()
+    private val loadingTimeout =
+        Runnable {
+            if (!disposed && !readyTiles) {
+                tileMessage = context.getString(R.string.map_tiles_not_loaded)
+                updateLocationPresentation()
+            }
         }
-    }
-    private val status = TextView(context).apply {
-        text = context.getString(R.string.map_loading_satellite)
-        textSize = 12f
-        setTextColor(Color.BLACK)
-        setPadding(dp(8), dp(5), dp(8), dp(5))
-        setBackgroundColor(Color.WHITE)
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-    }
-    // One small translucent pill; the whole 48 dp row around it opens the credits.
-    private val creditText = TextView(context).apply {
-        text = context.getString(R.string.map_v8_attribution)
-        textSize = 10f
-        includeFontPadding = false
-        setTextColor(context.getColor(R.color.on_surface))
-        background = GradientDrawable().apply {
-            setColor((context.getColor(R.color.surface) and 0x00FFFFFF) or (0xD0 shl 24)); cornerRadius = dp(10).toFloat()
+    private val status =
+        TextView(context).apply {
+            text = context.getString(R.string.map_loading_satellite)
+            textSize = 12f
+            setTextColor(Color.BLACK)
+            setPadding(dp(8), dp(5), dp(8), dp(5))
+            setBackgroundColor(Color.WHITE)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         }
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(5), dp(3), dp(7), dp(3))
-        maxLines = 1
-        ellipsize = android.text.TextUtils.TruncateAt.END
-        androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.ic_info)?.mutate()?.let { info ->
-            info.setTint(context.getColor(R.color.on_surface_variant)); info.setBounds(0, 0, dp(12), dp(12))
-            setCompoundDrawablesRelative(info, null, null, null)
+    private val creditText =
+        TextView(context).apply {
+            text = context.getString(R.string.map_v8_attribution)
+            textSize = 10f
+            includeFontPadding = false
+            setTextColor(context.getColor(R.color.on_surface))
+            background =
+                GradientDrawable().apply {
+                    setColor((context.getColor(R.color.surface) and 0x00FFFFFF) or (0xD0 shl 24))
+                    cornerRadius = dp(10).toFloat()
+                }
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(5), dp(3), dp(7), dp(3))
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.ic_info)?.mutate()?.let { info ->
+                info.setTint(context.getColor(R.color.on_surface_variant))
+                info.setBounds(0, 0, dp(12), dp(12))
+                setCompoundDrawablesRelative(info, null, null, null)
+            }
+            compoundDrawablePadding = dp(3)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-        compoundDrawablePadding = dp(3)
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
-    private val credits = FrameLayout(context).apply {
-        contentDescription = context.getString(R.string.map_credits_accessibility)
-        isClickable = true; isFocusable = true
-        setOnClickListener { showCredits() }
-        addView(creditText, LayoutParams(-2, -2, Gravity.CENTER_VERTICAL or Gravity.START))
-    }
-    // The same arrow as the marker. Shown only once the camera has stopped following it.
-    private val followButton = mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
-        imageTintList = null; visibility = GONE
-    }
+    private val credits =
+        FrameLayout(context).apply {
+            contentDescription = context.getString(R.string.map_credits_accessibility)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { showCredits() }
+            addView(creditText, LayoutParams(-2, -2, Gravity.CENTER_VERTICAL or Gravity.START))
+        }
+    private val followButton =
+        mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
+            imageTintList = null
+            visibility = GONE
+        }
     private var plannedRoute: List<RunPoint> = emptyList()
-    /** From the current fix to a route's start, while still on the way there. */
     private var approachLine: Pair<Point, Point>? = null
     private var progressiveRoute = false
     private var trailEnd = -1
     private var trailPublishedAt = 0L
     private var trailHead: List<RunPoint> = emptyList()
-    /** Recent trail publications (uptime, last index): MapLibre renders each after a delay. */
     private val trailPublishes = ArrayDeque<Pair<Long, Int>>()
-    private val trailHeadView = TrailHeadView(context).apply {
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        isClickable = false; isFocusable = false
-    }
-    private val fallback = RouteView(context).apply { visibility = GONE }
-    // Follow uses the exact padded anchor; free camera projects this same native
-    // overlay on motion frames. GeoJSON symbol uploads never delay the moving marker.
-    private val followMarkerView = FollowMarkerView(context).apply {
-        visibility = GONE
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        isClickable = false; isFocusable = false
-    }
-    private val markerFrame = object : Runnable {
-        override fun run() {
-            if (disposed || !resumed) return
-            updateMarkerPresentation()
+    private val trailHeadView =
+        TrailHeadView(context).apply {
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+            isClickable = false
+            isFocusable = false
         }
-    }
+    private val fallback = RouteView(context).apply { visibility = GONE }
+    private val followMarkerView =
+        FollowMarkerView(context).apply {
+            visibility = GONE
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+            isClickable = false
+            isFocusable = false
+        }
+    private val markerFrame =
+        object : Runnable {
+            override fun run() {
+                if (disposed || !resumed) return
+                updateMarkerPresentation()
+            }
+        }
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-    private val waitingSpinner = ProgressBar(context).apply {
-        indeterminateTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
-    private val waitingText = TextView(context).apply {
-        textSize = 18f; gravity = Gravity.CENTER
-        setTextColor(context.getColor(R.color.on_surface))
-        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
-    }
-    private val waitingHint = TextView(context).apply {
-        setText(R.string.map_location_hint); textSize = 14f; gravity = Gravity.CENTER
-        setTextColor(context.getColor(R.color.on_surface_variant))
-    }
-    private val waitingContent = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
-        setPadding(dp(24), dp(16), dp(24), dp(16))
-        addView(waitingSpinner, LinearLayout.LayoutParams(dp(32), dp(32)).apply { bottomMargin = dp(20) })
-        addView(waitingText, LinearLayout.LayoutParams(-1, -2))
-        addView(waitingHint, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
-    }
-    private val waitingPanel = FrameLayout(context).apply {
-        isClickable = true // Do not let touches on loading content pan the hidden map.
-        setBackgroundColor(context.getColor(R.color.surface))
-        addView(waitingContent, LayoutParams(-1, -1))
-    }
+    private val waitingSpinner =
+        ProgressBar(context).apply {
+            indeterminateTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+    private val waitingText =
+        TextView(context).apply {
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(context.getColor(R.color.on_surface))
+            accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+    private val waitingHint =
+        TextView(context).apply {
+            setText(R.string.map_location_hint)
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(context.getColor(R.color.on_surface_variant))
+        }
+    private val waitingContent =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(16), dp(24), dp(16))
+            addView(waitingSpinner, LinearLayout.LayoutParams(dp(32), dp(32)).apply { bottomMargin = dp(20) })
+            addView(waitingText, LinearLayout.LayoutParams(-1, -2))
+            addView(waitingHint, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        }
+    private val waitingPanel =
+        FrameLayout(context).apply {
+            isClickable = true
+            setBackgroundColor(context.getColor(R.color.surface))
+            addView(waitingContent, LayoutParams(-1, -1))
+        }
 
     val navigationBearingAvailable: Boolean get() = (navigationMode || replayMode) && displayedBearing != null
 
     init {
         setBackgroundColor(Color.rgb(44, 44, 44))
         MapLibre.getInstance(context.applicationContext)
-        mapView = MapView(context, MapLibreMapOptions.createFromAttributes(context)
-            .textureMode(true).logoEnabled(false).attributionEnabled(false)
-            .compassEnabled(false).rotateGesturesEnabled(false).tiltGesturesEnabled(false)
-            .minZoomPreference(1.0).maxZoomPreference(19.0)
-            .camera(CameraPosition.Builder().target(LatLng(15.0, 0.0)).zoom(1.0).build()))
+        mapView =
+            MapView(
+                context,
+                MapLibreMapOptions
+                    .createFromAttributes(context)
+                    .textureMode(true)
+                    .logoEnabled(false)
+                    .attributionEnabled(false)
+                    .compassEnabled(false)
+                    .rotateGesturesEnabled(false)
+                    .tiltGesturesEnabled(false)
+                    .minZoomPreference(1.0)
+                    .maxZoomPreference(19.0)
+                    .camera(
+                        CameraPosition
+                            .Builder()
+                            .target(LatLng(15.0, 0.0))
+                            .zoom(1.0)
+                            .build(),
+                    ),
+            )
         addView(mapView, LayoutParams(-1, -1))
         addView(fallback, LayoutParams(-1, -1))
         addView(trailHeadView, LayoutParams(-1, -1))
         addView(followMarkerView, LayoutParams(dp(42), dp(42), Gravity.TOP or Gravity.LEFT))
         addView(waitingPanel, LayoutParams(-1, -1))
-        addView(status, LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
-            setMargins(dp(8), dp(8), dp(64), 0)
-        })
+        addView(
+            status,
+            LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
+                setMargins(dp(8), dp(8), dp(64), 0)
+            },
+        )
         addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(8), 0, dp(64), dp(8)) })
         controls.addView(mapButton(R.drawable.ic_route, context.getString(R.string.map_fit_route)) { fitRoute() })
-        addView(controls, LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
-            setMargins(0, dp(8), dp(8), 0)
-        })
+        addView(
+            controls,
+            LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
+                setMargins(0, dp(8), dp(8), 0)
+            },
+        )
         addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(8), dp(8)) })
         mapView.contentDescription = context.getString(R.string.map_accessibility)
         var downX = 0f
@@ -217,12 +251,22 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         mapView.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    downX = event.x; downY = event.y
+                    downX = event.x
+                    downY = event.y
                     parent?.requestDisallowInterceptTouchEvent(true)
                 }
-                MotionEvent.ACTION_MOVE -> if (hypot(event.x - downX, event.y - downY) > dp(8)) setFollowing(false)
-                MotionEvent.ACTION_POINTER_DOWN -> setFollowing(false)
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> parent?.requestDisallowInterceptTouchEvent(false)
+
+                MotionEvent.ACTION_MOVE -> {
+                    if (hypot(event.x - downX, event.y - downY) > dp(8)) setFollowing(false)
+                }
+
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    setFollowing(false)
+                }
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                }
             }
             false
         }
@@ -244,6 +288,7 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                         tileMessage = null
                         updateLocationPresentation()
                     }
+
                     TileOperation.Error -> {
                         if (source == "spain") {
                             pnoaUnavailable = true
@@ -252,7 +297,10 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
                         tileMessage = context.getString(R.string.map_some_tiles_unavailable)
                         updateLocationPresentation()
                     }
-                    else -> Unit
+
+                    else -> {
+                        Unit
+                    }
                 }
             }
         }
@@ -261,29 +309,36 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
             map = loaded
             loaded.setPrefetchZoomDelta(0)
             loaded.addOnCameraIdleListener { updateImageryCoverage() }
-            loaded.addOnCameraMoveListener { updateMarkerPresentation(); requestMarkerFrame() }
+            loaded.addOnCameraMoveListener {
+                updateMarkerPresentation()
+                requestMarkerFrame()
+            }
             loaded.setStyle(Style.Builder().fromJson(BASE_STYLE)) { ready ->
                 if (disposed) return@setStyle
                 style = ready
-                // A planned route to follow sits under the recorded track: dashed, quieter.
                 ready.addSource(GeoJsonSource("planned"))
-                ready.addLayer(LineLayer("planned-outline", "planned").withProperties(
-                    lineColor(Color.BLACK), lineWidth(6f), lineOpacity(0.45f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
-                ready.addLayer(LineLayer("planned-line", "planned").withProperties(
-                    lineColor(Color.WHITE), lineWidth(3f), lineOpacity(0.9f), lineDasharray(arrayOf(2f, 1.5f)), lineJoin(Property.LINE_JOIN_ROUND)))
-                // Getting to the route: straight and thin, so it never reads as a path to follow.
+                ready.addLayer(
+                    LineLayer("planned-outline", "planned").withProperties(lineColor(Color.BLACK), lineWidth(6f), lineOpacity(0.45f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)),
+                )
+                ready.addLayer(
+                    LineLayer("planned-line", "planned").withProperties(lineColor(Color.WHITE), lineWidth(3f), lineOpacity(0.9f), lineDasharray(arrayOf(2f, 1.5f)), lineJoin(Property.LINE_JOIN_ROUND)),
+                )
                 ready.addSource(GeoJsonSource("approach"))
-                ready.addLayer(LineLayer("approach-line", "approach").withProperties(
-                    lineColor(Color.WHITE), lineWidth(2f), lineOpacity(0.85f), lineDasharray(arrayOf(0.5f, 2f)), lineCap(Property.LINE_CAP_ROUND)))
+                ready.addLayer(
+                    LineLayer("approach-line", "approach").withProperties(lineColor(Color.WHITE), lineWidth(2f), lineOpacity(0.85f), lineDasharray(arrayOf(0.5f, 2f)), lineCap(Property.LINE_CAP_ROUND)),
+                )
                 approachLine?.let { (from, to) -> ready.getSourceAs<GeoJsonSource>("approach")?.setGeoJson(LineString.fromLngLats(listOf(from, to))) }
                 ready.addSource(GeoJsonSource("route"))
-                ready.addLayer(LineLayer("route-outline", "route").withProperties(
-                    lineColor(Color.BLACK), lineWidth(7f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
-                ready.addLayer(LineLayer("route-line", "route").withProperties(
-                    lineColor(Color.WHITE), lineWidth(4f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)))
+                ready.addLayer(
+                    LineLayer("route-outline", "route").withProperties(lineColor(Color.BLACK), lineWidth(7f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)),
+                )
+                ready.addLayer(
+                    LineLayer("route-line", "route").withProperties(lineColor(Color.WHITE), lineWidth(4f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)),
+                )
                 ready.addSource(GeoJsonSource("start"))
-                ready.addLayer(CircleLayer("start-dot", "start").withProperties(
-                    circleColor(Color.WHITE), circleRadius(5f), circleStrokeColor(Color.BLACK), circleStrokeWidth(2f)))
+                ready.addLayer(
+                    CircleLayer("start-dot", "start").withProperties(circleColor(Color.WHITE), circleRadius(5f), circleStrokeColor(Color.BLACK), circleStrokeWidth(2f)),
+                )
                 updateRoute()
                 updateMarker()
                 applyCameraInsets()
@@ -304,10 +359,9 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (disposed || points === routePoints) return
         val firstRoute = routePoints.isEmpty() && points.isNotEmpty()
         if (navigationMode) {
-            // Process only newly appended fixes during recording. A replaced/recovered
-            // track rebuilds the course once, rather than rescanning every fix each second.
-            val appended = points.size >= routePoints.size &&
-                (routePoints.isEmpty() || points[routePoints.lastIndex] == routePoints.last())
+            val appended =
+                points.size >= routePoints.size &&
+                    (routePoints.isEmpty() || points[routePoints.lastIndex] == routePoints.last())
             if (!appended) course.reset()
             val from = if (appended) routePoints.size else 0
             for (index in from until points.size) course.update(points[index])
@@ -322,11 +376,10 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         }
     }
 
-    /** Pass null while playback is in a pause or unavailable GPS interval. */
     fun setMarker(point: RunPoint?) {
         if (disposed) return
         val target = point?.takeIf { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
-        if (target == marker) return // A timer refresh must not restart an in-flight movement.
+        if (target == marker) return
         val previous = marker
         val from = displayedMarker
         val fromBearing = displayedBearing
@@ -335,28 +388,32 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         cameraCut = !MarkerMotion.canInterpolate(previous, target)
         cancelMotion()
         if (navigationMode && liveMotionEnabled && ValueAnimator.areAnimatorsEnabled() && resumed && style != null && from != null && target != null &&
-            MarkerMotion.canInterpolate(previous, target) && from.segment == target.segment) {
+            MarkerMotion.canInterpolate(previous, target) && from.segment == target.segment
+        ) {
             var lastFrameMs = 0L
-            val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = MarkerMotion.durationMs(previous!!, target)
-                interpolator = LinearInterpolator()
-                addUpdateListener { animation ->
-                    if (disposed || !resumed) return@addUpdateListener
-                    val fraction = animation.animatedFraction.toDouble()
-                    val now = SystemClock.uptimeMillis()
-                    if (fraction < 1.0 && now - lastFrameMs < 30L) return@addUpdateListener
-                    lastFrameMs = now
-                    displayedMarker = MarkerMotion.interpolate(from, target, fraction)
-                    displayedBearing = MarkerMotion.interpolateBearing(fromBearing, targetBearing, fraction)
-                    updateMarker()
-                    if (following) followMarker()
-                }
-                addListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        if (motionAnimator === animation) motionAnimator = null
+            val animator =
+                ValueAnimator.ofFloat(0f, 1f).apply {
+                    duration = MarkerMotion.durationMs(previous!!, target)
+                    interpolator = LinearInterpolator()
+                    addUpdateListener { animation ->
+                        if (disposed || !resumed) return@addUpdateListener
+                        val fraction = animation.animatedFraction.toDouble()
+                        val now = SystemClock.uptimeMillis()
+                        if (fraction < 1.0 && now - lastFrameMs < 30L) return@addUpdateListener
+                        lastFrameMs = now
+                        displayedMarker = MarkerMotion.interpolate(from, target, fraction)
+                        displayedBearing = MarkerMotion.interpolateBearing(fromBearing, targetBearing, fraction)
+                        updateMarker()
+                        if (following) followMarker()
                     }
-                })
-            }
+                    addListener(
+                        object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: Animator) {
+                                if (motionAnimator === animation) motionAnimator = null
+                            }
+                        },
+                    )
+                }
             motionAnimator = animator
             animator.start()
         } else {
@@ -368,28 +425,36 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** Disable interpolation while paused/recovered. GPS files are never modified. */
     fun setLiveMotionEnabled(enabled: Boolean) {
         if (liveMotionEnabled == enabled) return
         liveMotionEnabled = enabled
         if (!enabled) {
             cancelMotion()
             displayedMarker = marker
-            displayedBearing = if (navigationMode) course.bearingDegrees else if (replayMode) displayedBearing else null
+            displayedBearing =
+                if (navigationMode) {
+                    course.bearingDegrees
+                } else if (replayMode) {
+                    displayedBearing
+                } else {
+                    null
+                }
             updateMarker()
             if (following) followMarker()
         }
         updateLocationPresentation()
     }
 
-    /** Optional service status while awaiting the first fix; controls remain available. */
     fun setLocationWaitingMessage(message: String?) {
         if (locationWaitingMessage == message) return
         locationWaitingMessage = message
         updateLocationPresentation()
     }
 
-    fun setCenter(latitude: Double, longitude: Double) {
+    fun setCenter(
+        latitude: Double,
+        longitude: Double,
+    ) {
         if (disposed || !latitude.isFinite() || !longitude.isFinite() || abs(latitude) >= 85.051129 || abs(longitude) > 180.0) return
         initialCenter = LatLng(latitude, longitude)
         map?.moveCamera(CameraUpdateFactory.newLatLngZoom(initialCenter!!, if (navigationMode || replayMode) 18.0 else 16.0))
@@ -401,12 +466,20 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val changed = following != enabled
         following = enabled
         updateFollowButton()
-        if (!enabled) { if (changed) updateMarker(); return }
-        if (changed) { followCamera.reset(); cameraCut = true }
-        if (displayedMarker != null) followMarker()
-        else {
-            if (navigationMode) updateLocationPresentation()
-            else {
+        if (!enabled) {
+            if (changed) updateMarker()
+            return
+        }
+        if (changed) {
+            followCamera.reset()
+            cameraCut = true
+        }
+        if (displayedMarker != null) {
+            followMarker()
+        } else {
+            if (navigationMode) {
+                updateLocationPresentation()
+            } else {
                 status.setText(R.string.map_no_position)
                 status.visibility = VISIBLE
             }
@@ -415,17 +488,21 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateMarker()
     }
 
-    /** Replay positions are already interpolated; do not apply live GPS lag a second time. */
     fun setReplayMode() {
         replayMode = true
         navigationMode = false
         following = true
         fitPending = false
-        followCamera.reset(); cameraCut = true
+        followCamera.reset()
+        cameraCut = true
         applyCameraInsets()
     }
 
-    fun setReplayMarker(point: RunPoint?, bearing: Double?, smoothHeading: Boolean = true) {
+    fun setReplayMarker(
+        point: RunPoint?,
+        bearing: Double?,
+        smoothHeading: Boolean = true,
+    ) {
         if (disposed) return
         val target = point?.takeIf { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         val sameSegment = marker?.segment == target?.segment
@@ -440,7 +517,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** A route to follow, drawn under the recorded track. Pass the same list to skip redrawing. */
     fun setPlannedRoute(points: List<RunPoint>?) {
         val next = points ?: emptyList()
         if (disposed || next === plannedRoute) return
@@ -448,19 +524,26 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         style?.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(next))
     }
 
-    /** A straight dashed line to the start of a route not yet joined; null clears it. */
-    fun setApproachLine(fromLatitude: Double, fromLongitude: Double, toLatitude: Double, toLongitude: Double) =
-        showApproach(Point.fromLngLat(fromLongitude, fromLatitude) to Point.fromLngLat(toLongitude, toLatitude))
+    fun setApproachLine(
+        fromLatitude: Double,
+        fromLongitude: Double,
+        toLatitude: Double,
+        toLongitude: Double,
+    ) = showApproach(Point.fromLngLat(fromLongitude, fromLatitude) to Point.fromLngLat(toLongitude, toLatitude))
+
     fun clearApproachLine() = showApproach(null)
+
     private fun showApproach(next: Pair<Point, Point>?) {
         if (disposed || next == approachLine) return
         approachLine = next
         val source = style?.getSourceAs<GeoJsonSource>("approach") ?: return
-        if (next == null) source.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
-        else source.setGeoJson(LineString.fromLngLats(listOf(next.first, next.second)))
+        if (next == null) {
+            source.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+        } else {
+            source.setGeoJson(LineString.fromLngLats(listOf(next.first, next.second)))
+        }
     }
 
-    /** Replay only: the route appears behind the arrow as it moves, not ahead of it. */
     fun setProgressiveRoute(enabled: Boolean) {
         if (disposed || progressiveRoute == enabled) return
         progressiveRoute = enabled
@@ -469,7 +552,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateRoute()
     }
 
-    /** Live GPS uses an arrow once movement establishes a course. */
     fun setNavigationMode(enabled: Boolean) {
         if (disposed || navigationMode == enabled) return
         navigationMode = enabled
@@ -491,8 +573,12 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         updateLocationPresentation()
     }
 
-    /** Physical View pixels occupied by the host's floating controls and run island. */
-    fun setOverlayInsets(leftPx: Int, topPx: Int, rightPx: Int, bottomPx: Int) {
+    fun setOverlayInsets(
+        leftPx: Int,
+        topPx: Int,
+        rightPx: Int,
+        bottomPx: Int,
+    ) {
         if (disposed) return
         val next = intArrayOf(leftPx, topPx, rightPx, bottomPx).map { it.coerceAtLeast(0) }.toIntArray()
         if (overlayInsets.contentEquals(next)) return
@@ -526,13 +612,16 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (following) followMarker()
     }
 
-    /** Fit handles routes crossing the date line without zooming out to the entire world. */
     fun fitRoute() {
         if (disposed) return
         val valid = routePoints.filter { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         if (valid.isEmpty()) {
-            if (navigationMode) updateLocationPresentation()
-            else { status.setText(R.string.route_no_gps); status.visibility = VISIBLE }
+            if (navigationMode) {
+                updateLocationPresentation()
+            } else {
+                status.setText(R.string.route_no_gps)
+                status.visibility = VISIBLE
+            }
             announceForAccessibility(context.getString(R.string.route_no_gps))
             return
         }
@@ -548,10 +637,6 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val ys = valid.map { mercatorY(it.latitude) }
         val spanX = max((lngs.max() - lngs.min()) / 360.0, 0.000002)
         val spanY = max(ys.max() - ys.min(), 0.000002)
-        // MapLibre's native viewport is measured in density-independent pixels:
-        // NativeMapView.resizeView divides Android's physical size by pixelRatio.
-        // Additional route-fit margins leave room for the map controls. Camera padding
-        // is passed in physical pixels; native MapLibre divides it by the same pixelRatio.
         val density = resources.displayMetrics.density.toDouble()
         val padding = cameraInsets()
         val usableWidth = max((width - padding[0] - padding[2]) / density - 128.0, 80.0)
@@ -560,21 +645,41 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val centerLng = ((lngs.max() + lngs.min()) / 2.0 + 540.0) % 360.0 - 180.0
         val centerY = (ys.max() + ys.min()) / 2.0
         val centerLat = Math.toDegrees(atan(sinh(Math.PI * (1.0 - 2.0 * centerY))))
-        currentMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder(currentMap.cameraPosition)
-            .target(LatLng(centerLat, centerLng)).zoom(zoom).bearing(0.0).tilt(0.0).padding(padding).build()))
+        currentMap.moveCamera(
+            CameraUpdateFactory.newCameraPosition(
+                CameraPosition
+                    .Builder(currentMap.cameraPosition)
+                    .target(LatLng(centerLat, centerLng))
+                    .zoom(zoom)
+                    .bearing(0.0)
+                    .tilt(0.0)
+                    .padding(padding)
+                    .build(),
+            ),
+        )
         updateImageryCoverage()
     }
 
     fun onHostResume() {
         if (disposed || resumed) return
-        if (!started) { mapView.onStart(); started = true }
+        if (!started) {
+            mapView.onStart()
+            started = true
+        }
         mapView.onResume()
         resumed = true
         requestMarkerFrame()
-        followCamera.reset(); cameraCut = true
-        // Return directly to the last observed fix; never animate unseen background time.
+        followCamera.reset()
+        cameraCut = true
         displayedMarker = marker
-        displayedBearing = if (navigationMode) course.bearingDegrees else if (replayMode) displayedBearing else null
+        displayedBearing =
+            if (navigationMode) {
+                course.bearingDegrees
+            } else if (replayMode) {
+                displayedBearing
+            } else {
+                null
+            }
         updateMarker()
         if (following) followMarker()
     }
@@ -583,12 +688,20 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (disposed) return
         cancelMotion()
         removeCallbacks(markerFrame)
-        if (resumed) { mapView.onPause(); resumed = false }
-        if (started) { mapView.onStop(); started = false }
+        if (resumed) {
+            mapView.onPause()
+            resumed = false
+        }
+        if (started) {
+            mapView.onStop()
+            started = false
+        }
         updateMarkerPresentation()
     }
 
-    fun onLowMemory() { if (!disposed) mapView.onLowMemory() }
+    fun onLowMemory() {
+        if (!disposed) mapView.onLowMemory()
+    }
 
     fun dispose() {
         if (disposed) return
@@ -601,88 +714,119 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         style = null
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    override fun onSizeChanged(
+        w: Int,
+        h: Int,
+        oldw: Int,
+        oldh: Int,
+    ) {
         super.onSizeChanged(w, h, oldw, oldh)
         creditText.maxWidth = (w - overlayInsets[0] - overlayInsets[2] - dp(80)).coerceAtLeast(dp(64))
-        if (fitPending && w > 0 && h > 0) post {
-            if (!disposed) {
-                val keepFollowing = following
-                fitRoute()
-                following = keepFollowing
-                if (following) followMarker()
+        if (fitPending && w > 0 && h > 0) {
+            post {
+                if (!disposed) {
+                    val keepFollowing = following
+                    fitRoute()
+                    following = keepFollowing
+                    if (following) followMarker()
+                }
             }
         }
-        if ((navigationMode || replayMode) && following && w > 0 && h > 0) post {
-            if (!disposed && following) { applyCameraInsets(); followMarker() }
+        if ((navigationMode || replayMode) && following && w > 0 && h > 0) {
+            post {
+                if (!disposed && following) {
+                    applyCameraInsets()
+                    followMarker()
+                }
+            }
         }
     }
 
     private fun updateRoute() {
         val ready = style ?: return
-        if (progressiveRoute) updateTrail(force = true)
-        else { ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints)); trailHead = emptyList() }
+        if (progressiveRoute) {
+            updateTrail(force = true)
+        } else {
+            ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints))
+            trailHead = emptyList()
+        }
         ready.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(plannedRoute))
         val start = routePoints.firstOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         ready.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointCollection(start))
     }
 
-    private fun lines(points: List<RunPoint>) = FeatureCollection.fromFeatures(continuousSegments(points).map { segment ->
-        segment.filter { abs(it.latitude) < 85.051129 }
-    }.filter { it.size >= 2 }.map { segment ->
-        Feature.fromGeometry(LineString.fromLngLats(segment.map { Point.fromLngLat(it.longitude, it.latitude) }))
-    })
+    private fun lines(points: List<RunPoint>) =
+        FeatureCollection.fromFeatures(
+            continuousSegments(points)
+                .map { segment ->
+                    segment.filter { abs(it.latitude) < 85.051129 }
+                }.filter { it.size >= 2 }
+                .map { segment ->
+                    Feature.fromGeometry(LineString.fromLngLats(segment.map { Point.fromLngLat(it.longitude, it.latitude) }))
+                },
+        )
 
-    /**
-     * Draws only the path already covered, ending exactly at the arrow. The map trail is
-     * re-published at most a few times a second: replacing GeoJSON every frame starves
-     * its rendering. The head from there to the arrow is drawn natively per frame.
-     *
-     * While playing, the map trail stops 400 m behind the arrow and the head draws that stretch
-     * alone. The head is projected with the newest camera, and the map's last frame can still show
-     * an older one. Where both drew the same stretch, a turn split it into two lines (before 0.20).
-     */
     private fun updateTrail(force: Boolean) {
         val ready = style ?: return
         val arrow = displayedMarker
         val passed = ReplayTrail.passed(routePoints, arrow)
         val publish = if (force) passed else ReplayTrail.behind(routePoints, passed, TRAIL_HEAD_METERS)
         val now = SystemClock.uptimeMillis()
-        if (force || publish < trailEnd || (publish > trailEnd &&
-                (now - trailPublishedAt >= TRAIL_PUBLISH_MS || routePoints.getOrNull(trailEnd)?.segment != routePoints.getOrNull(publish)?.segment))) {
+        if (force || publish < trailEnd || (
+                publish > trailEnd &&
+                    (now - trailPublishedAt >= TRAIL_PUBLISH_MS || routePoints.getOrNull(trailEnd)?.segment != routePoints.getOrNull(publish)?.segment)
+            )
+        ) {
             if (publish < trailEnd) trailPublishes.clear()
-            trailEnd = publish; trailPublishedAt = now
+            trailEnd = publish
+            trailPublishedAt = now
             trailPublishes.addLast(now to publish)
             while (trailPublishes.size > 8) trailPublishes.removeFirst()
             ready.getSourceAs<GeoJsonSource>("route")?.setGeoJson(lines(routePoints.subList(0, publish + 1)))
         }
-        // Start from a publication old enough to be on screen, so the head always overlaps it.
         val shown = trailPublishes.lastOrNull { now - it.first >= TRAIL_RENDER_MS }?.second ?: trailPublishes.firstOrNull()?.second ?: trailEnd
-        trailHead = ReplayTrail.head(routePoints, minOf(shown, trailEnd), passed, arrow).let { head ->
-            if (head.size <= MAX_HEAD_POINTS) head
-            else { val step = (head.size + MAX_HEAD_POINTS - 1) / MAX_HEAD_POINTS; head.filterIndexed { index, _ -> index % step == 0 } + head.takeLast(2) }
-        }
+        trailHead =
+            ReplayTrail.head(routePoints, minOf(shown, trailEnd), passed, arrow).let { head ->
+                if (head.size <= MAX_HEAD_POINTS) {
+                    head
+                } else {
+                    val step = (head.size + MAX_HEAD_POINTS - 1) / MAX_HEAD_POINTS
+                    head.filterIndexed { index, _ -> index % step == 0 } + head.takeLast(2)
+                }
+            }
         drawTrailHead()
     }
 
     private fun drawTrailHead() {
         val loaded = map
         val head = trailHead
-        if (disposed || !progressiveRoute || loaded == null || style == null || mapFailed || head.size < 2) { trailHeadView.show(null); return }
-        // Under a tilted camera, points outside the visible ground (behind the camera) project to
-        // nonsense and drew lines across the screen. Such points break the line instead.
+        if (disposed || !progressiveRoute || loaded == null || style == null || mapFailed || head.size < 2) {
+            trailHeadView.show(null)
+            return
+        }
         val bounds = runCatching { loaded.projection.visibleRegion.latLngBounds }.getOrNull()
         val padLat = bounds?.let { (it.latitudeNorth - it.latitudeSouth) * 0.25 } ?: 0.0
         val padLon = bounds?.let { (it.longitudeEast - it.longitudeWest) * 0.25 } ?: 0.0
-        trailHeadView.show(head.map { point ->
-            if (bounds != null && (point.latitude !in (bounds.latitudeSouth - padLat)..(bounds.latitudeNorth + padLat) ||
-                    point.longitude !in (bounds.longitudeWest - padLon)..(bounds.longitudeEast + padLon))) null
-            else runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()
-        })
+        trailHeadView.show(
+            head.map { point ->
+                if (bounds != null && (
+                        point.latitude !in (bounds.latitudeSouth - padLat)..(bounds.latitudeNorth + padLat) ||
+                            point.longitude !in (bounds.longitudeWest - padLon)..(bounds.longitudeEast + padLon)
+                    )
+                ) {
+                    null
+                } else {
+                    runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()
+                }
+            },
+        )
     }
 
-    private fun updateMarker() { updateMarkerPresentation(); requestMarkerFrame() }
+    private fun updateMarker() {
+        updateMarkerPresentation()
+        requestMarkerFrame()
+    }
 
-    /** Coalesce to the next display frame after movement; paused maps never poll. */
     private fun requestMarkerFrame() {
         removeCallbacks(markerFrame)
         if (!disposed && resumed) postOnAnimation(markerFrame)
@@ -693,19 +837,26 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val point = displayedMarker
         val loaded = map
         if (disposed || !resumed || mapFailed || style == null || point == null || loaded == null ||
-            width < dp(48) || height < dp(48)) {
+            width < dp(48) || height < dp(48)
+        ) {
             followMarkerView.visibility = GONE
             return
         }
-        val position = if ((navigationMode || replayMode) && following) {
-            val padding = cameraInsets()
-            MarkerViewport.place(((width + padding[0] - padding[2]) / 2).toFloat(),
-                ((height + padding[1] - padding[3]) / 2).toFloat(), width, height, dp(42))
-        } else {
-            runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()?.let {
-                MarkerViewport.place(it.x, it.y, width, height, dp(42))
+        val position =
+            if ((navigationMode || replayMode) && following) {
+                val padding = cameraInsets()
+                MarkerViewport.place(
+                    ((width + padding[0] - padding[2]) / 2).toFloat(),
+                    ((height + padding[1] - padding[3]) / 2).toFloat(),
+                    width,
+                    height,
+                    dp(42),
+                )
+            } else {
+                runCatching { loaded.projection.toScreenLocation(LatLng(point.latitude, point.longitude)) }.getOrNull()?.let {
+                    MarkerViewport.place(it.x, it.y, width, height, dp(42))
+                }
             }
-        }
         followMarkerView.visibility = if (position != null) VISIBLE else GONE
         if (position == null) return
         followMarkerView.translationX = position.left
@@ -717,16 +868,31 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         val point = displayedMarker ?: return
         val loaded = map ?: return
         if (replayMode || navigationMode) {
-            val pose = followCamera.update(displayedBearing, SystemClock.uptimeMillis(), cameraCut,
-                reduceMotion = !ValueAnimator.areAnimatorsEnabled())
+            val pose =
+                followCamera.update(
+                    displayedBearing,
+                    SystemClock.uptimeMillis(),
+                    cameraCut,
+                    reduceMotion = !ValueAnimator.areAnimatorsEnabled(),
+                )
             cameraCut = false
-            // Perspective over imagery, not terrain relief. The target remains the
-            // displayed observed fix; only orientation is smoothed behind the arrow.
-            loaded.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder(loaded.cameraPosition)
-                .target(LatLng(point.latitude, point.longitude)).zoom(18.0).bearing(pose.bearing).tilt(pose.tilt).padding(cameraInsets()).build()))
+            loaded.moveCamera(
+                CameraUpdateFactory.newCameraPosition(
+                    CameraPosition
+                        .Builder(loaded.cameraPosition)
+                        .target(LatLng(point.latitude, point.longitude))
+                        .zoom(18.0)
+                        .bearing(pose.bearing)
+                        .tilt(pose.tilt)
+                        .padding(cameraInsets())
+                        .build(),
+                ),
+            )
+        } else if (loaded.cameraPosition.zoom < 13.0) {
+            loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 16.0))
+        } else {
+            loaded.moveCamera(CameraUpdateFactory.newLatLng(LatLng(point.latitude, point.longitude)))
         }
-        else if (loaded.cameraPosition.zoom < 13.0) loaded.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 16.0))
-        else loaded.moveCamera(CameraUpdateFactory.newLatLng(LatLng(point.latitude, point.longitude)))
         updateMarkerPresentation()
         updateImageryCoverage()
     }
@@ -740,14 +906,16 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         if (disposed) return
         val waitingForPosition = navigationMode && marker == null
         val waiting = waitingForPosition || (style == null && !mapFailed)
-        val message = if (waitingForPosition) locationWaitingMessage ?: context.getString(R.string.map_loading_location)
-            else context.getString(R.string.map_loading_satellite)
+        val message =
+            if (waitingForPosition) {
+                locationWaitingMessage ?: context.getString(R.string.map_loading_location)
+            } else {
+                context.getString(R.string.map_loading_satellite)
+            }
         if (waitingText.text != message) waitingText.text = message
         waitingSpinner.visibility = if (!waitingForPosition || liveMotionEnabled) VISIBLE else GONE
         waitingHint.visibility = if (waitingForPosition && liveMotionEnabled) VISIBLE else GONE
         waitingPanel.visibility = if (waiting) VISIBLE else GONE
-        // Keep the TextureView alive underneath the opaque loading panel. Making it
-        // invisible can defer GL surface creation and prevent the style from loading.
         mapView.importantForAccessibility = if (waiting) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else IMPORTANT_FOR_ACCESSIBILITY_AUTO
         fallback.visibility = if (mapFailed && !waiting) VISIBLE else GONE
         credits.visibility = if (waiting) GONE else VISIBLE
@@ -763,10 +931,14 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     private fun cameraInsets(): DoubleArray {
         if (!navigationMode && overlayInsets.all { it == 0 }) return doubleArrayOf(0.0, 0.0, 0.0, 0.0)
-        val padding = doubleArrayOf((overlayInsets[0] + dp(8)).toDouble(), (overlayInsets[1] + dp(8)).toDouble(),
-            (overlayInsets[2] + dp(8)).toDouble(), (overlayInsets[3] + dp(56)).toDouble())
+        val padding =
+            doubleArrayOf(
+                (overlayInsets[0] + dp(8)).toDouble(),
+                (overlayInsets[1] + dp(8)).toDouble(),
+                (overlayInsets[2] + dp(8)).toDouble(),
+                (overlayInsets[3] + dp(56)).toDouble(),
+            )
         if (following && (navigationMode || replayMode) && ValueAnimator.areAnimatorsEnabled()) {
-            // A little more road ahead, while the arrow stays clear of the run island.
             padding[1] += (height - padding[1] - padding[3]).coerceAtLeast(0.0) * .16
         }
         return padding
@@ -774,8 +946,9 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
 
     private fun applyCameraInsets() {
         val loaded = map ?: return
-        loaded.moveCamera(CameraUpdateFactory.newCameraPosition(
-            CameraPosition.Builder(loaded.cameraPosition).padding(cameraInsets()).build()))
+        loaded.moveCamera(
+            CameraUpdateFactory.newCameraPosition(CameraPosition.Builder(loaded.cameraPosition).padding(cameraInsets()).build()),
+        )
     }
 
     private fun updateImageryCoverage() {
@@ -789,13 +962,20 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun pointCollection(point: RunPoint?): FeatureCollection = FeatureCollection.fromFeatures(
-        if (point == null) emptyList() else listOf(Feature.fromGeometry(Point.fromLngLat(point.longitude, point.latitude))))
+    private fun pointCollection(point: RunPoint?): FeatureCollection = FeatureCollection.fromFeatures(if (point == null) emptyList() else listOf(Feature.fromGeometry(Point.fromLngLat(point.longitude, point.latitude))))
 
-    private fun mapButton(icon: Int, label: String, action: () -> Unit) = ImageButton(context).apply {
+    private fun mapButton(
+        icon: Int,
+        label: String,
+        action: () -> Unit,
+    ) = ImageButton(context).apply {
         setImageResource(icon)
         imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        background = GradientDrawable().apply { setColor(context.getColor(R.color.surface)); cornerRadius = dp(12).toFloat() }
+        background =
+            GradientDrawable().apply {
+                setColor(context.getColor(R.color.surface))
+                cornerRadius = dp(12).toFloat()
+            }
         contentDescription = label
         setPadding(dp(12), dp(12), dp(12), dp(12))
         setOnClickListener { action() }
@@ -803,19 +983,24 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
 
     private fun showCredits() {
-        val message = TextView(context).apply {
-            text = Html.fromHtml(context.getString(R.string.map_v8_credits_html), Html.FROM_HTML_MODE_LEGACY)
-            setTextColor(context.getColor(R.color.on_surface))
-            setLinkTextColor(context.getColor(R.color.on_surface))
-            textSize = 14f
-            setPadding(dp(24), dp(8), dp(24), dp(8))
-            movementMethod = LinkMovementMethod.getInstance()
-        }
-        MaterialAlertDialogBuilder(context).setTitle(R.string.map_title)
-            .setView(android.widget.ScrollView(context).apply { addView(message) }).setPositiveButton(R.string.map_close, null).show()
+        val message =
+            TextView(context).apply {
+                text = Html.fromHtml(context.getString(R.string.map_v8_credits_html), Html.FROM_HTML_MODE_LEGACY)
+                setTextColor(context.getColor(R.color.on_surface))
+                setLinkTextColor(context.getColor(R.color.on_surface))
+                textSize = 14f
+                setPadding(dp(24), dp(8), dp(24), dp(8))
+                movementMethod = LinkMovementMethod.getInstance()
+            }
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.map_title)
+            .setView(android.widget.ScrollView(context).apply { addView(message) })
+            .setPositiveButton(R.string.map_close, null)
+            .show()
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+
     private fun mercatorY(latitude: Double) = (1.0 - asinh(tan(Math.toRadians(latitude))) / Math.PI) / 2.0
 
     companion object {
@@ -836,53 +1021,75 @@ class SatelliteMapView(context: Context) : FrameLayout(context) {
     }
 }
 
-/** The few metres between the published replay trail and the arrow, matching the route line's style. */
-private class TrailHeadView(context: Context) : View(context) {
+private class TrailHeadView(
+    context: Context,
+) : View(context) {
     private val density = context.resources.displayMetrics.density
-    // Butt caps: the start sits on the map line's round end, the far end under the arrow.
-    private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; color = Color.BLACK; strokeWidth = 7f * density; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.BUTT
-    }
-    private val line = Paint(outline).apply { color = Color.WHITE; strokeWidth = 4f * density }
+    private val outline =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            color = Color.BLACK
+            strokeWidth = 7f * density
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.BUTT
+        }
+    private val line =
+        Paint(outline).apply {
+            color = Color.WHITE
+            strokeWidth = 4f * density
+        }
     private val path = android.graphics.Path()
     private var visible = false
-    /** Null entries break the line: the next point starts a new piece. */
+
     fun show(points: List<android.graphics.PointF?>?) {
         path.reset()
-        var previous: android.graphics.PointF? = null; var drawn = false
+        var previous: android.graphics.PointF? = null
+        var drawn = false
         points?.forEach { p ->
             if (p != null && p.x.isFinite() && p.y.isFinite()) {
-                if (previous == null) path.moveTo(p.x, p.y) else { path.lineTo(p.x, p.y); drawn = true }
+                if (previous == null) {
+                    path.moveTo(p.x, p.y)
+                } else {
+                    path.lineTo(p.x, p.y)
+                    drawn = true
+                }
             }
             previous = p?.takeIf { it.x.isFinite() && it.y.isFinite() }
         }
         visible = drawn
         invalidate()
     }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (!visible) return
-        canvas.drawPath(path, outline); canvas.drawPath(path, line)
+        canvas.drawPath(path, outline)
+        canvas.drawPath(path, line)
     }
 }
 
-/** One display marker, using the pinned Tabler arrow in follow and free-camera modes. */
-private class FollowMarkerView(context: Context) : View(context) {
+private class FollowMarkerView(
+    context: Context,
+) : View(context) {
     private val arrow = context.getDrawable(R.drawable.ic_navigation)!!.mutate()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var bearing: Double? = null
+
     fun showBearing(value: Double?) {
         val safe = value?.takeIf(Double::isFinite)
         if (safe == bearing) return
-        bearing = safe; invalidate()
+        bearing = safe
+        invalidate()
     }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val direction = bearing
         if (direction != null) {
             val checkpoint = canvas.save()
             canvas.rotate(direction.toFloat(), width / 2f, height / 2f)
-            arrow.setBounds(0, 0, width, height); arrow.draw(canvas)
+            arrow.setBounds(0, 0, width, height)
+            arrow.draw(canvas)
             canvas.restoreToCount(checkpoint)
         } else {
             val scale = resources.displayMetrics.density
@@ -894,25 +1101,39 @@ private class FollowMarkerView(context: Context) : View(context) {
     }
 }
 
-/** Natural Earth public-domain outline keeps PNOA off Portugal, France and other countries. */
 private object SpainCoverage {
     private var rings: List<List<Pair<Double, Double>>>? = null
-    fun contains(context: Context, latitude: Double, longitude: Double): Boolean {
+
+    fun contains(
+        context: Context,
+        latitude: Double,
+        longitude: Double,
+    ): Boolean {
         if (latitude !in 27.0..44.0 || longitude !in -19.0..5.0) return false
-        val polygons = rings ?: runCatching {
-            val geometry = JSONObject(context.assets.open("maps/spain-coverage.geojson").bufferedReader().use { it.readText() }).getJSONObject("geometry")
-            val coordinates = geometry.getJSONArray("coordinates")
-            (0 until coordinates.length()).map { polygonIndex ->
-                val ring = coordinates.getJSONArray(polygonIndex).getJSONArray(0)
-                (0 until ring.length()).map { index -> ring.getJSONArray(index).let { it.getDouble(0) to it.getDouble(1) } }
-            }
-        }.getOrElse { emptyList() }.also { rings = it }
+        val polygons =
+            rings ?: runCatching {
+                val geometry =
+                    JSONObject(
+                        context.assets
+                            .open("maps/spain-coverage.geojson")
+                            .bufferedReader()
+                            .use { it.readText() },
+                    ).getJSONObject("geometry")
+                val coordinates = geometry.getJSONArray("coordinates")
+                (0 until coordinates.length()).map { polygonIndex ->
+                    val ring = coordinates.getJSONArray(polygonIndex).getJSONArray(0)
+                    (0 until ring.length()).map { index -> ring.getJSONArray(index).let { it.getDouble(0) to it.getDouble(1) } }
+                }
+            }.getOrElse { emptyList() }.also { rings = it }
         return polygons.any { ring ->
             var inside = false
             var previous = ring.lastOrNull() ?: return@any false
             for (point in ring) {
                 if ((point.second > latitude) != (previous.second > latitude) &&
-                    longitude < (previous.first - point.first) * (latitude - point.second) / (previous.second - point.second) + point.first) inside = !inside
+                    longitude < (previous.first - point.first) * (latitude - point.second) / (previous.second - point.second) + point.first
+                ) {
+                    inside = !inside
+                }
                 previous = point
             }
             inside

@@ -18,16 +18,11 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="https" />
         </intent>
-        <!-- To open Spotify from the recording screen when it is not running, and to hand it the
-             sign-in. The browser query above finds the default browser when Spotify cannot sign in. -->
         <package android:name="com.spotify.music" />
     </queries>
     <application android:localeConfig="@xml/locale_config" android:theme="@style/Theme.Runline" android:label="Runline" android:icon="@drawable/ic_runline" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
-            <!-- A browser sign-in returns here; the Spotify app answers with an activity result
-                 instead. The link carries a one-time code that is useless without the verifier
-                 this app kept, and is ignored unless a sign-in is pending. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -43,13 +38,10 @@
                 <data android:mimeType="text/gpx" />
                 <data android:mimeType="application/x-gpx+xml" />
                 <data android:mimeType="application/x-gpx" />
-                <!-- Android has no MIME type for .gpx, so Files, My Files and browser downloads label it
-                     binary or XML. Accept those; the import validates the contents before saving. -->
                 <data android:mimeType="application/octet-stream" />
                 <data android:mimeType="application/xml" />
                 <data android:mimeType="text/xml" />
             </intent-filter>
-            <!-- Some download providers use generic types but keep the .gpx suffix in their URI. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -69,8 +61,6 @@
                 <data android:mimeType="text/gpx" />
                 <data android:mimeType="application/x-gpx+xml" />
                 <data android:mimeType="application/x-gpx" />
-                <!-- Android has no MIME type for .gpx, so Files, My Files and browser downloads label it
-                     binary or XML. Accept those; the import validates the contents before saving. -->
                 <data android:mimeType="application/octet-stream" />
                 <data android:mimeType="application/xml" />
                 <data android:mimeType="text/xml" />

@@ -2,169 +2,218 @@ package com.runline.app.ai
 
 import org.json.JSONObject
 
-/** A line ready to be spoken and the observation it was built on. */
-data class LiveLine(val text: String, val point: LivePoint) {
+data class LiveLine(
+    val text: String,
+    val point: LivePoint,
+) {
     val pointId: String get() = point.id
-    /** Every observation this line voiced: its point and the facts the point also states. */
     val pointIds: List<String> get() = listOf(point.id) + point.covers
 }
 
-/**
- * The live coach's voice. [LiveCoachPlan] decides when to speak and [LivePoints] what about;
- * the model only turns that one observation into a spoken line. What comes back is checked
- * before it may be spoken: its figures must be the ones it was given, it must be in the
- * runner's language, say nothing about the ground the terrain map does not support, and not
- * echo an earlier line. A line that fails is asked for again once, with the reason.
- */
 object LiveAiAdvice {
     const val MAX_WORDS = 45
     const val MAX_CHARS = 300
 
-    fun request(provider: CoachAiProvider, key: String, model: String, language: String, data: JSONObject,
-                call: LiveCall = LiveCall(LiveTrigger.CADENCE, null, LiveFocus.MORALE, 1), used: List<String> = emptyList()): String? =
-        compose(provider, key, model, language, data, call, used)?.text
+    fun request(
+        provider: CoachAiProvider,
+        key: String,
+        model: String,
+        language: String,
+        data: JSONObject,
+        call: LiveCall = LiveCall(LiveTrigger.CADENCE, null, LiveFocus.MORALE, 1),
+        used: List<String> = emptyList(),
+    ): String? = compose(provider, key, model, language, data, call, used)?.text
 
-    fun compose(provider: CoachAiProvider, key: String, model: String, language: String, data: JSONObject,
-                call: LiveCall, used: List<String> = emptyList(), milestone: JSONObject? = null,
-                rejected: (draft: String, problem: String) -> Unit = { _, _ -> }): LiveLine? {
+    fun compose(
+        provider: CoachAiProvider,
+        key: String,
+        model: String,
+        language: String,
+        data: JSONObject,
+        call: LiveCall,
+        used: List<String> = emptyList(),
+        milestone: JSONObject? = null,
+        rejected: (draft: String, problem: String) -> Unit = { _, _ -> },
+    ): LiveLine? {
         val run = data.optJSONObject("run") ?: JSONObject()
         val context = data.optJSONObject("coaching_context") ?: JSONObject()
         val spanish = language == "Spanish"
         val point = LivePoints.pick(run, context, call, spanish, used, milestone) ?: return null
         val said = context.optJSONArray("recent_spoken_feedback")
         val goal = context.optJSONObject("active_goal")
-        val input = JSONObject()
-            .put("why_now", JSONObject().put("trigger", call.trigger.name).put("moment", call.moment?.name ?: JSONObject.NULL).put("style", style(point, call).name))
-            .put("point", point.point).put("numbers", JSONObject(point.numbers)).put("hint", point.hint ?: JSONObject.NULL)
-            .put("intended_effort", goal?.optString("intended_effort")?.takeIf { it.isNotBlank() && it != "null" } ?: "NOT_SET")
-            .put("already_said", said ?: org.json.JSONArray()).put("avoid", avoid(said))
+        val input =
+            JSONObject()
+                .put("why_now", JSONObject().put("trigger", call.trigger.name).put("moment", call.moment?.name ?: JSONObject.NULL).put("style", style(point, call).name))
+                .put("point", point.point)
+                .put("numbers", JSONObject(point.numbers))
+                .put("hint", point.hint ?: JSONObject.NULL)
+                .put("intended_effort", goal?.optString("intended_effort")?.takeIf { it.isNotBlank() && it != "null" } ?: "NOT_SET")
+                .put("already_said", said ?: org.json.JSONArray())
+                .put("avoid", avoid(said))
         val terrain = context.optJSONObject("recent_terrain")
         val earlier = aiLines(said)
-        fun problem(line: String): String? = figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line) ?: feelings(line)
-            ?: (if (terrainCompatible(line, terrain)) null else "It mentions hills or the ground, which the point does not.") ?: repeats(line, earlier)
-        // A milestone is announced within a second or two; a check-in can take a moment to get the wording right.
+
+        fun problem(line: String): String? =
+            figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line) ?: feelings(line)
+                ?: (if (terrainCompatible(line, terrain)) null else "It mentions hills or the ground, which the point does not.") ?: repeats(line, earlier)
         val instant = milestone != null
         val first = clean(provider.quickMessage(key, model, system(language), input, 400, 12_000, instant), spanish) ?: return null
         val flaw = problem(first) ?: return LiveLine(first, point)
         rejected(first, flaw)
-        // A milestone has 3.5 s before the built-in line takes over: a second request for a mere echo would lose it.
         if (instant && flaw == repeats(first, earlier)) return LiveLine(first, point)
-        // One more try, told exactly what was wrong. A sound line a second later beats a flawed one now.
         input.put("rejected_draft", JSONObject().put("text", first).put("problem", flaw).put("instruction", "Write a different line that fixes this."))
         val second = runCatching { clean(provider.quickMessage(key, model, system(language), input, 400, 8_000, instant), spanish) }.getOrNull() ?: return null
         val again = problem(second) ?: return LiveLine(second, point)
         rejected(second, again)
-        // An echo is a matter of taste and may still be spoken; a wrong figure, language or question may not.
         return LiveLine(second, point).takeIf { again == repeats(second, earlier) }
     }
 
-    /** The shape of the sentence follows what is being said: a surge is cheered, a fade is met calmly. Within that it rotates. */
-    internal fun style(point: LivePoint, call: LiveCall): LiveStyle {
-        val fitting = when (point.theme) {
-            "faster", "best" -> listOf(LiveStyle.CELEBRATE, LiveStyle.PUNCHY, LiveStyle.NUMBER_FIRST)
-            "slower" -> listOf(LiveStyle.WARM, LiveStyle.CALM, LiveStyle.CUE_FIRST)
-            "form" -> listOf(LiveStyle.CUE_FIRST, LiveStyle.PUNCHY, LiveStyle.WARM)
-            "effort" -> listOf(LiveStyle.WARM, LiveStyle.CALM)
-            "goal" -> if (point.id.startsWith("goal/reached")) listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.LOOK_AHEAD, LiveStyle.NUMBER_FIRST, LiveStyle.PUNCHY)
-            "moment" -> if (point.id == "moment/goal") listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.CELEBRATE)
-            "start" -> listOf(LiveStyle.WARM)
-            "bigger" -> listOf(LiveStyle.WARM, LiveStyle.LOOK_AHEAD)
-            else -> listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.PUNCHY)
-        }
+    internal fun style(
+        point: LivePoint,
+        call: LiveCall,
+    ): LiveStyle {
+        val fitting =
+            when (point.theme) {
+                "faster", "best" -> listOf(LiveStyle.CELEBRATE, LiveStyle.PUNCHY, LiveStyle.NUMBER_FIRST)
+                "slower" -> listOf(LiveStyle.WARM, LiveStyle.CALM, LiveStyle.CUE_FIRST)
+                "form" -> listOf(LiveStyle.CUE_FIRST, LiveStyle.PUNCHY, LiveStyle.WARM)
+                "effort" -> listOf(LiveStyle.WARM, LiveStyle.CALM)
+                "goal" -> if (point.id.startsWith("goal/reached")) listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.LOOK_AHEAD, LiveStyle.NUMBER_FIRST, LiveStyle.PUNCHY)
+                "moment" -> if (point.id == "moment/goal") listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.CELEBRATE)
+                "start" -> listOf(LiveStyle.WARM)
+                "bigger" -> listOf(LiveStyle.WARM, LiveStyle.LOOK_AHEAD)
+                else -> listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.PUNCHY)
+            }
         return fitting[call.number % fitting.size]
     }
 
-    private fun aiLines(said: org.json.JSONArray?): List<String> = (0 until (said?.length() ?: 0)).mapNotNull { said?.optJSONObject(it) }
-        .filter { it.optString("source") == "AI" }.map { it.optString("text") }
+    private fun aiLines(said: org.json.JSONArray?): List<String> =
+        (0 until (said?.length() ?: 0))
+            .mapNotNull { said?.optJSONObject(it) }
+            .filter { it.optString("source") == "AI" }
+            .map { it.optString("text") }
+
     private fun words(text: String) = Regex("[\\p{L}\\p{N}]+").findAll(text.lowercase(java.util.Locale.ROOT)).map { it.value }.toList()
 
-    /** Why [line] would sound like an echo of what the coach already said, or null when it is fresh. */
-    internal fun repeats(line: String, earlier: List<String>): String? {
+    internal fun repeats(
+        line: String,
+        earlier: List<String>,
+    ): String? {
         val mine = words(line)
         val opening = mine.firstOrNull() ?: return null
-        if (opening.none { it.isDigit() } && earlier.takeLast(4).any { words(it).firstOrNull() == opening })
+        if (opening.none { it.isDigit() } && earlier.takeLast(4).any { words(it).firstOrNull() == opening }) {
             return "It opens with \"$opening\" like a recent line."
+        }
         val seen = earlier.flatMap { words(it).windowed(4) }.filter { phrase -> phrase.none { w -> w.any(Char::isDigit) } }.toSet()
         mine.windowed(4).firstOrNull { it in seen }?.let { return "It reuses the phrase \"${it.joinToString(" ")}\"." }
         return null
     }
 
-    /** Every figure in [line] must be one the point supplied: the model voices numbers, it never makes them. */
-    internal fun figures(line: String, point: LivePoint): String? {
+    internal fun figures(
+        line: String,
+        point: LivePoint,
+    ): String? {
         val allowed = (point.numbers.values + point.point).flatMap { Regex("\\d+").findAll(it).map { m -> m.value } }.toSet()
         val stray = Regex("\\d+").findAll(line).map { it.value }.firstOrNull { it !in allowed } ?: return null
         return "It says the figure $stray, which is not in \"numbers\". Use only those figures, copied exactly, or none."
     }
 
-    /** A cheap check that the line is in the runner's language and is speech, not a note about what to say. */
-    internal fun language(line: String, spanish: Boolean): String? {
+    internal fun language(
+        line: String,
+        spanish: Boolean,
+    ): String? {
         fun wrong(part: String): Boolean {
             val text = " " + words(part).joinToString(" ") + " "
-            val english = ENGLISH.count { text.contains(" $it ") }; val castilian = SPANISH.count { text.contains(" $it ") }
+            val english = ENGLISH.count { text.contains(" $it ") }
+            val castilian = SPANISH.count { text.contains(" $it ") }
             return if (spanish) english > castilian else castilian > english
         }
-        // Sentence by sentence too: a Spanish line with an English note to itself tacked on is still wrong.
-        val sentences = Regex("[^.!?]+[.!?]*").findAll(line).map { it.value }.filter { words(it).size >= 4 }.toList()
+        val sentences =
+            Regex("[^.!?]+[.!?]*")
+                .findAll(line)
+                .map { it.value }
+                .filter { words(it).size >= 4 }
+                .toList()
         return if (wrong(line) || sentences.any(::wrong)) (if (spanish) "It is not all in Spanish." else "It is not all in English.") else null
     }
+
     private val ENGLISH = listOf("the", "and", "you", "your", "is", "are", "of", "to", "that", "with", "this", "so", "it")
     private val SPANISH = listOf("el", "la", "los", "las", "y", "que", "de", "tu", "tus", "es", "con", "en", "lo", "un", "una", "te", "ya")
 
-    /** Words that belong to the request, not to a coach: the model was reading its instructions aloud. */
-    internal fun leaks(line: String): String? =
-        if (LEAKS.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) "It talks about the instructions instead of to the runner. Speak only to the runner." else null
+    internal fun leaks(line: String): String? = if (LEAKS.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) "It talks about the instructions instead of to the runner. Speak only to the runner." else null
+
     private val LEAKS = Regex("\\b(json|rejected|draft|cifras permitidas|allowed figures|instruc\\w+|\\\"numbers\\\")\\b|\\bnumbers\\b.*\\bpoint\\b|\\bthe point\\b|\\bi must\\b|\\bwait,")
 
-    /**
-     * The coach does not know who is running: no "champ", "tío" or "girl", and in Spanish no
-     * adjective that agrees with the runner ("tranquila", "vas a llegar alta", "orgulloso").
-     */
     internal fun gendered(line: String): String? {
         val text = line.lowercase(java.util.Locale.ROOT)
         if (GENDERED.containsMatchIn(text)) return "It addresses the runner with a gendered word. Drop it."
         val agreeing = (RUNNER_ADJECTIVE.find(text) ?: VOCATIVE_ADJECTIVE.find(text) ?: COACH_ADJECTIVE.find(text))?.value?.trim(' ', ',', '.', '!', '¡') ?: return null
         return "\"$agreeing\" gives the runner (or you) a gender. Reword so it fits anyone: describe the action or a body part instead, like con la cabeza alta, con calma, con soltura."
     }
+
     private val GENDERED = Regex("\\b(t[ií]o|t[ií]a|campe[oó]n|campeona|chaval|chavala|amigo|amiga|hermano|hermana|machote|guap[oa]|dude|bro|man|girl|mate|buddy|champ)\\b")
-    // "Termina alto", "corre ligero" are also adverbs; only their feminine forms are agreement.
     private const val AGREEING = "(?:(?:tranquil|relajad|list|suelt|concentrad|c[oó]mod|centrad|enter|cansad|content|lanzad|sobrad|enchufad|erguid|fresc|preparad|motivad|segur|hech)[oa]s?|(?:alt|liger)as?)"
-    private val RUNNER_ADJECTIVE = Regex("\\b(?:vas(?: a (?:ir|llegar|terminar|acabar))?|ve|llegas?|llegar|llegues|corres?|correr|sigues?|seguir|mantente|qu[eé]date|est[aá]s|terminas?|terminar|acabas?|acabar|vuelves|eres|verte|te veo|as[ií] de)" +
-        "\\s+(?:muy\\s+|bien\\s+|m[aá]s\\s+|tan\\s+|todo\\s+|toda\\s+|as[ií] de\\s+)?$AGREEING\\b")
+    private val RUNNER_ADJECTIVE =
+        Regex(
+            "\\b(?:vas(?: a (?:ir|llegar|terminar|acabar))?|ve|llegas?|llegar|llegues|corres?|correr|sigues?|seguir|mantente|qu[eé]date|est[aá]s|terminas?|terminar|acabas?|acabar|vuelves|eres|verte|te veo|as[ií] de)" +
+                "\\s+(?:muy\\s+|bien\\s+|m[aá]s\\s+|tan\\s+|todo\\s+|toda\\s+|as[ií] de\\s+)?$AGREEING\\b",
+        )
     private val VOCATIVE_ADJECTIVE = Regex("(?:^|[.!¡?¿,;]\\s*)(?:tranquil|relajad|concentrad)[oa]s?\\b|(?:^|[.!¡?¿,;]\\s*)list[oa]s?\\s*[,.!]")
     private val COACH_ADJECTIVE = Regex("\\borgullos[oa]s?\\b")
 
-    /** The coach cannot see or feel the runner: "¡qué bien te sientes!" is a guess said as a fact. A self-check question may ask it. */
     internal fun feelings(line: String): String? {
         val text = line.lowercase(java.util.Locale.ROOT)
         if (text.contains('?') || text.contains('¿')) return null
         return if (FEELINGS.containsMatchIn(text)) "It says how they feel or look, which you cannot know. Say what the run shows instead." else null
     }
+
     private val FEELINGS = Regex("\\b(te sientes|te notas|te ves|se te ve|se te nota|te sienta|you feel|you're feeling|you are feeling|you look|you're looking)\\b")
 
-    /** The runner cannot answer mid-run: a line may not ask them to tell the coach something. */
-    internal fun asks(line: String): String? =
-        if (ASKS.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) "It asks the runner to answer. Give a cue or a self-check they answer in their head." else null
+    internal fun asks(line: String): String? = if (ASKS.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) "It asks the runner to answer. Give a cue or a self-check they answer in their head." else null
+
     private val ASKS = Regex("\\b(dime|d[ií]game|cu[eé]ntame|cu[eé]ntanos|me cuentas|me dices|tell me|let me know|talk to me|say it out loud)\\b")
 
-    /**
-     * What the coach has leaned on already: how its lines began and the words it keeps reusing.
-     * Spelled out because a fast model repeats a turn of phrase it likes unless told which.
-     */
     internal fun avoid(said: org.json.JSONArray?): JSONObject {
         val lines = aiLines(said).map { it.lowercase(java.util.Locale.ROOT) }
-        // Grouped by stem so "tranquilo" and "tranquila" count as the same crutch.
-        val words = lines.map { line -> Regex("[\\p{L}]{5,}").findAll(line).map { it.value }.filter { it !in UNITS }.associateBy { it.take(6) } }
+        val words =
+            lines.map { line ->
+                Regex("[\\p{L}]{5,}")
+                    .findAll(line)
+                    .map { it.value }
+                    .filter { it !in UNITS }
+                    .associateBy { it.take(6) }
+            }
         val counts = words.flatMap { it.keys }.groupingBy { it }.eachCount()
-        val overused = counts.filter { it.value >= 2 }.entries.sortedByDescending { it.value }.take(16)
-            .map { stem -> words.firstNotNullOf { it[stem.key] } }
-        return JSONObject().put("effort_level_mentioned_recently", lines.takeLast(3).any { EFFORT.containsMatchIn(it) })
-            .put("openings_already_used", org.json.JSONArray(lines.map { it.trimStart('¡', '¿', ' ').split(Regex("[\\s,.!?]+")).take(2).joinToString(" ") }.distinct().takeLast(10)))
-            .put("words_already_overused", org.json.JSONArray(overused))
+        val overused =
+            counts
+                .filter { it.value >= 2 }
+                .entries
+                .sortedByDescending { it.value }
+                .take(16)
+                .map { stem -> words.firstNotNullOf { it[stem.key] } }
+        return JSONObject()
+            .put("effort_level_mentioned_recently", lines.takeLast(3).any { EFFORT.containsMatchIn(it) })
+            .put(
+                "openings_already_used",
+                org.json.JSONArray(
+                    lines
+                        .map {
+                            it
+                                .trimStart('¡', '¿', ' ')
+                                .split(Regex("[\\s,.!?]+"))
+                                .take(2)
+                                .joinToString(" ")
+                        }.distinct()
+                        .takeLast(10),
+                ),
+            ).put("words_already_overused", org.json.JSONArray(overused))
     }
+
     private val EFFORT = Regex("\\b(fácil\\w*|suave\\w*|tranquil\\w*|calma\\w*|easy|gentle|relaxed|recovery|recuperación)\\b")
     private val UNITS = setOf("minutos", "minutes", "kilómetro", "kilómetros", "kilometre", "kilometres", "segundos", "seconds", "metros", "metres")
 
-    internal fun system(language: String) = """
+    internal fun system(language: String) =
+        """
 You are this runner's personal coach, running beside them and talking into their ear, mid-run. Say ONE short message in ${if (language == "Spanish") "Spanish as spoken in Spain, informal tú, never vos or usted" else language}: one sentence of 8 to 20 words, or two short ones, 26 words at most. A text-to-speech voice reads it over their music, so it must land at once with someone breathing hard.
 
 WHAT TO SAY
@@ -187,33 +236,41 @@ Write for the ear: no colons between digits, no slashes, symbols, abbreviations,
 
 Reply with the line only. If there is a "rejected_draft", write a new line that fixes its problem.""".trim()
 
-    /** A deterministic backstop for EN/ES hill claims when the independent source is absent/conflicting. */
-    internal fun terrainCompatible(text: String, terrain: JSONObject?): Boolean {
+    internal fun terrainCompatible(
+        text: String,
+        terrain: JSONObject?,
+    ): Boolean {
         val words = text.lowercase(java.util.Locale.ROOT)
-        val up = UP.containsMatchIn(words); val down = DOWN.containsMatchIn(words)
-        val flat = FLAT.containsMatchIn(words); val generic = GENERIC.containsMatchIn(words)
+        val up = UP.containsMatchIn(words)
+        val down = DOWN.containsMatchIn(words)
+        val flat = FLAT.containsMatchIn(words)
+        val generic = GENERIC.containsMatchIn(words)
         if (!up && !down && !flat && !generic) return true
         if (terrain?.optBoolean("hill_advice_allowed") != true || terrain.optString("source") != "TERRAIN_MAP") return false
         val direction = terrain.optString("direction")
         return direction in setOf("UPHILL", "DOWNHILL", "FLAT") && (!up || direction == "UPHILL") &&
             (!down || direction == "DOWNHILL") && (!flat || direction == "FLAT")
     }
-    /** Whether a line talks about the ground at all: only then must the terrain still match at delivery. */
-    internal fun mentionsTerrain(text: String): Boolean = text.lowercase(java.util.Locale.ROOT).let {
-        UP.containsMatchIn(it) || DOWN.containsMatchIn(it) || FLAT.containsMatchIn(it) || GENERIC.containsMatchIn(it)
-    }
+
+    internal fun mentionsTerrain(text: String): Boolean =
+        text.lowercase(java.util.Locale.ROOT).let {
+            UP.containsMatchIn(it) || DOWN.containsMatchIn(it) || FLAT.containsMatchIn(it) || GENERIC.containsMatchIn(it)
+        }
+
     private val UP = Regex("\\b(uphill|climb\\w*|ascent\\w*|subid\\w*|subiendo|ascenso\\w*)\\b|cuesta arriba")
     private val DOWN = Regex("\\b(downhill|descen\\w*|bajad\\w*|bajando)\\b|cuesta abajo")
     private val FLAT = Regex("\\b(flat|level ground|llan\\w*|terreno plano)\\b")
     private val GENERIC = Regex("\\b(hill\\w*|slope\\w*|gradient\\w*|cuesta\\w*|pendiente\\w*|desnivel\\w*)\\b")
 
-    /** Bounded, speakable text or null. Written-style paces that slip through are turned into spoken ones. */
-    fun clean(raw: String, spanish: Boolean = false): String? = fitting(spoken(raw.trim().replace(Regex("\\s+"), " "), spanish)).takeIf {
-        !it.equals("NONE", true) && !it.startsWith("NONE", true) && it.length in 5..MAX_CHARS && it.split(' ').size <= MAX_WORDS &&
-            !it.contains("http", true) && !it.contains('{') && !it.contains('<') && !it.contains("```")
-    }
+    fun clean(
+        raw: String,
+        spanish: Boolean = false,
+    ): String? =
+        fitting(spoken(raw.trim().replace(Regex("\\s+"), " "), spanish)).takeIf {
+            !it.equals("NONE", true) && !it.startsWith("NONE", true) && it.length in 5..MAX_CHARS && it.split(' ').size <= MAX_WORDS &&
+                !it.contains("http", true) && !it.contains('{') && !it.contains('<') && !it.contains("```")
+        }
 
-    /** An answer that ran long keeps its leading sentences that fit, rather than being thrown away. */
     private fun fitting(text: String): String {
         if (text.length <= MAX_CHARS && text.split(' ').size <= MAX_WORDS) return text
         val sentences = Regex("[^.!?]+[.!?]+").findAll(text).map { it.value.trim() }.toList()
@@ -226,14 +283,20 @@ Reply with the line only. If there is a "rejected_draft", write a new line that 
         return kept.ifEmpty { text }
     }
 
-    internal fun spoken(text: String, spanish: Boolean): String = text
-        .replace(Regex("(\\d{1,2}):(\\d{2})\\s*(?:/|por |per )?\\s*(?:km\\b|kilómetro\\b|kilometre\\b|kilometer\\b)")) { m ->
-            val seconds = m.groupValues[2].toInt()
-            if (spanish) "${m.groupValues[1]} minutos ${seconds} por kilómetro" else "${m.groupValues[1]} minutes ${seconds} per kilometre" }
-        .replace(Regex("(\\d{1,2}):(\\d{2})")) { m ->
-            val seconds = m.groupValues[2].toInt()
-            if (spanish) "${m.groupValues[1]} minutos ${seconds}" else "${m.groupValues[1]} minutes ${seconds}" }
-        .replace(Regex("\\s*/\\s*km\\b"), if (spanish) " por kilómetro" else " per kilometre")
-        .replace(Regex("(?<=\\d)\\s?km\\b"), if (spanish) " kilómetros" else " kilometres")
-        .replace(Regex("[*_#\"“”«»]"), "").replace(Regex("\\s+"), " ").trim()
+    internal fun spoken(
+        text: String,
+        spanish: Boolean,
+    ): String =
+        text
+            .replace(Regex("(\\d{1,2}):(\\d{2})\\s*(?:/|por |per )?\\s*(?:km\\b|kilómetro\\b|kilometre\\b|kilometer\\b)")) { m ->
+                val seconds = m.groupValues[2].toInt()
+                if (spanish) "${m.groupValues[1]} minutos $seconds por kilómetro" else "${m.groupValues[1]} minutes $seconds per kilometre"
+            }.replace(Regex("(\\d{1,2}):(\\d{2})")) { m ->
+                val seconds = m.groupValues[2].toInt()
+                if (spanish) "${m.groupValues[1]} minutos $seconds" else "${m.groupValues[1]} minutes $seconds"
+            }.replace(Regex("\\s*/\\s*km\\b"), if (spanish) " por kilómetro" else " per kilometre")
+            .replace(Regex("(?<=\\d)\\s?km\\b"), if (spanish) " kilómetros" else " kilometres")
+            .replace(Regex("[*_#\"“”«»]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
 }

@@ -3,7 +3,6 @@ package com.runline.app.core
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
-/** GPS estimates, not terrain-corrected elevation or sensor-measured speed. */
 data class RunAnalysis(
     val distanceMeters: Double,
     val observedDurationMs: Long,
@@ -15,7 +14,6 @@ data class RunAnalysis(
     val maxAltitudeMeters: Double?,
 )
 
-/** [point] is interpolated only inside one observed, continuous GPS segment. */
 data class ReplayFrame(
     val point: RunPoint,
     val positionMs: Long,
@@ -27,15 +25,9 @@ data class ReplayFrame(
     val segmentIndex: Int,
 )
 
-/**
- * A seekable GPS timeline. Its clock includes only observed intervals, not the run's
- * active timer, pauses, time awaiting a first fix, or gaps over 15 seconds. A gap is
- * a cut to the next segment: it never becomes an invented connecting path.
- *
- * Construction is O(n log n); a frame seek is O(log n). Build once for a saved run, then
- * advance position using a monotonic UI clock and the selected playback multiplier.
- */
-class RunReplay(val session: RunSession) {
+class RunReplay(
+    val session: RunSession,
+) {
     private val run = session
     val segments: List<List<RunPoint>> = safeSegments(run.points)
     val durationMs: Long
@@ -81,13 +73,13 @@ class RunReplay(val session: RunSession) {
                 val gainBefore = gain
                 val lossBefore = loss
                 val anchor = altitudeAnchor
-                if (altitude == null) altitudeAnchor = null
-                else if (anchor == null) altitudeAnchor = altitude
-                else {
+                if (altitude == null) {
+                    altitudeAnchor = null
+                } else if (anchor == null) {
+                    altitudeAnchor = altitude
+                } else {
                     altitudePairs = true
                     val change = altitude - anchor
-                    // Same simple three-metre deadband used by the recorder's metrics.
-                    // Missing altitude and segment breaks reset it; small GPS noise is ignored.
                     if (abs(change) >= ALTITUDE_DEADBAND_METERS) {
                         if (change > 0) gain += change else loss -= change
                         altitudeAnchor = altitude
@@ -97,8 +89,21 @@ class RunReplay(val session: RunSession) {
                 val previous = points[index - 1]
                 val span = point.timestampMs - previous.timestampMs
                 val length = RunMetrics.distanceMeters(listOf(previous, point))
-                built += Edge(previous, point, segmentIndex, clock, clock + span, segmentStart,
-                    distance, length, gainBefore, gain, lossBefore, loss)
+                built +=
+                    Edge(
+                        previous,
+                        point,
+                        segmentIndex,
+                        clock,
+                        clock + span,
+                        segmentStart,
+                        distance,
+                        length,
+                        gainBefore,
+                        gain,
+                        lossBefore,
+                        loss,
+                    )
                 clock += span
                 distance += length
             }
@@ -107,15 +112,17 @@ class RunReplay(val session: RunSession) {
         hasAltitudePairs = altitudePairs
         durationMs = clock
         var peakSpeed: Double? = null
-        fun considerPeak(position: Long, edge: Edge) {
+
+        fun considerPeak(
+            position: Long,
+            edge: Edge,
+        ) {
             speedAt(position, edge)?.let { speed ->
                 peakSpeed = peakSpeed?.let { maxOf(it, speed) } ?: speed
             }
         }
         for (edge in edges) {
             considerPeak(edge.endMs, edge)
-            // A trailing window changes slope when either end crosses a fix. Its
-            // maximum can therefore occur five seconds after a fix, between samples.
             if (durationMs - edge.startMs >= SPEED_WINDOW_MS) {
                 val position = edge.startMs + SPEED_WINDOW_MS
                 val containingEdge = edgeAt(position)
@@ -124,17 +131,22 @@ class RunReplay(val session: RunSession) {
                 }
             }
         }
-        summary = RunAnalysis(
-            distanceMeters = distance,
-            observedDurationMs = clock,
-            averageSpeedMetersPerSecond = if (run.activeDurationMs > 0L && distance > 0.0)
-                (distance * 1000.0 / run.activeDurationMs).takeIf { it.isFinite() } else null,
-            maxSpeedMetersPerSecond = peakSpeed,
-            elevationGainMeters = gain.takeIf { altitudePairs },
-            elevationLossMeters = loss.takeIf { altitudePairs },
-            minAltitudeMeters = minimum,
-            maxAltitudeMeters = maximum,
-        )
+        summary =
+            RunAnalysis(
+                distanceMeters = distance,
+                observedDurationMs = clock,
+                averageSpeedMetersPerSecond =
+                    if (run.activeDurationMs > 0L && distance > 0.0) {
+                        (distance * 1000.0 / run.activeDurationMs).takeIf { it.isFinite() }
+                    } else {
+                        null
+                    },
+                maxSpeedMetersPerSecond = peakSpeed,
+                elevationGainMeters = gain.takeIf { altitudePairs },
+                elevationLossMeters = loss.takeIf { altitudePairs },
+                minAltitudeMeters = minimum,
+                maxAltitudeMeters = maximum,
+            )
     }
 
     fun at(positionMs: Long): ReplayFrame? {
@@ -143,61 +155,96 @@ class RunReplay(val session: RunSession) {
         if (edges.isEmpty() || position == 0L) {
             return frame(first.copy(segment = 0), position, 0.0, null, 0.0, 0.0, 0)
         }
-        // Keep a trailing isolated fix as the endpoint, without drawing/animating a
-        // connection to it. Its timestamp and altitude are genuine, speed is unknown.
         if (position == durationMs) {
             val last = segments.last().last()
             val edge = edges.last()
             val speed = if (last == edge.b) speedAt(position, edge) else null
-            return frame(last.copy(segment = segments.lastIndex), position, summary.distanceMeters, speed,
-                summary.elevationGainMeters ?: 0.0, summary.elevationLossMeters ?: 0.0, segments.lastIndex)
+            return frame(
+                last.copy(segment = segments.lastIndex),
+                position,
+                summary.distanceMeters,
+                speed,
+                summary.elevationGainMeters ?: 0.0,
+                summary.elevationLossMeters ?: 0.0,
+                segments.lastIndex,
+            )
         }
         val edge = edgeAt(position)
         val fraction = (position - edge.startMs).toDouble() / (edge.endMs - edge.startMs)
         val altitudeA = edge.a.altitudeMeters?.takeIf { it.isFinite() }
         val altitudeB = edge.b.altitudeMeters?.takeIf { it.isFinite() }
-        val altitude = when {
-            fraction == 0.0 -> altitudeA
-            edge.a.terrainModel == edge.b.terrainModel && altitudeA != null && altitudeB != null -> lerp(altitudeA, altitudeB, fraction)
-            else -> null
-        }
-        val point = RunPoint(
-            latitude = lerp(edge.a.latitude, edge.b.latitude, fraction),
-            longitude = interpolateLongitude(edge.a.longitude, edge.b.longitude, fraction),
-            timestampMs = edge.a.timestampMs + ((edge.b.timestampMs - edge.a.timestampMs) * fraction).roundToLong(),
-            accuracyMeters = maxOf(edge.a.accuracyMeters, edge.b.accuracyMeters),
-            altitudeMeters = altitude,
-            segment = edge.segmentIndex,
-            terrainModel = if (edge.a.terrainModel == edge.b.terrainModel) edge.a.terrainModel else null,
-            verticalAccuracyMeters = if (edge.a.verticalAccuracyMeters != null && edge.b.verticalAccuracyMeters != null)
-                maxOf(edge.a.verticalAccuracyMeters, edge.b.verticalAccuracyMeters) else null,
+        val altitude =
+            when {
+                fraction == 0.0 -> altitudeA
+                edge.a.terrainModel == edge.b.terrainModel && altitudeA != null && altitudeB != null -> lerp(altitudeA, altitudeB, fraction)
+                else -> null
+            }
+        val point =
+            RunPoint(
+                latitude = lerp(edge.a.latitude, edge.b.latitude, fraction),
+                longitude = interpolateLongitude(edge.a.longitude, edge.b.longitude, fraction),
+                timestampMs = edge.a.timestampMs + ((edge.b.timestampMs - edge.a.timestampMs) * fraction).roundToLong(),
+                accuracyMeters = maxOf(edge.a.accuracyMeters, edge.b.accuracyMeters),
+                altitudeMeters = altitude,
+                segment = edge.segmentIndex,
+                terrainModel = if (edge.a.terrainModel == edge.b.terrainModel) edge.a.terrainModel else null,
+                verticalAccuracyMeters =
+                    if (edge.a.verticalAccuracyMeters != null && edge.b.verticalAccuracyMeters != null) {
+                        maxOf(edge.a.verticalAccuracyMeters, edge.b.verticalAccuracyMeters)
+                    } else {
+                        null
+                    },
+            )
+        return frame(
+            point,
+            position,
+            edge.startDistance + edge.length * fraction,
+            speedAt(position, edge),
+            lerp(edge.gainBefore, edge.gainAfter, fraction),
+            lerp(edge.lossBefore, edge.lossAfter, fraction),
+            edge.segmentIndex,
         )
-        return frame(point, position, edge.startDistance + edge.length * fraction, speedAt(position, edge),
-            lerp(edge.gainBefore, edge.gainAfter, fraction), lerp(edge.lossBefore, edge.lossAfter, fraction), edge.segmentIndex)
     }
 
-    private fun frame(point: RunPoint, position: Long, distance: Double, speed: Double?, gain: Double, loss: Double, segment: Int) =
-        ReplayFrame(point, position, distance, speed, speed?.takeIf { it > 0.0 }?.let { 1000.0 / it },
-            gain.takeIf { hasAltitudePairs }, loss.takeIf { hasAltitudePairs }, segment)
+    private fun frame(
+        point: RunPoint,
+        position: Long,
+        distance: Double,
+        speed: Double?,
+        gain: Double,
+        loss: Double,
+        segment: Int,
+    ) = ReplayFrame(
+        point,
+        position,
+        distance,
+        speed,
+        speed?.takeIf { it > 0.0 }?.let { 1000.0 / it },
+        gain.takeIf { hasAltitudePairs },
+        loss.takeIf { hasAltitudePairs },
+        segment,
+    )
 
-    /** Trailing five-second GPS speed, kept within one segment; no motion through pauses. */
-    private fun speedAt(position: Long, edge: Edge): Double? {
+    private fun speedAt(
+        position: Long,
+        edge: Edge,
+    ): Double? {
         val start = maxOf(edge.segmentStartMs, position - SPEED_WINDOW_MS)
         val span = position - start
         if (span <= 0L) return null
         val traveled = distanceAt(position, edge) - distanceAt(start, edgeAt(start))
         val speed = traveled.coerceAtLeast(0.0) * 1000.0 / span
-        // GPS jitter can survive the recorder's horizontal-accuracy gate. Do not turn
-        // an implausible running speed into a headline peak or an invented pace.
         return speed.takeIf { it.isFinite() && it <= MAX_RUNNING_SPEED_METERS_PER_SECOND }
     }
 
-    private fun distanceAt(position: Long, edge: Edge): Double {
+    private fun distanceAt(
+        position: Long,
+        edge: Edge,
+    ): Double {
         val fraction = ((position - edge.startMs).toDouble() / (edge.endMs - edge.startMs)).coerceIn(0.0, 1.0)
         return edge.startDistance + edge.length * fraction
     }
 
-    /** Last edge beginning at/before this position. Equal boundaries select the new segment. */
     private fun edgeAt(position: Long): Edge {
         var low = 0
         var high = edges.lastIndex
@@ -223,16 +270,28 @@ class RunReplay(val session: RunSession) {
                         result += current
                         current = mutableListOf()
                     }
-                    current += point.copy(segment = result.size,
-                        altitudeMeters = point.altitudeMeters?.takeIf { it.isFinite() })
+                    current +=
+                        point.copy(
+                            segment = result.size,
+                            altitudeMeters = point.altitudeMeters?.takeIf { it.isFinite() },
+                        )
                 }
                 if (current.isNotEmpty()) result += current
             }
             return result
         }
 
-        private fun lerp(a: Double, b: Double, fraction: Double) = a + (b - a) * fraction
-        private fun interpolateLongitude(a: Double, b: Double, fraction: Double): Double {
+        private fun lerp(
+            a: Double,
+            b: Double,
+            fraction: Double,
+        ) = a + (b - a) * fraction
+
+        private fun interpolateLongitude(
+            a: Double,
+            b: Double,
+            fraction: Double,
+        ): Double {
             val delta = ((b - a + 540.0) % 360.0) - 180.0
             val value = a + delta * fraction
             return ((value + 540.0) % 360.0) - 180.0

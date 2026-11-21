@@ -1,8 +1,13 @@
 package com.runline.app.core
 
-/** A small display model of actual heights; breaks are retained, never filled in. */
-data class ElevationTrace(val sections: List<List<Sample>>, val durationMs: Long) {
-    data class Sample(val positionMs: Long, val heightMeters: Double)
+data class ElevationTrace(
+    val sections: List<List<Sample>>,
+    val durationMs: Long,
+) {
+    data class Sample(
+        val positionMs: Long,
+        val heightMeters: Double,
+    )
 
     companion object {
         fun from(points: List<RunPoint>): ElevationTrace {
@@ -10,6 +15,7 @@ data class ElevationTrace(val sections: List<List<Sample>>, val durationMs: Long
             var section = mutableListOf<Sample>()
             var previous: RunPoint? = null
             var clock = 0L
+
             fun finish() {
                 if (section.size >= 2) sections += section
                 section = mutableListOf()
@@ -20,11 +26,13 @@ data class ElevationTrace(val sections: List<List<Sample>>, val durationMs: Long
                 if (continuous && !canJoinAltitude(previous, point)) finish()
                 val height = point.altitudeMeters?.takeIf { point.hasUsableAltitude() }
                 if (point.hasValidCoordinates() && point.timestampMs >= 0 &&
-                    point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f) {
+                    point.accuracyMeters.isFinite() && point.accuracyMeters in 0f..30f
+                ) {
                     if (height != null) section += Sample(clock, height) else finish()
                     previous = point
                 } else {
-                    finish(); previous = null
+                    finish()
+                    previous = null
                 }
             }
             finish()

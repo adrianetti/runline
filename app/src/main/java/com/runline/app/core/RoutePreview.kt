@@ -3,16 +3,13 @@ package com.runline.app.core
 import kotlin.math.ceil
 import kotlin.math.roundToLong
 
-/**
- * A planned route as a replayable timeline, so it previews like a recording: the 3D camera,
- * playback speed and the timeline. Time is the steady-effort moving time from Tobler's hiking
- * function. A sample every 5 s of planned time keeps every gap far below the replay's 15 s cut.
- * Display only: it is never saved and never becomes a recording.
- */
 object RoutePreview {
     const val SAMPLE_MS = 5_000L
 
-    fun session(route: HikingRoute, activity: ActivityType = ActivityType.HIKE): RunSession {
+    fun session(
+        route: HikingRoute,
+        activity: ActivityType = ActivityType.HIKE,
+    ): RunSession {
         val pts = route.points
         val minutes = route.minutesAt
         val totalMs = (minutes.last() * 60_000).roundToLong().coerceAtLeast(SAMPLE_MS)
@@ -23,21 +20,20 @@ object RoutePreview {
             val t = minOf(totalMs, i * SAMPLE_MS)
             val target = t / 60_000.0
             while (k + 1 < pts.lastIndex && minutes[k + 1] < target) k++
-            val a = pts[k]; val b = pts[minOf(k + 1, pts.lastIndex)]
+            val a = pts[k]
+            val b = pts[minOf(k + 1, pts.lastIndex)]
             val span = minutes[minOf(k + 1, pts.lastIndex)] - minutes[k]
             val f = if (span > 0) ((target - minutes[k]) / span).coerceIn(0.0, 1.0) else 0.0
-            val altitude = if (a.elevationMeters != null && b.elevationMeters != null) a.elevationMeters + (b.elevationMeters - a.elevationMeters) * f
-                else a.elevationMeters ?: b.elevationMeters
+            val altitude =
+                if (a.elevationMeters != null && b.elevationMeters != null) {
+                    a.elevationMeters + (b.elevationMeters - a.elevationMeters) * f
+                } else {
+                    a.elevationMeters ?: b.elevationMeters
+                }
             out += RunPoint(a.latitude + (b.latitude - a.latitude) * f, a.longitude + (b.longitude - a.longitude) * f, t, 5f, altitude)
         }
         return RunSession("preview-${route.id}", 0L, totalMs, totalMs, out, activity)
     }
 
-    /**
-     * True when every sample carries the route's own height. The preview then shows the
-     * profile the route was planned with, as route details and the elevation ahead do: offline,
-     * and without the gaps a terrain lookup leaves on steep ground.
-     */
-    fun hasHeights(session: RunSession): Boolean =
-        session.points.isNotEmpty() && session.points.all { it.altitudeMeters?.isFinite() == true }
+    fun hasHeights(session: RunSession): Boolean = session.points.isNotEmpty() && session.points.all { it.altitudeMeters?.isFinite() == true }
 }

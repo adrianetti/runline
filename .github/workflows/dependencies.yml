@@ -60,7 +60,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # Only this trusted-main job may submit a dependency graph; it has no signing key.
     permissions:
       contents: write
     steps:

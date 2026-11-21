@@ -20,7 +20,6 @@ class RoutePreviewTest {
         assertEquals(1, replay.segments.size)
         assertEquals(route.distanceMeters, replay.summary.distanceMeters, route.distanceMeters * 0.01)
         assertEquals(session.activeDurationMs, replay.durationMs)
-        // The Granada route climbs about 200 m through the Dehesa: its own profile, gap-free.
         assertTrue(RoutePreview.hasHeights(session))
         assertTrue(replay.summary.maxAltitudeMeters!! - replay.summary.minAltitudeMeters!! > 200)
         assertTrue(replay.summary.elevationGainMeters!! > 200)

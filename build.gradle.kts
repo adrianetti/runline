@@ -1,8 +1,6 @@
 buildscript {
     dependencies {
-        // AGP's built-in Kotlin accepts a newer compiler via its documented classpath override.
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
-        // Keep the provider, PKIX and utility modules on one patched upstream release.
         classpath(platform("org.bouncycastle:bc-jdk18on-bom:1.87"))
         constraints {
             add("classpath", "com.google.guava:guava:33.8.0-jre") {
@@ -27,8 +25,6 @@ plugins {
 subprojects {
     configurations.configureEach {
         if (name == "androidLintTool") {
-            // Lint has its own isolated tool classpath, independent of the buildscript.
-            // Constraints preserve AGP's default lint dependency (a direct BOM would suppress it).
             listOf("bcprov-jdk18on", "bcpkix-jdk18on", "bcutil-jdk18on").forEach { module ->
                 dependencyConstraints.add(project.dependencies.constraints.create("org.bouncycastle:$module:1.87"))
             }

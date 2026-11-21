@@ -5,67 +5,147 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** Provider boundary leaves the recorder and training model independent of any vendor SDK. */
 interface CoachAiProvider {
-    fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int = 45_000): String
-    /** Existing providers remain compatible; callers still validate every returned goal locally. */
-    fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
-                          maxTokens: Int, timeoutMs: Int = 45_000): String =
-        message(key, model, system, data, maxTokens, timeoutMs)
-    /**
-     * A short spoken line for live coaching. With [instant] the answer is wanted in about a
-     * second (a kilometre is being announced), so providers that can should skip reasoning;
-     * otherwise a moment of thought is welcome. The default is an ordinary message.
-     */
-    fun quickMessage(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int = 12_000, instant: Boolean = true): String =
-        message(key, model, system, data, maxTokens, timeoutMs)
-    fun checkModel(key: String, model: String)
+    fun message(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        maxTokens: Int,
+        timeoutMs: Int = 45_000,
+    ): String
+
+    fun structuredMessage(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        schema: JSONObject,
+        maxTokens: Int,
+        timeoutMs: Int = 45_000,
+    ): String = message(key, model, system, data, maxTokens, timeoutMs)
+
+    fun quickMessage(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        maxTokens: Int,
+        timeoutMs: Int = 12_000,
+        instant: Boolean = true,
+    ): String = message(key, model, system, data, maxTokens, timeoutMs)
+
+    fun checkModel(
+        key: String,
+        model: String,
+    )
 }
 
-data class AiHttpResponse(val status: Int, val body: String)
-fun interface AiTransport { fun request(method: String, path: String, key: String, body: String?, timeoutMs: Int): AiHttpResponse }
-class AiFailure(val reason: Reason) : Exception(reason.name) {
+data class AiHttpResponse(
+    val status: Int,
+    val body: String,
+)
+
+fun interface AiTransport {
+    fun request(
+        method: String,
+        path: String,
+        key: String,
+        body: String?,
+        timeoutMs: Int,
+    ): AiHttpResponse
+}
+
+class AiFailure(
+    val reason: Reason,
+) : Exception(reason.name) {
     enum class Reason { KEY, MODEL, RATE_LIMIT, NETWORK, RESPONSE, DISABLED, STORAGE }
 }
 
-class AnthropicProvider(private val transport: AiTransport = HttpAiTransport(), private val onMetric: (AiRequestMetric) -> Unit = {}) : CoachAiProvider {
-    override fun checkModel(key: String, model: String) {
+class AnthropicProvider(
+    private val transport: AiTransport = HttpAiTransport(),
+    private val onMetric: (AiRequestMetric) -> Unit = {},
+) : CoachAiProvider {
+    override fun checkModel(
+        key: String,
+        model: String,
+    ) {
         require(AiConfig.validModel(model))
         val response = tracked("GET", "/v1/models/$model", key, model, null, 15_000)
         checkResponse(response)
         if (runCatching { JSONObject(response.body).getString("id").isNotBlank() }.getOrDefault(false).not()) throw AiFailure(AiFailure.Reason.RESPONSE)
     }
-    override fun message(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int): String {
-        return sendMessage(key, model, system, data, null, maxTokens, timeoutMs)
-    }
-    /**
-     * Measured on replayed runs with Haiku 5.5. [instant]: thinking off, medium effort, about one
-     * second. Otherwise low effort with thinking left on, about three seconds, with room in
-     * max_tokens for the thinking: fewer muddled lines. A custom model that rejects these
-     * options (HTTP 400) gets the plain request once.
-     */
-    override fun quickMessage(key: String, model: String, system: String, data: JSONObject, maxTokens: Int, timeoutMs: Int, instant: Boolean): String =
-        try { sendMessage(key, model, system, data, null, maxTokens, timeoutMs, quick = if (instant) Quick.INSTANT else Quick.BRIEF) }
-        catch (e: AiFailure) {
+
+    override fun message(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        maxTokens: Int,
+        timeoutMs: Int,
+    ): String = sendMessage(key, model, system, data, null, maxTokens, timeoutMs)
+
+    override fun quickMessage(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        maxTokens: Int,
+        timeoutMs: Int,
+        instant: Boolean,
+    ): String =
+        try {
+            sendMessage(key, model, system, data, null, maxTokens, timeoutMs, quick = if (instant) Quick.INSTANT else Quick.BRIEF)
+        } catch (e: AiFailure) {
             if (e.reason != AiFailure.Reason.MODEL) throw e
             sendMessage(key, model, system, data, null, maxOf(maxTokens, 1536), timeoutMs)
         }
-    override fun structuredMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject,
-                                   maxTokens: Int, timeoutMs: Int): String {
-        return sendMessage(key, model, system, data, schema, maxTokens, timeoutMs)
-    }
-    private fun sendMessage(key: String, model: String, system: String, data: JSONObject, schema: JSONObject?,
-                            maxTokens: Int, timeoutMs: Int, quick: Quick? = null): String {
-        require(AiConfig.validModel(model)); require(maxTokens in 100..16_000)
-        val body = JSONObject().put("model", model).put("max_tokens", maxTokens).put("stream", false)
-            .put("system", system).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", data.toString())))
+
+    override fun structuredMessage(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        schema: JSONObject,
+        maxTokens: Int,
+        timeoutMs: Int,
+    ): String = sendMessage(key, model, system, data, schema, maxTokens, timeoutMs)
+
+    private fun sendMessage(
+        key: String,
+        model: String,
+        system: String,
+        data: JSONObject,
+        schema: JSONObject?,
+        maxTokens: Int,
+        timeoutMs: Int,
+        quick: Quick? = null,
+    ): String {
+        require(AiConfig.validModel(model))
+        require(maxTokens in 100..16_000)
+        val body =
+            JSONObject()
+                .put("model", model)
+                .put("max_tokens", maxTokens)
+                .put("stream", false)
+                .put("system", system)
+                .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", data.toString())))
         when (quick) {
             Quick.INSTANT -> body.put("thinking", JSONObject().put("type", "disabled")).put("output_config", JSONObject().put("effort", "medium"))
             Quick.BRIEF -> body.put("max_tokens", maxOf(maxTokens, 2500)).put("output_config", JSONObject().put("effort", "low"))
             null -> Unit
         }
-        if (schema != null) body.put("output_config", JSONObject().put("format", JSONObject()
-            .put("type", "json_schema").put("schema", schema)))
+        if (schema != null) {
+            body.put(
+                "output_config",
+                JSONObject().put(
+                    "format",
+                    JSONObject()
+                        .put("type", "json_schema")
+                        .put("schema", schema),
+                ),
+            )
+        }
         val response = tracked("POST", "/v1/messages", key, model, body.toString(), timeoutMs)
         checkResponse(response)
         return runCatching {
@@ -73,61 +153,109 @@ class AnthropicProvider(private val transport: AiTransport = HttpAiTransport(), 
             require(json.optString("stop_reason") != "max_tokens")
             if (schema != null) require(json.optString("stop_reason") == "end_turn")
             val blocks = json.getJSONArray("content")
-            val text = (0 until blocks.length()).map { blocks.getJSONObject(it) }.filter { it.optString("type") == "text" }
-                .joinToString("\n") { it.getString("text") }.trim()
+            val text =
+                (0 until blocks.length())
+                    .map { blocks.getJSONObject(it) }
+                    .filter { it.optString("type") == "text" }
+                    .joinToString("\n") { it.getString("text") }
+                    .trim()
             require(text.isNotBlank() && text.length <= 80_000)
             text
         }.getOrElse { throw AiFailure(AiFailure.Reason.RESPONSE) }
     }
+
     private enum class Quick { INSTANT, BRIEF }
-    private fun tracked(method: String, path: String, key: String, model: String, body: String?, timeout: Int): AiHttpResponse {
-        val at = System.currentTimeMillis(); val start = System.nanoTime()
+
+    private fun tracked(
+        method: String,
+        path: String,
+        key: String,
+        model: String,
+        body: String?,
+        timeout: Int,
+    ): AiHttpResponse {
+        val at = System.currentTimeMillis()
+        val start = System.nanoTime()
         var response: AiHttpResponse? = null
         var failure: String? = null
-        try { return transport.request(method, path, key, body, timeout).also { response = it } }
-        catch (error: Exception) { failure = (error as? AiFailure)?.reason?.name ?: "NETWORK"; throw error }
-        finally { runCatching { onMetric(AiRequestMetric.from(model, method, response, at, (System.nanoTime() - start) / 1_000_000, failure)) } }
+        try {
+            return transport.request(method, path, key, body, timeout).also { response = it }
+        } catch (error: Exception) {
+            failure = (error as? AiFailure)?.reason?.name ?: "NETWORK"
+            throw error
+        } finally {
+            runCatching { onMetric(AiRequestMetric.from(model, method, response, at, (System.nanoTime() - start) / 1_000_000, failure)) }
+        }
     }
+
     private fun checkResponse(response: AiHttpResponse) {
         if (response.status in 200..299) return
-        throw AiFailure(when (response.status) {
-            401, 403 -> AiFailure.Reason.KEY
-            400, 404 -> AiFailure.Reason.MODEL
-            429 -> AiFailure.Reason.RATE_LIMIT
-            else -> AiFailure.Reason.NETWORK
-        })
+        throw AiFailure(
+            when (response.status) {
+                401, 403 -> AiFailure.Reason.KEY
+                400, 404 -> AiFailure.Reason.MODEL
+                429 -> AiFailure.Reason.RATE_LIMIT
+                else -> AiFailure.Reason.NETWORK
+            },
+        )
     }
 }
 
-/** Fixed HTTPS origin, no redirect credentials, bounded response and timeouts; never logs secrets or bodies. */
 class HttpAiTransport : AiTransport {
-    override fun request(method: String, path: String, key: String, body: String?, timeoutMs: Int): AiHttpResponse {
+    override fun request(
+        method: String,
+        path: String,
+        key: String,
+        body: String?,
+        timeoutMs: Int,
+    ): AiHttpResponse {
         require(path.startsWith("/v1/") && !path.contains('?'))
         val connection = URL("https://api.anthropic.com$path").openConnection() as HttpURLConnection
         val deadline = interrupter.schedule({ connection.disconnect() }, timeoutMs.toLong() + 10_000, java.util.concurrent.TimeUnit.MILLISECONDS)
         try {
-            connection.requestMethod = method; connection.instanceFollowRedirects = false
-            connection.connectTimeout = 10_000; connection.readTimeout = timeoutMs
+            connection.requestMethod = method
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 10_000
+            connection.readTimeout = timeoutMs
             connection.setRequestProperty("Authorization", "Bearer $key")
             connection.setRequestProperty("anthropic-version", "2026-10-21")
             connection.setRequestProperty("Content-Type", "application/json")
             if (body != null) {
-                val bytes = body.toByteArray(Charsets.UTF_8); require(bytes.size <= 180_000)
-                connection.doOutput = true; connection.setFixedLengthStreamingMode(bytes.size)
+                val bytes = body.toByteArray(Charsets.UTF_8)
+                require(bytes.size <= 180_000)
+                connection.doOutput = true
+                connection.setFixedLengthStreamingMode(bytes.size)
                 connection.outputStream.use { it.write(bytes) }
             }
             val status = connection.responseCode
             val source = if (status in 200..299) connection.inputStream else connection.errorStream
             val bytes = source?.use { it.readNBytesCompat(1_000_000) } ?: byteArrayOf()
             return AiHttpResponse(status, bytes.toString(Charsets.UTF_8))
-        } catch (e: AiFailure) { throw e }
-        catch (_: Exception) { throw AiFailure(AiFailure.Reason.NETWORK) }
-        finally { deadline.cancel(false); connection.disconnect() }
+        } catch (e: AiFailure) {
+            throw e
+        } catch (_: Exception) {
+            throw AiFailure(AiFailure.Reason.NETWORK)
+        } finally {
+            deadline.cancel(false)
+            connection.disconnect()
+        }
     }
-    companion object { private val interrupter = java.util.concurrent.Executors.newSingleThreadScheduledExecutor() }
+
+    companion object {
+        private val interrupter =
+            java.util.concurrent.Executors
+                .newSingleThreadScheduledExecutor()
+    }
 }
+
 private fun java.io.InputStream.readNBytesCompat(limit: Int): ByteArray {
-    val out = java.io.ByteArrayOutputStream(); val buffer = ByteArray(8192)
-    while (true) { val size = read(buffer); if (size < 0) break; if (out.size() + size > limit) throw AiFailure(AiFailure.Reason.RESPONSE); out.write(buffer, 0, size) }
+    val out = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(8192)
+    while (true) {
+        val size = read(buffer)
+        if (size < 0) break
+        if (out.size() + size > limit) throw AiFailure(AiFailure.Reason.RESPONSE)
+        out.write(buffer, 0, size)
+    }
     return out.toByteArray()
 }

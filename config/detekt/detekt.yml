@@ -1,0 +1,91 @@
+config:
+  validation: true
+  warningsAsErrors: true
+
+build:
+  maxIssues: 0
+
+comments:
+  active: false
+
+complexity:
+  LabeledExpression:
+    active: false
+  LongMethod:
+    threshold: 60
+  LargeClass:
+    threshold: 600
+  CyclomaticComplexMethod:
+    threshold: 15
+  CognitiveComplexMethod:
+    threshold: 15
+  LongParameterList:
+    functionThreshold: 6
+    constructorThreshold: 7
+  NestedBlockDepth:
+    threshold: 4
+  TooManyFunctions:
+    thresholdInFiles: 11
+    thresholdInClasses: 11
+    thresholdInInterfaces: 11
+    thresholdInObjects: 11
+    thresholdInEnums: 11
+
+naming:
+  FunctionMaxLength:
+    maximumFunctionNameLength: 40
+    excludes: ['**/test/**', '**/androidTest/**']
+  FunctionMinLength:
+    active: false
+
+style:
+  CascadingCallWrapping:
+    active: false
+  StringShouldBeRawString:
+    active: false
+  DataClassContainsFunctions:
+    active: false
+  UseIfInsteadOfWhen:
+    active: false
+  MaxLineLength:
+    maxLineLength: 140
+    excludeCommentStatements: false
+  UnnecessaryParentheses:
+    allowForUnclearPrecedence: true
+  ForbiddenComment:
+    active: false
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreNamedArgument: true
+    ignoreEnums: true
+  WildcardImport:
+    excludeImports: []
+  BracesOnIfStatements:
+    singleLine: consistent
+    multiLine: always
+  BracesOnWhenStatements:
+    singleLine: consistent
+    multiLine: consistent
+  MultilineRawStringIndentation:
+    active: false
+  TrimMultilineRawString:
+    active: false
+  NewLineAtEndOfFile:
+    active: false
+  TrailingWhitespace:
+    active: false
+  NoTabs:
+    active: false
+  SpacingBetweenPackageAndImports:
+    active: false
+  ForbiddenMethodCall:
+    methods:
+      - reason: 'print to logcat through a dedicated logger or return a value'
+        value: 'kotlin.io.print'
+      - reason: 'print to logcat through a dedicated logger or return a value'
+        value: 'kotlin.io.println'
+      - reason: 'pass an explicit Locale so output does not depend on the device'
+        value: 'kotlin.text.lowercase()'
+      - reason: 'pass an explicit Locale so output does not depend on the device'
+        value: 'kotlin.text.uppercase()'

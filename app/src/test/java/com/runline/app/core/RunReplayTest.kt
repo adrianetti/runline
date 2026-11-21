@@ -8,10 +8,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RunReplayTest {
-    private fun point(longitude: Double, time: Long, altitude: Double? = null, segment: Int = 0) =
-        RunPoint(0.0, longitude, time, 5f, altitude, segment)
+    private fun point(
+        longitude: Double,
+        time: Long,
+        altitude: Double? = null,
+        segment: Int = 0,
+    ) = RunPoint(0.0, longitude, time, 5f, altitude, segment)
 
-    private fun replay(points: List<RunPoint>, activeDurationMs: Long = 60_000L) = RunReplay(
+    private fun replay(
+        points: List<RunPoint>,
+        activeDurationMs: Long = 60_000L,
+    ) = RunReplay(
         RunSession("test", 0L, points.lastOrNull()?.timestampMs ?: 0L, activeDurationMs, points),
     )
 
@@ -31,10 +38,15 @@ class RunReplayTest {
     }
 
     @Test fun explicitPauseCutsToNewSegmentWithoutAddingRelocationOrPausedTime() {
-        val replay = replay(listOf(
-            point(0.0, 0L, 100.0), point(0.0001, 10_000L, 105.0),
-            point(1.0, 100_000L, 200.0, 7), point(1.0001, 110_000L, 205.0, 7),
-        ))
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 0L, 100.0),
+                    point(0.0001, 10_000L, 105.0),
+                    point(1.0, 100_000L, 200.0, 7),
+                    point(1.0001, 110_000L, 205.0, 7),
+                ),
+            )
         assertEquals(20_000L, replay.durationMs)
         assertEquals(22.239, replay.summary.distanceMeters, 0.001)
         val before = replay.at(9_999L)!!
@@ -50,10 +62,15 @@ class RunReplayTest {
     }
 
     @Test fun longGpsGapAlsoBreaksLegacyTracksWithoutAnExplicitSegmentChange() {
-        val replay = replay(listOf(
-            point(0.0, 0L), point(0.0001, 10_000L),
-            point(1.0, 80_000L), point(1.0001, 90_000L),
-        ))
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 0L),
+                    point(0.0001, 10_000L),
+                    point(1.0, 80_000L),
+                    point(1.0001, 90_000L),
+                ),
+            )
         assertEquals(2, replay.segments.size)
         assertEquals(20_000L, replay.durationMs)
         assertEquals(22.239, replay.summary.distanceMeters, 0.001)
@@ -72,10 +89,15 @@ class RunReplayTest {
     }
 
     @Test fun missingAltitudeDoesNotBecomeZeroOrConnectAcrossMissingValues() {
-        val replay = replay(listOf(
-            point(0.0, 0L, 100.0), point(0.0001, 5_000L),
-            point(0.0002, 10_000L, 200.0), point(0.0003, 15_000L, 210.0),
-        ))
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 0L, 100.0),
+                    point(0.0001, 5_000L),
+                    point(0.0002, 10_000L, 200.0),
+                    point(0.0003, 15_000L, 210.0),
+                ),
+            )
         assertNull(replay.at(2_500L)!!.point.altitudeMeters)
         assertNull(replay.at(7_500L)!!.point.altitudeMeters)
         assertEquals(200.0, replay.at(10_000L)!!.point.altitudeMeters!!, 0.0)
@@ -91,9 +113,12 @@ class RunReplayTest {
 
     @Test fun altitudeDeadbandSuppressesSmallOscillationsButKeepsSustainedClimbAndDescent() {
         val altitudes = listOf(100.0, 101.0, 100.0, 102.0, 104.0, 105.0, 103.0, 100.0)
-        val replay = replay(altitudes.mapIndexed { index, altitude ->
-            point(index * 0.00001, index * 1_000L, altitude)
-        })
+        val replay =
+            replay(
+                altitudes.mapIndexed { index, altitude ->
+                    point(index * 0.00001, index * 1_000L, altitude)
+                },
+            )
         assertEquals(4.0, replay.summary.elevationGainMeters!!, 0.0)
         assertEquals(4.0, replay.summary.elevationLossMeters!!, 0.0)
         assertEquals(100.0, replay.summary.minAltitudeMeters!!, 0.0)
@@ -132,11 +157,18 @@ class RunReplayTest {
     }
 
     @Test fun outOfOrderOrInvalidSamplesBreakThePathAndCannotRewindReplayClock() {
-        val replay = replay(listOf(
-            point(0.0, 0L), point(0.0001, 10_000L), point(0.0002, 5_000L),
-            point(0.0003, 15_000L), point(0.0004, 20_000L),
-            point(Double.NaN, 25_000L), point(0.0005, 30_000L),
-        ))
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 0L),
+                    point(0.0001, 10_000L),
+                    point(0.0002, 5_000L),
+                    point(0.0003, 15_000L),
+                    point(0.0004, 20_000L),
+                    point(Double.NaN, 25_000L),
+                    point(0.0005, 30_000L),
+                ),
+            )
         assertEquals(15_000L, replay.durationMs)
         assertEquals(3, replay.segments.size)
         assertEquals(22.239, replay.summary.distanceMeters, 0.001)
@@ -150,9 +182,14 @@ class RunReplayTest {
     }
 
     @Test fun seekClampsToTimelineBoundsAndUsesFiveSecondTrailingSpeed() {
-        val replay = replay(listOf(
-            point(0.0, 0L), point(0.0001, 5_000L), point(0.0001, 10_000L),
-        ))
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 0L),
+                    point(0.0001, 5_000L),
+                    point(0.0001, 10_000L),
+                ),
+            )
         assertEquals(0L, replay.at(-5L)!!.positionMs)
         assertEquals(10_000L, replay.at(Long.MAX_VALUE)!!.positionMs)
         assertNull(replay.at(0L)!!.speedMetersPerSecond)
@@ -170,21 +207,29 @@ class RunReplayTest {
 
     @Test fun peakSpeedIncludesTrailingWindowBoundariesBetweenGpsFixes() {
         val degreesPerMeter = 180.0 / (Math.PI * 6_371_008.8)
-        val replay = replay(listOf(
-            point(0.0, 0L), point(0.0, 2_000L),
-            point(20.0 * degreesPerMeter, 4_000L), point(74.0 * degreesPerMeter, 10_000L),
-        ))
-        // At 7s the five-second window has just dropped its initial stationary time:
-        // 20m at 10m/s followed by 27m at 9m/s. No GPS fix occurs at this peak.
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 0L),
+                    point(0.0, 2_000L),
+                    point(20.0 * degreesPerMeter, 4_000L),
+                    point(74.0 * degreesPerMeter, 10_000L),
+                ),
+            )
         assertEquals(9.4, replay.at(7_000L)!!.speedMetersPerSecond!!, 0.000001)
         assertEquals(9.4, replay.summary.maxSpeedMetersPerSecond!!, 0.000001)
     }
 
     @Test fun segmentClockChangesRemainSeparateAndSeekWorkIsIndependentOfWallClock() {
-        val replay = replay(listOf(
-            point(0.0, 100_000L), point(0.0001, 105_000L),
-            point(1.0, 1_000L, segment = 1), point(1.0001, 6_000L, segment = 1),
-        ))
+        val replay =
+            replay(
+                listOf(
+                    point(0.0, 100_000L),
+                    point(0.0001, 105_000L),
+                    point(1.0, 1_000L, segment = 1),
+                    point(1.0001, 6_000L, segment = 1),
+                ),
+            )
         assertEquals(10_000L, replay.durationMs)
         val after = replay.at(7_000L)!!
         assertEquals(7_000L, after.positionMs)
