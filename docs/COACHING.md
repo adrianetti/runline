@@ -70,6 +70,6 @@ Hill guidance now uses the independent map source described in [Terrain](TERRAIN
 - **Stops.** The coach stays silent during a detected standstill and drops anything queued. After moving again, pace and morale wait 20 s for fresh movement.
 - **Moving time.** With auto-pause on, time goals and kilometre averages use moving time.
 - **Kilometres.** Each kilometre cue gives that kilometre's split and the change from the previous one, for example "That one took 6 minutes 0 seconds. 38 seconds faster than the one before." Changes under 5 s count as the same pace.
-- **Milestones.** Halfway, final stretch and goal reached speak measured time, distance and a projection from the current average.
+- **Milestones.** Halfway, final stretch and goal reached speak measured time, distance and a projection from the current average. On a distance goal, the final stretch is skipped once the goal is within 1.5 km, because "one kilometre left" follows within 500 m.
 - **Progress checks.** Generic steady lines became short progress checks: time, distance, and whether the last minute is picking up, steady or easing. They never play within 150 m of a kilometre cue. Long-run nudges play at most every 15 minutes.
 - **Hill recovery.** It needs a real climb: 60 m of measured uphill reaching 3%, or 120 m uphill. Gentle descents never trigger it.

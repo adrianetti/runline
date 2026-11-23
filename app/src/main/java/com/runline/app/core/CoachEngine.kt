@@ -4,6 +4,9 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
 
+private const val ONE_KILOMETRE_METERS = 1_000.0
+private const val ONE_KILOMETRE_CALL_LEAD_METERS = 1_500.0
+
 sealed interface CoachCue {
     data class Kilometre(
         val completed: Int,
@@ -455,6 +458,7 @@ class CoachEngine(
         if (!settled) return null
         val paceCue = paceCue(now, pace, terrain)
         if (paceCue != null) return emit(paceCue, now)
+        if (oneKilometreCallIsClose(goal)) finalStretch = true
         val progressMilestone = progress?.let { (!finalStretch && it >= .8) || (!halfway && it >= .5) } == true
         val moraleInterval = if (progressMilestone) 85_000 else 180_000
         if (config.encouragement && !goalAnnounced && canSpeak(now, 85_000) && now - lastMoraleMs >= moraleInterval &&
@@ -567,6 +571,11 @@ class CoachEngine(
         } else {
             StopDetection.movingDurationMs(run, StopDetection.detect(run.points, run.activityType), stoppedSinceMs, run.endedAtMs)
         }
+
+    private fun oneKilometreCallIsClose(goal: Double?): Boolean {
+        val target = goal ?: return false
+        return target > ONE_KILOMETRE_METERS && target - distance < ONE_KILOMETRE_CALL_LEAD_METERS
+    }
 
     private fun splitPace(kilometre: Int): Double? {
         if (kilometre < 1) return null

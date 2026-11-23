@@ -138,4 +138,30 @@ class LiveCoachPlanTest {
         assertNull(LiveMoment.of("Encouragement(kind=PROGRESS, facts=null)"))
         assertNull(LiveMoment.of(com.runline.app.core.CoachCue.SlowerThanTarget))
     }
+
+    @Test fun `each run gets its own order of check-in angles, and every angle still comes once a round`() {
+        val rounds = (0..2).map { LiveCoachPlan.focusOrder(41, it) }
+        rounds.forEach { assertEquals(LiveFocus.entries.toSet(), it.toSet()) }
+        rounds.zipWithNext().forEach { (before, after) -> assertNotEquals(before.last(), after.first()) }
+        assertNotEquals(LiveFocus.entries.toList(), rounds[0])
+        assertNotEquals(rounds[0], LiveCoachPlan.focusOrder(-7, 0))
+        assertEquals(rounds, (0..2).map { LiveCoachPlan.focusOrder(41, it) })
+        assertEquals(LiveFocus.entries.toList(), LiveCoachPlan.focusOrder(0, 3))
+        val plan = LiveCoachPlan(variety = 41)
+        var at = 40_000L
+        assertEquals(41, plan.next(at, 2)!!.variety)
+        plan.answered(at + 1_000, true)
+        plan.spoken(at + 9_000, ai = true)
+        val focuses =
+            (1..8).map {
+                at += 129_000
+                val call = plan.next(at, 2)!!
+                assertEquals(41, call.variety)
+                plan.answered(at + 1_000, true)
+                plan.spoken(at + 9_000, ai = true)
+                call.focus
+            }
+        assertEquals(rounds[0], focuses)
+        assertEquals(41, plan.milestone(at + 30_000, LiveMoment.KILOMETRE)!!.variety)
+    }
 }

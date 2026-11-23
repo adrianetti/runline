@@ -1,5 +1,6 @@
 package com.runline.app.ai
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 data class LiveLine(
@@ -13,6 +14,7 @@ data class LiveLine(
 object LiveAiAdvice {
     const val MAX_WORDS = 45
     const val MAX_CHARS = 300
+    private const val PHRASE_WORDS = 4
 
     fun request(
         provider: CoachAiProvider,
@@ -52,20 +54,24 @@ object LiveAiAdvice {
                 .put("avoid", avoid(said))
         val terrain = context.optJSONObject("recent_terrain")
         val earlier = aiLines(said)
+        val heard = EarlierRunLines.from(data)
+        if (heard.isNotEmpty()) input.put(EarlierRunLines.PROMPT_KEY, JSONArray(heard))
+
+        fun echo(line: String): String? = repeats(line, earlier) ?: echoesEarlierRuns(line, heard)
 
         fun problem(line: String): String? =
             figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line) ?: feelings(line)
-                ?: (if (terrainCompatible(line, terrain)) null else "It mentions hills or the ground, which the point does not.") ?: repeats(line, earlier)
+                ?: (if (terrainCompatible(line, terrain)) null else "It mentions hills or the ground, which the point does not.") ?: echo(line)
         val instant = milestone != null
         val first = clean(provider.quickMessage(key, model, system(language), input, 400, 12_000, instant), spanish) ?: return null
         val flaw = problem(first) ?: return LiveLine(first, point)
         rejected(first, flaw)
-        if (instant && flaw == repeats(first, earlier)) return LiveLine(first, point)
+        if (instant && flaw == echo(first)) return LiveLine(first, point)
         input.put("rejected_draft", JSONObject().put("text", first).put("problem", flaw).put("instruction", "Write a different line that fixes this."))
         val second = runCatching { clean(provider.quickMessage(key, model, system(language), input, 400, 8_000, instant), spanish) }.getOrNull() ?: return null
         val again = problem(second) ?: return LiveLine(second, point)
         rejected(second, again)
-        return LiveLine(second, point).takeIf { again == repeats(second, earlier) }
+        return LiveLine(second, point).takeIf { again == echo(second) }
     }
 
     internal fun style(
@@ -84,7 +90,7 @@ object LiveAiAdvice {
                 "bigger" -> listOf(LiveStyle.WARM, LiveStyle.LOOK_AHEAD)
                 else -> listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.PUNCHY)
             }
-        return fitting[call.number % fitting.size]
+        return fitting[(call.number + call.variety).mod(fitting.size)]
     }
 
     private fun aiLines(said: org.json.JSONArray?): List<String> =
@@ -108,6 +114,20 @@ object LiveAiAdvice {
         mine.windowed(4).firstOrNull { it in seen }?.let { return "It reuses the phrase \"${it.joinToString(" ")}\"." }
         return null
     }
+
+    internal fun echoesEarlierRuns(
+        line: String,
+        heard: List<String>,
+    ): String? {
+        val seen = heard.flatMap { phrases(it) }.toSet()
+        val reused = phrases(line).firstOrNull { it in seen } ?: return null
+        return "It reuses \"${reused.joinToString(" ")}\", which they heard on an earlier run. Say it a new way."
+    }
+
+    private fun phrases(text: String) =
+        words(text)
+            .windowed(PHRASE_WORDS)
+            .filter { phrase -> phrase.none { word -> word.any(Char::isDigit) } }
 
     internal fun figures(
         line: String,
@@ -227,6 +247,7 @@ You love being out here with them, and it shows: natural, joyful, a little playf
 
 NEVER SOUND LIKE A LOOP
 "already_said" is everything spoken so far in this run (yours as source AI, the app's fixed announcements as source LOCAL). Do not start with any of avoid.openings_already_used, nor with the same first word as your last few lines. Do not use avoid.words_already_overused, nor a praise word or closing you used before. No stock closer ("keep it up", "enjoy it") tacked on the end. If the app has just announced a number, do not say that number again. When avoid.effort_level_mentioned_recently is true, do not mention the effort level, ease, calm or "no rush".
+"heard_on_earlier_runs", when present, holds lines this runner heard from you on their last runs, and they remember them. Never reuse their wording, openings, images, praise or closings, even when today's point is the same kind of point: say it a new way.
 why_now.style shapes the sentence: PUNCHY = under 12 words; WARM = gentle and personal; NUMBER_FIRST = lead with the figure; CUE_FIRST = lead with the action; CELEBRATE = pure delight; CALM = quiet and reassuring; LOOK_AHEAD = point at the next few minutes.
 
 RULES

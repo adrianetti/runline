@@ -10,9 +10,12 @@ import com.runline.app.core.CoachCue
 import com.runline.app.core.CoachTerrain
 import com.runline.app.core.RunSession
 import com.runline.app.data.RunStore
+import com.runline.app.diagnostics.Diagnostics
 import com.runline.app.i18n.AppLanguage
 import com.runline.app.terrain.TerrainRepository
+import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.time.LocalDate
 import java.util.concurrent.Executors
 
@@ -39,6 +42,7 @@ class AiRunCoach(
     private var activeMs = 0L
     private var currentTerrain = CoachTerrain.UNKNOWN
     private val usedPoints = mutableListOf<String>()
+    private var remembered: Pair<String, List<String>>? = null
 
     val leading: Boolean @Synchronized get() = !closed && active && plan.healthy && enabled()
 
@@ -67,7 +71,8 @@ class AiRunCoach(
             generation++
             runId = run.id
             usedPoints.clear()
-            plan = LiveCoachPlan(context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).getInt(run.id, 0))
+            val attempts = context.getSharedPreferences("ai_live_attempts", Context.MODE_PRIVATE).getInt(run.id, 0)
+            plan = LiveCoachPlan(attempts, run.id.hashCode())
         }
         if (fresh && !gpsFresh) generation++
         active = true
@@ -187,23 +192,26 @@ class AiRunCoach(
                     val profile = RunnerProfileStore(context).snapshot()
                     val runnerGoal = RunnerGoalStore(context).snapshot()
                     val runs = RunStore(context)
+                    val stored = runs.list()
                     val terrainMap = TerrainRepository.get(context).snapshot
                     val verifiedRun = terrainMap.project(run)
                     val input =
-                        JSONObject().put("run", AiRunSummary.of(verifiedRun)).put(
-                            "coaching_context",
-                            AiCoachingContext.build(
-                                LocalDate.now(),
-                                activeGoal = goalConfig,
-                                activeRun = verifiedRun,
-                                history = runs.list().map(terrainMap::project),
-                                details = runs::details,
-                                includeNotes = false,
-                                spoken = AiSpokenHistory.recent(run.id, requestedAt),
-                                nowElapsedMs = requestedAt,
-                                runnerGoal = runnerGoal.goal,
-                            ),
-                        )
+                        JSONObject()
+                            .put("run", AiRunSummary.of(verifiedRun))
+                            .put(
+                                "coaching_context",
+                                AiCoachingContext.build(
+                                    LocalDate.now(),
+                                    activeGoal = goalConfig,
+                                    activeRun = verifiedRun,
+                                    history = stored.map(terrainMap::project),
+                                    details = runs::details,
+                                    includeNotes = false,
+                                    spoken = AiSpokenHistory.recent(run.id, requestedAt),
+                                    nowElapsedMs = requestedAt,
+                                    runnerGoal = runnerGoal.goal,
+                                ),
+                            ).put(EarlierRunLines.DATA_KEY, JSONArray(earlierLines(run.id, stored)))
                     if (AiSettings.revision() != settingsRevision || AiSettings.load(context) != settings) throw AiFailure(AiFailure.Reason.DISABLED)
                     if (!profileCurrent(profile) || !goalCurrent(runnerGoal)) throw AiFailure(AiFailure.Reason.DISABLED)
                     synchronized(this) {
@@ -211,8 +219,7 @@ class AiRunCoach(
                     }
                     Triple(
                         LiveAiAdvice.compose(
-                            com.runline.app.diagnostics.Diagnostics
-                                .provider(context, "live", run.id),
+                            Diagnostics.provider(context, "live", run.id),
                             key,
                             settings.liveModel,
                             if (language == "es") "Spanish" else "English",
@@ -258,6 +265,24 @@ class AiRunCoach(
                 }
             }
         }
+    }
+
+    private fun earlierLines(
+        runId: String,
+        stored: List<RunSession>,
+    ): List<String> {
+        remembered?.takeIf { it.first == runId }?.let { return it.second }
+        val log = Diagnostics.log(context)
+        val earlier = stored.filter { it.id != runId }.sortedByDescending { it.startedAtMs }.take(EarlierRunLines.RUNS)
+        val lines =
+            try {
+                EarlierRunLines.of(earlier.map { log.read(it.id) })
+            } catch (failure: IOException) {
+                main.post { onEvent("ai_memory_skipped", failure.javaClass.simpleName, null) }
+                emptyList()
+            }
+        remembered = runId to lines
+        return lines
     }
 
     @Synchronized fun pause() {

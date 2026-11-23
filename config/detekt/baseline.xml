@@ -1817,7 +1817,6 @@
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$"DISTANCE_TIME" -&gt; CoachConfig(enabled = true, goal = CoachGoal.DISTANCE_TIME, distanceKm = goal.getDouble("km"), targetMinutes = goal.getDouble("minutes"), effortIntent = effort)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$(0 until events.length()).map { events.getJSONObject(it) }.forEach { append(" -- ${it.getLong("at_s") / 60}:${"%02d".format(it.getLong("at_s") % 60)} ${it.getString("event")} ${it.getString("label")} ${it.optString("reason")}\n") }</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$.</ID>
-    <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$LiveAiAdvice</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$RunPoint(m.groupValues[1].toDouble(), m.groupValues[2].toDouble(), Instant.parse(time).toEpochMilli(), accuracy, null, segment.coerceAtLeast(0))</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$Waiting(it.text, now + latency, "$label ${it.pointId}", latency, LiveFacts.of(summary, context).put("terrain", context.opt("recent_terrain") ?: JSONObject.NULL), now, it.point)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$if (offered) meta[w.text] = w else events.put(JSONObject().put("at_s", now / 1000).put("event", "rejected").put("label", w.label))</ID>
@@ -1858,26 +1857,20 @@
     <ID>MaxLineLength:LivePoints.kt$LivePoints$private val RESETS = listOf("quick, light steps.", "drop the shoulders and let the arms set the rhythm.", "run tall and look ahead.", "breathe out fully and settle.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints$private val STEADY_CHECKS = listOf("is the breathing strong but still under control?", "are the shoulders and hands still relaxed at this effort?", "does this effort feel like one they can hold to the end?")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$" It is back at their recent lap time, after an unusually ${if (rebound!!.previousQuick) "quick" else "slow"} lap before it."</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"Greet them and set the tone for " + (if (easy) "an easy, relaxed run" else "the run") + ". Do not mention or judge pace or distance: it has barely begun."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"One cue only, as a friendly instruction" + (if (numbers.isEmpty()) "." else "; you may open with how long they have been running, but it is not the reason for the cue.") + " Do not say how their body is doing: you cannot see it."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"Phrase it as a question or a 'check that...' they settle in their own head. You do not know the answer, so never state it. Never ask them to tell you."</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"Say it plainly and kindly, compared only with their recent kilometres, then give this one cue: ${RESETS[n % RESETS.size]}"</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"The kilometre just completed, kilometre ${splits.size}, is the fastest kilometre of the run so far. The app has already announced its time."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"The quick one was the exception and easing off is fine on an easy day. Compare only with their recent kilometres, never with the quick one."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"The quick one was the exception; back to an easy rhythm is exactly right today. Do not give the difference."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"after an unusually ${if (rebound.previousQuick) "quick" else "slow"} kilometre, and it is quicker than their kilometres before that one"</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"after an unusually ${if (rebound.previousQuick) "quick" else "slow"} kilometre, and it is slower than their kilometres before that one"</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"and it is back at their recent rhythm, after an unusually ${if (rebound.previousQuick) "quick" else "slow"} kilometre before it"</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"and it took clearly longer than the previous kilometre" to "Say that plainly, without calling the difference small or normal, then give this one cue: ${RESETS[n % RESETS.size]}"</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"and it took longer than the previous kilometre" to "Say that plainly, make it normal, then give this one cue: ${RESETS[n % RESETS.size]}"</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$"and it was ${if (time &lt; previousPace) "quicker" else "gentler"} than the average pace of their previous run" to "A first kilometre sets the tone; say what this one sets up."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$(if (easy) "Admire the control; an easy day does not need to keep getting faster." else "A textbook progressive run; say so.")</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$(if (easy) "Be glad with them; no need to chase another one." else "Be glad with them, and point at the next kilometre.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$(if (f?.optBoolean("past_halfway") == true) "They have just passed the halfway point of today's goal." else "They are halfway through today's goal.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$(lastKilometre() ?: LivePoint("goal/last_km", "One kilometre left to today's goal.", emptyMap(), "Bring it home.")).copy(id = "moment/last_km")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$.</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("faster/surge", "They are speeding up as the end of today's goal gets close.", pace, "Cheer the surge and tell them to go with it.")</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("goal/stage1", "The opening part of today's goal is done.", mapOf("done_so_far" to say.percent((p * 100).roundToInt())), "Settling in is over; the middle is for holding this rhythm.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("history/longest_passed", "This run has just become their longest of the last 30 days.", mapOf("the_longest_until_today" to say.distance(longest)), "New ground: every step from here is a bonus.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("moment/km:$n", "Kilometre $n is done" + (if (insight.isEmpty()) ". Announce it with its time." else ", $insight. Say both: its time, and what it shows."), numbers, hint, covers)</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("steady/back:${every(10)}", "After a slower patch they are back at their usual rhythm for this run.", pace, "Good news; say so.")</ID>
@@ -1885,16 +1878,13 @@
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "Admire the control, and remind them an easy day does not need to keep getting faster." else "A textbook progressive run; say so."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "Be glad with them, and keep it comfortable." else "They are getting stronger as it goes; say what that sets up for the finish."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "Bring it home the same relaxed way." else "This is the part that counts: hold the rhythm now and keep something for the last kilometre."</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "Finish tall, light and smiling." else "Finish tall and strong; if it feels good they can lift the rhythm a little."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "No problem today; ask only for good form." else "Say it plainly and kindly, then give one job for the next kilometre: win back the rhythm, not the time."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (splits.size &gt;= 3 &amp;&amp; splits.zipWithNext().all { (a, b) -&gt; b &lt; a - 2 }) return LivePoint("goal/reached", "Goal reached, and every kilometre was faster than the one before.", emptyMap(), "Celebrate properly.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$listOfNotNull(best?.takeIf { splits.size &lt; 3 || !splits.zipWithNext().all { (a, b) -&gt; b &lt; a - 2 } }?.let { "best/km:$it" })</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("banked/time:${every(10)}", "They have been running without stopping for the time below.", mapOf("running_time" to say.about(moving)), "Name it as something already achieved.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("best/km:$best", "Their fastest kilometre so far today is kilometre $best.", mapOf("time_of_that_kilometre" to say.time(splits.min())), "Remind them what they have already shown today.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("goal/next_km:$next", "Kilometre $next is coming up soon.", mapOf("distance_left_to_kilometre_$next" to say.distance(left)), "Give them that small target to run to.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("goal/reached", "Goal reached. Their quickest kilometre was kilometre $best.", mapOf("quickest_kilometre_time" to say.time(splits.min())), "Celebrate properly, then tell them to ease down and breathe.", listOf("best/km:$best"))</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("history/comeback", "This is their first run in several days.", mapOf("days_since_the_last_run" to say.days(days)), "Glad they are back out.")</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("steady/pace:${every(6)}", "The pace of the last couple of minutes matches the minutes before it: locked in.", mapOf("pace_now" to say.pace(now)), "Steady is the goal; say so.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$splits.size &gt;= 3 &amp;&amp; splits.zipWithNext().all { (a, b) -&gt; b &lt; a - 2 } -&gt; " Every kilometre was faster than the one before."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$val left = distanceGoalKm?.takeIf { it - km &gt; 0 }?.let { say.distance(it - km) } ?: timeGoal?.takeIf { it - moving &gt; 0 }?.let { say.about(it - moving) } ?: return null</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$val longest = earlier.filter { today != null &amp;&amp; it.first &gt;= today.minusDays(29) }.mapNotNull { it.second.number("distance_km") }.maxOrNull()</ID>
@@ -2523,11 +2513,9 @@
     <ID>UnnecessaryParentheses:LapAnalysis.kt$LapTracker$(duration / total)</ID>
     <ID>UnnecessaryParentheses:LiveCoachBacktest.kt$LiveCoachBacktest.LocalVoice$((facts.remainingMeters / 50).roundToInt() * 50)</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints$(if (month &gt;= now.monthValue) now.year else now.year + 1)</ID>
-    <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$( if (rebound.previousQuick &amp;&amp; easy) { "The quick one was the exception and easing off is fine on an easy day. Compare only with their recent kilometres, never with the quick one." } else { "Say it plainly and kindly, compared only with their recent kilometres, then give this one cue: ${RESETS[n % RESETS.size]}" } )</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$( if (rebound.previousQuick &amp;&amp; easy) { "The quick one was the exception; back to an easy rhythm is exactly right today. Do not give the difference." } else { "Back to their own rhythm; say it as good news. Do not give the difference." } )</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (back) " Do not give the difference." else "")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (easy) "Admire the control; an easy day does not need to keep getting faster." else "A textbook progressive run; say so.")</ID>
-    <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (easy) "Be glad with them; no need to chase another one." else "Be glad with them, and point at the next kilometre.")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (easy) "Glad with them; keep it comfortable." else "Be glad with them.")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (insight.isEmpty()) ". Announce it with its time." else ", $insight. Say both: its time, and what it shows.")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (stretch) " Today's goal is further than any run of theirs in the last 30 days." else "")</ID>

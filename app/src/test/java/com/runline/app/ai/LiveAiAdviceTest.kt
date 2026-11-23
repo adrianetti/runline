@@ -264,4 +264,46 @@ class LiveAiAdviceTest {
         assertTrue(LiveAiAdvice.mentionsTerrain("Suelta las piernas en la bajada."))
         assertFalse(LiveAiAdvice.mentionsTerrain("Hombros relajados y respira."))
     }
+
+    @Test fun `a check-in that reuses a phrase from an earlier run is written again, and the earlier lines travel with it`() {
+        val bodies = mutableListOf<JSONObject>()
+        val heard =
+            listOf(
+                "Cada kilómetro de hoy te acerca a esa media maratón de abril.",
+                "Ya llevas el 39 por ciento hecho, y ese ritmo te queda redondo.",
+            )
+        val line =
+            LiveAiAdvice.compose(
+                provider(
+                    "Cada kilómetro de hoy cuenta, y lo estás sumando.",
+                    "Otro bloque sólido en el bolsillo, sigue con esa soltura.",
+                ) { bodies += it },
+                "fake-key",
+                "claude-haiku-5-5",
+                "Spanish",
+                data().put(EarlierRunLines.DATA_KEY, JSONArray(heard)),
+                LiveCall(LiveTrigger.CADENCE, null, LiveFocus.MORALE, 4),
+            )!!
+        assertEquals("Otro bloque sólido en el bolsillo, sigue con esa soltura.", line.text)
+        val first = JSONObject(bodies[0].getJSONArray("messages").getJSONObject(0).getString("content"))
+        assertEquals(heard, first.getJSONArray(EarlierRunLines.PROMPT_KEY).let { a -> (0 until a.length()).map(a::getString) })
+        val second = JSONObject(bodies[1].getJSONArray("messages").getJSONObject(0).getString("content"))
+        assertTrue(second.getJSONObject("rejected_draft").getString("problem").contains("earlier run"))
+        assertTrue(bodies[0].getString("system").contains("heard_on_earlier_runs"))
+        assertNull(LiveAiAdvice.echoesEarlierRuns("Llevas 39 por ciento, sigue así.", heard))
+    }
+
+    @Test fun `a milestone that echoes an earlier run is still voiced at once`() {
+        val line =
+            LiveAiAdvice.compose(
+                provider("¡Tercer kilómetro en 7 minutos 22, y cada kilómetro de hoy suma!"),
+                "fake-key",
+                "claude-haiku-5-5",
+                "Spanish",
+                data().put(EarlierRunLines.DATA_KEY, JSONArray(listOf("Cada kilómetro de hoy te acerca a la meta."))),
+                kilometre,
+                milestone = third,
+            )
+        assertEquals("¡Tercer kilómetro en 7 minutos 22, y cada kilómetro de hoy suma!", line?.text)
+    }
 }

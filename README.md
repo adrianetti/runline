@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.24.2:** the daily suggestion no longer reads a run saved days later as "just now". A run left paused and finished later ends at its last GPS fix, for the daily suggestion, the review and the elapsed time. The live coach announces halfway and each kilometre where they happen, no longer loses a line when audio is briefly refused, and stops giving the runner a gender in Spanish. [Goals](docs/GOALS.md), [AI](docs/AI.md#live-coach).
+**New in 0.24.3:** the live coach stops repeating your last run. Check-in topics come in a new order each run, form cues and self-checks start from a different place, and the coach is told what it said on your last two runs so it says things a new way. On a short distance goal "final stretch" and "one kilometre left" no longer play back to back. [AI](docs/AI.md#live-coach).
+
+**In 0.24.2:** the daily suggestion no longer reads a run saved days later as "just now". A run left paused and finished later ends at its last GPS fix, for the daily suggestion, the review and the elapsed time. The live coach announces halfway and each kilometre where they happen, no longer loses a line when audio is briefly refused, and stops giving the runner a gender in Spanish. [Goals](docs/GOALS.md), [AI](docs/AI.md#live-coach).
 
 **In 0.24.1:** Spotify sign-in goes through the Spotify app. **Connect** opens Spotify, where you are already signed in, and one tap brings you back connected; the browser is only used when Spotify is not installed. Your Spotify developer app needs one more entry for this, shown in the setup guide. [Music and Spotify](docs/SPOTIFY.md#connect-spotify-with-your-own-client-id).
 

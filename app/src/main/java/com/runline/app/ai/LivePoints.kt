@@ -136,7 +136,7 @@ object LivePoints {
         used: List<String> = emptyList(),
         milestone: JSONObject? = null,
     ): LivePoint? {
-        val s = State(run, context, LiveSpeech(spanish))
+        val s = State(run, context, LiveSpeech(spanish), call.variety)
         if (milestone != null) return s.milestone(milestone)
         val order: List<() -> LivePoint?> =
             when (call.trigger) {
@@ -183,6 +183,7 @@ object LivePoints {
         val run: JSONObject,
         val context: JSONObject,
         val say: LiveSpeech,
+        val variety: Int,
     ) {
         val moving = run.number("moving_seconds") ?: 0.0
         val km = run.number("distance_km") ?: 0.0
@@ -212,6 +213,10 @@ object LivePoints {
         val previousPace = earlier.firstOrNull()?.second?.number("average_pace_seconds_per_km")
 
         private fun every(minutes: Int) = (moving / 60 / minutes).toInt()
+
+        private fun vary(options: List<String>) = options[variety.mod(options.size)]
+
+        private fun reset(index: Int) = RESETS[(index + variety).mod(RESETS.size)]
 
         private val phase get() =
             (progress ?: (moving / 2400)).let {
@@ -248,7 +253,7 @@ object LivePoints {
                             n >= 2 && time != null && known.dropLast(1).minOrNull()?.let { time < it - 3 } == true -> {
                                 covers += listOf("best/km:$n", "faster/km_fastest:$n")
                                 "and it is the fastest kilometre of the run so far" to
-                                    (if (easy) "Be glad with them; no need to chase another one." else "Be glad with them, and point at the next kilometre.")
+                                    vary(if (easy) EASY_FASTEST_HINTS else FASTEST_HINTS)
                             }
 
                             rebound != null && abs(rebound.versusRecent) <= 8 -> {
@@ -265,13 +270,12 @@ object LivePoints {
                             rebound != null && rebound.versusRecent > 8 -> {
                                 numbers["slower_than_their_recent_kilometres_by"] = say.seconds(rebound.versusRecent)
                                 "after an unusually ${if (rebound.previousQuick) "quick" else "slow"} kilometre, and it is slower than their kilometres before that one" to
-                                    (
-                                        if (rebound.previousQuick && easy) {
-                                            "The quick one was the exception and easing off is fine on an easy day. Compare only with their recent kilometres, never with the quick one."
-                                        } else {
-                                            "Say it plainly and kindly, compared only with their recent kilometres, then give this one cue: ${RESETS[n % RESETS.size]}"
-                                        }
-                                    )
+                                    if (rebound.previousQuick && easy) {
+                                        "The quick one was the exception and easing off is fine on an easy day. Compare only with their recent kilometres, never with the quick one."
+                                    } else {
+                                        "Say it plainly and kindly, compared only with their recent kilometres, " +
+                                            "then give this one cue: ${reset(n)}"
+                                    }
                             }
 
                             rebound != null -> {
@@ -282,12 +286,14 @@ object LivePoints {
 
                             delta != null && delta >= 20 -> {
                                 numbers["it_took_this_much_longer_than_the_previous_kilometre"] = say.seconds(delta)
-                                "and it took clearly longer than the previous kilometre" to "Say that plainly, without calling the difference small or normal, then give this one cue: ${RESETS[n % RESETS.size]}"
+                                "and it took clearly longer than the previous kilometre" to
+                                    "Say that plainly, without calling the difference small or normal, then give this one cue: ${reset(n)}"
                             }
 
                             delta != null && delta >= 5 -> {
                                 numbers["it_took_this_much_longer_than_the_previous_kilometre"] = say.seconds(delta)
-                                "and it took longer than the previous kilometre" to "Say that plainly, make it normal, then give this one cue: ${RESETS[n % RESETS.size]}"
+                                "and it took longer than the previous kilometre" to
+                                    "Say that plainly, make it normal, then give this one cue: ${reset(n)}"
                             }
 
                             delta != null && delta <= -5 -> {
@@ -296,7 +302,7 @@ object LivePoints {
                             }
 
                             delta != null -> {
-                                "and it took almost exactly the same time as the previous kilometre" to "Even pacing is a skill; name it."
+                                "and it took almost exactly the same time as the previous kilometre" to vary(EVEN_HINTS)
                             }
 
                             n == 1 && time != null && previousPace != null && abs(time - previousPace) >= 5 -> {
@@ -304,7 +310,7 @@ object LivePoints {
                             }
 
                             else -> {
-                                "" to "Tell them what the next kilometre is for: settling into this rhythm."
+                                "" to vary(NEXT_KILOMETRE_HINTS)
                             }
                         }
                     LivePoint("moment/km:$n", "Kilometre $n is done" + (if (insight.isEmpty()) ". Announce it with its time." else ", $insight. Say both: its time, and what it shows."), numbers, hint, covers)
@@ -394,7 +400,7 @@ object LivePoints {
                                 else -> ""
                             },
                         numbers,
-                        "This is the moment of the run: celebrate properly, give the total, and tell them to ease down and breathe.",
+                        "This is the moment of the run: celebrate properly, give the total, and " + vary(COOL_DOWN_HINTS),
                         listOfNotNull(best?.takeIf { splits.size < 3 || !splits.zipWithNext().all { (a, b) -> b < a - 2 } }?.let { "best/km:$it" }),
                     )
                 }
@@ -437,7 +443,7 @@ object LivePoints {
                         else -> ""
                     } + (if (stretch) " Today's goal is further than any run of theirs in the last 30 days." else ""),
                 numbers,
-                "Greet them and set the tone for " + (if (easy) "an easy, relaxed run" else "the run") + ". Do not mention or judge pace or distance: it has barely begun.",
+                vary(if (easy) EASY_OPENING_HINTS else OPENING_HINTS) + " Do not mention or judge pace or distance: it has barely begun.",
             )
         }
 
@@ -477,7 +483,7 @@ object LivePoints {
                 "faster/km_fastest:${splits.size}",
                 "The kilometre just completed, kilometre ${splits.size}, is the fastest kilometre of the run so far. The app has already announced its time.",
                 emptyMap(),
-                if (easy) "Be glad with them; no need to chase another one." else "Be glad with them, and point at the next kilometre.",
+                vary(if (easy) EASY_FASTEST_HINTS else FASTEST_HINTS),
             )
         }
 
@@ -489,7 +495,7 @@ object LivePoints {
                 "steady/km:${splits.size}",
                 "All ${splits.size} kilometres so far took almost exactly the same time: very even pacing.",
                 emptyMap(),
-                "Even pacing is a skill; name it.",
+                vary(EVEN_HINTS),
             )
         }
 
@@ -561,7 +567,7 @@ object LivePoints {
                 "steady/lap:${laps.size}",
                 "All ${laps.size} laps of the same circuit took almost exactly the same time.",
                 mapOf("gap_between_the_fastest_and_slowest_lap" to say.seconds(spread.coerceAtLeast(1))),
-                "Metronome running; name it.",
+                vary(EVEN_HINTS),
             )
         }
 
@@ -614,7 +620,7 @@ object LivePoints {
                         "slower/pace:${every(10)}",
                         "Over the last couple of minutes they have slowed and are now slower than their average for this run.",
                         pace,
-                        "Tell them it happens, and give this one cue: ${RESETS[every(10) % RESETS.size]}",
+                        "Tell them it happens, and give this one cue: ${reset(every(10))}",
                     )
                 }
 
@@ -661,7 +667,12 @@ object LivePoints {
 
         fun timeOnFeet(): LivePoint? {
             if (moving < 600) return null
-            return LivePoint("banked/time:${every(10)}", "They have been running without stopping for the time below.", mapOf("running_time" to say.about(moving)), "Name it as something already achieved.")
+            return LivePoint(
+                "banked/time:${every(10)}",
+                "They have been running without stopping for the time below.",
+                mapOf("running_time" to say.about(moving)),
+                vary(BANKED_HINTS),
+            )
         }
 
         fun stage(): LivePoint? {
@@ -669,7 +680,12 @@ object LivePoints {
             val left = distanceGoalKm?.let { say.distance(it - km) } ?: timeGoal?.let { say.about(it - moving) } ?: return null
             return when {
                 p >= .25 && p < .45 -> {
-                    LivePoint("goal/stage1", "The opening part of today's goal is done.", mapOf("done_so_far" to say.percent((p * 100).roundToInt())), "Settling in is over; the middle is for holding this rhythm.")
+                    LivePoint(
+                        "goal/stage1",
+                        "The opening part of today's goal is done.",
+                        mapOf("done_so_far" to say.percent((p * 100).roundToInt())),
+                        vary(STAGE_HINTS),
+                    )
                 }
 
                 p >= .62 && p < .78 -> {
@@ -690,7 +706,12 @@ object LivePoints {
         fun paceSteady(): LivePoint? {
             val (trend, now, _) = shift() ?: return null
             if (trend != "SIMILAR") return null
-            return LivePoint("steady/pace:${every(6)}", "The pace of the last couple of minutes matches the minutes before it: locked in.", mapOf("pace_now" to say.pace(now)), "Steady is the goal; say so.")
+            return LivePoint(
+                "steady/pace:${every(6)}",
+                "The pace of the last couple of minutes matches the minutes before it: locked in.",
+                mapOf("pace_now" to say.pace(now)),
+                vary(STEADY_HINTS),
+            )
         }
 
         fun paceNow(): LivePoint? {
@@ -768,7 +789,7 @@ object LivePoints {
                 "goal/final:${every(3)}",
                 "The final stretch of today's goal.",
                 mapOf("left_to_go" to left),
-                if (easy) "Finish tall, light and smiling." else "Finish tall and strong; if it feels good they can lift the rhythm a little.",
+                vary(if (easy) EASY_FINISH_HINTS else FINISH_HINTS),
             )
         }
 
@@ -794,7 +815,7 @@ object LivePoints {
                 "goal/last_km",
                 "One kilometre left. Their quickest kilometre today was kilometre $best.",
                 mapOf("quickest_kilometre_time" to say.time(splits.min())),
-                if (easy) "No need to beat it: glide this one in." else "Invite them to match it if the legs say yes.",
+                vary(if (easy) EASY_LAST_KILOMETRE_HINTS else LAST_KILOMETRE_HINTS),
                 listOf("best/km:$best"),
             )
         }
@@ -887,13 +908,13 @@ object LivePoints {
                 "bigger/aspiration:${every(25)}",
                 "Their own bigger goal, in their words: \"${text.take(160)}\". Today's run is one of the building blocks for it.",
                 numbers,
-                "Connect today to it in one warm sentence. No predictions about that day.",
+                vary(ASPIRATION_HINTS) + " No predictions about that day.",
             )
         }
 
         fun technique(): LivePoint {
             val topics = TECHNIQUE[phase]
-            val index = every(2) % topics.size
+            val index = (every(2) + variety).mod(topics.size)
             val numbers = if (moving >= 480) mapOf("time_they_have_been_running" to say.about(moving)) else emptyMap()
             return LivePoint(
                 "form/$phase:$index",
@@ -905,7 +926,7 @@ object LivePoints {
 
         fun effortCheck(): LivePoint {
             val checks = if (easy || goal == null) EASY_CHECKS else STEADY_CHECKS
-            val index = every(6) % checks.size
+            val index = (every(6) + variety).mod(checks.size)
             return LivePoint(
                 "effort/$index",
                 "Invite a quick self-check: ${checks[index]}",
@@ -924,6 +945,96 @@ object LivePoints {
     private val QUARTERS = listOf("first quarter", "second quarter", "third quarter", "last quarter")
     private val RESETS = listOf("quick, light steps.", "drop the shoulders and let the arms set the rhythm.", "run tall and look ahead.", "breathe out fully and settle.")
     private val EASY_CHECKS = listOf("could they say a full sentence out loud right now without gasping?", "could they breathe through the nose for a few steps?", "does this feel like a pace they could hold for a long time yet?")
+    private val EVEN_HINTS =
+        listOf(
+            "Even pacing is a skill; name it.",
+            "Call it control: the same rhythm, again and again.",
+            "Make the evenness sound earned.",
+        )
+    private val OPENING_HINTS =
+        listOf(
+            "Greet them and set the tone for the run.",
+            "Greet them with energy and one simple intention.",
+            "Welcome them out, keen to begin.",
+        )
+    private val EASY_OPENING_HINTS =
+        listOf(
+            "Greet them and set the tone for an easy, relaxed run.",
+            "Welcome them warmly; today is for enjoying the run.",
+            "Greet them; easy and unhurried.",
+        )
+    private val BANKED_HINTS =
+        listOf(
+            "Name it as something already achieved.",
+            "That running time is already in the bank.",
+            "Celebrate the unbroken running briefly.",
+        )
+    private val STAGE_HINTS =
+        listOf(
+            "Settling in is over; the middle is for holding this rhythm.",
+            "Mark the progress, then give the middle part a simple job.",
+            "The start is behind them.",
+        )
+    private val STEADY_HINTS =
+        listOf(
+            "Steady is the goal; say so.",
+            "Treat the even rhythm as a skill on show.",
+            "Make the steadiness sound like control they own.",
+        )
+    private val EASY_FINISH_HINTS =
+        listOf(
+            "Finish tall, light and smiling.",
+            "Bring it home relaxed, quick light feet.",
+            "Enjoy the last part, loose and easy.",
+        )
+    private val FINISH_HINTS =
+        listOf(
+            "Finish tall and strong; if it feels good they can lift the rhythm a little.",
+            "Strong arms, quick steps, all the way in.",
+            "Empty what is left with good form.",
+        )
+    private val EASY_FASTEST_HINTS =
+        listOf(
+            "Be glad with them; no need to chase another one.",
+            "Enjoy it with them, and keep the next one easy.",
+            "A quick one banked; the rest can stay relaxed.",
+        )
+    private val FASTEST_HINTS =
+        listOf(
+            "Be glad with them, and point at the next kilometre.",
+            "Celebrate it briefly, then aim them at the next one.",
+            "Name it as proof of form, then look ahead.",
+        )
+    private val NEXT_KILOMETRE_HINTS =
+        listOf(
+            "Tell them what the next kilometre is for: settling into this rhythm.",
+            "Give the next kilometre one simple job.",
+            "Make it sound like a good start, then look ahead.",
+        )
+    private val COOL_DOWN_HINTS =
+        listOf(
+            "tell them to ease down and breathe.",
+            "invite them to slow to a walk gradually.",
+            "tell them to let the breathing settle before stopping.",
+        )
+    private val EASY_LAST_KILOMETRE_HINTS =
+        listOf(
+            "No need to beat it: glide this one in.",
+            "Mention it, then let them run the last one relaxed.",
+            "On an easy day it is a reference, not a target.",
+        )
+    private val LAST_KILOMETRE_HINTS =
+        listOf(
+            "Invite them to match it if the legs say yes.",
+            "Make it a target worth trying for.",
+            "Offer it as a mark to chase, only if it feels good.",
+        )
+    private val ASPIRATION_HINTS =
+        listOf(
+            "Connect today to it in one warm sentence.",
+            "Say it like a coach building toward that day with them.",
+            "Mention that goal briefly, in fresh words.",
+        )
     private val STEADY_CHECKS = listOf("is the breathing strong but still under control?", "are the shoulders and hands still relaxed at this effort?", "does this effort feel like one they can hold to the end?")
 
     internal fun monthsUntil(

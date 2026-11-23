@@ -109,4 +109,21 @@ class CoachEngineTest {
         assertTrue(cues.none { it is CoachCue.Kilometre })
         assertEquals(1, cues.filterIsInstance<CoachCue.GoalReached>().size)
     }
+
+    @Test fun `on a short distance goal the one-kilometre call is the final stretch, said once`() {
+        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.DISTANCE, distanceKm = 6.0))
+        val cues = (1..420).mapNotNull { advance(engine, 3.0) }
+        assertEquals(1, cues.count { it == CoachCue.OneKilometreRemaining })
+        assertEquals(1, cues.count { it is CoachCue.GoalReached })
+        assertTrue(cues.none { it is CoachCue.Encouragement && it.kind == EncouragementKind.FINAL_STRETCH })
+    }
+
+    @Test fun `a long distance goal still hears the final stretch before the last kilometre`() {
+        val engine = initial(CoachConfig(enabled = true, goal = CoachGoal.DISTANCE, distanceKm = 10.0))
+        val cues = (1..700).mapNotNull { advance(engine, 3.0) }
+        val stretch = cues.indexOfFirst { it is CoachCue.Encouragement && it.kind == EncouragementKind.FINAL_STRETCH }
+        val lastKilometre = cues.indexOf(CoachCue.OneKilometreRemaining)
+        assertTrue(stretch >= 0)
+        assertTrue(stretch < lastKilometre)
+    }
 }
