@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.24.3 (code 32) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.1, built-in Kotlin with a 2.4.21 override, Gradle 9.9.1 and JDK 17. Runline remains a working name.
+Native Kotlin Android app: Android Views and Material components, private local files, Android LocationManager, and MapLibre Android 11.13.5. Version 0.24.4 (code 33) compiles with SDK 37, targets SDK 34 and supports Android 8.0+. Build tools are AGP 9.5.1, built-in Kotlin with a 2.4.21 override, Gradle 9.9.1 and JDK 17. Runline remains a working name.
 
 ## Users
 

@@ -306,4 +306,16 @@ class LiveAiAdviceTest {
             )
         assertEquals("¡Tercer kilómetro en 7 minutos 22, y cada kilómetro de hoy suma!", line?.text)
     }
+
+    @Test fun `being pinned to a pace is said of the pace, never with the runner's gender`() {
+        assertNotNull(LiveAiAdvice.gendered("Clavada en 6 minutos 12 por kilómetro, igual que antes."))
+        assertNotNull(LiveAiAdvice.gendered("Estás clavado en tu media de toda la salida."))
+        assertNotNull(LiveAiAdvice.gendered("¡Muy bien! Clavado, sigue así."))
+        assertNotNull(LiveAiAdvice.gendered("Hoy vas clavada a tu ritmo de siempre."))
+        assertNull(LiveAiAdvice.gendered("Ritmo clavado en 6 minutos 12 por kilómetro."))
+        assertNull(LiveAiAdvice.gendered("Llevas el ritmo clavado, igual que antes."))
+        assertNull(LiveAiAdvice.gendered("La media sigue clavada en 6 minutos 19."))
+        assertNull(LiveAiAdvice.gendered("Tu ritmo sigue clavado, igual que antes."))
+        assertNotNull(LiveAiAdvice.gendered("Sigue clavada así hasta el final."))
+    }
 }

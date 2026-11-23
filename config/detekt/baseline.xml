@@ -1801,7 +1801,6 @@
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$return "\"$agreeing\" gives the runner (or you) a gender. Reword so it fits anyone: describe the action or a body part instead, like con la cabeza alta, con calma, con soltura."</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$return if (FEELINGS.containsMatchIn(text)) "It says how they feel or look, which you cannot know. Say what the run shows instead." else null</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$return if (wrong(line) || sentences.any(::wrong)) (if (spanish) "It is not all in Spanish." else "It is not all in English.") else null</ID>
-    <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$val agreeing = (RUNNER_ADJECTIVE.find(text) ?: VOCATIVE_ADJECTIVE.find(text) ?: COACH_ADJECTIVE.find(text))?.value?.trim(' ', ',', '.', '!', '¡') ?: return null</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$val second = runCatching { clean(provider.quickMessage(key, model, system(language), input, 400, 8_000, instant), spanish) }.getOrNull() ?: return null</ID>
     <ID>MaxLineLength:LiveAiAdviceTest.kt$LiveAiAdviceTest$.</ID>
     <ID>MaxLineLength:LiveAiAdviceTest.kt$LiveAiAdviceTest$AiHttpResponse(200, """{"stop_reason":"end_turn","content":[{"type":"text","text":"Lovely steady work, keep those shoulders loose."}]}""")</ID>

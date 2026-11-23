@@ -15,6 +15,10 @@ object LiveAiAdvice {
     const val MAX_WORDS = 45
     const val MAX_CHARS = 300
     private const val PHRASE_WORDS = 4
+    private const val PINNED_START = "(?:^|[.!¡?¿,;]\\s*)(?:sigue\\s+|mantente\\s+)?clavad[oa]s?\\b"
+    private const val SECOND_PERSON = "\\b(?:est[aá]s|vas|sigues|vienes|te mantienes|te veo)"
+    private const val PINNED_AFTER_VERB = "$SECOND_PERSON\\s+(?:muy\\s+|bien\\s+|tan\\s+)?clavad[oa]s?\\b"
+    private val PINNED = Regex("$PINNED_START|$PINNED_AFTER_VERB")
 
     fun request(
         provider: CoachAiProvider,
@@ -167,7 +171,8 @@ object LiveAiAdvice {
     internal fun gendered(line: String): String? {
         val text = line.lowercase(java.util.Locale.ROOT)
         if (GENDERED.containsMatchIn(text)) return "It addresses the runner with a gendered word. Drop it."
-        val agreeing = (RUNNER_ADJECTIVE.find(text) ?: VOCATIVE_ADJECTIVE.find(text) ?: COACH_ADJECTIVE.find(text))?.value?.trim(' ', ',', '.', '!', '¡') ?: return null
+        val found = RUNNER_ADJECTIVE.find(text) ?: VOCATIVE_ADJECTIVE.find(text) ?: PINNED.find(text) ?: COACH_ADJECTIVE.find(text)
+        val agreeing = found?.value?.trim(' ', ',', '.', '!', '¡') ?: return null
         return "\"$agreeing\" gives the runner (or you) a gender. Reword so it fits anyone: describe the action or a body part instead, like con la cabeza alta, con calma, con soltura."
     }
 
