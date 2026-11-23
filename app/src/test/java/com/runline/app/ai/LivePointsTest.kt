@@ -322,4 +322,24 @@ class LivePointsTest {
         assertNull(LivePoints.monthsUntil("Correr más", today))
         assertNull(LivePoints.monthsUntil("Maratón en abril de 2031", today))
     }
+
+    @Test fun `the same minute of two different runs gets a different form cue, self-check and stock hint`() {
+        fun seeded(
+            focus: LiveFocus,
+            variety: Int,
+        ) = LiveCall(LiveTrigger.CADENCE, null, focus, 3, variety)
+        val minute = run(moving = 290.0, extraKm = .7)
+        val forms = (0..3).map { LivePoints.pick(minute, context(), seeded(LiveFocus.TECHNIQUE, it), true)!!.point }
+        assertEquals(4, forms.distinct().size)
+        val effort = run(461.0, moving = 600.0)
+        val checks = (0..2).map { LivePoints.pick(effort, context(), seeded(LiveFocus.EFFORT_CHECK, it), false)!!.point }
+        assertEquals(3, checks.distinct().size)
+        val locked = run(450.0, 450.0, moving = 1100.0, recent = 450.0, shift = Triple("SIMILAR", 450.0, 452.0))
+        val steady = (0..2).map { LivePoints.pick(locked, context(), seeded(LiveFocus.PACE_TREND, it), true)!! }
+        assertTrue(steady.all { it.theme == "steady" })
+        assertEquals(3, steady.map { it.hint }.distinct().size)
+        assertEquals("Steady is the goal; say so.", steady[0].hint)
+        val again = seeded(LiveFocus.TECHNIQUE, 5)
+        assertEquals(LivePoints.pick(minute, context(), again, true), LivePoints.pick(minute, context(), again, true))
+    }
 }

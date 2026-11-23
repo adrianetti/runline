@@ -1,5 +1,7 @@
 package com.runline.app.ai
 
+import kotlin.random.Random
+
 enum class LiveTrigger { OPENING, MOMENT, CADENCE }
 
 enum class LiveMoment {
@@ -36,10 +38,12 @@ data class LiveCall(
     val moment: LiveMoment?,
     val focus: LiveFocus,
     val number: Int,
+    val variety: Int = 0,
 )
 
 class LiveCoachPlan(
     initialAttempts: Int = 0,
+    private val variety: Int = 0,
 ) {
     var attempts = initialAttempts.coerceIn(0, MAX_ATTEMPTS)
         private set
@@ -80,6 +84,7 @@ class LiveCoachPlan(
                 else -> LiveFocus.GOAL_PROJECTION
             },
             attempts,
+            variety,
         )
     }
 
@@ -102,11 +107,11 @@ class LiveCoachPlan(
                 !opened -> {
                     if (activeMs < OPENING_EARLIEST_MS) return null
                     opened = true
-                    LiveCall(LiveTrigger.OPENING, null, LiveFocus.MORALE, attempts + 1)
+                    LiveCall(LiveTrigger.OPENING, null, LiveFocus.MORALE, attempts + 1, variety)
                 }
 
                 activeMs >= nextCadenceAt && lastSpeechAt?.let { activeMs - it < QUIET_BEFORE_MS } != true -> {
-                    LiveCall(LiveTrigger.CADENCE, null, LiveFocus.entries[rotation++ % LiveFocus.entries.size], attempts + 1)
+                    LiveCall(LiveTrigger.CADENCE, null, focusAt(rotation++), attempts + 1, variety)
                 }
 
                 else -> {
@@ -132,7 +137,13 @@ class LiveCoachPlan(
         nextCadenceAt = activeMs + minOf(interval, FAILURE_RETRY_MS shl (failures - 1).coerceAtMost(3))
     }
 
+    private fun focusAt(index: Int): LiveFocus {
+        val size = LiveFocus.entries.size
+        return focusOrder(variety, index / size)[index % size]
+    }
+
     companion object {
+        private const val CYCLE_SEED_STRIDE = 1_000L
         const val MAX_ATTEMPTS = 80
         const val MIN_GAP_MS = 20_000L
         const val OPENING_EARLIEST_MS = 40_000L
@@ -140,5 +151,15 @@ class LiveCoachPlan(
         const val QUIET_BEFORE_MS = 20_000L
         const val SILENT_RETRY_MS = 45_000L
         const val FAILURE_RETRY_MS = 30_000L
+
+        fun focusOrder(
+            variety: Int,
+            cycle: Int,
+        ): List<LiveFocus> {
+            if (variety == 0) return LiveFocus.entries.toList()
+            val order = LiveFocus.entries.shuffled(Random(variety.toLong() * CYCLE_SEED_STRIDE + cycle))
+            val previousLast = if (cycle == 0) null else focusOrder(variety, cycle - 1).last()
+            return if (order.first() == previousLast) order.drop(1) + order.first() else order
+        }
     }
 }

@@ -85,6 +85,13 @@ class LiveCoachBacktest {
         )
     }
 
+    private fun earlierLog(id: String): List<JSONObject> {
+        val file = File(dir, "data/$id/coach-log.json")
+        if (!file.isFile) return emptyList()
+        val events = JSONObject(file.readText()).getJSONArray("events")
+        return (0 until events.length()).map(events::getJSONObject)
+    }
+
     private fun config(session: JSONObject): CoachConfig {
         val goal = session.optJSONObject("goal") ?: JSONObject()
         val effort = runCatching { SmartRunEffort.valueOf(goal.optString("effort")) }.getOrNull()
@@ -109,13 +116,15 @@ class LiveCoachBacktest {
         val config = config(session)
         val history = session.optJSONArray("history")?.let { h -> (0 until h.length()).map { load(catalog.getValue(h.getString(it))) } }.orEmpty()
         val aspiration = RunnerGoal(session.optString("aspiration", ""))
+        val earlierIds = session.optJSONArray("history")?.let { h -> (0 until h.length()).map(h::getString) }.orEmpty()
+        val heard = EarlierRunLines.of(earlierIds.map(::earlierLog))
         val today = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()).toLocalDate()
         val interval = System.getenv("RUNLINE_BACKTEST_INTERVAL")?.toIntOrNull() ?: AiConfig.DEFAULT_INTERVAL_MINUTES
         val model = System.getenv("RUNLINE_BACKTEST_MODEL") ?: AiProviderCatalog.DEFAULT_LIVE_MODEL
         val voiceMilestones = System.getenv("RUNLINE_BACKTEST_VOICE_MILESTONES") != "0"
         val engine = CoachEngine(config, null, terrainPoint = { if (full.elevationSource == TerrainSource.TERRAIN_MAP) it else it.copy(altitudeMeters = null, verticalAccuracyMeters = null) })
         val schedule = CoachSpeechSchedule()
-        val plan = LiveCoachPlan()
+        val plan = LiveCoachPlan(variety = System.getenv("RUNLINE_BACKTEST_VARIETY")?.toIntOrNull() ?: full.id.hashCode())
         val provider = AnthropicProvider()
         val said = mutableListOf<AiSpokenFeedback>()
         val used = mutableListOf<String>()
@@ -155,10 +164,11 @@ class LiveCoachBacktest {
             val label = call.trigger.name + (call.moment?.let { ":$it" } ?: if (call.trigger == LiveTrigger.CADENCE) ":${call.focus}" else "")
             val summary = AiRunSummary.of(run)
             val context = AiCoachingContext.build(today, activeGoal = config, activeRun = run, history = history, spoken = said.toList(), nowElapsedMs = now, runnerGoal = aspiration)
+            val request = JSONObject().put("run", summary).put("coaching_context", context).put(EarlierRunLines.DATA_KEY, JSONArray(heard))
             val began = System.nanoTime()
             val answer =
                 runCatching {
-                    LiveAiAdvice.compose(provider, key!!, model, language, JSONObject().put("run", summary).put("coaching_context", context), call, used.toList(), milestone) { draft, problem ->
+                    LiveAiAdvice.compose(provider, key!!, model, language, request, call, used.toList(), milestone) { draft, problem ->
                         synchronized(events) {
                             events.put(
                                 JSONObject()
@@ -291,6 +301,7 @@ class LiveCoachBacktest {
             .put("aspiration", aspiration.text)
             .put("final_facts", LiveFacts.of(whole, AiCoachingContext.build(today, activeGoal = config, activeRun = full, history = history, runnerGoal = aspiration)))
             .put("requests", plan.attempts)
+            .put("heard_lines", JSONArray(heard))
             .put("latencies_ms", JSONArray(latencies))
             .put("events", events)
             .put("lines", lines)
