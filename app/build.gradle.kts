@@ -33,8 +33,8 @@ android {
         applicationId = "com.runline.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 32
-        versionName = "0.24.3"
+        versionCode = 33
+        versionName = "0.24.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {

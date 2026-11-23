@@ -40,7 +40,7 @@ Every figure is formatted on the phone the way it is spoken in the runner's lang
 
 - every digit in it must be one of the figures it was given;
 - it must be in the runner's language and addressed to the runner, not a note about the instructions;
-- it may not ask the runner to tell it anything, nor address them with a gendered word;
+- it may not ask the runner to tell it anything, nor address them with a gendered word or an adjective that agrees with them ("tranquila", "clavado"); the same word said of the pace ("ritmo clavado") is fine;
 - hill wording must pass the terrain-map direction check, which now fails any mention because observations never include terrain;
 - it should not open like one of its last four lines or repeat four consecutive words of an earlier one, including a line from the last two activities.
 
