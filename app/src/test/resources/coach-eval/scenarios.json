@@ -138,7 +138,7 @@
       "goal": {"type": "DISTANCE", "km": 5, "effort": "EASY"},
       "aspiration": "",
       "history": [{"days_before": 3, "km": 5, "pace": 350}],
-      "plan": [{"meters": 5000, "pace": 350}],
+      "plan": [{"meters": 5400, "pace": 350}],
       "gps": {"noise_m": 7, "accuracy_m": 14, "dropouts": [{"at_s": 700, "seconds": 120}]},
       "seed": 110
     },

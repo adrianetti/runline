@@ -16,6 +16,7 @@ data class CoachConfig(
     val paceMinSecondsPerKm: Int? = null,
     val paceMaxSecondsPerKm: Int? = null,
     val effortIntent: SmartRunEffort? = null,
+    val movingClock: Boolean = true,
 ) {
     fun isValid(): Boolean {
         if ((paceMinSecondsPerKm == null) != (paceMaxSecondsPerKm == null)) return false

@@ -530,4 +530,17 @@ class LivePointsTest {
         val after = LivePoints.pick(later, ctx, cadence(LiveFocus.ASPIRATION), true, twice)
         assertFalse(after?.id.orEmpty(), after?.theme in setOf("bigger", "history"))
     }
+
+    @Test fun `a time goal runs on the same clock as the app, leaving stops out when auto-pause is on`() {
+        val half = LiveCall(LiveTrigger.MOMENT, LiveMoment.HALFWAY, LiveFocus.GOAL_PROJECTION, 12)
+        val passed = JSONObject().put("kind", "HALFWAY").put("facts", JSONObject().put("past_halfway", true))
+        val stopped = run(*raceSplits(5), moving = 1460.0, extraKm = .1).put("active_seconds", 1580.0)
+        val moving = LivePoints.pick(stopped, race(), half, false, milestone = passed)!!
+        assertEquals("24 minutes 20", moving.numbers["time_so_far"])
+        assertEquals("1 minute 10", moving.numbers["ahead_of_the_time_goal_by"])
+        val wall = race().apply { getJSONObject("active_goal").put("clock", "active") }
+        val active = LivePoints.pick(stopped, wall, half, false, milestone = passed)!!
+        assertEquals("26 minutes 20", active.numbers["time_so_far"])
+        assertEquals("50 seconds", active.numbers["behind_the_time_goal_by"])
+    }
 }

@@ -244,6 +244,11 @@ class LiveEventsTest {
         assertEquals(15.0, waiting.getDouble("stopped_now_seconds"), 2.0)
     }
 
+    @Test fun `the opening is still said while standing at the start`() {
+        val opening = pick(run(stoppedNow = 15.0), call = LiveCall(LiveTrigger.OPENING, null, LiveFocus.MORALE, 1))
+        assertEquals("start/opening", opening?.id)
+    }
+
     private companion object {
         const val START = 1_700_000_000_000L
         const val MILLIS = 1_000L

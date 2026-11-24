@@ -9,8 +9,8 @@ internal class LivePlan(
     context: JSONObject,
     spanish: Boolean,
 ) {
-    private val facts = LivePlanRun(run, spanish)
     private val goal: JSONObject? = context.optJSONObject("active_goal")
+    private val facts = LivePlanRun(run, spanish, goal?.optString("clock") != "active")
     private val goalKm = goal?.amount("distance_goal_m")?.div(LivePlanRun.METRES_PER_KILOMETRE)
     private val deadline: LiveDeadline? =
         goalKm?.let { distance ->
@@ -104,11 +104,12 @@ internal class LivePlan(
 internal class LivePlanRun(
     run: JSONObject,
     private val spanish: Boolean,
+    movingClock: Boolean = true,
 ) {
     val say = LiveSpeech(spanish)
     val km = run.amount("distance_km") ?: 0.0
     val moving = run.amount("moving_seconds") ?: 0.0
-    val clock = run.amount("active_seconds") ?: moving
+    val clock = if (movingClock) moving else run.amount("active_seconds") ?: moving
     val recent = run.amount("recent_pace_seconds_per_km")
     val splits =
         run

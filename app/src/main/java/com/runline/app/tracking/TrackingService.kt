@@ -1002,12 +1002,15 @@ class TrackingService :
         runCatching {
             val preferences = VoiceCoachSettings.load(this)
             val next =
-                current?.id?.let {
-                    com.runline.app.data
-                        .SessionIntentStore(this)
-                        .get(it)
-                        ?.applyTo(preferences)
-                } ?: preferences
+                current
+                    ?.id
+                    ?.let {
+                        com.runline.app.data
+                            .SessionIntentStore(this)
+                            .get(it)
+                            ?.applyTo(preferences)
+                    }.let { it ?: preferences }
+                    .copy(movingClock = RecordingSettings.autoPause(this))
             if (aiCoach == null) {
                 aiCoach =
                     AiRunCoach(this, onEvent = { event, detail, latency ->

@@ -18,7 +18,8 @@ object LiveAiAdvice {
     private const val PINNED_START = "(?:^|[.!¡?¿,;]\\s*)(?:sigue\\s+|mantente\\s+)?clavad[oa]s?\\b"
     private const val SECOND_PERSON = "\\b(?:est[aá]s|vas|sigues|vienes|te mantienes|te veo)"
     private const val PINNED_AFTER_VERB = "$SECOND_PERSON\\s+(?:muy\\s+|bien\\s+|tan\\s+)?clavad[oa]s?\\b"
-    private val PINNED = Regex("$PINNED_START|$PINNED_AFTER_VERB")
+    private const val WELCOMED = "\\bbienvenid[oa]s?\\b"
+    private val PINNED = Regex("$PINNED_START|$PINNED_AFTER_VERB|$WELCOMED")
     private const val BODY_ES =
         "sin esfuerzo|qu[eé] f[aá]cil|te sale sol[oa]|no te cuesta|tus piernas (?:est[aá]n|saben|van|responden)|" +
             "tu cuerpo (?:est[aá]|te est[aá]|sabe|te pide|responde)"

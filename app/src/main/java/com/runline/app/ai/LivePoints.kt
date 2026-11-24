@@ -171,7 +171,9 @@ object LivePoints {
         val plan = LivePlan(run, context, spanish)
         val s = State(run, context, LiveSpeech(spanish), call.variety, plan, used)
         val events = LiveEvents(run, s.say, s.easy, s.easy || s.goal == null, plan.paced)
-        if (milestone != null || events.stoppedNow) return milestone?.let { events.moment(it, plan.moment(it) ?: s.milestone(it), used) }
+        if (milestone != null || events.silences(call)) {
+            return milestone?.let { events.moment(it, plan.moment(it) ?: s.milestone(it), used) }
+        }
         val news = { events.news(used) }
         val order: List<() -> LivePoint?> =
             when (call.trigger) {

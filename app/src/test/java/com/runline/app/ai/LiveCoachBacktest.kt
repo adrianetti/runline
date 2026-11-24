@@ -114,11 +114,13 @@ class LiveCoachBacktest {
         return ids.map { load(catalog.getValue(it)) }
     }
 
-    private fun activeOffsets(points: List<RunPoint>): LongArray {
+    private fun activeOffsets(full: RunSession): LongArray {
+        val points = full.points
+        val paused = RunEvents.pauseStarts(continuousSegments(points), full.endedAtMs - full.startedAtMs - full.activeDurationMs)
         val offsets = LongArray(points.size)
         for (i in 1 until points.size) {
             val gap = points[i].timestampMs - points[i - 1].timestampMs
-            offsets[i] = offsets[i - 1] + if (points[i].segment == points[i - 1].segment) gap else 0L
+            offsets[i] = offsets[i - 1] + if (points[i - 1].timestampMs in paused && points[i].segment != points[i - 1].segment) 0L else gap
         }
         return offsets
     }
@@ -180,7 +182,7 @@ class LiveCoachBacktest {
         val plan = LiveCoachPlan(variety = System.getenv("RUNLINE_BACKTEST_VARIETY")?.toIntOrNull() ?: full.id.hashCode())
         val metrics = mutableListOf<AiRequestMetric>()
         val provider = AnthropicProvider(onMetric = { synchronized(metrics) { metrics += it } })
-        val activeAt = activeOffsets(points)
+        val activeAt = activeOffsets(full)
         val said = mutableListOf<AiSpokenFeedback>()
         val used = mutableListOf<String>()
         val lines = JSONArray()

@@ -26,6 +26,8 @@ internal class LiveEvents(
     val interrupted: Boolean = root?.optBoolean(INTERRUPTED) == true
     val stoppedNow: Boolean = root?.figure(STOPPED_NOW) != null || items.any { it.optString(KIND) == STOP && it.optBoolean(ONGOING) }
 
+    fun silences(call: LiveCall): Boolean = stoppedNow && call.trigger != LiveTrigger.OPENING
+
     fun news(used: List<String>): LivePoint? =
         items
             .asReversed()

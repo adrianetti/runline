@@ -234,4 +234,13 @@ class AiCoachingContextTest {
     }
 
     private fun List<RunSession>.copyTypeForLast(type: ActivityType) = dropLast(1) + last().copy(activityType = type)
+
+    @Test fun `the active goal says which clock the app keeps`() {
+        val goal =
+            com.runline.app.core
+                .CoachConfig(enabled = true, goal = com.runline.app.core.CoachGoal.DISTANCE, distanceKm = 5.0)
+        assertEquals("moving", AiCoachingContext.build(today, activeGoal = goal).getJSONObject("active_goal").getString("clock"))
+        val wall = goal.copy(movingClock = false)
+        assertEquals("active", AiCoachingContext.build(today, activeGoal = wall).getJSONObject("active_goal").getString("clock"))
+    }
 }

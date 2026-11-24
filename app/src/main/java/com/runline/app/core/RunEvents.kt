@@ -31,6 +31,9 @@ object RunEvents {
     private const val STILL_NOW_MS = 10_000L
     private const val STILL_NOW_RADIUS_METERS = 8.0
     private const val MIN_SINCE_MS = 30_000L
+    private const val PAUSE_TOLERANCE_MS = 15_000L
+    private const val MAX_SPLIT_BREAKS = 12
+    private const val STARTED_METERS = 30.0
 
     fun detect(run: RunSession): RunEventReport {
         val segments = continuousSegments(run.points)
@@ -40,7 +43,9 @@ object RunEvents {
         val stops = stretches.flatMap { Standstills.find(it, end) }
         val windows = MotionWindows.of(stretches, stops)
         val blocks = if (run.activityType == ActivityType.RUN) PaceBlocks(windows, end) else null
-        val found = pauses(segments) + gaps(segments) + stops + blocks?.walks().orEmpty() + blocks?.fasts().orEmpty()
+        val pausedMs = (maxOf(run.endedAtMs, end) - run.startedAtMs - run.activeDurationMs).coerceAtLeast(0L)
+        val moving = stops.filter { track.metersAt(it.startMs) >= STARTED_METERS }
+        val found = breaks(segments, pausedMs) + gaps(segments) + moving + blocks?.walks().orEmpty() + blocks?.fasts().orEmpty()
         val events =
             found.sortedBy { it.startMs }.map { event ->
                 event.copy(startMeters = track.metersAt(event.startMs), paceSinceSecondsPerKm = paceSince(event, windows))
@@ -62,11 +67,63 @@ object RunEvents {
         return result
     }
 
-    private fun pauses(segments: List<List<RunPoint>>): List<RunEvent> =
+    internal fun pauseStarts(
+        segments: List<List<RunPoint>>,
+        pausedMs: Long,
+    ): Set<Long> {
+        val gaps = segmentBreaks(segments).map { (a, b) -> a.timestampMs to b.timestampMs - a.timestampMs }
+        return when {
+            pausedMs <= 0L || gaps.isEmpty() -> emptySet()
+            gaps.size > MAX_SPLIT_BREAKS -> greedyPauses(gaps, pausedMs)
+            else -> closestPauses(gaps, pausedMs)
+        }
+    }
+
+    private fun closestPauses(
+        gaps: List<Pair<Long, Long>>,
+        pausedMs: Long,
+    ): Set<Long> {
+        fun chosen(mask: Int) = gaps.indices.filter { mask shr it and 1 == 1 }
+        val best = (0 until (1 shl gaps.size)).minBy { mask -> kotlin.math.abs(chosen(mask).sumOf { gaps[it].second } - pausedMs) }
+        return chosen(best).map { gaps[it].first }.toSet()
+    }
+
+    private fun greedyPauses(
+        gaps: List<Pair<Long, Long>>,
+        pausedMs: Long,
+    ): Set<Long> {
+        var budget = pausedMs + PAUSE_TOLERANCE_MS
+        val chosen = mutableSetOf<Long>()
+        gaps.sortedByDescending { it.second }.forEach { (start, gap) ->
+            if (gap <= budget) {
+                chosen += start
+                budget -= gap
+            }
+        }
+        return chosen
+    }
+
+    private fun segmentBreaks(segments: List<List<RunPoint>>): List<Pair<RunPoint, RunPoint>> =
         segments
             .zipWithNext()
-            .filter { (a, b) -> a.last().segment != b.first().segment && b.first().timestampMs - a.last().timestampMs >= MIN_PAUSE_MS }
-            .map { (a, b) -> RunEvent(RunEventKind.PAUSE, a.last().timestampMs, b.first().timestampMs) }
+            .filter { (a, b) -> a.last().segment != b.first().segment }
+            .map { (a, b) -> a.last() to b.first() }
+
+    private fun breaks(
+        segments: List<List<RunPoint>>,
+        pausedMs: Long,
+    ): List<RunEvent> {
+        val paused = pauseStarts(segments, pausedMs)
+        return segmentBreaks(segments)
+            .filter { (a, b) -> b.timestampMs - a.timestampMs >= MIN_PAUSE_MS }
+            .map { (a, b) ->
+                if (a.timestampMs in paused) {
+                    RunEvent(RunEventKind.PAUSE, a.timestampMs, b.timestampMs)
+                } else {
+                    RunEvent(RunEventKind.GPS_GAP, a.timestampMs, b.timestampMs, RunMetrics.distanceMeters(listOf(a, b)))
+                }
+            }
+    }
 
     private fun gaps(segments: List<List<RunPoint>>): List<RunEvent> =
         segments.flatMap { segment ->

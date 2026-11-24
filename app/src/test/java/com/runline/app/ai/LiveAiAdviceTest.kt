@@ -376,4 +376,11 @@ class LiveAiAdviceTest {
             ).has("rejected_draft"),
         )
     }
+
+    @Test fun `welcoming the runner back is said without a gender`() {
+        assertNotNull(LiveAiAdvice.gendered("Bienvenido de nuevo, ya estás otra vez en marcha."))
+        assertNotNull(LiveAiAdvice.gendered("¡Bienvenida otra vez a la carrera!"))
+        assertNull(LiveAiAdvice.gendered("De nuevo en marcha, busca tu paso poco a poco."))
+        assertNull(LiveAiAdvice.gendered("Welcome back, easy does it."))
+    }
 }

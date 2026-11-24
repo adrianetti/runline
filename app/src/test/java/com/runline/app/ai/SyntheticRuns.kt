@@ -210,6 +210,8 @@ internal class SyntheticGps(
     private var east = 0.0
     private var north = 0.0
     private var skipped = false
+    private var lastFix: Long? = null
+    private var lostSegments = 0
 
     fun points(
         samples: List<SyntheticSample>,
@@ -220,6 +222,8 @@ internal class SyntheticGps(
             east = wander(east)
             north = wander(north)
             if (sample.recordSeconds % interval != 0L || dropouts.any { sample.recordSeconds in it } || late()) return@mapNotNull null
+            if (lastFix?.let { sample.recordSeconds - it > TRACKER_NEW_SEGMENT_SECONDS } == true) lostSegments++
+            lastFix = sample.recordSeconds
             val (lat, lon) = route.coordinates(sample.distance, east, north)
             RunPoint(
                 lat,
@@ -227,7 +231,7 @@ internal class SyntheticGps(
                 startMs + sample.clockSeconds * MILLIS,
                 (accuracy * (1 + (random.nextDouble() - HALF) * ACCURACY_SPREAD)).toFloat(),
                 route.altitude(sample.distance),
-                sample.segment,
+                sample.segment + lostSegments,
                 terrainModel = route.terrainModel,
             )
         }
@@ -253,10 +257,12 @@ internal class SyntheticGps(
         const val HALF = 0.5
         const val ACCURACY_SPREAD = 0.4
         const val MILLIS = 1000L
+        const val TRACKER_NEW_SEGMENT_SECONDS = 15L
     }
 }
 
 object SyntheticRuns {
+    private const val MILLIS = 1000L
     private const val HISTORY_SEED_STRIDE = 31
     private const val METERS_PER_KM = 1000.0
 
@@ -306,8 +312,9 @@ object SyntheticRuns {
         val pauses = spec.optJSONArray("pauses").takeUnless { isHistory }
         val samples = SyntheticMotion(route, random, stops, pauses).run(plan)
         val points = SyntheticGps(spec.optJSONObject("gps").takeUnless { isHistory }, random).points(samples, route, start.toEpochMilli())
-        val active = points.zipWithNext().filter { (a, b) -> a.segment == b.segment }.sumOf { (a, b) -> b.timestampMs - a.timestampMs }
         val ended = points.last().timestampMs
+        val pausedMs = pauses?.let { p -> (0 until p.length()).sumOf { p.getJSONObject(it).getLong("seconds") } * MILLIS } ?: 0L
+        val active = ended - points.first().timestampMs - pausedMs
         return RunSession(id, points.first().timestampMs, ended, active, points, elevationSource = TerrainSource.TERRAIN_MAP)
     }
 }

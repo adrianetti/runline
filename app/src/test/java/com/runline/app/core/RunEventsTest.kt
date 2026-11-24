@@ -40,6 +40,14 @@ class RunEventsTest {
             speed: Double,
         ) = apply { repeat(seconds) { tick().also { east += speed } } }
 
+        fun lost(
+            seconds: Int,
+            speed: Double,
+        ) = apply {
+            silent(seconds, speed)
+            segment++
+        }
+
         fun pause(seconds: Int) =
             apply {
                 clock += seconds * MILLIS
@@ -231,6 +239,42 @@ class RunEventsTest {
         assertTrue(sparse.events.isEmpty())
     }
 
+    @Test fun `a signal loss that starts a new segment is a gap, not a pause`() {
+        val lost =
+            RunEvents.detect(
+                Track()
+                    .move(300, RUN)
+                    .lost(90, RUN)
+                    .move(120, RUN)
+                    .session(),
+            )
+        val gap = only(lost, RunEventKind.GPS_GAP)
+        assertEquals(91_000.0, gap.durationMs.toDouble(), 1_000.0)
+        assertTrue(lost.events.none { it.kind == RunEventKind.PAUSE })
+        val both =
+            RunEvents.detect(
+                Track()
+                    .move(300, RUN)
+                    .lost(90, RUN)
+                    .move(120, RUN)
+                    .pause(60)
+                    .move(120, RUN)
+                    .session(),
+            )
+        assertEquals(listOf(RunEventKind.GPS_GAP, RunEventKind.PAUSE), both.events.map { it.kind })
+    }
+
+    @Test fun `a run with many pauses still counts each one as a pause`() {
+        val track = Track().move(120, RUN)
+        repeat(MANY_PAUSES) { track.pause(40).move(60, RUN) }
+        val events = RunEvents.detect(track.session()).events
+        assertEquals(List(MANY_PAUSES) { RunEventKind.PAUSE }, events.map { it.kind })
+    }
+
+    @Test fun `standing at the start before running is not a stop`() {
+        assertTrue(RunEvents.detect(Track().stand(40).move(300, RUN).session()).events.isEmpty())
+    }
+
     @Test fun `an empty run has no events`() {
         val report = RunEvents.detect(RunSession("empty", START, START, 0, emptyList()))
         assertTrue(report.events.isEmpty())
@@ -248,6 +292,7 @@ class RunEventsTest {
         const val RUN = 3.0
         const val JOG = 2.0
         const val FAST = 3.8
+        const val MANY_PAUSES = 13
         const val WALK = 1.1
         const val SLOW_WALK = 0.9
         const val LIFT = 1.06
