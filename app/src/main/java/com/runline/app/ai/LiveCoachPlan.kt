@@ -39,6 +39,7 @@ data class LiveCall(
     val focus: LiveFocus,
     val number: Int,
     val variety: Int = 0,
+    val room: Boolean = true,
 )
 
 class LiveCoachPlan(
@@ -55,6 +56,7 @@ class LiveCoachPlan(
     private var rotation = 0
     private var failures = 0
     private var interval = 120_000L
+    private var retrySilence = true
 
     val healthy: Boolean get() = failures < 2 && attempts < MAX_ATTEMPTS
 
@@ -74,6 +76,7 @@ class LiveCoachPlan(
         opened = true
         attempts++
         lastRequestAt = activeMs
+        retrySilence = true
         nextCadenceAt = maxOf(nextCadenceAt, activeMs + SILENT_RETRY_MS)
         return LiveCall(
             LiveTrigger.MOMENT,
@@ -111,7 +114,7 @@ class LiveCoachPlan(
                 }
 
                 activeMs >= nextCadenceAt && lastSpeechAt?.let { activeMs - it < QUIET_BEFORE_MS } != true -> {
-                    LiveCall(LiveTrigger.CADENCE, null, focusAt(rotation++), attempts + 1, variety)
+                    LiveCall(LiveTrigger.CADENCE, null, focusAt(rotation++), attempts + 1, variety, roomAt(activeMs))
                 }
 
                 else -> {
@@ -121,6 +124,7 @@ class LiveCoachPlan(
         attempts++
         lastRequestAt = activeMs
         nextCadenceAt = activeMs + interval
+        retrySilence = call.trigger != LiveTrigger.CADENCE
         return call
     }
 
@@ -129,13 +133,15 @@ class LiveCoachPlan(
         spoke: Boolean,
     ) {
         failures = 0
-        if (!spoke) nextCadenceAt = minOf(nextCadenceAt, activeMs + SILENT_RETRY_MS)
+        if (!spoke && retrySilence) nextCadenceAt = minOf(nextCadenceAt, activeMs + SILENT_RETRY_MS)
     }
 
     fun failed(activeMs: Long) {
         failures++
         nextCadenceAt = activeMs + minOf(interval, FAILURE_RETRY_MS shl (failures - 1).coerceAtMost(3))
     }
+
+    private fun roomAt(activeMs: Long): Boolean = lastSpeechAt?.let { activeMs - it >= maxOf(interval, ROOM_MS) } != false
 
     private fun focusAt(index: Int): LiveFocus {
         val size = LiveFocus.entries.size
@@ -151,6 +157,7 @@ class LiveCoachPlan(
         const val QUIET_BEFORE_MS = 20_000L
         const val SILENT_RETRY_MS = 45_000L
         const val FAILURE_RETRY_MS = 30_000L
+        const val ROOM_MS = 240_000L
 
         fun focusOrder(
             variety: Int,

@@ -18,13 +18,25 @@ class LiveCoachBacktest {
 
     private fun step(name: String) = !dir.isNullOrBlank() && !key.isNullOrBlank() && System.getenv("RUNLINE_BACKTEST_STEP") == name
 
-    private fun sessions(): List<JSONObject> {
-        val only = System.getenv("RUNLINE_BACKTEST_ONLY")?.split(',')?.filter { it.isNotBlank() }
-        val all = JSONArray(File(dir, "sessions.json").readText())
-        return (0 until all.length()).map { all.getJSONObject(it) }.filter { only == null || it.getString("id") in only }
+    private fun recorded(): List<JSONObject> {
+        val file = File(dir, "sessions.json")
+        if (!file.isFile) return emptyList()
+        val all = JSONArray(file.readText())
+        return (0 until all.length()).map(all::getJSONObject)
     }
 
-    private fun all(): Map<String, JSONObject> = JSONArray(File(dir, "sessions.json").readText()).let { a -> (0 until a.length()).associate { a.getJSONObject(it).getString("id") to a.getJSONObject(it) } }
+    private fun sessions(): List<JSONObject> {
+        val only = System.getenv("RUNLINE_BACKTEST_ONLY")?.split(',')?.filter { it.isNotBlank() }
+        val synthetic =
+            SyntheticRuns
+                .catalog()
+                .map(SyntheticRuns::session)
+                .takeUnless { System.getenv("RUNLINE_BACKTEST_SYNTHETIC") == "0" }
+                .orEmpty()
+        return (recorded() + synthetic).filter { only == null || it.getString("id") in only }
+    }
+
+    private fun all(): Map<String, JSONObject> = recorded().associateBy { it.getString("id") }
 
     @Test fun replay() {
         assumeTrue(step("replay"))
@@ -40,6 +52,7 @@ class LiveCoachBacktest {
     }
 
     private fun load(session: JSONObject): RunSession {
+        session.optJSONObject("scenario")?.let { return SyntheticRuns.run(it) }
         val file = File(session.getString("file"))
         val points =
             if (file.extension == "csv") {
@@ -92,14 +105,56 @@ class LiveCoachBacktest {
         return (0 until events.length()).map(events::getJSONObject)
     }
 
+    private fun historyOf(
+        session: JSONObject,
+        catalog: Map<String, JSONObject>,
+    ): List<RunSession> {
+        session.optJSONObject("scenario")?.let { return SyntheticRuns.history(it) }
+        val ids = session.optJSONArray("history")?.let { h -> (0 until h.length()).map(h::getString) }.orEmpty()
+        return ids.map { load(catalog.getValue(it)) }
+    }
+
+    private fun activeOffsets(full: RunSession): LongArray {
+        val points = full.points
+        val paused = RunEvents.pauseStarts(continuousSegments(points), full.endedAtMs - full.startedAtMs - full.activeDurationMs)
+        val offsets = LongArray(points.size)
+        for (i in 1 until points.size) {
+            val gap = points[i].timestampMs - points[i - 1].timestampMs
+            offsets[i] = offsets[i - 1] + if (points[i - 1].timestampMs in paused && points[i].segment != points[i - 1].segment) 0L else gap
+        }
+        return offsets
+    }
+
     private fun config(session: JSONObject): CoachConfig {
         val goal = session.optJSONObject("goal") ?: JSONObject()
-        val effort = runCatching { SmartRunEffort.valueOf(goal.optString("effort")) }.getOrNull()
+        val band = goal.optJSONArray("band")
+        val base =
+            CoachConfig(
+                enabled = true,
+                effortIntent = runCatching { SmartRunEffort.valueOf(goal.optString("effort")) }.getOrNull(),
+                paceMinSecondsPerKm = band?.getInt(0),
+                paceMaxSecondsPerKm = band?.getInt(1),
+            )
         return when (goal.optString("type", "NONE")) {
-            "TIME" -> CoachConfig(enabled = true, goal = CoachGoal.TIME, targetMinutes = goal.getDouble("minutes"), effortIntent = effort)
-            "DISTANCE" -> CoachConfig(enabled = true, goal = CoachGoal.DISTANCE, distanceKm = goal.getDouble("km"), effortIntent = effort)
-            "DISTANCE_TIME" -> CoachConfig(enabled = true, goal = CoachGoal.DISTANCE_TIME, distanceKm = goal.getDouble("km"), targetMinutes = goal.getDouble("minutes"), effortIntent = effort)
-            else -> CoachConfig(enabled = true, effortIntent = effort)
+            "TIME" -> {
+                base.copy(goal = CoachGoal.TIME, targetMinutes = goal.getDouble(MINUTES))
+            }
+
+            "DISTANCE" -> {
+                base.copy(goal = CoachGoal.DISTANCE, distanceKm = goal.getDouble(KM))
+            }
+
+            "DISTANCE_TIME" -> {
+                base.copy(goal = CoachGoal.DISTANCE_TIME, distanceKm = goal.getDouble(KM), targetMinutes = goal.getDouble(MINUTES))
+            }
+
+            "PACE" -> {
+                base.copy(goal = CoachGoal.PACE, paceSecondsPerKm = goal.getInt("pace"))
+            }
+
+            else -> {
+                base
+            }
         }
     }
 
@@ -114,7 +169,7 @@ class LiveCoachBacktest {
         val language = session.optString("language", "Spanish")
         val voice = LocalVoice(if (language == "Spanish") "es" else "en", System.getenv("RUNLINE_BACKTEST_LAP_PERCENT")?.toDoubleOrNull() ?: 3.0)
         val config = config(session)
-        val history = session.optJSONArray("history")?.let { h -> (0 until h.length()).map { load(catalog.getValue(h.getString(it))) } }.orEmpty()
+        val history = historyOf(session, catalog)
         val aspiration = RunnerGoal(session.optString("aspiration", ""))
         val earlierIds = session.optJSONArray("history")?.let { h -> (0 until h.length()).map(h::getString) }.orEmpty()
         val heard = EarlierRunLines.of(earlierIds.map(::earlierLog))
@@ -125,7 +180,9 @@ class LiveCoachBacktest {
         val engine = CoachEngine(config, null, terrainPoint = { if (full.elevationSource == TerrainSource.TERRAIN_MAP) it else it.copy(altitudeMeters = null, verticalAccuracyMeters = null) })
         val schedule = CoachSpeechSchedule()
         val plan = LiveCoachPlan(variety = System.getenv("RUNLINE_BACKTEST_VARIETY")?.toIntOrNull() ?: full.id.hashCode())
-        val provider = AnthropicProvider()
+        val metrics = mutableListOf<AiRequestMetric>()
+        val provider = AnthropicProvider(onMetric = { synchronized(metrics) { metrics += it } })
+        val activeAt = activeOffsets(full)
         val said = mutableListOf<AiSpokenFeedback>()
         val used = mutableListOf<String>()
         val lines = JSONArray()
@@ -204,7 +261,7 @@ class LiveCoachBacktest {
             }
         }
         points.indices.forEach { index ->
-            clock = points[index].timestampMs - start
+            clock = activeAt[index]
             val now = clock
             val run = RunSession(full.id, start, start, now, points.subList(0, index + 1), elevationSource = full.elevationSource)
             val cue = engine.update(run, recording = true, gpsFresh = true)
@@ -301,6 +358,9 @@ class LiveCoachBacktest {
             .put("aspiration", aspiration.text)
             .put("final_facts", LiveFacts.of(whole, AiCoachingContext.build(today, activeGoal = config, activeRun = full, history = history, runnerGoal = aspiration)))
             .put("requests", plan.attempts)
+            .put("tags", session.optJSONArray("tags") ?: JSONArray(listOf("real")))
+            .put("summary", session.optString("summary"))
+            .put("usage", EvalUsage.of(synchronized(metrics) { metrics.toList() }))
             .put("heard_lines", JSONArray(heard))
             .put("latencies_ms", JSONArray(latencies))
             .put("events", events)
@@ -396,8 +456,9 @@ class LiveCoachBacktest {
                             .put("too_chatty", JSONObject().put("type", "boolean"))
                             .put("problems", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string"))),
                     )
-            val raw = AnthropicProvider().structuredMessage(key!!, judge, JUDGE, input, schema, 16_000, 240_000)
-            File(out, "$id.grade.$rep.json").writeText(JSONObject(raw).put("judge", judge).toString(1))
+            val metrics = mutableListOf<AiRequestMetric>()
+            val raw = AnthropicProvider(onMetric = { metrics += it }).structuredMessage(key!!, judge, JUDGE, input, schema, 16_000, 240_000)
+            File(out, "$id.grade.$rep.json").writeText(JSONObject(raw).put("judge", judge).put("usage", EvalUsage.of(metrics)).toString(1))
         }
     }
 
@@ -610,6 +671,8 @@ class LiveCoachBacktest {
     }
 
     private companion object {
+        const val MINUTES = "minutes"
+        const val KM = "km"
         val JUDGE =
             """
 You are an experienced running coach and a demanding editor, reviewing what a voice coach app said into a runner's headphones during one recorded run. Lines marked APP are fixed announcements from the app; lines marked COACH were written live by an AI model. Grade every line, in order, as the runner would have heard it: once, by ear, over music, while running.

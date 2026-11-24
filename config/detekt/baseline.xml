@@ -201,7 +201,6 @@
     <ID>CyclomaticComplexMethod:ActivityDetailsEditor.kt$ActivityDetailsEditor$private fun updateState()</ID>
     <ID>CyclomaticComplexMethod:ActivityExporter.kt$ActivityExportViewModel$internal fun prepare( context: Context, runs: List&lt;RunSession&gt;, kind: ExportKind, action: ExportAction, locale: Locale, zone: ZoneId, names: Map&lt;com.runline.app.core.ActivityType, String&gt;, base: String, )</ID>
     <ID>CyclomaticComplexMethod:ActivityPhotoImporter.kt$ActivityPhotoImporter$fun import( context: Context, runId: String, uri: Uri, ): String</ID>
-    <ID>CyclomaticComplexMethod:AiCoachingContext.kt$AiCoachingContext$fun build( today: LocalDate, activeGoal: CoachConfig? = null, activeRun: RunSession? = null, history: List&lt;RunSession&gt; = emptyList(), details: (String) -&gt; ActivityDetails = { ActivityDetails() }, includeNotes: Boolean = false, profile: RunnerProfile = RunnerProfile(), spoken: List&lt;AiSpokenFeedback&gt; = emptyList(), nowElapsedMs: Long = 0L, runnerGoal: RunnerGoal = RunnerGoal(), insights: RunnerInsights? = null, ): JSONObject</ID>
     <ID>CyclomaticComplexMethod:AiRequestMetric.kt$AiRequestMetric.Companion$private fun estimateCost( model: String, input: Long?, output: Long?, read: Long?, write: Long?, cache: JSONObject?, ): Double?</ID>
     <ID>CyclomaticComplexMethod:AiRunCoach.kt$AiRunCoach$private fun launch( run: RunSession, goalConfig: CoachConfig, terrain: CoachTerrain, settings: AiConfig, call: LiveCall, milestone: JSONObject?, deliver: (line: LiveLine?, valid: () -&gt; Boolean, label: String, latencyMs: Long) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:AiRunSummary.kt$AiRunSummary$fun of( sourceRun: RunSession, details: ActivityDetails? = null, includeNotes: Boolean = false, ): JSONObject</ID>
@@ -1785,7 +1784,6 @@
     <ID>MaxLineLength:LapAnalysis.kt$LapTracker$val usable = point.hasValidCoordinates() &amp;&amp; point.timestampMs &gt;= 0 &amp;&amp; point.accuracyMeters.isFinite() &amp;&amp; point.accuracyMeters in 0f..15f</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$"\\b(?:vas(?: a (?:ir|llegar|terminar|acabar))?|ve|llegas?|llegar|llegues|corres?|correr|sigues?|seguir|mantente|qu[eé]date|est[aá]s|terminas?|terminar|acabas?|acabar|vuelves|eres|verte|te veo|as[ií] de)"</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$"goal" -&gt; if (point.id.startsWith("goal/reached")) listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.LOOK_AHEAD, LiveStyle.NUMBER_FIRST, LiveStyle.PUNCHY)</ID>
-    <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$"moment" -&gt; if (point.id == "moment/goal") listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.CELEBRATE)</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$.</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$?:</ID>
     <ID>MaxLineLength:LiveAiAdvice.kt$LiveAiAdvice$input.put("rejected_draft", JSONObject().put("text", first).put("problem", flaw).put("instruction", "Write a different line that fixes this."))</ID>
@@ -1813,19 +1811,16 @@
     <ID>MaxLineLength:LiveAiAdviceTest.kt$LiveAiAdviceTest$assertNull(LiveAiAdvice.compose(provider("Dime cómo vas.", "Cuéntame qué tal."), "k".repeat(20), "claude-haiku-5-5", "Spanish", data(), LiveCall(LiveTrigger.CADENCE, null, LiveFocus.TECHNIQUE, 2)))</ID>
     <ID>MaxLineLength:LiveAiAdviceTest.kt$LiveAiAdviceTest$assertNull(LiveAiAdvice.compose(provider("Vas a 452 por kilómetro.", "Llevas 9 metros."), "fake-key", "claude-haiku-5-5", "Spanish", data(), kilometre, milestone = third))</ID>
     <ID>MaxLineLength:LiveAiAdviceTest.kt$LiveAiAdviceTest$val avoid = LiveAiAdvice.avoid(data("AI" to "Vas tranquilo, sin prisa.", "AI" to "Qué tranquila va la mañana.", "LOCAL" to "1 kilómetro completado.").getJSONObject("coaching_context").getJSONArray("recent_spoken_feedback"))</ID>
-    <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$"DISTANCE_TIME" -&gt; CoachConfig(enabled = true, goal = CoachGoal.DISTANCE_TIME, distanceKm = goal.getDouble("km"), targetMinutes = goal.getDouble("minutes"), effortIntent = effort)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$(0 until events.length()).map { events.getJSONObject(it) }.forEach { append(" -- ${it.getLong("at_s") / 60}:${"%02d".format(it.getLong("at_s") % 60)} ${it.getString("event")} ${it.getString("label")} ${it.optString("reason")}\n") }</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$.</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$RunPoint(m.groupValues[1].toDouble(), m.groupValues[2].toDouble(), Instant.parse(time).toEpochMilli(), accuracy, null, segment.coerceAtLeast(0))</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$Waiting(it.text, now + latency, "$label ${it.pointId}", latency, LiveFacts.of(summary, context).put("terrain", context.opt("recent_terrain") ?: JSONObject.NULL), now, it.point)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$if (offered) meta[w.text] = w else events.put(JSONObject().put("at_s", now / 1000).put("event", "rejected").put("label", w.label))</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$if (schedule.offer(CoachSpeechRequest(v.cue.toString(), priority(v.cue), cue = v.cue, advice = v.line?.text, isValid = { engine.situation.allows(v.cue) }), now)) v.line?.let { meta[it.text] = it }</ID>
-    <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$private fun all(): Map&lt;String, JSONObject&gt;</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$schedule.offer(CoachSpeechRequest(cue.toString(), priority(cue), cue = cue, isValid = { engine.situation.allows(cue) }), now)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val call = if (live &amp;&amp; voiceMilestones &amp;&amp; moment != null &amp;&amp; milestone != null &amp;&amp; voicing == null &amp;&amp; waiting == null) plan.milestone(now, moment) else null</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val context = AiCoachingContext.build(today, activeGoal = config, activeRun = run, history = history, spoken = said.toList(), nowElapsedMs = now, runnerGoal = aspiration)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val engine = CoachEngine(config, null, terrainPoint = { if (full.elevationSource == TerrainSource.TERRAIN_MAP) it else it.copy(altitudeMeters = null, verticalAccuracyMeters = null) })</ID>
-    <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val history = session.optJSONArray("history")?.let { h -&gt; (0 until h.length()).map { load(catalog.getValue(h.getString(it))) } }.orEmpty()</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val label = call.trigger.name + (call.moment?.let { ":$it" } ?: if (call.trigger == LiveTrigger.CADENCE) ":${call.focus}" else "")</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val leftToLive = live &amp;&amp; plan.healthy &amp;&amp; cue is CoachCue.Encouragement &amp;&amp; cue.kind !in setOf(EncouragementKind.HALFWAY, EncouragementKind.FINAL_STRETCH)</ID>
     <ID>MaxLineLength:LiveCoachBacktest.kt$LiveCoachBacktest$val voice = LocalVoice(if (language == "Spanish") "es" else "en", System.getenv("RUNLINE_BACKTEST_LAP_PERCENT")?.toDoubleOrNull() ?: 3.0)</ID>
@@ -1851,7 +1846,6 @@
     <ID>MaxLineLength:LivePoints.kt$LivePoints$listOf("late in a run posture tends to sag: hips forward, run tall.", "land softly and quietly, as if not wanting to be heard.", "shake out the hands and drop the shoulders once more.", "keep the steps quick and light all the way in.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints$listOf("short, quick, light steps instead of long strides.", "land with each foot under the hips, not out in front.", "relax the jaw and the face; the rest of the body follows.", "drive the arms straight back, elbows bent, hands loose.", "stay tall through the hips, as if a string lifted the crown of the head.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints$private fun JSONArray?.objects(): List&lt;JSONObject&gt;</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints$private fun median(values: List&lt;Double&gt;): Double?</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints$private val EASY_CHECKS = listOf("could they say a full sentence out loud right now without gasping?", "could they breathe through the nose for a few steps?", "does this feel like a pace they could hold for a long time yet?")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints$private val RESETS = listOf("quick, light steps.", "drop the shoulders and let the arms set the rhythm.", "run tall and look ahead.", "breathe out fully and settle.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints$private val STEADY_CHECKS = listOf("is the breathing strong but still under control?", "are the shoulders and hands still relaxed at this effort?", "does this effort feel like one they can hold to the end?")</ID>
@@ -1871,7 +1865,6 @@
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$.</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("faster/surge", "They are speeding up as the end of today's goal gets close.", pace, "Cheer the surge and tell them to go with it.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("history/longest_passed", "This run has just become their longest of the last 30 days.", mapOf("the_longest_until_today" to say.distance(longest)), "New ground: every step from here is a bonus.")</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("moment/km:$n", "Kilometre $n is done" + (if (insight.isEmpty()) ". Announce it with its time." else ", $insight. Say both: its time, and what it shows."), numbers, hint, covers)</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$LivePoint("steady/back:${every(10)}", "After a slower patch they are back at their usual rhythm for this run.", pace, "Good news; say so.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$fast &gt; slow &amp;&amp; easy -&gt; "They finished stronger than they started; on an easy day the quick one is banked, no need for another."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "Admire the control, and remind them an easy day does not need to keep getting faster." else "A textbook progressive run; say so."</ID>
@@ -1880,7 +1873,6 @@
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (easy) "No problem today; ask only for good form." else "Say it plainly and kindly, then give one job for the next kilometre: win back the rhythm, not the time."</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$if (splits.size &gt;= 3 &amp;&amp; splits.zipWithNext().all { (a, b) -&gt; b &lt; a - 2 }) return LivePoint("goal/reached", "Goal reached, and every kilometre was faster than the one before.", emptyMap(), "Celebrate properly.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$listOfNotNull(best?.takeIf { splits.size &lt; 3 || !splits.zipWithNext().all { (a, b) -&gt; b &lt; a - 2 } }?.let { "best/km:$it" })</ID>
-    <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("best/km:$best", "Their fastest kilometre so far today is kilometre $best.", mapOf("time_of_that_kilometre" to say.time(splits.min())), "Remind them what they have already shown today.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("goal/next_km:$next", "Kilometre $next is coming up soon.", mapOf("distance_left_to_kilometre_$next" to say.distance(left)), "Give them that small target to run to.")</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("goal/reached", "Goal reached. Their quickest kilometre was kilometre $best.", mapOf("quickest_kilometre_time" to say.time(splits.min())), "Celebrate properly, then tell them to ease down and breathe.", listOf("best/km:$best"))</ID>
     <ID>MaxLineLength:LivePoints.kt$LivePoints.State$return LivePoint("history/comeback", "This is their first run in several days.", mapOf("days_since_the_last_run" to say.days(days)), "Glad they are back out.")</ID>
@@ -2516,7 +2508,6 @@
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (back) " Do not give the difference." else "")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (easy) "Admire the control; an easy day does not need to keep getting faster." else "A textbook progressive run; say so.")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (easy) "Glad with them; keep it comfortable." else "Be glad with them.")</ID>
-    <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (insight.isEmpty()) ". Announce it with its time." else ", $insight. Say both: its time, and what it shows.")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (stretch) " Today's goal is further than any run of theirs in the last 30 days." else "")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LivePoints.State$(if (versus != null &amp;&amp; abs(versus) &gt;= 8) " Name the comparison as their last run: \"than before\" would sound like earlier today." else "")</ID>
     <ID>UnnecessaryParentheses:LivePoints.kt$LiveSpeech$(if (tenths == 10) " kilometre" else " kilometres")</ID>

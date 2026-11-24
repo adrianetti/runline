@@ -33,22 +33,7 @@ object AiCoachingContext {
                 )
             }
             put("completed_training", completedTraining(today, history, details))
-            put(
-                "active_goal",
-                activeGoal?.takeIf { it.enabled && it.isValid() }?.let {
-                    JSONObject()
-                        .put("type", it.goal.name)
-                        .put("target_pace_seconds_per_km", it.targetPaceSeconds ?: JSONObject.NULL)
-                        .put("distance_goal_m", it.distanceGoalMeters ?: JSONObject.NULL)
-                        .put("duration_goal_seconds", it.durationGoalMs?.div(1000) ?: JSONObject.NULL)
-                        .put("distance_deadline_minutes", if (it.goal == CoachGoal.DISTANCE_TIME) it.targetMinutes else JSONObject.NULL)
-                        .put("pace_min_seconds_per_km", it.paceMinSecondsPerKm ?: JSONObject.NULL)
-                        .put("pace_max_seconds_per_km", it.paceMaxSecondsPerKm ?: JSONObject.NULL)
-                        .put("intended_effort", it.effortIntent?.name ?: JSONObject.NULL)
-                        .put("local_pace_feedback_enabled", it.paceFeedback)
-                        .put("local_milestones_enabled", it.kilometreAnnouncements)
-                } ?: JSONObject.NULL,
-            )
+            put("active_goal", activeGoal?.let(::goal) ?: JSONObject.NULL)
             put("recent_terrain", activeRun?.let(::terrain) ?: JSONObject.NULL)
             put(
                 "recent_runs",
@@ -196,4 +181,20 @@ object AiCoachingContext {
             ).put("hill_advice_allowed", estimate?.source == TerrainSource.TERRAIN_MAP && estimate.direction != TerrainDirection.UNKNOWN)
             .put("limits", "Independent terrain map only. Missing or ambiguous positions are unknown. A terrain map does not measure bridges, stairs, fatigue or effort.")
     }
+
+    private fun goal(config: CoachConfig): JSONObject? =
+        config.takeIf { it.enabled && it.isValid() }?.let {
+            JSONObject()
+                .put("type", it.goal.name)
+                .put("target_pace_seconds_per_km", it.targetPaceSeconds ?: JSONObject.NULL)
+                .put("distance_goal_m", it.distanceGoalMeters ?: JSONObject.NULL)
+                .put("duration_goal_seconds", it.durationGoalMs?.div(1000) ?: JSONObject.NULL)
+                .put("distance_deadline_minutes", if (it.goal == CoachGoal.DISTANCE_TIME) it.targetMinutes else JSONObject.NULL)
+                .put("pace_min_seconds_per_km", it.paceMinSecondsPerKm ?: JSONObject.NULL)
+                .put("pace_max_seconds_per_km", it.paceMaxSecondsPerKm ?: JSONObject.NULL)
+                .put("intended_effort", it.effortIntent?.name ?: JSONObject.NULL)
+                .put("clock", if (it.movingClock) "moving" else "active")
+                .put("local_pace_feedback_enabled", it.paceFeedback)
+                .put("local_milestones_enabled", it.kilometreAnnouncements)
+        }
 }

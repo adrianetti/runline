@@ -342,4 +342,205 @@ class LivePointsTest {
         val again = seeded(LiveFocus.TECHNIQUE, 5)
         assertEquals(LivePoints.pick(minute, context(), again, true), LivePoints.pick(minute, context(), again, true))
     }
+
+    private fun band() =
+        context(
+            JSONObject()
+                .put("type", "PACE")
+                .put("target_pace_seconds_per_km", 300)
+                .put("pace_min_seconds_per_km", 290)
+                .put("pace_max_seconds_per_km", 310)
+                .put("intended_effort", "STEADY"),
+            null,
+            Triple("2026-11-07", 8.0, 343.0),
+        )
+
+    private fun race() =
+        context(
+            JSONObject()
+                .put("type", "DISTANCE_TIME")
+                .put("distance_goal_m", 10_000)
+                .put("distance_deadline_minutes", 50)
+                .put("target_pace_seconds_per_km", 300),
+        )
+
+    private fun raceSplits(count: Int): DoubleArray {
+        val all = doubleArrayOf(288.0, 291.0, 292.0, 291.0, 288.0, 303.0, 307.0, 310.0, 321.0, 323.0)
+        return all.copyOfRange(0, count)
+    }
+
+    private fun opening() = LiveCall(LiveTrigger.OPENING, null, LiveFocus.MORALE, 1)
+
+    private fun finish() = LiveCall(LiveTrigger.MOMENT, LiveMoment.GOAL_REACHED, LiveFocus.MORALE, 31)
+
+    private fun kilometre(
+        number: Int,
+        split: Double,
+        before: Double? = null,
+    ) = LiveMilestone.of(CoachCue.Kilometre(number, split, split, before))
+
+    @Test fun `with a target pace, kilometres and check-ins are judged against the target, not the run's own average`() {
+        val start = LivePoints.pick(run(moving = 40.0, extraKm = .09), band(), opening(), false)!!
+        assertFalse(start.point, start.point.contains("by feel"))
+        assertEquals("4 minutes 50 to 5 minutes 10 per kilometre", start.numbers["todays_target_pace"])
+        val warm = LivePoints.pick(run(384.0), band(), km, false, milestone = kilometre(1, 384.0))!!
+        assertTrue(warm.point, warm.point.contains("fine while warming up"))
+        assertEquals("4 minutes 50 to 5 minutes 10 per kilometre", warm.numbers["target_pace"])
+        val on = LivePoints.pick(run(384.0, 368.0, 292.0), band(), km, false, milestone = kilometre(3, 292.0, 368.0))!!
+        assertTrue(on.point, on.point.contains("right on their target pace"))
+        assertEquals(mapOf("time_of_this_kilometre" to "4 minutes 52"), on.numbers)
+        val drifting = run(384.0, 368.0, 292.0, 301.0, 313.0, 305.0, 388.0)
+        val drift = LivePoints.pick(drifting, band(), km, false, milestone = kilometre(7, 388.0, 305.0))!!
+        assertTrue(drift.point, drift.point.contains("slower than their target pace"))
+        assertEquals("78 seconds", drift.numbers["slower_than_the_target_by"])
+        assertFalse(drift.hint!!.contains("normal"))
+        val slow = LivePoints.pick(run(292.0, 301.0, moving = 1500.0, recent = 396.0), band(), cadence(LiveFocus.MORALE), false)!!
+        assertEquals("plan/slow:4", slow.id)
+        assertEquals("6 minutes 36 per kilometre", slow.numbers["pace_now"])
+        val onTarget = run(292.0, 301.0, moving = 1500.0, recent = 296.0, shift = Triple("FASTER", 296.0, 330.0))
+        assertEquals("plan/on", LivePoints.pick(onTarget, band(), cadence(LiveFocus.PACE_TREND), false)!!.id)
+        val selfReferenced = listOf("pace/now", "faster/pace", "history/previous_run")
+        listOf(LiveFocus.PACE_TREND, LiveFocus.HISTORY, LiveFocus.SPLIT_DETAIL).forEach { focus ->
+            val other = LivePoints.pick(onTarget, band(), cadence(focus), false, listOf("plan/on"))?.id.orEmpty()
+            assertTrue(other, selfReferenced.none { other.startsWith(it) })
+        }
+    }
+
+    @Test fun `a time goal is coached against the clock, and a miss is never called a success`() {
+        val start = LivePoints.pick(run(moving = 40.0, extraKm = .09), race(), opening(), false)!!
+        assertEquals(mapOf("todays_goal" to "10 kilometres", "todays_time_goal" to "50 minutes"), start.numbers)
+        val seven = run(*raceSplits(7), moving = 2060.0, extraKm = 0.0)
+        val seventh = LivePoints.pick(seven, race(), km, false, milestone = kilometre(7, 307.0, 303.0))!!
+        assertEquals("40 seconds", seventh.numbers["ahead_of_the_time_goal_by"])
+        assertTrue(seventh.point, seventh.point.contains("slower than that pace"))
+        assertFalse(seventh.hint!!.contains("skill"))
+        val early = run(288.0, 291.0, moving = 665.0, extraKm = .3, recent = 284.0)
+        val banking = LivePoints.pick(early, race(), cadence(LiveFocus.MORALE), false)!!
+        assertEquals("plan/bank:0", banking.id)
+        assertEquals("25 seconds", banking.numbers["ahead_of_the_time_goal_by"])
+        assertTrue(banking.hint!!.contains("settle at goal pace"))
+        val late = run(*raceSplits(8), moving = 2506.0, extraKm = .4, recent = 320.0)
+        val slipping = LivePoints.pick(late, race(), cadence(LiveFocus.HISTORY), false)!!
+        assertEquals("plan", slipping.theme)
+        assertEquals("5 minutes 9 per kilometre", slipping.numbers["pace_needed_from_here"])
+        val last =
+            LivePoints.pick(
+                run(*raceSplits(9), moving = 2691.0, extraKm = 0.0),
+                race(),
+                LiveCall(LiveTrigger.MOMENT, LiveMoment.ONE_KM_LEFT, LiveFocus.GOAL_PROJECTION, 30),
+                false,
+                milestone = JSONObject().put("kind", "ONE_KM_LEFT"),
+            )!!
+        assertEquals("moment/last_km", last.id)
+        assertEquals("9 seconds", last.numbers["ahead_of_the_time_goal_by"])
+        assertEquals("5 minutes 9 per kilometre", last.numbers["pace_needed_for_the_last_kilometre"])
+        val over = LiveMilestone.of(CoachCue.GoalReached(false, CoachFacts(10_000.0, 3_014_000, 301.4)))
+        val missed = LivePoints.pick(run(*raceSplits(10), moving = 3014.0, extraKm = 0.0), race(), finish(), false, milestone = over)!!
+        assertEquals("50 minutes 14", missed.numbers["time"])
+        assertEquals("14 seconds", missed.numbers["over_the_time_goal_by"])
+        assertFalse(missed.point.contains("reached"))
+        assertTrue(missed.hint!!.contains("never say they made the time"))
+        val inside = LiveMilestone.of(CoachCue.GoalReached(true, CoachFacts(10_000.0, 2_990_000, 299.0)))
+        val made = LivePoints.pick(run(*raceSplits(10), moving = 2990.0, extraKm = 0.0), race(), finish(), true, milestone = inside)!!
+        assertEquals("moment/goal", made.id)
+        assertEquals("10 segundos", made.numbers["inside_the_time_goal_by"])
+    }
+
+    @Test fun `a recovery day flags a start quicker than the runner's usual pace, and praises easing back`() {
+        val recovery =
+            context(
+                distanceGoal(4).put("intended_effort", "RECOVERY"),
+                null,
+                Triple("2026-11-09", 12.0, 329.0),
+                Triple("2026-11-06", 6.0, 360.0),
+            )
+        val quick = LivePoints.pick(run(moving = 165.0, extraKm = .5, recent = 323.0), recovery, cadence(LiveFocus.MORALE), true)!!
+        assertEquals("plan/gentle:0", quick.id)
+        assertTrue(quick.point, quick.point.contains("too quick for a recovery day"))
+        assertEquals("5 minutos 23 por kilómetro", quick.numbers["pace_now"])
+        val calm = LivePoints.pick(run(moving = 165.0, extraKm = .4, recent = 380.0), recovery, cadence(LiveFocus.MORALE), true)
+        assertNotEquals("plan", calm?.theme)
+        val first = LivePoints.pick(run(327.0), recovery, km, true, milestone = kilometre(1, 327.0))!!
+        assertTrue(first.point, first.point.contains("too quick for a recovery day"))
+        val eased = LivePoints.pick(run(327.0, 395.0), recovery, km, true, milestone = kilometre(2, 395.0, 327.0))!!
+        assertTrue(eased.point, eased.point.contains("eased back to a gentle pace"))
+        val later = LivePoints.pick(run(327.0, 395.0, 380.0, moving = 1300.0, recent = 320.0), recovery, cadence(LiveFocus.MORALE), true)
+        assertNotEquals("plan", later?.theme)
+        val easy = context(distanceGoal(5).put("intended_effort", "EASY"), null, Triple("2026-11-07", 5.0, 357.0))
+        val hurried = LivePoints.pick(run(moving = 300.0, extraKm = .9, recent = 320.0), easy, cadence(LiveFocus.MORALE), false)
+        assertNotEquals("plan", hurried?.theme)
+    }
+
+    @Test fun `halfway and a slipping time goal are said straight, and an impossible pace is never asked for`() {
+        val half = LiveCall(LiveTrigger.MOMENT, LiveMoment.HALFWAY, LiveFocus.GOAL_PROJECTION, 12)
+        val passed = JSONObject().put("kind", "HALFWAY").put("facts", JSONObject().put("past_halfway", true))
+        val halfway = LivePoints.pick(run(*raceSplits(5), moving = 1460.0, extraKm = .1), race(), half, false, milestone = passed)!!
+        assertEquals(mapOf("time_so_far" to "24 minutes 20", "ahead_of_the_time_goal_by" to "1 minute 10"), halfway.numbers)
+        assertTrue(halfway.point, halfway.point.contains("against their time goal"))
+        val slow = DoubleArray(9) { 330.0 }
+        val lagging = run(*slow, moving = 2970.0, extraKm = 0.0, recent = 330.0)
+        val behind = LivePoints.pick(lagging, race(), km, false, milestone = kilometre(9, 330.0, 330.0))!!
+        assertEquals("4 minutes 30", behind.numbers["behind_the_time_goal_by"])
+        assertFalse(behind.numbers.containsKey("pace_needed_from_here"))
+        assertTrue(behind.hint!!.contains("out of reach"))
+        val warm = LivePoints.pick(run(moving = 300.0, extraKm = .8, recent = 380.0), band(), cadence(LiveFocus.MORALE), false)!!
+        assertEquals("plan/warm", warm.id)
+        val quick = LivePoints.pick(run(292.0, 301.0, moving = 1500.0, recent = 270.0), band(), cadence(LiveFocus.MORALE), false)!!
+        assertEquals("plan/quick:4", quick.id)
+        val fast = LivePoints.pick(run(292.0, 301.0, 270.0), band(), km, false, milestone = kilometre(3, 270.0, 301.0))!!
+        assertEquals("20 seconds", fast.numbers["quicker_than_the_target_by"])
+    }
+
+    @Test fun `a check-in without news waits for a quiet stretch, and news never waits`() {
+        val data = run(461.0, 463.0, 462.0, recent = 462.0)
+        val ctx = context(timeGoal(60))
+        val tooSoon = LiveCall(LiveTrigger.CADENCE, null, LiveFocus.MORALE, 3, room = false)
+        assertNull(LivePoints.pick(data, ctx, tooSoon, true))
+        assertEquals("best/km:1", LivePoints.pick(data, ctx, tooSoon.copy(room = true), true)!!.id)
+        val easy = context(distanceGoal(5).put("intended_effort", "EASY"))
+        val beyond = LivePoints.pick(run(400.0, 402.0, 398.0, 401.0, 399.0, extraKm = .6), easy, tooSoon, true)!!
+        assertEquals("goal/beyond:4", beyond.id)
+        val later = run(400.0, 402.0, 398.0, 401.0, 399.0, moving = 2700.0, extraKm = 1.4)
+        val heard = listOf(beyond.id, "form/1:0", "effort/0")
+        assertNull(LivePoints.pick(later, easy, tooSoon, true, heard))
+        assertEquals("goal/beyond:5", LivePoints.pick(later, easy, tooSoon.copy(room = true), true, heard)!!.id)
+    }
+
+    @Test fun `an aside waits while a kilometre is about to be announced`() {
+        val close = run(461.0, 463.0, 462.0, extraKm = .92, recent = 462.0)
+        assertNull(LivePoints.pick(close, context(timeGoal(60)), cadence(LiveFocus.TECHNIQUE), false))
+        val silentKilometres = context(timeGoal(60).put("local_milestones_enabled", false))
+        assertEquals("form", LivePoints.pick(close, silentKilometres, cadence(LiveFocus.TECHNIQUE), false)!!.theme)
+        val early = run(461.0, 463.0, 462.0, extraKm = .3, recent = 462.0)
+        assertEquals("form", LivePoints.pick(early, context(timeGoal(60)), cadence(LiveFocus.TECHNIQUE), false)!!.theme)
+    }
+
+    @Test fun `a low-value aside is said once a run, even when its figure changes`() {
+        val heard = listOf("best/km:1", "form/0:1", "effort/1")
+        val faster = run(461.0, 463.0, 440.0, recent = 440.0)
+        val newBest = LivePoints.pick(faster, context(timeGoal(60)), cadence(LiveFocus.MORALE), true, heard)!!
+        assertNotEquals("best", newBest.theme)
+        val week = listOf("history/week:0", "form/0:1", "effort/1")
+        val ctx = context(timeGoal(30, "EASY"), "A first half marathon next spring", Triple("2026-11-06", 4.67, 374.0))
+        val middle = run(464.0, 462.0, moving = 1500.0, extraKm = .2, recent = 460.0)
+        val again = LivePoints.pick(middle, ctx, cadence(LiveFocus.ASPIRATION), true, week)!!
+        assertEquals("bigger", again.theme)
+        val twice = listOf("bigger/aspiration:0", "history/week:0", "form/0:1", "effort/1")
+        val later = run(464.0, 462.0, moving = 1600.0, extraKm = .2, recent = 460.0)
+        val after = LivePoints.pick(later, ctx, cadence(LiveFocus.ASPIRATION), true, twice)
+        assertFalse(after?.id.orEmpty(), after?.theme in setOf("bigger", "history"))
+    }
+
+    @Test fun `a time goal runs on the same clock as the app, leaving stops out when auto-pause is on`() {
+        val half = LiveCall(LiveTrigger.MOMENT, LiveMoment.HALFWAY, LiveFocus.GOAL_PROJECTION, 12)
+        val passed = JSONObject().put("kind", "HALFWAY").put("facts", JSONObject().put("past_halfway", true))
+        val stopped = run(*raceSplits(5), moving = 1460.0, extraKm = .1).put("active_seconds", 1580.0)
+        val moving = LivePoints.pick(stopped, race(), half, false, milestone = passed)!!
+        assertEquals("24 minutes 20", moving.numbers["time_so_far"])
+        assertEquals("1 minute 10", moving.numbers["ahead_of_the_time_goal_by"])
+        val wall = race().apply { getJSONObject("active_goal").put("clock", "active") }
+        val active = LivePoints.pick(stopped, wall, half, false, milestone = passed)!!
+        assertEquals("26 minutes 20", active.numbers["time_so_far"])
+        assertEquals("50 seconds", active.numbers["behind_the_time_goal_by"])
+    }
 }

@@ -18,7 +18,17 @@ object LiveAiAdvice {
     private const val PINNED_START = "(?:^|[.!¡?¿,;]\\s*)(?:sigue\\s+|mantente\\s+)?clavad[oa]s?\\b"
     private const val SECOND_PERSON = "\\b(?:est[aá]s|vas|sigues|vienes|te mantienes|te veo)"
     private const val PINNED_AFTER_VERB = "$SECOND_PERSON\\s+(?:muy\\s+|bien\\s+|tan\\s+)?clavad[oa]s?\\b"
-    private val PINNED = Regex("$PINNED_START|$PINNED_AFTER_VERB")
+    private const val WELCOMED = "\\bbienvenid[oa]s?\\b"
+    private val PINNED = Regex("$PINNED_START|$PINNED_AFTER_VERB|$WELCOMED")
+    private const val BODY_ES =
+        "sin esfuerzo|qu[eé] f[aá]cil|te sale sol[oa]|no te cuesta|tus piernas (?:est[aá]n|saben|van|responden)|" +
+            "tu cuerpo (?:est[aá]|te est[aá]|sabe|te pide|responde)"
+    private const val BODY_EN =
+        "effortless(?:ly)?|feels just right|your legs (?:are|know|feel)|your body (?:is|knows|feels)|didn'?t have to work|no effort at all"
+    private val BODY = Regex("\\b(?:$BODY_ES|$BODY_EN)\\b")
+    private val EVENT_STYLES = listOf(LiveStyle.WARM, LiveStyle.CALM, LiveStyle.LOOK_AHEAD)
+    private val MARKER_STYLES = listOf(LiveStyle.NUMBER_FIRST, LiveStyle.LOOK_AHEAD, LiveStyle.WARM)
+    private val CHEER_STYLES = listOf(LiveStyle.CELEBRATE, LiveStyle.PUNCHY, LiveStyle.NUMBER_FIRST)
 
     fun request(
         provider: CoachAiProvider,
@@ -44,7 +54,7 @@ object LiveAiAdvice {
         val run = data.optJSONObject("run") ?: JSONObject()
         val context = data.optJSONObject("coaching_context") ?: JSONObject()
         val spanish = language == "Spanish"
-        val point = LivePoints.pick(run, context, call, spanish, used, milestone) ?: return null
+        val point = numbered(LivePoints.pick(run, context, call, spanish, used, milestone) ?: return null, milestone)
         val said = context.optJSONArray("recent_spoken_feedback")
         val goal = context.optJSONObject("active_goal")
         val input =
@@ -64,7 +74,8 @@ object LiveAiAdvice {
         fun echo(line: String): String? = repeats(line, earlier) ?: echoesEarlierRuns(line, heard)
 
         fun problem(line: String): String? =
-            figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line) ?: feelings(line)
+            figures(line, point) ?: language(line, spanish) ?: asks(line) ?: leaks(line) ?: gendered(line) ?: claims(line, point)
+                ?: LiveEvents.continuity(line, run)
                 ?: (if (terrainCompatible(line, terrain)) null else "It mentions hills or the ground, which the point does not.") ?: echo(line)
         val instant = milestone != null
         val first = clean(provider.quickMessage(key, model, system(language), input, 400, 12_000, instant), spanish) ?: return null
@@ -89,13 +100,21 @@ object LiveAiAdvice {
                 "form" -> listOf(LiveStyle.CUE_FIRST, LiveStyle.PUNCHY, LiveStyle.WARM)
                 "effort" -> listOf(LiveStyle.WARM, LiveStyle.CALM)
                 "goal" -> if (point.id.startsWith("goal/reached")) listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.LOOK_AHEAD, LiveStyle.NUMBER_FIRST, LiveStyle.PUNCHY)
-                "moment" -> if (point.id == "moment/goal") listOf(LiveStyle.CELEBRATE) else listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.CELEBRATE)
+                "moment" -> marker(point)
                 "start" -> listOf(LiveStyle.WARM)
+                "event" -> EVENT_STYLES
                 "bigger" -> listOf(LiveStyle.WARM, LiveStyle.LOOK_AHEAD)
                 else -> listOf(LiveStyle.NUMBER_FIRST, LiveStyle.WARM, LiveStyle.PUNCHY)
             }
         return fitting[(call.number + call.variety).mod(fitting.size)]
     }
+
+    private fun marker(point: LivePoint): List<LiveStyle> =
+        when {
+            point.id == "moment/goal" -> listOf(LiveStyle.CELEBRATE)
+            point.covers.any { LivePoint.themeOf(it) == "faster" } -> CHEER_STYLES
+            else -> MARKER_STYLES
+        }
 
     private fun aiLines(said: org.json.JSONArray?): List<String> =
         (0 until (said?.length() ?: 0))
@@ -186,6 +205,32 @@ object LiveAiAdvice {
     private val VOCATIVE_ADJECTIVE = Regex("(?:^|[.!¡?¿,;]\\s*)(?:tranquil|relajad|concentrad)[oa]s?\\b|(?:^|[.!¡?¿,;]\\s*)list[oa]s?\\s*[,.!]")
     private val COACH_ADJECTIVE = Regex("\\borgullos[oa]s?\\b")
 
+    internal fun numbered(
+        point: LivePoint,
+        milestone: JSONObject?,
+    ): LivePoint {
+        val key =
+            when (milestone?.optString("kind")) {
+                "KILOMETRE" -> "kilometre_number"
+                "LAP" -> "lap_number"
+                else -> null
+            }
+        val number = milestone?.optInt("number")?.takeIf { it > 0 }
+        return if (key == null || number == null) point else point.copy(numbers = point.numbers + (key to number.toString()))
+    }
+
+    internal fun claims(
+        line: String,
+        point: LivePoint,
+    ): String? = feelings(line) ?: body(line) ?: LiveOrdinals.problem(line, point)
+
+    internal fun body(line: String): String? =
+        if (BODY.containsMatchIn(line.lowercase(java.util.Locale.ROOT))) {
+            "It claims how their body or effort is doing, which you cannot know. Say what the run shows instead."
+        } else {
+            null
+        }
+
     internal fun feelings(line: String): String? {
         val text = line.lowercase(java.util.Locale.ROOT)
         if (text.contains('?') || text.contains('¿')) return null
@@ -242,7 +287,7 @@ object LiveAiAdvice {
 You are this runner's personal coach, running beside them and talking into their ear, mid-run. Say ONE short message in ${if (language == "Spanish") "Spanish as spoken in Spain, informal tú, never vos or usted" else language}: one sentence of 8 to 20 words, or two short ones, 26 words at most. A text-to-speech voice reads it over their music, so it must land at once with someone breathing hard.
 
 WHAT TO SAY
-"point" is the one thing to say this time. It is true and already worked out from the run; your job is to say it the way a great coach would, not to analyse anything. "hint" is the coaching angle to take: it is direction for you, never words to repeat. "numbers" holds the only figures you may speak, already written the way they are said aloud, each named for what it is. Copy them exactly: never change, combine, round or add to them. One figure is usually enough; when the point says to announce something, give its figures. If "numbers" is empty, say no figures at all.
+"point" is the one thing to say this time. It is true and already worked out from the run; your job is to say it the way a great coach would, not to analyse anything. "hint" is the coaching angle to take: it is direction for you, never words to repeat. "numbers" holds the only figures you may speak, already written the way they are said aloud, each named for what it is. Copy them exactly: never change, combine, round or add to them. One figure is usually enough; when the point says to announce something, give its figures. If "numbers" is empty, say no figures at all. When the hint gives the next stretch a job, end on that job in your own words: it is what they carry into the next kilometre.
 Add nothing the point does not contain: no other fact, comparison, trend, projection, distance, time, pace, hill or terrain. You cannot see or feel the runner, so never say how their body, legs, breathing or face are doing. Say the point and stop. Do not add a reason, a feeling, a guess or a consequence that the point and hint do not give. A few words of honest reaction are welcome.
 Write figures in digits exactly as they appear in "numbers"; never spell them out, and never correct yourself mid-sentence.
 When you talk about pace, say faster or slower, never above, below, higher or lower.

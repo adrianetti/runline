@@ -6,7 +6,9 @@ An open-source Android app for runs, walks and hikes. GPS recording, local histo
 
 Actual app screens with synthetic demo data. [Image details](docs/images/README.md).
 
-**New in 0.24.4:** the live coach no longer calls you "clavado" or "clavada" in Spanish; a pinned pace is said of the pace, so it fits any runner. [AI](docs/AI.md#live-coach).
+**New in 0.25:** a live coach tuned by a council of runners. It judges your pace against today's plan (a pace band, a time goal, a recovery day), notices walk breaks, traffic lights, pauses and GPS gaps, talks when something happens instead of every two minutes, gives each kilometre a job for the next stretch, and checks every kilometre number and claim before speaking. Replayed over 25 runs, five runner personas scored it 5.5 points higher, and the share who would keep it on went from 26% to 62%. [AI](docs/AI.md#live-coach), [how it was measured](docs/COACH-EVAL.md).
+
+**In 0.24.4:** the live coach no longer calls you "clavado" or "clavada" in Spanish; a pinned pace is said of the pace, so it fits any runner. [AI](docs/AI.md#live-coach).
 
 **In 0.24.3:** the live coach stops repeating your last run. Check-in topics come in a new order each run, form cues and self-checks start from a different place, and the coach is told what it said on your last two runs so it says things a new way. On a short distance goal "final stretch" and "one kilometre left" no longer play back to back. [AI](docs/AI.md#live-coach).
 
