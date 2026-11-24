@@ -51,3 +51,22 @@ RUNLINE_BACKTEST_STEP=council ./gradlew testDebugUnitTest --tests '*LiveCoachCou
 ```
 
 Without `sessions.json` in the directory only the synthetic scenarios run, so anyone can run the eval without private data. `RUNLINE_BACKTEST_MODE=local` replays with the built-in coach only and makes no calls. A failed council call goes to `errors.jsonl` and is retried by running the step again; finished grades are kept.
+
+## Results for 0.25
+
+Seven rounds on the live coach (`claude-haiku-5-5`), each scored on all 25 runs: council and line judge on Sonnet 5.5, one replay and one judge pass per run. A fresh analyzer read only the train runs each round; the test runs were only scored.
+
+| round | change | test council | train council | keep on | trust | wrong lines/run | lines/10 min | cost/round |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| baseline | 0.24.4 | 40.6 | 36.9 | 26% | 3.5 | 1.76 | 6.2 | $7.76 |
+| 1 | points agree with the run data at the moment they are spoken | 41.8 | 39.4 | 40% | 3.8 | 1.68 | 6.2 | $7.67 |
+| 2 | pace judged against the session plan (paced train runs only: 31.8 to 39.5) | | | | | | | $0.84 |
+| 3 | news first; filler waits for room and plays once | 41.9 | 46.2 | 55% | 4.4 | 1.44 | 4.3 | $5.63 |
+| 4 | kilometre/lap numbers and body claims checked | 42.8 | 45.4 | 52% | 4.4 | 1.48 | 4.3 | $5.78 |
+| 5 | walk, stop, pause, GPS-gap and fast-block events | 42.8 | 43.3 | 50% | 4.1 | 1.42 | 4.4 | $5.74 |
+| 6 | fast blocks dropped (false positives on real GPS) | 42.8 | 46.0 | 60% | 4.5 | 1.40 | 4.3 | $5.69 |
+| 7 | milestones look ahead; halfway stops estimating | **43.5** | 45.2 | **62%** | 4.3 | 1.60 | 4.3 | $5.61 |
+
+Paired against the baseline over all 25 runs, round 7 scores +5.5 ±2.6 council points, +36 ±11 points of keep-on, +0.8 ±0.5 trust and +0.6 ±0.2 variety; wrong lines are −0.2 ±0.9, within noise. On the 13 test runs alone the gain is +2.8 ±3.5, inside the noise of a 13-run set. The split put every paced run in train, so the plan-relative pacing gain shows only there. Calibration: a silent coach scored 11 to 22, the built-in coach 36 and a coach with wrong figures 12 to 15, all below the AI coach. Total spend about $46.
+
+Not measured: a real phone, real GPS beyond the five recorded runs, Spanish text-to-speech over music, and latency on mobile data. Several runs move ±5 to 10 points between identical replays.

@@ -69,4 +69,13 @@ class AiPaceWindowsTest {
         assertTrue(AiRunSummary.of(route(400.0 to 120_000L)).isNull("recent_pace_comparison"))
         assertTrue(AiRunSummary.of(route(80.0 to 120_000L, 80.0 to 120_000L)).isNull("recent_pace_comparison"))
     }
+
+    @Test fun aStandstillIsNeitherASlowdownNorATrend() {
+        val summary = AiRunSummary.of(route(500.0 to 120_000L, 0.0 to 40_000L, 330.0 to 80_000L))
+        assertTrue(summary.isNull("recent_pace_comparison"))
+        assertEquals(242.4, summary.getDouble("recent_pace_seconds_per_km"), 3.0)
+        val running = AiRunSummary.of(route(500.0 to 120_000L, 400.0 to 120_000L))
+        assertEquals("SLOWER", running.getJSONObject("recent_pace_comparison").getString("trend"))
+        assertEquals(300.0, running.getDouble("recent_pace_seconds_per_km"), 3.0)
+    }
 }

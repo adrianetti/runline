@@ -318,4 +318,62 @@ class LiveAiAdviceTest {
         assertNull(LiveAiAdvice.gendered("Tu ritmo sigue clavado, igual que antes."))
         assertNotNull(LiveAiAdvice.gendered("Sigue clavada así hasta el final."))
     }
+
+    @Test fun `a kilometre or lap is only ever called by the number the phone gives`() {
+        val numbers = mapOf("time_of_this_kilometre" to "5 minutes 1", "kilometre_number" to "4")
+        val fourth = LivePoint("moment/km:4", "Kilometre 4 is done.", numbers)
+        assertNotNull(LiveOrdinals.problem("Kilometre 5 is in the bag, 5 minutes 1!", fourth))
+        assertNotNull(LiveOrdinals.problem("¡Quinto kilómetro en 5 minutos 1!", fourth))
+        assertNotNull(LiveOrdinals.problem("Kilómetro cinco hecho.", fourth))
+        assertNull(LiveOrdinals.problem("Kilometre 4 done in 5 minutes 1.", fourth))
+        assertNull(LiveOrdinals.problem("¡Cuarto kilómetro en 5 minutos 1, a 5 minutos por kilómetro!", fourth))
+        assertNull(LiveOrdinals.problem("Ya llevas 5 kilómetros y un segundo por kilómetro más rápido.", fourth))
+        val second = LivePoint("moment/lap:2", "Lap 2 of the same circuit is done.")
+        assertNotNull(LiveOrdinals.problem("Lap one is done.", second))
+        assertNull(LiveOrdinals.problem("Second lap done, same rhythm.", second))
+        val pace = LivePoint("pace/now:3", "Right now they are running faster than their average for this run.")
+        assertNotNull(LiveOrdinals.problem("Kilómetro 7 ya, y vas más rápido.", pace))
+        assertNull(LiveOrdinals.problem("Vas a 6 minutos por kilómetro, más rápido que tu media.", pace))
+    }
+
+    @Test fun `claims about the runner's body or effort are sent back, instructions are not`() {
+        assertNotNull(LiveAiAdvice.body("Ese compás lo sostienes sin esfuerzo."))
+        assertNotNull(LiveAiAdvice.body("Your legs are doing exactly what you asked of them!"))
+        assertNotNull(LiveAiAdvice.body("Tu cuerpo te está pidiendo calma."))
+        assertNull(LiveAiAdvice.body("Relax your shoulders and let your legs turn over quickly."))
+        assertNull(LiveAiAdvice.body("Suelta los hombros y deja que tu cuerpo se relaje."))
+    }
+
+    @Test fun `a kilometre milestone carries its number and a draft with the wrong one is written again`() {
+        val bodies = mutableListOf<JSONObject>()
+        val line =
+            LiveAiAdvice.compose(
+                provider("¡Kilómetro 4 en 7 minutos 22!", "¡Tercer kilómetro en 7 minutos 22, y cada uno más rápido!") { bodies += it },
+                "fake-key",
+                "claude-haiku-5-5",
+                "Spanish",
+                data(),
+                kilometre,
+                milestone = third,
+            )
+        assertEquals("¡Tercer kilómetro en 7 minutos 22, y cada uno más rápido!", line?.text)
+        val input =
+            JSONObject(
+                bodies
+                    .first()
+                    .getJSONArray("messages")
+                    .getJSONObject(0)
+                    .getString("content"),
+            )
+        assertEquals("3", input.getJSONObject("numbers").getString("kilometre_number"))
+        assertTrue(
+            JSONObject(
+                bodies
+                    .last()
+                    .getJSONArray("messages")
+                    .getJSONObject(0)
+                    .getString("content"),
+            ).has("rejected_draft"),
+        )
+    }
 }

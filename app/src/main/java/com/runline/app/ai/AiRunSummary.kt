@@ -3,8 +3,10 @@ package com.runline.app.ai
 import com.runline.app.core.ActivityDetails
 import com.runline.app.core.LapAnalysis
 import com.runline.app.core.RunMetrics
+import com.runline.app.core.RunPoint
 import com.runline.app.core.RunReplay
 import com.runline.app.core.RunSession
+import com.runline.app.core.StopInterval
 import com.runline.app.core.withTrustedElevation
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,6 +14,9 @@ import java.time.Instant
 import java.time.ZoneId
 
 object AiRunSummary {
+    private const val MIN_RECENT_MOVING_MS = 30_000L
+    private const val COMPARED_MS = 240_000L
+
     fun of(
         sourceRun: RunSession,
         details: ActivityDetails? = null,
@@ -40,7 +45,10 @@ object AiRunSummary {
         }
         val recent = run.points.takeLastWhile { run.points.last().timestampMs - it.timestampMs <= 120_000 }
         val recentDistance = RunMetrics.distanceMeters(recent)
-        val recentDuration = RunReplay(run.copy(points = recent)).summary.observedDurationMs
+        val recentStopped = stoppedWithin(stops, recent)
+        val recentDuration =
+            (RunReplay(run.copy(points = recent)).summary.observedDurationMs - recentStopped)
+                .takeIf { recentStopped == 0L || it >= MIN_RECENT_MOVING_MS } ?: 0L
         val lapData = JSONArray()
         val laps = LapAnalysis.analyze(run.points)
         laps.laps.takeLast(12).forEach { lap ->
@@ -89,10 +97,11 @@ object AiRunSummary {
                             com.runline.app.core.StopDetection
                                 .totalMs(stops) / 1000.0,
                         ).put("longest_seconds", (stops.maxOfOrNull { it.durationMs } ?: 0L) / 1000.0),
-                ).put("average_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(distance, moving) ?: JSONObject.NULL)
+                ).put(AiRunEvents.KEY, AiRunEvents.of(sourceRun))
+                .put("average_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(distance, moving) ?: JSONObject.NULL)
                 .put("elapsed_average_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(distance, run.activeDurationMs) ?: JSONObject.NULL)
                 .put("recent_pace_seconds_per_km", RunMetrics.paceSecondsPerKm(recentDistance, recentDuration) ?: JSONObject.NULL)
-                .put("recent_pace_comparison", replay.segments.lastOrNull()?.let(AiPaceWindows::comparison) ?: JSONObject.NULL)
+                .put("recent_pace_comparison", unbrokenComparison(replay.segments.lastOrNull(), stops) ?: JSONObject.NULL)
                 .put("ascent_m", analysis.elevationGainMeters ?: JSONObject.NULL)
                 .put("descent_m", analysis.elevationLossMeters ?: JSONObject.NULL)
                 .put("gps_observed_seconds", analysis.observedDurationMs / 1000.0)
@@ -109,6 +118,23 @@ object AiRunSummary {
             if (includeNotes) result.put("user_title", it.title).put("user_notes", it.description.take(2000))
         }
         return result
+    }
+
+    private fun stoppedWithin(
+        stops: List<StopInterval>,
+        window: List<RunPoint>,
+    ): Long {
+        val from = window.firstOrNull()?.timestampMs ?: return 0L
+        val to = window.last().timestampMs
+        return stops.sumOf { (minOf(it.endMs, to) - maxOf(it.startMs, from)).coerceAtLeast(0L) }
+    }
+
+    private fun unbrokenComparison(
+        segment: List<RunPoint>?,
+        stops: List<StopInterval>,
+    ): JSONObject? {
+        val end = segment?.lastOrNull()?.timestampMs ?: return null
+        return if (stops.any { it.endMs > end - COMPARED_MS && it.startMs < end }) null else AiPaceWindows.comparison(segment)
     }
 
     fun history(

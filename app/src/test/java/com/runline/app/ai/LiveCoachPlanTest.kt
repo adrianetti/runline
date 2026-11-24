@@ -164,4 +164,51 @@ class LiveCoachPlanTest {
         assertEquals(rounds[0], focuses)
         assertEquals(41, plan.milestone(at + 30_000, LiveMoment.KILOMETRE)!!.variety)
     }
+
+    @Test fun `a check-in soon after the last line carries only news, and a quiet check-in is not retried early`() {
+        val plan = LiveCoachPlan()
+        plan.next(40_000, 2)
+        plan.answered(41_000, true)
+        plan.spoken(42_000, ai = true)
+        val soon = plan.next(162_000, 2)!!
+        assertEquals(LiveTrigger.CADENCE, soon.trigger)
+        assertFalse(soon.room)
+        plan.answered(163_000, spoke = false)
+        assertNull(plan.next(208_000, 2))
+        val quiet = plan.next(282_000, 2)!!
+        assertTrue(quiet.room)
+        plan.answered(283_000, spoke = false)
+        assertNull(plan.next(328_000, 2))
+        assertNotNull(plan.next(402_000, 2))
+        assertEquals(4, plan.attempts)
+        val local = LiveCoachPlan()
+        local.next(40_000, 2)
+        local.answered(41_000, true)
+        local.spoken(42_000, ai = true)
+        local.spoken(200_000, ai = false)
+        assertFalse(local.next(282_000, 2)!!.room)
+        val patient = LiveCoachPlan()
+        patient.next(40_000, 5)
+        patient.answered(41_000, true)
+        patient.spoken(42_000, ai = true)
+        assertTrue(patient.next(342_000, 5)!!.room)
+    }
+
+    @Test fun `without news a run hears its kilometres and one aside between them, never a long silence`() {
+        val plan = LiveCoachPlan()
+        val heard = mutableListOf<Long>()
+        var asides = 0
+        (0..1_800_000L step 1_000).forEach { at ->
+            val call = (if (at > 0 && at % 360_000 == 0L) plan.milestone(at, LiveMoment.KILOMETRE) else plan.next(at, 2)) ?: return@forEach
+            val speaks = call.trigger != LiveTrigger.CADENCE || call.room
+            plan.answered(at + 1_000, speaks)
+            if (!speaks) return@forEach
+            plan.spoken(at + 3_000, ai = true)
+            heard += at + 3_000
+            if (call.trigger == LiveTrigger.CADENCE) asides++
+        }
+        assertTrue("$asides", asides in 4..6)
+        assertTrue("$heard", heard.zipWithNext().all { (a, b) -> b - a <= 270_000 })
+        assertTrue("${plan.attempts}", plan.attempts <= 20)
+    }
 }

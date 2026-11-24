@@ -128,6 +128,38 @@ class LiveSpeech(
 }
 
 object LivePoints {
+    private const val LOCKED_IN_SECONDS = 6
+    private const val SHAPE_STALE_SECONDS = 15.0
+    private const val AVERAGE_STALE_SECONDS = 30.0
+    private const val COMEBACK_LATEST_SECONDS = 600.0
+    private const val MILESTONE_SOON_SECONDS = 60.0
+    private const val LIFT_SECONDS = 10.0
+    private const val UNBROKEN_TIME = "They have been running without stopping for the time below."
+    private const val LIFT_EARLIER_KILOMETRES = 3
+    private const val PLAIN_FADE_HINT = "Say it plainly and kindly, with no praise for steadiness, then give this one cue:"
+    private const val EASY_FADE_HINT = "Fine on an easy day: say it plainly, with no praise for steadiness and no push."
+    private const val QUICKER_HINT = "Note it in a few words, without gushing."
+    private const val EASY_QUICKER_HINT = "Note it in a few words; no need for more speed today."
+    private const val SAY_BOTH = "Say both: its time, and what it shows"
+    private const val INTO_NEXT = ", then send them into the next stretch as the hint says."
+    private const val COUNTDOWN_MIN_KM = 1.5
+    private const val COUNTDOWN_MIN_SECONDS = 300.0
+    private const val FINAL_EVERY_MINUTES = 3
+    private val ONCE_PER_RUN =
+        setOf(
+            "history/week",
+            "history/previous_run",
+            "bigger/aspiration",
+            "banked/time",
+            "best/km",
+            "steady/pace",
+            "steady/km",
+            "steady/lap",
+            "pace/now",
+            "splits/spread",
+            "goal/projection",
+        )
+
     fun pick(
         run: JSONObject,
         context: JSONObject,
@@ -136,8 +168,11 @@ object LivePoints {
         used: List<String> = emptyList(),
         milestone: JSONObject? = null,
     ): LivePoint? {
-        val s = State(run, context, LiveSpeech(spanish), call.variety)
-        if (milestone != null) return s.milestone(milestone)
+        val plan = LivePlan(run, context, spanish)
+        val s = State(run, context, LiveSpeech(spanish), call.variety, plan, used)
+        val events = LiveEvents(run, s.say, s.easy, s.easy || s.goal == null, plan.paced)
+        if (milestone != null || events.stoppedNow) return milestone?.let { events.moment(it, plan.moment(it) ?: s.milestone(it), used) }
+        val news = { events.news(used) }
         val order: List<() -> LivePoint?> =
             when (call.trigger) {
                 LiveTrigger.OPENING -> {
@@ -158,23 +193,20 @@ object LivePoints {
 
                 LiveTrigger.CADENCE -> {
                     if (s.nearlyThere) {
-                        listOf(s::paceJumped, s::finalStretch)
+                        listOf(news, plan::now, s::paceJumped, s::finalStretch)
                     } else {
-                        listOf(s::paceJumped, s::beyondGoal, s::longest) +
-                            when (call.focus) {
-                                LiveFocus.PACE_TREND -> listOf(s::shape, s::paceMoved, s::paceSteady, s::paceNow)
-                                LiveFocus.TECHNIQUE -> listOf(s::technique)
-                                LiveFocus.HISTORY -> listOf(s::previousRun, s::week, s::comeback)
-                                LiveFocus.MORALE -> listOf(s::bestKilometre, s::kmSteady, s::timeOnFeet)
-                                LiveFocus.GOAL_PROJECTION -> listOf(s::stage, s::remaining, s::projection)
-                                LiveFocus.EFFORT_CHECK -> listOf(s::effortCheck)
-                                LiveFocus.SPLIT_DETAIL -> listOf(s::shape, s::kmSpread, s::lapSteady)
-                                LiveFocus.ASPIRATION -> listOf(s::aspiration, s::week)
-                            } + listOf(s::earlyPace, s::nextKilometre, s::shape, s::paceNow, s::technique)
+                        listOf(news, plan::now, s::paceJumped, s::beyondGoal, s::longest, s::shape)
                     }
                 }
             }
-        val fresh = order.mapNotNull { it() }.filter { it.id !in used }
+
+        fun offered(points: List<() -> LivePoint?>) = points.mapNotNull { it() }.filter { it.id !in used && plan.fits(it) }
+        val fresh =
+            if (call.trigger == LiveTrigger.CADENCE && !s.nearlyThere) {
+                worthSaying(offered(order), offered(filler(s, call.focus)), used, call.room && !s.milestoneSoon)
+            } else {
+                offered(order)
+            }
         val recent = used.takeLast(2).map(LivePoint::themeOf)
         return fresh.firstOrNull { it.theme !in recent } ?: fresh.firstOrNull().takeIf { call.trigger != LiveTrigger.MOMENT }
     }
@@ -184,6 +216,8 @@ object LivePoints {
         val context: JSONObject,
         val say: LiveSpeech,
         val variety: Int,
+        val plan: LivePlan,
+        val used: List<String>,
     ) {
         val moving = run.number("moving_seconds") ?: 0.0
         val km = run.number("distance_km") ?: 0.0
@@ -203,6 +237,10 @@ object LivePoints {
         val timeGoal = goal?.number("duration_goal_seconds")
         val progress = distanceGoalKm?.let { km / it } ?: timeGoal?.let { moving / it }
         val nearlyThere = progress?.let { it >= .9 && it < 1 } == true
+        private val stretch = LiveStretch(progress, moving, easy)
+        val milestoneSoon =
+            goal?.optBoolean("local_milestones_enabled", true) != false &&
+                (recent ?: average)?.let { (kotlin.math.floor(km) + 1 - km) * it < MILESTONE_SOON_SECONDS } == true
         val today: LocalDate? = runCatching { LocalDate.parse(context.optString("today")) }.getOrNull()
         val earlier: List<Pair<LocalDate, JSONObject>> =
             context
@@ -211,10 +249,23 @@ object LivePoints {
                 .filter { it.optString("activity_type") == run.optString("activity_type") && (it.number("distance_km") ?: 0.0) >= .3 }
                 .mapNotNull { r -> runCatching { LocalDate.parse(r.optString("date")) }.getOrNull()?.takeIf { today != null && it <= today }?.let { it to r } }
         val previousPace = earlier.firstOrNull()?.second?.number("average_pace_seconds_per_km")
+        val interrupted = run.optJSONObject(AiRunEvents.KEY)?.optBoolean("interrupted") == true
 
         private fun every(minutes: Int) = (moving / 60 / minutes).toInt()
 
-        private fun vary(options: List<String>) = options[variety.mod(options.size)]
+        private fun vary(
+            options: List<String>,
+            turn: Int = 0,
+        ) = options[(variety + turn).mod(options.size)]
+
+        private fun ahead(
+            n: Int,
+            numbers: MutableMap<String, String>,
+        ): String = stretch.next(n + variety, numbers, countdown())
+
+        private fun countdown(): String? =
+            distanceGoalKm?.let { it - km }?.takeIf { it > COUNTDOWN_MIN_KM }?.let(say::distance)
+                ?: timeGoal?.let { it - moving }?.takeIf { it > COUNTDOWN_MIN_SECONDS }?.let(say::about)
 
         private fun reset(index: Int) = RESETS[(index + variety).mod(RESETS.size)]
 
@@ -234,14 +285,16 @@ object LivePoints {
             return when (m.optString("kind")) {
                 "KILOMETRE" -> {
                     val n = m.optInt("number")
-                    val time = m.number("split_seconds") ?: splits.getOrNull(n - 1)
-                    val before = m.number("previous_split_seconds") ?: splits.getOrNull(n - 2)
+                    val recorded = splits.size >= n
+                    val time = if (recorded) splits.getOrNull(n - 1) else m.number("split_seconds")
+                    val before = if (recorded) splits.getOrNull(n - 2) else m.number("previous_split_seconds") ?: splits.getOrNull(n - 2)
                     val delta = if (time != null && before != null) (time - before).roundToInt() else null
                     val known = splits.take(n)
                     val numbers = linkedMapOf<String, String>()
                     time?.let { numbers["time_of_this_kilometre"] = say.time(it) }
                     val covers = mutableListOf<String>()
                     val rebound = time?.let { rebound(splits.take(n - 1) + it) }
+                    var onward = false
                     val (insight, hint) =
                         when {
                             known.size >= 3 && known.zipWithNext().all { (a, b) -> b < a - 2 } -> {
@@ -298,11 +351,26 @@ object LivePoints {
 
                             delta != null && delta <= -5 -> {
                                 numbers["it_was_this_much_quicker_than_the_previous_kilometre"] = say.seconds(-delta)
-                                "and it was quicker than the previous kilometre" to "Be glad with them."
+                                onward = true
+                                "and it was quicker than the previous kilometre" to
+                                    (if (easy) EASY_QUICKER_HINT else QUICKER_HINT) + " " + ahead(n, numbers)
+                            }
+
+                            delta != null && shifted(known) < 0 -> {
+                                "and it held the quicker pace of the kilometre before, both quicker than their earlier kilometres" to
+                                    "The lift is holding: say so and point at what is left. Never call it the rhythm of the whole run."
+                            }
+
+                            delta != null && shifted(known) > 0 -> {
+                                "and it matched the kilometre before, both clearly slower than their earlier kilometres" to
+                                    if (easy) EASY_FADE_HINT else "$PLAIN_FADE_HINT ${reset(n)}"
                             }
 
                             delta != null -> {
-                                "and it took almost exactly the same time as the previous kilometre" to vary(EVEN_HINTS)
+                                covers += "steady/km:$n"
+                                onward = true
+                                "and it took almost exactly the same time as the previous kilometre" to
+                                    LiveStretch.steadiness(used) + " " + ahead(n, numbers)
                             }
 
                             n == 1 && time != null && previousPace != null && abs(time - previousPace) >= 5 -> {
@@ -310,10 +378,12 @@ object LivePoints {
                             }
 
                             else -> {
-                                "" to vary(NEXT_KILOMETRE_HINTS)
+                                onward = true
+                                "" to ahead(n, numbers)
                             }
                         }
-                    LivePoint("moment/km:$n", "Kilometre $n is done" + (if (insight.isEmpty()) ". Announce it with its time." else ", $insight. Say both: its time, and what it shows."), numbers, hint, covers)
+                    val said = "Kilometre $n is done" + if (insight.isEmpty()) ". Announce it with its time" else ", $insight. $SAY_BOTH"
+                    LivePoint("moment/km:$n", said + if (onward) INTO_NEXT else ".", numbers, hint, covers)
                 }
 
                 "LAP" -> {
@@ -358,17 +428,11 @@ object LivePoints {
 
                 "HALFWAY" -> {
                     val numbers = linkedMapOf<String, String>()
-                    if (timeGoal != null) {
-                        numbers["distance_so_far"] = say.distance(km)
-                        f?.number("projected_m")?.let { numbers["estimated_distance_by_the_end"] = say.distance(it / 1000) }
-                    } else {
-                        numbers["time_so_far"] = say.about(moving)
-                        f?.number("projected_ms")?.let { numbers["estimated_finish_time"] = say.about(it / 1000) }
-                    }
+                    val estimate = halfwayEstimate(numbers)
                     LivePoint(
                         "moment/halfway",
                         (if (f?.optBoolean("past_halfway") == true) "They have just passed the halfway point of today's goal." else "They are halfway through today's goal.") +
-                            " Announce it with what is done and the estimate for the whole goal at this pace.",
+                            estimate,
                         numbers,
                         "The second half needs only the same rhythm.",
                     )
@@ -411,18 +475,33 @@ object LivePoints {
             }
         }
 
+        private fun halfwayEstimate(numbers: MutableMap<String, String>): String =
+            if (timeGoal != null) {
+                numbers["distance_so_far"] = say.distance(km)
+                if (moving > 0) numbers["estimated_distance_by_the_end"] = say.distance(km / moving * timeGoal)
+                " Announce it with what is done and the estimate for the whole goal at this pace."
+            } else {
+                numbers["time_so_far"] = say.about(moving)
+                distanceGoalKm?.let { it - km }?.takeIf { it > 0 }?.let { numbers[LiveStretch.LEFT] = say.distance(it) }
+                " Announce it with the time so far and the distance still to go. Never estimate when they will finish."
+            }
+
         fun opening(): LivePoint {
             val numbers = linkedMapOf<String, String>()
             val what =
                 when {
                     distanceGoalKm != null -> {
                         numbers["todays_goal"] = say.distance(distanceGoalKm)
-                        "Today's plan is to run the goal distance."
+                        "Today's plan is to run the goal distance." + plan.intention(numbers)
                     }
 
                     timeGoal != null -> {
                         numbers["todays_goal"] = say.about(timeGoal)
-                        "Today's plan is to run for the goal time."
+                        "Today's plan is to run for the goal time." + plan.intention(numbers)
+                    }
+
+                    plan.paced -> {
+                        plan.intention(numbers).trim()
                     }
 
                     else -> {
@@ -443,8 +522,23 @@ object LivePoints {
                         else -> ""
                     } + (if (stretch) " Today's goal is further than any run of theirs in the last 30 days." else ""),
                 numbers,
-                vary(if (easy) EASY_OPENING_HINTS else OPENING_HINTS) + " Do not mention or judge pace or distance: it has barely begun.",
+                vary(if (easy) EASY_OPENING_HINTS else OPENING_HINTS) +
+                    if (plan.paced) {
+                        " Name today's target once, simply. Do not judge their pace yet: it has barely begun."
+                    } else {
+                        " Do not mention or judge pace or distance: it has barely begun."
+                    },
             )
+        }
+
+        private fun shifted(known: List<Double>): Int {
+            val typical = median(known.dropLast(2).takeIf { it.size >= LIFT_EARLIER_KILOMETRES }.orEmpty()) ?: return 0
+            val latest = known.takeLast(2)
+            return when {
+                latest.all { it <= typical - LIFT_SECONDS } -> -1
+                latest.all { it >= typical + LIFT_SECONDS } -> 1
+                else -> 0
+            }
         }
 
         fun earlyPace(): LivePoint? {
@@ -641,6 +735,7 @@ object LivePoints {
             val delta = (late - before).roundToInt()
             if (abs(delta) < 10) return null
             if (delta > 0 && ((progress ?: 0.0) >= .9 || recent?.let { it < late - 10 } == true)) return null
+            if (recent?.let { abs(it - late) > SHAPE_STALE_SECONDS } == true) return null
             val numbers = mapOf("average_of_the_last_two_kilometres" to say.pace(late), "average_of_the_kilometres_before" to say.pace(before))
             return if (delta > 0) {
                 LivePoint(
@@ -662,16 +757,23 @@ object LivePoints {
         fun bestKilometre(): LivePoint? {
             if (splits.size < 2) return null
             val best = splits.indexOf(splits.min()) + 1
-            return LivePoint("best/km:$best", "Their fastest kilometre so far today is kilometre $best.", mapOf("time_of_that_kilometre" to say.time(splits.min())), "Remind them what they have already shown today.")
+            val past = best < splits.size
+            return LivePoint(
+                "best/km:$best",
+                "Their fastest kilometre so far today is kilometre $best, " +
+                    if (past) "an earlier one, so speak of it in the past tense." else "the one just finished.",
+                mapOf("time_of_that_kilometre" to say.time(splits.min())),
+                "Remind them what they have already shown today.",
+            )
         }
 
         fun timeOnFeet(): LivePoint? {
             if (moving < 600) return null
             return LivePoint(
                 "banked/time:${every(10)}",
-                "They have been running without stopping for the time below.",
+                if (interrupted) "They have been on the move for the time below today." else UNBROKEN_TIME,
                 mapOf("running_time" to say.about(moving)),
-                vary(BANKED_HINTS),
+                if (interrupted) "Name it as time already in the bank. Never say the running was unbroken." else vary(BANKED_HINTS),
             )
         }
 
@@ -704,8 +806,8 @@ object LivePoints {
         }
 
         fun paceSteady(): LivePoint? {
-            val (trend, now, _) = shift() ?: return null
-            if (trend != "SIMILAR") return null
+            val (trend, now, delta) = shift() ?: return null
+            if (trend != "SIMILAR" || abs(delta) > LOCKED_IN_SECONDS) return null
             return LivePoint(
                 "steady/pace:${every(6)}",
                 "The pace of the last couple of minutes matches the minutes before it: locked in.",
@@ -786,10 +888,10 @@ object LivePoints {
         fun finalStretch(): LivePoint? {
             val left = distanceGoalKm?.takeIf { it - km > 0 }?.let { say.distance(it - km) } ?: timeGoal?.takeIf { it - moving > 0 }?.let { say.about(it - moving) } ?: return null
             return LivePoint(
-                "goal/final:${every(3)}",
+                "goal/final:${every(FINAL_EVERY_MINUTES)}",
                 "The final stretch of today's goal.",
                 mapOf("left_to_go" to left),
-                vary(if (easy) EASY_FINISH_HINTS else FINISH_HINTS),
+                vary(if (easy) EASY_FINISH_HINTS else FINISH_HINTS, every(FINAL_EVERY_MINUTES)),
             )
         }
 
@@ -834,6 +936,7 @@ object LivePoints {
             val pace = previousPace ?: return null
             val a = average ?: return null
             if (km < .8) return null
+            if (recent?.let { abs(it - a) > AVERAGE_STALE_SECONDS } == true) return null
             val delta = (a - pace).roundToInt()
             val numbers = linkedMapOf("their_previous_run_was" to say.ago(say.days(ChronoUnit.DAYS.between(date, today))))
             if (abs(delta) >= 5) numbers["difference_per_kilometre"] = say.seconds(abs(delta))
@@ -889,6 +992,7 @@ object LivePoints {
         }
 
         fun comeback(): LivePoint? {
+            if (moving > COMEBACK_LATEST_SECONDS) return null
             val days = earlier.firstOrNull()?.let { ChronoUnit.DAYS.between(it.first, today) } ?: return null
             if (days < 3) return null
             return LivePoint("history/comeback", "This is their first run in several days.", mapOf("days_since_the_last_run" to say.days(days)), "Glad they are back out.")
@@ -1005,12 +1109,6 @@ object LivePoints {
             "Celebrate it briefly, then aim them at the next one.",
             "Name it as proof of form, then look ahead.",
         )
-    private val NEXT_KILOMETRE_HINTS =
-        listOf(
-            "Tell them what the next kilometre is for: settling into this rhythm.",
-            "Give the next kilometre one simple job.",
-            "Make it sound like a good start, then look ahead.",
-        )
     private val COOL_DOWN_HINTS =
         listOf(
             "tell them to ease down and breathe.",
@@ -1089,7 +1187,40 @@ object LivePoints {
         return Rebound(previous < recent, (current - recent).roundToInt())
     }
 
-    private fun median(values: List<Double>): Double? = values.sorted().takeIf { it.isNotEmpty() }?.let { (it[(it.size - 1) / 2] + it[it.size / 2]) / 2 }
+    private fun filler(
+        s: State,
+        focus: LiveFocus,
+    ): List<() -> LivePoint?> =
+        when (focus) {
+            LiveFocus.PACE_TREND -> listOf(s::paceMoved, s::paceSteady, s::paceNow)
+            LiveFocus.TECHNIQUE -> listOf(s::technique)
+            LiveFocus.HISTORY -> listOf(s::previousRun, s::week, s::comeback)
+            LiveFocus.MORALE -> listOf(s::bestKilometre, s::kmSteady, s::timeOnFeet)
+            LiveFocus.GOAL_PROJECTION -> listOf(s::stage, s::remaining, s::projection)
+            LiveFocus.EFFORT_CHECK -> listOf(s::effortCheck)
+            LiveFocus.SPLIT_DETAIL -> listOf(s::kmSpread, s::lapSteady)
+            LiveFocus.ASPIRATION -> listOf(s::aspiration, s::week)
+        } + listOf(s::earlyPace, s::nextKilometre, s::paceNow, s::technique)
+
+    private fun worthSaying(
+        news: List<LivePoint>,
+        filler: List<LivePoint>,
+        used: List<String>,
+        room: Boolean,
+    ): List<LivePoint> {
+        val told = used.map(::family).toSet()
+        val (repeated, fresh) = news.partition { family(it.id) in told }
+        if (!room) return fresh
+        return fresh + repeated + filler.filter { family(it.id) !in ONCE_PER_RUN || family(it.id) !in told }
+    }
+
+    private fun family(id: String) = id.substringBefore(':')
+
+    internal fun median(values: List<Double>): Double? {
+        val sorted = values.sorted()
+        if (sorted.isEmpty()) return null
+        return (sorted[(sorted.size - 1) / 2] + sorted[sorted.size / 2]) / 2
+    }
 
     private fun JSONObject.number(name: String): Double? = (opt(name) as? Number)?.toDouble()?.takeIf { it.isFinite() }
 
