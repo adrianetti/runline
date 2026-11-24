@@ -26,30 +26,20 @@ internal class SlopeIndicator(
     private val line = SlopeLine(context)
     private val amount =
         TextView(context).apply {
-            textSize = if (compact) 16f else 18f
+            textSize = TextScale.SECTION.toFloat()
             includeFontPadding = false
             gravity = Gravity.CENTER
-            fontFeatureSettings = "tnum"
+            typeface = Type.display(context)
+            fontFeatureSettings = Type.TABULAR
             setTextColor(context.getColor(R.color.on_surface))
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-    private val label =
-        TerrainLabel(context).apply {
-            text = context.getString(R.string.island_grade)
-            textSize = 12f
-            includeFontPadding = false
-            gravity = Gravity.CENTER
-            setTextColor(context.getColor(R.color.on_surface_variant))
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-
     init {
         orientation = VERTICAL
         gravity = Gravity.CENTER
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         addView(line, LayoutParams(-1, dp(if (compact) 32 else 40)))
         addView(amount, LayoutParams(-1, -2))
-        addView(label, LayoutParams(-1, -2).apply { topMargin = dp(if (compact) 2 else 4) })
         update(TerrainEstimate(), false)
     }
 
@@ -92,79 +82,18 @@ internal class SlopeIndicator(
         val percent = grade?.roundToInt()?.let { String.format(resources.configuration.locales[0], "%+d", it) }
         val text = percent?.let { context.getString(R.string.island_grade_value, it) } ?: "—"
         if (amount.text.toString() != text) amount.text = text
-        label.setTerrain(name, animate)
         contentDescription = if (percent == null) name else context.getString(R.string.map_v9_terrain_accessibility, name, percent)
         line.setGrade(grade, profile, animate)
     }
 
     fun settle() {
         line.settle()
-        label.settle()
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
     private companion object {
         const val UNKNOWN_HOLD_MS = 5_000L
-    }
-}
-
-private class TerrainLabel(
-    context: Context,
-) : androidx.appcompat.widget.AppCompatTextView(context) {
-    private var target = ""
-    private var motion: ValueAnimator? = null
-
-    init {
-        maxLines = 1
-        cameraDistance = 8_000 * resources.displayMetrics.density
-    }
-
-    fun setTerrain(
-        value: String,
-        animate: Boolean,
-    ) {
-        if (value == target) {
-            if (!animate) settle()
-            return
-        }
-        settle()
-        val old = text.toString()
-        target = value
-        if (!animate || !isShown || !ValueAnimator.areAnimatorsEnabled() || old.isBlank()) {
-            settle()
-            return
-        }
-        motion =
-            ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 260
-                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                addUpdateListener {
-                    val progress = it.animatedValue as Float
-                    if (progress >= .5f) text = target
-                    rotationX = if (progress < .5f) 180 * progress else -180 * (1 - progress)
-                    alpha = abs(2 * progress - 1)
-                }
-                start()
-            }
-    }
-
-    fun settle() {
-        motion?.cancel()
-        motion = null
-        text = target
-        rotationX = 0f
-        alpha = 1f
-    }
-
-    override fun onDetachedFromWindow() {
-        settle()
-        super.onDetachedFromWindow()
-    }
-
-    override fun onVisibilityAggregated(isVisible: Boolean) {
-        super.onVisibilityAggregated(isVisible)
-        if (!isVisible) settle()
     }
 }
 

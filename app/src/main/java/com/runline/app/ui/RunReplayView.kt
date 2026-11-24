@@ -77,26 +77,24 @@ class RunReplayView(
     private var terrainStatus = ""
     private var terrainDetailsChanged: (() -> Unit)? = null
     private val terrainListener: () -> Unit = { refreshTerrain() }
-    private val play =
-        control("", R.drawable.ic_play).apply {
-            contentDescription = context.getString(R.string.replay_play)
-            iconPadding = 0
-            backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
-            iconTint = ColorStateList.valueOf(context.getColor(R.color.on_primary))
+    private val title: TextView = label("", 16, bold = true).apply { UiText.heading(this) }
+    private val subtitle: TextView = label("", 14, muted = true).apply { gravity = Gravity.END }
+    private val heading: LinearLayout =
+        LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = GONE
+            addView(title, LinearLayout.LayoutParams(-2, -2))
+            addView(subtitle, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
         }
-    private val speed =
-        SeekBar(context).apply {
-            max = ReplayPresentation.speeds.lastIndex
-            contentDescription = context.getString(R.string.replay_playback_speed)
-        }
-    private val speedValue = label("", 14)
+    private val play = UiButtons.primary(context, context.getString(R.string.replay_play), R.drawable.ic_play)
+    private val speed = UiButtons.outlined(context, "")
     private val seek =
         SeekBar(context).apply {
             max = 10_000
             minimumHeight = dp(48)
             contentDescription = context.getString(R.string.replay_position)
         }
-    private val clock = label("", 12, muted = true)
+    private val clock = label("", 14, muted = true)
     private val tick =
         object : Runnable {
             override fun run() {
@@ -118,22 +116,19 @@ class RunReplayView(
         replay.at(0)?.point?.let { map.setCenter(it.latitude, it.longitude) }
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        val back = context.getString(if (preview) R.string.v20_preview_back_description else R.string.replay_back_to_activities)
         top.addView(
-            floating(context.getString(if (preview) R.string.v20_preview_back else R.string.replay_back), R.drawable.ic_back).apply {
-                contentDescription = context.getString(if (preview) R.string.v20_preview_back_description else R.string.replay_back_to_activities)
+            UiButtons.floating(context, R.drawable.ic_back, back).apply {
                 setOnClickListener {
                     pausePlayback()
                     onBack()
                 }
             },
-            LinearLayout.LayoutParams(-2, dp(48)),
+            LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         if (!preview) {
             top.addView(
-                floating("", R.drawable.ic_more).apply {
-                    contentDescription = context.getString(R.string.replay_options)
-                    iconPadding = 0
-                    setPadding(dp(12), 0, dp(12), 0)
+                UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.replay_options)).apply {
                     setOnClickListener {
                         pausePlayback()
                         onMore(this)
@@ -151,10 +146,7 @@ class RunReplayView(
         )
         if (!preview) {
             addView(
-                floating("", R.drawable.ic_download).apply {
-                    contentDescription = context.getString(R.string.replay_export_file)
-                    iconPadding = 0
-                    setPadding(dp(12), 0, dp(12), 0)
+                UiButtons.floating(context, R.drawable.ic_download, context.getString(R.string.replay_export_file)).apply {
                     isEnabled = replay.durationMs > 0L
                     setOnClickListener {
                         pausePlayback()
@@ -169,56 +161,25 @@ class RunReplayView(
         }
 
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
-        val information =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                if (!preview) setOnClickListener { showDetails() }
-            }
+        val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        information.addView(heading, row(bottom = 4))
         information.addView(readout, row())
-        panel.setChartContent(readout)
+        panel.setChartContent(readout.profile)
         val scroll =
             ScrollView(context).apply {
                 isFillViewport = false
                 addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
             }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        val stackSpeed = resources.configuration.fontScale > 1.5f || resources.configuration.screenWidthDp < 360
-        val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        controls.addView(play, LinearLayout.LayoutParams(dp(64), dp(48)))
-        val speedColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        speedColumn.addView(speed, LinearLayout.LayoutParams(-1, dp(48)))
-        val endpoints =
-            LinearLayout(context).apply {
-                setPadding(dp(16), 0, dp(16), 0)
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            }
-        endpoints.addView(label(context.getString(R.string.replay_multiplier, 1), 12, muted = true), LinearLayout.LayoutParams(0, -2, 1f))
-        endpoints.addView(label(context.getString(R.string.replay_multiplier, 480), 12, muted = true))
-        speedColumn.addView(endpoints)
-        if (stackSpeed) {
-            controls.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        } else {
-            controls.addView(speedColumn, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) })
-        }
-        controls.addView(speedValue, LinearLayout.LayoutParams(-2, -1).apply { marginStart = dp(4) })
-        speedValue.gravity = Gravity.CENTER_VERTICAL
-        if (!preview) {
-            controls.addView(
-                control("", R.drawable.ic_info).apply {
-                    contentDescription = context.getString(R.string.replay_open_details)
-                    iconPadding = 0
-                    setPadding(dp(12), 0, dp(12), 0)
-                    setOnClickListener { showDetails() }
-                },
-                LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
-            )
-        }
-        panel.addView(controls, row(top = if (compact) 8 else 12))
-        if (stackSpeed) panel.addView(speedColumn, row())
         val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        timeline.addView(seek, LinearLayout.LayoutParams(0, dp(48), 1f))
+        seek.setPadding(dp(SEEK_PAD_DP), 0, dp(SEEK_PAD_DP), 0)
+        timeline.addView(seek, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = -dp(SEEK_PAD_DP) })
         timeline.addView(clock, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
         panel.addView(timeline)
+        val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        controls.addView(play, LinearLayout.LayoutParams(0, -2, 1f))
+        controls.addView(speed, LinearLayout.LayoutParams(dp(SPEED_WIDTH_DP), -2).apply { marginStart = dp(8) })
+        panel.addView(controls, row(top = 4))
         addView(
             panel,
             LayoutParams(if (compact) dp(340) else -1, -2, Gravity.BOTTOM or Gravity.START).apply {
@@ -226,25 +187,21 @@ class RunReplayView(
             },
         )
         panel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateInsets() }
+        UiMotion.rise(panel)
         play.isEnabled = replay.durationMs > 0L
         speed.isEnabled = replay.durationMs > 0L
         seek.isEnabled = replay.durationMs > 0L
         play.setOnClickListener { if (playing) pausePlayback() else startPlayback() }
-        speed.setOnSeekBarChangeListener(
-            object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(
-                    bar: SeekBar,
-                    progress: Int,
-                    fromUser: Boolean,
-                ) {
-                    if (fromUser) setPlaybackSpeed(ReplayPresentation.speeds[progress])
+        speed.setOnClickListener { anchor ->
+            androidx.appcompat.widget.PopupMenu(context, anchor).apply {
+                ReplayPresentation.speeds.forEachIndexed { index, value -> menu.add(0, index, index, context.getString(R.string.replay_multiplier, value)) }
+                setOnMenuItemClickListener {
+                    setPlaybackSpeed(ReplayPresentation.speeds[it.itemId])
+                    true
                 }
-
-                override fun onStartTrackingTouch(bar: SeekBar) = Unit
-
-                override fun onStopTrackingTouch(bar: SeekBar) = Unit
-            },
-        )
+                show()
+            }
+        }
         seek.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(
@@ -393,7 +350,7 @@ class RunReplayView(
         if (positionMs >= replay.durationMs) setPosition(0L, smoothHeading = false)
         playing = true
         lastTick = SystemClock.elapsedRealtime()
-        play.contentDescription = context.getString(R.string.replay_pause)
+        play.text = context.getString(R.string.replay_pause)
         play.setIconResource(R.drawable.ic_pause)
         handler.removeCallbacks(tick)
         handler.post(tick)
@@ -403,7 +360,7 @@ class RunReplayView(
         playing = false
         handler.removeCallbacks(tick)
         readout.settle()
-        play.contentDescription = context.getString(if (positionMs >= replay.durationMs && replay.durationMs > 0) R.string.replay_restart else R.string.replay_play)
+        play.text = context.getString(if (positionMs >= replay.durationMs && replay.durationMs > 0) R.string.replay_restart else R.string.replay_play)
         play.setIconResource(R.drawable.ic_play)
     }
 
@@ -414,8 +371,7 @@ class RunReplayView(
             lastTick = now
         }
         playbackSpeed = value.takeIf { it in ReplayPresentation.speeds } ?: ReplayPresentation.defaultSpeed(replay.durationMs)
-        speed.progress = ReplayPresentation.speeds.indexOf(playbackSpeed)
-        speedValue.text = context.getString(R.string.replay_multiplier, playbackSpeed)
+        speed.text = context.getString(R.string.replay_multiplier, playbackSpeed)
         speed.contentDescription = context.getString(R.string.replay_speed_description, playbackSpeed)
     }
 
@@ -446,7 +402,16 @@ class RunReplayView(
         if (seek.contentDescription != description) seek.contentDescription = description
     }
 
-    private fun showDetails() {
+    fun setHeading(
+        name: String,
+        detail: String,
+    ) {
+        title.text = name
+        subtitle.text = detail
+        heading.visibility = VISIBLE
+    }
+
+    fun showDetails() {
         if (disposed || details?.isShowing == true) return
         pausePlayback()
         val run = replay.session
@@ -461,10 +426,7 @@ class RunReplayView(
         header.addView(label(context.getString(R.string.replay_activity_details), 24, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
         var actions: androidx.appcompat.widget.PopupMenu? = null
         header.addView(
-            floating("", R.drawable.ic_more).apply {
-                contentDescription = context.getString(R.string.replay_options)
-                iconPadding = 0
-                setPadding(dp(12), 0, dp(12), 0)
+            UiButtons.icon(context, R.drawable.ic_more, context.getString(R.string.replay_options)).apply {
                 setOnClickListener {
                     actions =
                         androidx.appcompat.widget.PopupMenu(context, this).apply {
@@ -498,10 +460,7 @@ class RunReplayView(
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(8) },
         )
         header.addView(
-            floating("", R.drawable.ic_close).apply {
-                contentDescription = context.getString(R.string.replay_close_details)
-                iconPadding = 0
-                setPadding(dp(12), 0, dp(12), 0)
+            UiButtons.icon(context, R.drawable.ic_close, context.getString(R.string.replay_close_details)).apply {
                 setOnClickListener { details?.dismiss() }
             },
             LinearLayout.LayoutParams(dp(48), dp(48)),
@@ -581,10 +540,7 @@ class RunReplayView(
                 gravity = Gravity.CENTER_VERTICAL
                 addView(label(context.getString(R.string.replay_elevation), 22, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
                 addView(
-                    floating("", R.drawable.ic_info).apply {
-                        contentDescription = context.getString(R.string.map_v8_stats_info)
-                        iconPadding = 0
-                        setPadding(dp(12), 0, dp(12), 0)
+                    UiButtons.icon(context, R.drawable.ic_info, context.getString(R.string.map_v8_stats_info)).apply {
                         setOnClickListener { showStatsInfo() }
                     },
                     LinearLayout.LayoutParams(dp(48), dp(48)),
@@ -776,52 +732,7 @@ class RunReplayView(
         includeFontPadding = false
         fontFeatureSettings = "tnum"
         setTextColor(context.getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    }
-
-    private fun control(
-        value: String,
-        icon: Int,
-    ) = MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-        text = value
-        isAllCaps = false
-        textSize = 14f
-        minWidth = 0
-        minimumWidth = 0
-        minHeight = dp(48)
-        minimumHeight = dp(48)
-        insetTop = 0
-        insetBottom = 0
-        cornerRadius = dp(12)
-        setIconResource(icon)
-        iconSize = dp(20)
-        iconPadding = dp(5)
-        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-        setPadding(dp(6), dp(6), dp(6), dp(6))
-    }
-
-    private fun floating(
-        value: String,
-        icon: Int,
-    ) = MaterialButton(context).apply {
-        text = value
-        isAllCaps = false
-        textSize = 14f
-        minHeight = dp(48)
-        minimumHeight = dp(48)
-        minWidth = 0
-        minimumWidth = 0
-        insetTop = 0
-        insetBottom = 0
-        cornerRadius = dp(24)
-        backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.surface))
-        setTextColor(context.getColor(R.color.on_surface))
-        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        setIconResource(icon)
-        iconSize = dp(22)
-        iconPadding = dp(8)
-        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-        setPadding(dp(16), 0, dp(16), 0)
+        UiText.restyle(this, size, bold)
     }
 
     private fun row(
@@ -853,5 +764,10 @@ class RunReplayView(
     private fun duration(ms: Long): String {
         val s = ms.coerceAtLeast(0) / 1000
         return if (s >= 3600) String.format(locale(), "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) else String.format(locale(), "%02d:%02d", s / 60, s % 60)
+    }
+
+    private companion object {
+        const val SPEED_WIDTH_DP = 88
+        const val SEEK_PAD_DP = 10
     }
 }

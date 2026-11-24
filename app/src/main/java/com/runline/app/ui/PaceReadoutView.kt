@@ -16,12 +16,12 @@ internal class PaceReadoutView
         context: Context,
         private val compact: Boolean = false,
     ) : ViewGroup(context) {
-        private val maximumSp = if (compact) 40 else 56
+        private val maximumSp = if (compact) TextScale.HERO_COMPACT else TextScale.HERO
         val number = RollingNumberView(context, maximumSp)
         private val unit =
             TextView(context).apply {
                 text = context.getString(R.string.v16_unit_pace)
-                textSize = if (compact) 18f else 20f
+                textSize = (if (compact) TextScale.BODY else TextScale.SECTION).toFloat()
                 includeFontPadding = false
                 maxLines = 1
                 setTextColor(context.getColor(R.color.on_surface_variant))
@@ -53,7 +53,7 @@ internal class PaceReadoutView
             }
             number.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp(size))
             val digitsWidth = ceil(number.paint.measureText(number.text.toString())).toInt().coerceAtMost(room)
-            val height = sp(if (compact) 48 else 66).roundToInt()
+            val height = (sp(maximumSp) * LINE_HEIGHT).roundToInt()
             number.measure(MeasureSpec.makeMeasureSpec(digitsWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
             setMeasuredDimension(resolveSize(digitsWidth + gap + unit.measuredWidth, widthMeasureSpec), resolveSize(height, heightMeasureSpec))
         }
@@ -76,5 +76,9 @@ internal class PaceReadoutView
                 val start = number.right + gap
                 unit.layout(start, unitTop, start + unit.measuredWidth, unitTop + unit.measuredHeight)
             }
+        }
+
+        private companion object {
+            const val LINE_HEIGHT = 1.04f
         }
     }

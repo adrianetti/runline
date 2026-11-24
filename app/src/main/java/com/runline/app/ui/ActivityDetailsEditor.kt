@@ -408,7 +408,7 @@ class ActivityDetailsEditor(
         text = value
         textSize = size.toFloat()
         setTextColor(activity.getColor(if (bold) R.color.on_surface else R.color.on_surface_variant))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        UiText.restyle(this, size, bold)
     }
 
     private fun button(

@@ -34,7 +34,7 @@ class ActiveRunView(
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
     private val panel = ElevationIsland(context)
     private val readout = RunReadoutView(context)
-    private val gps = label(context.getString(R.string.active_loading), 12, muted = true)
+    private val gps = label(context.getString(R.string.active_loading), 14, muted = true)
     private val terrainRepository =
         com.runline.app.terrain.TerrainRepository
             .get(context)
@@ -161,7 +161,7 @@ class ActiveRunView(
             ),
             if (compact) 14 else 16,
             bold = true,
-        )
+        ).apply { UiText.heading(this) }
 
     init {
         map.setNavigationMode(true)
@@ -169,19 +169,11 @@ class ActiveRunView(
         addView(map, LayoutParams(-1, -1))
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(
-            floatingButton(context.getString(R.string.main_activities), R.drawable.ic_back).apply {
-                contentDescription = context.getString(R.string.active_open_activities)
-                setOnClickListener { onOpenRuns() }
-            },
-            LinearLayout.LayoutParams(-2, dp(48)),
+            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.active_open_activities)).apply { setOnClickListener { onOpenRuns() } },
+            LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         header.addView(
-            floatingButton("", R.drawable.ic_more).apply {
-                contentDescription = context.getString(R.string.active_options)
-                setPadding(dp(12), 0, dp(12), 0)
-                iconPadding = 0
-                setOnClickListener { onOptions(this) }
-            },
+            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.active_options)).apply { setOnClickListener { onOptions(this) } },
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
         )
         addView(
@@ -194,13 +186,16 @@ class ActiveRunView(
 
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        information.addView(heading, row(bottom = 4))
+        val status = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        status.addView(heading, LinearLayout.LayoutParams(-2, -2))
+        gps.gravity = Gravity.END
+        status.addView(gps, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
+        information.addView(status, row(bottom = 4))
         information.addView(turnRow, row(top = 4, bottom = 8))
         information.addView(routeRow, row(bottom = 6))
         information.addView(ahead, LinearLayout.LayoutParams(-1, dp(if (compact) 36 else 44)).apply { bottomMargin = dp(8) })
-        information.addView(gps, row(bottom = if (compact) 6 else 12))
         information.addView(readout, row())
-        panel.setChartContent(readout)
+        panel.setChartContent(readout.profile)
         val scroll =
             ScrollView(context).apply {
                 isFillViewport = false
@@ -219,7 +214,7 @@ class ActiveRunView(
         )
         if (paused) {
             controls.addView(
-                action(context.getString(R.string.active_finish), R.drawable.ic_stop, outlined = true).apply {
+                action(context.getString(R.string.active_finish), R.drawable.ic_finish, outlined = true).apply {
                     setOnClickListener { onFinish() }
                 },
                 LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) },
@@ -233,6 +228,7 @@ class ActiveRunView(
             },
         )
         panel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateInsets() }
+        UiMotion.rise(panel)
         update(initial)
     }
 
@@ -615,52 +611,18 @@ class ActiveRunView(
         textSize = size.toFloat()
         includeFontPadding = false
         setTextColor(context.getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    }
-
-    private fun floatingButton(
-        textValue: String,
-        iconId: Int,
-    ) = MaterialButton(context).apply {
-        text = textValue
-        isAllCaps = false
-        textSize = 14f
-        minHeight = dp(48)
-        minimumHeight = dp(48)
-        minWidth = 0
-        minimumWidth = 0
-        insetTop = 0
-        insetBottom = 0
-        cornerRadius = dp(24)
-        backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.surface))
-        setTextColor(context.getColor(R.color.on_surface))
-        iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        setIconResource(iconId)
-        iconSize = dp(22)
-        iconPadding = dp(8)
-        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-        setPadding(dp(16), 0, dp(16), 0)
+        UiText.restyle(this, size, bold)
     }
 
     private fun action(
         textValue: String,
         iconId: Int,
         outlined: Boolean = false,
-    ) = MaterialButton(
-        context,
-        null,
-        if (outlined) com.google.android.material.R.attr.materialButtonOutlinedStyle else com.google.android.material.R.attr.materialButtonStyle,
-    ).apply {
-        text = textValue
-        isAllCaps = false
-        minHeight = dp(if (compact) 48 else 60)
-        minimumHeight = minHeight
-        cornerRadius = dp(16)
-        setIconResource(iconId)
-        iconSize = dp(22)
-        iconPadding = dp(8)
-        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-        setPadding(dp(10), dp(8), dp(10), dp(8))
+    ) = (if (outlined) UiButtons.outlined(context, textValue, iconId) else UiButtons.primary(context, textValue, iconId)).apply {
+        if (compact) {
+            minHeight = dp(48)
+            minimumHeight = dp(48)
+        }
     }
 
     private fun openSpotify(trackUri: String?) {

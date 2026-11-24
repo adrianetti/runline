@@ -102,7 +102,7 @@ class SatelliteMapView(
     private val creditText =
         TextView(context).apply {
             text = context.getString(R.string.map_v8_attribution)
-            textSize = 10f
+            textSize = TextScale.CAPTION.toFloat()
             includeFontPadding = false
             setTextColor(context.getColor(R.color.on_surface))
             background =
@@ -237,7 +237,7 @@ class SatelliteMapView(
             },
         )
         addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(8), 0, dp(64), dp(8)) })
-        controls.addView(mapButton(R.drawable.ic_route, context.getString(R.string.map_fit_route)) { fitRoute() })
+        controls.addView(mapButton(R.drawable.ic_fit, context.getString(R.string.map_fit_route)) { fitRoute() })
         addView(
             controls,
             LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
@@ -974,9 +974,11 @@ class SatelliteMapView(
         background =
             GradientDrawable().apply {
                 setColor(context.getColor(R.color.surface))
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(24).toFloat()
             }
         contentDescription = label
+        tooltipText = label
+        elevation = dp(3).toFloat()
         setPadding(dp(12), dp(12), dp(12), dp(12))
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { bottomMargin = dp(8) }

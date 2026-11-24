@@ -40,13 +40,9 @@ internal class AiSheet(
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(24), dp(12), dp(24), dp(8))
             }
-        header.addView(text(activity.getString(title), 24, true), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(UiText.title(activity, activity.getString(title)), LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(
-            button("", R.drawable.ic_close).apply {
-                contentDescription = activity.getString(R.string.main_close)
-                iconPadding = 0
-                setOnClickListener { close() }
-            },
+            UiButtons.icon(activity, R.drawable.ic_close, activity.getString(R.string.main_close)).apply { setOnClickListener { close() } },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         val shell = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
@@ -93,31 +89,34 @@ internal class AiSheet(
         text = value
         textSize = size.toFloat()
         setTextColor(activity.getColor(if (bold) R.color.on_surface else R.color.on_surface_variant))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        UiText.restyle(this, size, bold)
     }
 
     fun button(
         label: String,
         icon: Int = R.drawable.ic_check,
         filled: Boolean = false,
-    ) = MaterialButton(
-        activity,
-        null,
-        if (filled) com.google.android.material.R.attr.materialButtonStyle else androidx.appcompat.R.attr.borderlessButtonStyle,
-    ).apply {
-        text = label
-        isAllCaps = false
-        textSize = 15f
-        minHeight = dp(52)
-        minimumHeight = dp(52)
-        minWidth = 0
-        minimumWidth = 0
-        setIconResource(icon)
-        iconSize = dp(22)
-        iconPadding = dp(8)
-        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-        cornerRadius = dp(16)
-        setPadding(dp(12), dp(8), dp(12), dp(8))
+    ) = if (filled) {
+        UiButtons.primary(activity, label, icon)
+    } else {
+        MaterialButton(activity, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
+            text = label
+            isAllCaps = false
+            typeface = Type.emphasis()
+            textSize = TextScale.BODY.toFloat()
+            minHeight = dp(Measure.ROW)
+            minimumHeight = dp(Measure.ROW)
+            minWidth = 0
+            minimumWidth = 0
+            setIconResource(icon)
+            iconSize = dp(Measure.ICON)
+            iconPadding = dp(Space.M)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            cornerRadius = dp(Corner.CONTROL)
+            setTextColor(activity.getColor(R.color.on_surface))
+            iconTint = android.content.res.ColorStateList.valueOf(activity.getColor(R.color.on_surface))
+            setPadding(dp(Space.M), dp(Space.S), dp(Space.M), dp(Space.S))
+        }
     }
 
     fun field(

@@ -29,7 +29,7 @@ class RoutesView(
     init {
         orientation = VERTICAL
         val heading = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        heading.addView(text(context.getString(R.string.v19_routes_title), 24, bold = true), LayoutParams(0, -2, 1f))
+        heading.addView(UiText.title(context, context.getString(R.string.v19_routes_title)), LayoutParams(0, -2, 1f))
         heading.addView(
             iconButton(R.drawable.ic_add, R.string.route_import_add).apply { setOnClickListener { onImport() } },
             LayoutParams(dp(48), dp(48)),
@@ -56,13 +56,14 @@ class RoutesView(
             LayoutParams(dp(48), dp(48)),
         )
         addView(heading)
-        addView(text(context.getString(R.string.v19_routes_intro), 14, muted = true), margin(top = 4, bottom = 8))
         val mine = entries.filter { it.imported }
         if (mine.isNotEmpty()) {
-            addView(text(context.getString(R.string.v19_routes_imported_section), 16, bold = true), margin(top = 16, bottom = 4))
+            addView(UiText.label(context, context.getString(R.string.v19_routes_imported_section)), margin(top = 16, bottom = 8))
+            addView(UiRows.hairline(context))
             mine.forEach { addRow(it, onOpen) }
         }
-        addView(text(context.getString(R.string.v19_routes_catalog_section), 16, bold = true), margin(top = 16, bottom = 4))
+        addView(UiText.label(context, context.getString(R.string.v19_routes_catalog_section)), margin(top = 16, bottom = 8))
+        addView(UiRows.hairline(context))
         entries.filter { !it.imported }.forEach { addRow(it, onOpen) }
     }
 
@@ -109,7 +110,7 @@ class RoutesView(
         val row =
             LinearLayout(context).apply {
                 orientation = VERTICAL
-                setPadding(dp(4), dp(18), dp(4), dp(18))
+                setPadding(0, dp(16), 0, dp(16))
                 minimumHeight = dp(80)
                 isClickable = true
                 isFocusable = true
@@ -136,10 +137,10 @@ class RoutesView(
                 }
             },
         )
-        row.addView(text(stats, 16, bold = true), margin(top = 6))
+        row.addView(text(stats, 14), margin(top = 6))
         row.addView(text(meta, 14, muted = true), margin(top = 4))
         addView(row)
-        addView(View(context).apply { setBackgroundColor(context.getColor(R.color.surface_variant)) }, LayoutParams(-1, dp(1)))
+        addView(UiRows.hairline(context))
     }
 
     private fun text(
@@ -152,7 +153,7 @@ class RoutesView(
         textSize = size.toFloat()
         fontFeatureSettings = "tnum"
         setTextColor(context.getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        UiText.restyle(this, size, bold)
     }
 
     private fun margin(

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v26_this_week">Esta semana</string>
+    <string name="v26_week_days">%1$d de 7 días con actividad</string>
+    <string name="v26_route">Ruta</string>
+    <string name="v26_none">Ninguna</string>
+    <string name="v26_average_pace">Ritmo medio</string>
+    <string name="v26_voice_on">Activada</string>
+    <string name="v26_voice_off">Desactivada</string>
+    <string name="v26_speed">%1$d×</string>
+    <string name="v26_fit_route">Mostrar toda la ruta</string>
+    <string name="v26_period_summary">%1$s · %2$s</string>
+    <string name="v26_unit_metres">m</string>
+    <string name="v26_unit_per_km">/km</string>
+    <string name="v26_unit_hours">h</string>
+    <string name="v26_unit_minutes">min</string>
+</resources>

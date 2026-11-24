@@ -61,6 +61,13 @@ android {
             if (hasPersonalSigning) signingConfig = signingConfigs.getByName("personal")
         }
     }
+    sourceSets {
+        getByName("test") { kotlin.directories.add("src/sharedTest/java") }
+        getByName("androidTest") {
+            kotlin.directories.add("src/sharedTest/java")
+            providers.gradleProperty("runline.extraAndroidTestSources").orNull?.let { kotlin.directories.add(rootProject.file(it).path) }
+        }
+    }
     lint {
         abortOnError = true
         warningsAsErrors = true

@@ -137,7 +137,7 @@ internal class ElevationIsland(
         }
         chartBounds.set(bounds)
         baseline = if (bounds.height() > 0) bounds.bottom.toFloat() else height * .60f
-        profileHeight = minOf(dp(64).toFloat(), (bounds.height().takeIf { it > 0 } ?: height) * .32f)
+        profileHeight = (bounds.height().takeIf { it > 0 } ?: height) * PROFILE_SHARE
         trace.sections.forEach { section ->
             val sectionArea = Path()
             var firstX = 0f
@@ -169,11 +169,11 @@ internal class ElevationIsland(
         canvas.withClip(0, chartBounds.top, width, chartBounds.bottom) {
             ink.color = context.getColor(R.color.on_surface)
             ink.style = Paint.Style.FILL
-            ink.alpha = 10
+            ink.alpha = AREA_ALPHA
             canvas.drawPath(area, ink)
             ink.style = Paint.Style.STROKE
-            ink.alpha = 27
-            ink.strokeWidth = resources.displayMetrics.density
+            ink.alpha = LINE_ALPHA
+            ink.strokeWidth = LINE_DP * resources.displayMetrics.density
             ink.strokeJoin = Paint.Join.ROUND
             ink.strokeCap = Paint.Cap.ROUND
             canvas.drawPath(line, ink)
@@ -189,9 +189,16 @@ internal class ElevationIsland(
         }
     }
 
-    private fun x(sample: ObservedElevationTrace.Sample) = dp(8) + (sample.positionMs.toDouble() / trace.durationMs * (width - dp(16)).coerceAtLeast(0)).toFloat()
+    private fun x(sample: ObservedElevationTrace.Sample) = paddingLeft + (sample.positionMs.toDouble() / trace.durationMs * (width - paddingLeft - paddingRight).coerceAtLeast(0)).toFloat()
 
     private fun y(sample: ObservedElevationTrace.Sample) = baseline - ((sample.heightMeters - low) / range * profileHeight).toFloat()
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+
+    private companion object {
+        const val PROFILE_SHARE = 0.72f
+        const val AREA_ALPHA = 20
+        const val LINE_ALPHA = 150
+        const val LINE_DP = 1.5f
+    }
 }

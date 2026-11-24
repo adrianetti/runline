@@ -15,7 +15,6 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
@@ -29,7 +28,6 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.forEach
-import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -50,7 +48,6 @@ import com.runline.app.tracking.TrackingService
 import com.runline.app.ui.ActiveRunView
 import com.runline.app.ui.ActivityDetailsEditor
 import com.runline.app.ui.AiSettingsSheet
-import com.runline.app.ui.AppSettingsSheet
 import com.runline.app.ui.HistoryInsightsView
 import com.runline.app.ui.IconChoices
 import com.runline.app.ui.RunReplayView
@@ -66,7 +63,6 @@ import com.runline.app.tracking.RecordingStatus as TrackingStatus
 
 class MainActivity : AppCompatActivity() {
     private lateinit var root: LinearLayout
-    private lateinit var toolbar: MaterialToolbar
     private lateinit var tabs: TabLayout
     private lateinit var body: LinearLayout
     private lateinit var store: RunStore
@@ -88,7 +84,8 @@ class MainActivity : AppCompatActivity() {
     private var historyType: ActivityType? = null
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
-    private var appSettings: AppSettingsSheet? = null
+    private lateinit var navigationRule: View
+    private var history: List<com.runline.app.core.HistoryActivity>? = null
     private var musicSheet: com.runline.app.ui.MusicSheet? = null
     private var terrainSettings: com.runline.app.ui.TerrainSettingsSheet? = null
     private var dailySuggestion: com.runline.app.ui.DailySuggestionView? = null
@@ -167,54 +164,48 @@ class MainActivity : AppCompatActivity() {
                 setBackgroundColor(getColor(R.color.surface))
             }
         setContentView(root)
-        toolbar =
-            MaterialToolbar(this).apply {
-                title = "Runline"
-                setTitleTextColor(getColor(R.color.on_surface))
-            }
-        root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(64)))
         tabs =
             TabLayout(this).apply {
-                isInlineLabel = true
-                addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_run))
+                isInlineLabel = false
+                tabGravity = TabLayout.GRAVITY_FILL
+                addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_record))
                 addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_history))
                 addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_map))
-                tabIconTint = ColorStateList.valueOf(getColor(R.color.primary))
+                addTab(newTab().setText(R.string.v8_settings).setIcon(R.drawable.ic_settings))
+                tabIconTint = navigationColors()
+                tabTextColors = navigationColors()
                 setSelectedTabIndicatorColor(getColor(R.color.primary))
-                setTabTextColors(getColor(R.color.on_surface_variant), getColor(R.color.primary))
+                setSelectedTabIndicatorGravity(TabLayout.INDICATOR_GRAVITY_TOP)
+                setBackgroundColor(getColor(R.color.surface))
             }
-        root.addView(tabs, LinearLayout.LayoutParams(-1, dp(48)))
         body =
             com.runline.app.ui
                 .SwipeTabs(
                     this,
-                    enabled = { tabs.visibility == View.VISIBLE && screen in setOf("record", "history", "routes") },
+                    enabled = { tabs.visibility == View.VISIBLE && screen in TAB_SCREENS },
                     swipe = { direction ->
-                        val next = (tabs.selectedTabPosition + direction).coerceIn(0, 2)
+                        val next = (tabs.selectedTabPosition + direction).coerceIn(0, TAB_SCREENS.lastIndex)
                         if (next != tabs.selectedTabPosition) {
                             tabs.getTabAt(next)?.select()
-                            if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
-                                body.translationX = dp(24).toFloat() * direction
-                                body
-                                    .animate()
-                                    .translationX(0f)
-                                    .setDuration(180)
-                                    .start()
-                            }
                         }
                     },
                 ).apply { orientation = LinearLayout.VERTICAL }
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
+        navigationRule =
+            com.runline.app.ui.UiRows
+                .hairline(this)
+        root.addView(navigationRule)
+        root.addView(tabs, LinearLayout.LayoutParams(-1, dp(com.runline.app.ui.Measure.NAVIGATION)))
         tabs.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
                 override fun onTabSelected(tab: TabLayout.Tab) {
-                    screen =
-                        when (tab.position) {
-                            0 -> "record"
-                            1 -> "history"
-                            else -> "routes"
-                        }
+                    val from = TAB_SCREENS.indexOf(screen)
+                    screen = TAB_SCREENS[tab.position]
                     render()
+                    if (from >= 0 && from != tab.position) {
+                        com.runline.app.ui.UiMotion
+                            .slide(body, if (tab.position > from) 1 else -1)
+                    }
                     prepareIdle()
                 }
 
@@ -239,6 +230,7 @@ class MainActivity : AppCompatActivity() {
         if (screen == "detail" && currentRun == null) screen = "history"
         if ((screen == "route" || screen == "routePreview") && routeId == null) screen = "routes"
         if (screen == "history") tabs.getTabAt(1)?.select()
+        if (screen == "settings") tabs.getTabAt(TAB_SCREENS.lastIndex)?.select()
         if (screen == "routes" || screen == "route" || screen == "routePreview") {
             val keep = screen
             tabs.getTabAt(2)?.select()
@@ -260,7 +252,6 @@ class MainActivity : AppCompatActivity() {
                 null
             }
         if (savedInstanceState?.getBoolean("about") == true) showAbout()
-        if (savedInstanceState?.getBoolean("appSettings") == true) showSettings()
         if (!openSpotifyCallback() && savedInstanceState?.getBoolean("musicSheet") == true) showMusic()
         if (savedInstanceState?.getBoolean("terrainSettings") == true) showTerrainSettings()
         savedInstanceState?.getBundle("terrainDraft")?.let { terrainSettings?.restoreState(it) }
@@ -333,7 +324,6 @@ class MainActivity : AppCompatActivity() {
         terrainSettings?.close()
         diagnostics?.close()
         runnerProfile?.close()
-        appSettings?.close()
         musicSheet?.close()
         detailsEditor?.close()
         aiSettings?.close()
@@ -369,7 +359,6 @@ class MainActivity : AppCompatActivity() {
         exporter.saveState(outState)
         super.onSaveInstanceState(outState)
         outState.putBoolean("about", about?.isShowing == true)
-        outState.putBoolean("appSettings", appSettings?.isShowing == true)
         outState.putBoolean("musicSheet", musicSheet?.isShowing == true)
         outState.putBoolean("terrainSettings", terrainSettings?.isShowing == true)
         outState.putBoolean("terrainLocating", terrainSettings?.locating == true)
@@ -393,7 +382,7 @@ class MainActivity : AppCompatActivity() {
         } else if (screen == "route") {
             screen = "routes"
             render()
-        } else if (screen == "history" || screen == "routes") {
+        } else if (screen == "history" || screen == "routes" || screen == "settings") {
             tabs.getTabAt(0)?.select()
         } else {
             super.onBackPressed()
@@ -412,24 +401,15 @@ class MainActivity : AppCompatActivity() {
         val state = TrackingService.state(this)
         val live = screen == "record" && state.run != null && state.status != TrackingStatus.RECOVERY_ERROR
         val full = screen == "detail" || screen == "route" || screen == "routePreview"
-        toolbar.visibility = if (live || full) View.GONE else View.VISIBLE
-        toolbar.title = "Runline"
         tabs.visibility = if (full || live) View.GONE else View.VISIBLE
-        toolbar.navigationIcon = if (screen == "detail") AppCompatResources.getDrawable(this, R.drawable.ic_back) else null
-        toolbar.navigationIcon?.setTint(getColor(R.color.on_surface))
-        toolbar.navigationContentDescription = getString(R.string.main_back_activities)
-        configureMenu()
-        toolbar.setNavigationOnClickListener {
-            screen = "history"
-            tabs.getTabAt(1)?.select()
-            render()
-        }
+        navigationRule.visibility = tabs.visibility
         when (screen) {
             "history" -> renderHistory()
             "detail" -> currentRun?.let { renderDetail(it) }
             "routes" -> renderRoutes()
             "route" -> renderRoute()
             "routePreview" -> renderRoutePreview()
+            "settings" -> renderSettings()
             else -> renderRecord()
         }
     }
@@ -487,78 +467,18 @@ class MainActivity : AppCompatActivity() {
             )
             return
         }
-        content.addView(text(getString(R.string.main_ready), 30, bold = true), margin(bottom = 24))
-        val types = ActivityType.entries
-        var picker: com.runline.app.ui.TapDropdown? = null
-        val field =
-            com.runline.app.ui.TapDropdown.field(this) { picker }.apply {
-                hint = getString(R.string.main_activity_type)
-                boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
-                endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-            }
-        val choice =
-            com.runline.app.ui.TapDropdown(field.context).apply {
-                inputType = android.text.InputType.TYPE_NULL
-                setAdapter(ArrayAdapter(context, android.R.layout.simple_list_item_1, types.map(::activityName)))
-                setText(activityName(selectedActivity), false)
-                minHeight = dp(64)
-                setPadding(dp(16), dp(12), dp(16), dp(12))
-                setOnItemClickListener { _, _, index, _ ->
-                    selectedActivity = types[index]
-                    getPreferences(0).edit().putString("activityType", selectedActivity.storageValue).apply()
-                    preparation.intent = null
-                    render()
-                    prepareIdle()
-                }
-            }
-        picker = choice
-        field.addView(choice, LinearLayout.LayoutParams(-1, -2))
-        content.addView(field, margin(bottom = 16))
-        val controls = LinearLayout(this).apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }
-        val voice =
-            iconControl(
-                if (VoiceCoachSettings.load(this).enabled) R.drawable.ic_speaker else R.drawable.ic_speaker_off,
-                getString(if (VoiceCoachSettings.load(this).enabled) R.string.v16_voice_on else R.string.v16_voice_off),
+        val home =
+            com.runline.app.ui.RecordHomeView(
+                this,
+                recordHome(),
+                com.runline.app.ui.RecordHomeActions(type = ::selectActivity, coach = { showCoach() }, route = ::openFollowedRoute),
             )
-        voice.setOnClickListener {
-            val next = VoiceCoachSettings.load(this).copy(enabled = !VoiceCoachSettings.load(this).enabled)
-            if (VoiceCoachSettings.save(this, next)) {
-                TrackingService.refreshCoaching()
-                render()
-                val snackbar = Snackbar.make(root, getString(if (next.enabled) R.string.v16_voice_on else R.string.v16_voice_off), Snackbar.LENGTH_LONG)
-                if (next.enabled) snackbar.setAction(R.string.v16_voice_settings) { showCoach(editGoal = false) }
-                snackbar.show()
-            } else {
-                notice(getString(R.string.ai_error_storage))
-            }
-        }
-        voice.isSelected = VoiceCoachSettings.load(this).enabled
-        controls.addView(voice)
-        controls.addView(
-            iconControl(R.drawable.ic_more, getString(R.string.v16_run_options)).apply {
-                setOnClickListener {
-                    PopupMenu(this@MainActivity, this).apply {
-                        menu.add(0, 1, 0, R.string.v16_voice_settings)
-                        menu.add(0, 2, 1, R.string.coach_ui_goal)
-                        setOnMenuItemClickListener {
-                            showCoach(editGoal = it.itemId == 2)
-                            true
-                        }
-                        show()
-                    }
-                }
-            },
-        )
-        content.addView(controls, margin(top = 8))
-        renderFollowRoute(content)
+        content.addView(home)
         if (selectedActivity == ActivityType.RUN) {
             dailySuggestion =
                 com.runline.app.ui
                     .DailySuggestionView(this, preparation) { render() }
-                    .also { content.addView(it, margin(top = 12)) }
-        }
-        preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }?.let {
-            content.addView(text(VoiceCoachSheet.goalSummary(this, it.goal), 16), margin(top = 12))
+                    .also { home.extras.addView(it) }
         }
         val actions =
             LinearLayout(this).apply {
@@ -567,6 +487,40 @@ class MainActivity : AppCompatActivity() {
             }
         actions.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { requestRecording(TrackingService.ACTION_START) })
         body.addView(actions)
+    }
+
+    private fun selectActivity(type: ActivityType) {
+        if (type == selectedActivity) return
+        selectedActivity = type
+        getPreferences(0).edit().putString("activityType", type.storageValue).apply()
+        preparation.intent = null
+        render()
+        prepareIdle()
+    }
+
+    private fun recordHome(): com.runline.app.ui.RecordHome {
+        val activities = history ?: com.runline.app.core.HistorySummary.prepare(runCatching { store.list() }.getOrDefault(emptyList())).also { history = it }
+        val goal = preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }
+        val voice = getString(if (VoiceCoachSettings.load(this).enabled) R.string.v26_voice_on else R.string.v26_voice_off)
+        val route = followedRoute()?.let { id -> runCatching { routes.entry(id, language())?.name }.getOrNull() }
+        return com.runline.app.ui.RecordHome(
+            type = selectedActivity,
+            week =
+                com.runline.app.core.WeekProgress
+                    .of(activities, System.currentTimeMillis(), ZoneId.systemDefault()),
+            coach = goal?.let { VoiceCoachSheet.goalSummary(this, it.goal) } ?: voice,
+            route = route ?: getString(R.string.v26_none),
+        )
+    }
+
+    private fun openFollowedRoute() {
+        val id = followedRoute()
+        tabs.getTabAt(2)?.select()
+        if (id != null) {
+            routeId = id
+            screen = "route"
+            render()
+        }
     }
 
     private fun activityName(type: ActivityType) =
@@ -585,6 +539,7 @@ class MainActivity : AppCompatActivity() {
         if (finishedId != null && finishedId != lastSavedId) {
             runCatching { store.get(finishedId) }.getOrNull()?.let {
                 preparation.intent = null
+                history = null
                 lastSavedId = finishedId
                 completion.edit().putString("seen_id", finishedId).apply()
                 openRun(it)
@@ -641,65 +596,6 @@ class MainActivity : AppCompatActivity() {
         }
 
     private fun language() = resources.configuration.locales[0].language
-
-    private fun renderFollowRoute(content: LinearLayout) {
-        val id = followedRoute()
-        val entry = id?.let { runCatching { routes.entry(it, language()) }.getOrNull() }
-        if (entry == null) {
-            content.addView(
-                MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
-                    text = getString(R.string.v19_record_choose_route)
-                    isAllCaps = false
-                    setIconResource(R.drawable.ic_map)
-                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-                    minHeight = dp(48)
-                    setOnClickListener { tabs.getTabAt(2)?.select() }
-                },
-                margin(top = 4),
-            )
-            return
-        }
-        val row =
-            LinearLayout(this).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(4), dp(4), 0, dp(4))
-            }
-        row.addView(
-            android.widget.ImageView(this).apply {
-                setImageResource(R.drawable.ic_route)
-                imageTintList = ColorStateList.valueOf(getColor(R.color.on_surface))
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            },
-            LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(12) },
-        )
-        val km = String.format(resources.configuration.locales[0], "%.1f", entry.distanceMeters / 1000)
-        row.addView(
-            LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(text(getString(R.string.v19_record_route, entry.name), 16, bold = true).apply { maxLines = 2 })
-                addView(text(getString(R.string.v19_km, km), 14, muted = true))
-                isClickable = true
-                isFocusable = true
-                setOnClickListener {
-                    routeId = entry.id
-                    screen = "route"
-                    tabs.getTabAt(2)?.select()
-                    screen = "route"
-                    render()
-                }
-            },
-            LinearLayout.LayoutParams(0, -2, 1f),
-        )
-        row.addView(
-            iconControl(R.drawable.ic_close, getString(R.string.v19_record_route_remove)).apply {
-                setOnClickListener {
-                    getPreferences(0).edit { remove("followRoute") }
-                    render()
-                }
-            },
-        )
-        content.addView(row, margin(top = 12))
-    }
 
     private fun renderRoutes() {
         val content = scrollContent()
@@ -857,6 +753,7 @@ class MainActivity : AppCompatActivity() {
                     render()
                 },
             ).also { view ->
+                view.setHeading(entry?.name ?: hiking.name, "")
                 body.addView(view, LinearLayout.LayoutParams(-1, -1))
                 if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
             }
@@ -942,68 +839,69 @@ class MainActivity : AppCompatActivity() {
                 notice(getString(R.string.main_history_failed))
                 emptyList()
             }
-        if (runs.isNotEmpty()) {
-            content.addView(HistoryInsightsView(this, runs, historyType) { historyType = it })
-            val heading = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-            heading.addView(text(getString(R.string.main_activities), 24, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
-            heading.addView(
-                iconControl(R.drawable.ic_more, getString(R.string.v16_history_options)).apply {
-                    setOnClickListener {
-                        PopupMenu(this@MainActivity, this).apply {
-                            menu.add(0, 1, 0, R.string.main_share_all)
-                            menu.add(0, 2, 1, R.string.main_export_all)
-                            setOnMenuItemClickListener {
-                                showHistoryTransfer(runs, it.itemId == 1)
-                                true
-                            }
-                            show()
-                        }
-                    }
-                },
-            )
-            content.addView(heading, margin(top = 24, bottom = 12))
-        }
+        history =
+            com.runline.app.core.HistorySummary
+                .prepare(runs)
+        val heading = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        heading.addView(
+            com.runline.app.ui.UiText
+                .title(this, getString(R.string.main_activities)),
+            LinearLayout.LayoutParams(0, -2, 1f),
+        )
+        content.addView(heading, margin(bottom = 16))
         if (runs.isEmpty()) {
-            content.addView(text(getString(R.string.main_no_activities), 24, bold = true), margin(top = 28))
-            content.addView(button(getString(R.string.main_start), iconId = R.drawable.ic_play) { tabs.getTabAt(0)?.select() })
-        } else {
-            val autoPause =
-                com.runline.app.tracking.RecordingSettings
-                    .autoPause(this)
-            runs.forEach { run ->
-                val distance = RunMetrics.distanceMeters(run.points)
-                val time =
-                    if (autoPause) {
-                        com.runline.app.core.StopDetection
-                            .movingDurationMs(run)
-                    } else {
-                        run.activeDurationMs
+            content.addView(text(getString(R.string.main_no_activities), 16, muted = true))
+            return
+        }
+        heading.addView(historyOptions(runs))
+        content.addView(HistoryInsightsView(this, runs, historyType) { historyType = it }, margin(bottom = 16))
+        content.addView(divider())
+        val autoPause =
+            com.runline.app.tracking.RecordingSettings
+                .autoPause(this)
+        runs.forEach { run ->
+            content.addView(com.runline.app.ui.HistoryRowView(this, historyRow(run, autoPause)) { openRun(run) })
+            content.addView(divider())
+        }
+    }
+
+    private fun historyOptions(runs: List<RunSession>) =
+        iconControl(R.drawable.ic_more, getString(R.string.v16_history_options)).apply {
+            setOnClickListener {
+                PopupMenu(this@MainActivity, this).apply {
+                    menu.add(0, 1, 0, R.string.main_share_all)
+                    menu.add(0, 2, 1, R.string.main_export_all)
+                    setOnMenuItemClickListener {
+                        showHistoryTransfer(runs, it.itemId == 1)
+                        true
                     }
-                val row =
-                    LinearLayout(this).apply {
-                        orientation = LinearLayout.VERTICAL
-                        setPadding(dp(4), dp(20), dp(4), dp(20))
-                        minimumHeight = dp(80)
-                        isClickable = true
-                        isFocusable = true
-                        val attrs = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))
-                        background = attrs.getDrawable(0)
-                        attrs.recycle()
-                        setOnClickListener { openRun(run) }
-                        contentDescription = getString(R.string.main_history_row, activityName(run.activityType), date(run.startedAtMs), number(distance / 1000, 2), duration(time))
-                    }
-                val details = runCatching { store.details(run.id) }.getOrNull()
-                details?.title?.takeIf { it.isNotBlank() }?.let { title ->
-                    row.addView(text(title, 20, bold = true).apply { maxLines = 2 }, margin(bottom = 6))
-                    row.contentDescription = "$title. ${row.contentDescription}"
+                    show()
                 }
-                row.addView(text(getString(R.string.main_activity_date, activityName(run.activityType), date(run.startedAtMs)), 14, muted = true))
-                row.addView(text(getString(R.string.main_distance_km, number(distance / 1000, 2)), 26, bold = true), margin(top = 6))
-                row.addView(text(getString(R.string.main_history_stats, duration(time), pace(RunMetrics.paceSecondsPerKm(distance, time))), 14, muted = true), margin(top = 4))
-                content.addView(row)
-                content.addView(divider())
             }
         }
+
+    private fun historyRow(
+        run: RunSession,
+        autoPause: Boolean,
+    ): com.runline.app.ui.HistoryRow {
+        val distance = RunMetrics.distanceMeters(run.points)
+        val time =
+            if (autoPause) {
+                com.runline.app.core.StopDetection
+                    .movingDurationMs(run)
+            } else {
+                run.activeDurationMs
+            }
+        val type = activityName(run.activityType)
+        val title = runCatching { store.details(run.id).title }.getOrNull()?.takeIf { it.isNotBlank() }
+        val spoken = getString(R.string.main_history_row, type, date(run.startedAtMs), number(distance / METERS_PER_KM, 2), duration(time))
+        return com.runline.app.ui.HistoryRow(
+            title = title ?: type,
+            date = date(run.startedAtMs),
+            distance = number(distance / METERS_PER_KM, 2),
+            stats = getString(R.string.main_history_stats, duration(time), pace(RunMetrics.paceSecondsPerKm(distance, time))),
+            description = if (title == null) spoken else "$title. $spoken",
+        )
     }
 
     private fun openRun(run: RunSession) {
@@ -1029,29 +927,37 @@ class MainActivity : AppCompatActivity() {
                 onEdit = { showActivityEditor(run) },
                 onReview = { showRunReview(run) },
             ).also { view ->
+                val name = runCatching { store.details(run.id).title }.getOrNull()?.takeIf { it.isNotBlank() } ?: activityName(run.activityType)
+                view.setHeading(name, date(run.startedAtMs))
                 view.restore(restoredReplayPosition, restoredReplaySpeed)
                 body.addView(view, LinearLayout.LayoutParams(-1, -1))
                 if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) view.onHostResume()
             }
     }
 
-    private fun configureMenu() {
-        toolbar.menu.clear()
-        toolbar.menu.add(0, 15, 0, R.string.v8_settings).apply {
-            setIcon(R.drawable.ic_settings)
-            icon?.setTint(getColor(R.color.on_surface))
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.setOnMenuItemClickListener {
-            showSettings()
-            true
-        }
+    private fun renderSettings() {
+        scrollContent().addView(
+            com.runline.app.ui.SettingsView(
+                this,
+                com.runline.app.ui.SettingsActions(
+                    profile = ::showRunnerProfile,
+                    ai = ::showAiSettings,
+                    music = ::showMusic,
+                    terrain = ::showTerrainSettings,
+                    language = ::showLanguage,
+                    protection = ::showProtection,
+                    diagnostics = { showDiagnostics() },
+                    about = ::showAbout,
+                ),
+            ),
+        )
     }
 
-    private fun showSettings() {
-        appSettings?.close()
-        appSettings = AppSettingsSheet(this, ::showRunnerProfile, ::showAiSettings, ::showLanguage, ::showProtection, ::showAbout, { showDiagnostics() }, ::showTerrainSettings, ::showMusic).also { it.show() }
-    }
+    private fun navigationColors() =
+        ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_selected), intArrayOf()),
+            intArrayOf(getColor(R.color.on_surface), getColor(R.color.on_surface_variant)),
+        )
 
     private fun showMusic(
         callback: String? = null,
@@ -1080,6 +986,7 @@ class MainActivity : AppCompatActivity() {
     private fun showDetailOptions(anchor: View) {
         PopupMenu(this, anchor)
             .apply {
+                menu.add(0, DETAILS_ITEM, 0, R.string.replay_activity_details)
                 menu.add(0, 13, 0, R.string.v7_edit_activity)
                 if (AiSettings.isReady(this@MainActivity) || currentRun?.let {
                         com.runline.app.ai
@@ -1092,6 +999,7 @@ class MainActivity : AppCompatActivity() {
                 menu.add(0, 16, 2, R.string.diag_v12_coach)
                 menu.add(0, 4, 2, R.string.main_delete_activity)
                 setOnMenuItemClickListener { item ->
+                    if (item.itemId == DETAILS_ITEM) replayView?.showDetails()
                     when (item.itemId) {
                         13 -> {
                             currentRun?.let { showActivityEditor(it) }
@@ -1489,7 +1397,7 @@ class MainActivity : AppCompatActivity() {
         text = value
         textSize = size.toFloat()
         setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        com.runline.app.ui.UiText.restyle(this, size, bold)
         includeFontPadding = false
         setLineSpacing(dp(3).toFloat(), 1f)
     }
@@ -1510,32 +1418,22 @@ class MainActivity : AppCompatActivity() {
         outlined: Boolean = false,
         iconId: Int = 0,
         action: () -> Unit,
-    ) = MaterialButton(
-        this,
-        null,
-        if (outlined) com.google.android.material.R.attr.materialButtonOutlinedStyle else com.google.android.material.R.attr.materialButtonStyle,
-    ).apply {
-        text = label
-        isAllCaps = false
-        minHeight = dp(64)
-        minimumHeight = dp(64)
-        cornerRadius = dp(16)
-        if (iconId != 0) {
-            setIconResource(iconId)
-            iconSize = dp(24)
-            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-            iconPadding = dp(12)
+    ) = (
+        if (outlined) {
+            com.runline.app.ui.UiButtons
+                .outlined(this, label, iconId)
+        } else {
+            com.runline.app.ui.UiButtons
+                .primary(this, label, iconId)
         }
-        setPadding(dp(16), dp(12), dp(16), dp(12))
+    ).apply {
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(-1, -2)
     }
 
     private fun divider() =
-        View(this).apply {
-            setBackgroundColor(getColor(R.color.surface_variant))
-            layoutParams = LinearLayout.LayoutParams(-1, dp(1))
-        }
+        com.runline.app.ui.UiRows
+            .hairline(this)
 
     private fun margin(
         top: Int = 0,
@@ -1565,5 +1463,11 @@ class MainActivity : AppCompatActivity() {
         if (seconds == null || !seconds.isFinite() || seconds < 0) return "—"
         val rounded = seconds.roundToInt()
         return String.format(resources.configuration.locales[0], "%d:%02d", rounded / 60, rounded % 60)
+    }
+
+    private companion object {
+        const val METERS_PER_KM = 1_000.0
+        const val DETAILS_ITEM = 20
+        val TAB_SCREENS = listOf("record", "history", "routes", "settings")
     }
 }

@@ -34,130 +34,53 @@ class HistoryInsightsView(
     private val locale: Locale = resources.configuration.locales[0]
     private val now = System.currentTimeMillis()
     private val prepared = HistorySummary.prepare(runs)
-    private val periods =
-        (listOf<ActivityType?>(null) + ActivityType.entries).associateWith {
-            HistorySummary.forPeriod(prepared, now, zone, it)
-        }
+    private val types = listOf<ActivityType?>(null) + ActivityType.entries
+    private val periods = types.associateWith { HistorySummary.forPeriod(prepared, now, zone, it) }
     private val content = LinearLayout(context).apply { orientation = VERTICAL }
-    private val choices = mutableMapOf<ActivityType?, MaterialButton>()
     private var selected = initialType
     val selectedType: ActivityType? get() = selected
 
     init {
         orientation = VERTICAL
-        addView(label(context.getString(R.string.history_progress), 24, bold = true))
-        val filters = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        periods.keys.forEach { type ->
-            val name =
-                context.getString(
-                    when (type) {
-                        null -> R.string.history_all
-                        ActivityType.RUN -> R.string.history_run
-                        ActivityType.WALK -> R.string.history_walk
-                        ActivityType.HIKE -> R.string.history_hike
-                    },
-                )
-            val button =
-                MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                    text = name
-                    isAllCaps = false
-                    textSize = 14f
-                    minWidth = 0
-                    minimumWidth = 0
-                    minHeight = dp(48)
-                    minimumHeight = dp(48)
-                    setPadding(dp(14), 0, dp(14), 0)
-                    insetTop = dp(3)
-                    insetBottom = dp(3)
-                    contentDescription = context.getString(R.string.history_filter_description, name)
-                    setOnClickListener {
-                        if (selected != type) {
-                            selected = type
-                            render()
-                            onTypeChanged(type)
-                        }
-                    }
-                }
-            choices[type] = button
-            filters.addView(button, LayoutParams(-2, dp(48)).apply { marginEnd = dp(8) })
-        }
+        val names = listOf(R.string.history_all, R.string.history_run, R.string.history_walk, R.string.history_hike).map(context::getString)
         addView(
-            HorizontalScrollView(context).apply {
-                isHorizontalScrollBarEnabled = false
-                addView(filters)
-            },
-            LayoutParams(-1, dp(56)).apply {
-                topMargin = dp(12)
-                bottomMargin = dp(12)
-            },
+            SegmentedControl(context, names, types.indexOf(selected)) { index ->
+                selected = types[index]
+                render()
+                onTypeChanged(selected)
+            }.apply { contentDescription = context.getString(R.string.history_filter_description, names[types.indexOf(selected)]) },
+            row(bottom = Space.XL),
         )
         addView(content, LayoutParams(-1, -2))
         render()
     }
 
     private fun render() {
-        choices.forEach { (type, button) ->
-            val active = type == selected
-            button.isSelected = active
-            button.backgroundTintList = ColorStateList.valueOf(context.getColor(if (active) R.color.primary else R.color.surface))
-            button.setTextColor(context.getColor(if (active) R.color.on_primary else R.color.on_surface))
-            button.strokeColor = ColorStateList.valueOf(context.getColor(R.color.outline))
-            button.strokeWidth = if (active) 0 else dp(1)
-        }
         val period = periods.getValue(selected)
         content.removeAllViews()
-        if (period.activities.isEmpty()) {
-            content.addView(label(context.getString(R.string.history_empty), 15, muted = true), row(bottom = 24))
-            return
-        }
+        val count = resources.getQuantityString(R.plurals.history_activity_count, period.activities.size, period.activities.size)
+        content.addView(UiText.label(context, context.getString(R.string.v26_period_summary, context.getString(R.string.history_progress), count)), row(bottom = Space.S))
+        if (period.activities.isEmpty()) return
         val totals = LinearLayout(context)
-        totals.addView(metric(context.getString(R.string.history_distance), number(period.distanceMeters / 1000, 1)), LayoutParams(0, -2, 1f))
-        totals.addView(metric(context.getString(R.string.history_active_time), duration(period.activeDurationMs)), LayoutParams(0, -2, 1f).apply { marginStart = dp(16) })
+        val pace = period.paceSecondsPerKm?.takeIf { selected != null }?.let { formatPace(it, locale) } ?: DASH
+        totals.addView(field(R.string.v19_route_distance, number(period.distanceMeters / METERS_PER_KM, 1), context.getString(R.string.island_km)), cell())
+        totals.addView(field(R.string.active_time, duration(period.activeDurationMs), ""), cell())
+        totals.addView(field(R.string.v26_average_pace, pace, context.getString(R.string.v16_unit_pace)), cell())
         content.addView(totals)
-        content.addView(label(resources.getQuantityString(R.plurals.history_activity_count, period.activities.size, period.activities.size), 13, muted = true), row(top = 8))
-        content.addView(label(context.getString(R.string.history_weekly_distance), 18, bold = true), row(top = 24))
-        content.addView(WeeklyDistanceChart(context, period, locale), row(top = 8))
-        content.addView(label(context.getString(R.string.history_week_note), 12, muted = true), row(top = 8))
-        if (selected == null) {
-            content.addView(label(context.getString(R.string.history_pace_type_hint), 14, muted = true), row(top = 20, bottom = 24))
-            return
-        }
-        content.addView(label(context.getString(R.string.history_pace_title), 18, bold = true), row(top = 24))
-        val trend = period.paceTrend
-        if (trend.size < 2) {
-            content.addView(label(context.getString(R.string.history_pace_empty), 14, muted = true), row(top = 8, bottom = 24))
-            return
-        }
-        content.addView(PaceTrendChart(context, period, zone, locale), row(top = 8))
-        content.addView(label(context.getString(R.string.history_pace_note, trend.size), 12, muted = true), row(top = 8))
-        period.paceSecondsPerKm?.let { value ->
-            content.addView(label(context.getString(R.string.history_period_pace, pace(value)), 14), row(top = 12))
-            content.addView(label(context.getString(R.string.history_pace_weight_note), 12, muted = true), row(top = 4, bottom = 24))
+        content.addView(WeeklyDistanceChart(context, period, locale), row(top = Space.L))
+        if (selected != null && period.paceTrend.size >= MIN_TREND) {
+            content.addView(UiText.label(context, context.getString(R.string.history_pace_title)), row(top = Space.XL))
+            content.addView(PaceTrendChart(context, period, zone, locale), row(top = Space.S))
         }
     }
 
-    private fun metric(
-        name: String,
+    private fun field(
+        label: Int,
         value: String,
-    ) = LinearLayout(context).apply {
-        orientation = VERTICAL
-        addView(label(name, 13, muted = true))
-        addView(label(value, 24, bold = true), row(top = 4))
-    }
+        unit: String,
+    ) = DataFieldView(context, context.getString(label), value, unit)
 
-    private fun label(
-        value: String,
-        size: Int,
-        bold: Boolean = false,
-        muted: Boolean = false,
-    ) = TextView(context).apply {
-        text = value
-        textSize = size.toFloat()
-        includeFontPadding = false
-        setTextColor(context.getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        setLineSpacing(dp(2).toFloat(), 1f)
-    }
+    private fun cell() = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
 
     private fun number(
         value: Double,
@@ -165,24 +88,28 @@ class HistoryInsightsView(
     ) = String.format(locale, "%.${decimals}f", value)
 
     private fun duration(value: Long): String {
-        val minutes = value / 60_000
-        return if (minutes >= 60) {
-            context.getString(R.string.history_time_hours_minutes, minutes / 60, minutes % 60)
+        val minutes = value / MS_PER_MINUTE
+        return if (minutes >= MINUTES_PER_HOUR) {
+            context.getString(R.string.history_time_hours_minutes, minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR)
         } else {
             context.getString(R.string.history_time_minutes, minutes)
         }
     }
 
-    private fun pace(value: Double) = formatPace(value, locale)
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
-
     private fun row(
         top: Int = 0,
         bottom: Int = 0,
     ) = LayoutParams(-1, -2).apply {
-        topMargin = dp(top)
-        bottomMargin = dp(bottom)
+        topMargin = UiText.dp(context, top)
+        bottomMargin = UiText.dp(context, bottom)
+    }
+
+    private companion object {
+        const val DASH = "\u2014"
+        const val METERS_PER_KM = 1_000.0
+        const val MS_PER_MINUTE = 60_000L
+        const val MINUTES_PER_HOUR = 60
+        const val MIN_TREND = 2
     }
 }
 
@@ -200,7 +127,7 @@ private class WeeklyDistanceChart(
     locale: Locale,
 ) : View(context) {
     private val density = resources.displayMetrics.density
-    private val textSize = 12f * resources.displayMetrics.scaledDensity
+    private val textSize = 14f * resources.displayMetrics.scaledDensity
     private val ink = context.getColor(R.color.on_surface)
     private val muted = context.getColor(R.color.on_surface_variant)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -209,6 +136,11 @@ private class WeeklyDistanceChart(
     private val labels = weeks.map { it.startsOn.format(formatter) }
     private val values = weeks.map { String.format(locale, "%.1f", it.distanceMeters / 1000) }
     private val peak = weeks.maxOf { it.distanceMeters }.coerceAtLeast(1000.0)
+    private val outline = 2 * density
+    private val valueFace = Type.display(context)
+    private val chartHeight = 112 * density
+    private var growth = 0f
+    private var growing: android.animation.ValueAnimator? = null
 
     init {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -218,11 +150,22 @@ private class WeeklyDistanceChart(
             }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        growing = UiMotion.grow(this) { growth = it }
+    }
+
+    override fun onDetachedFromWindow() {
+        growing?.cancel()
+        growth = 1f
+        super.onDetachedFromWindow()
+    }
+
     override fun onMeasure(
         widthMeasureSpec: Int,
         heightMeasureSpec: Int,
     ) {
-        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), (150 * density + 4 * textSize).roundToInt())
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), (chartHeight + 4 * textSize).roundToInt())
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -236,24 +179,31 @@ private class WeeklyDistanceChart(
         weeks.forEachIndexed { index, week ->
             val center = column * (index + .5f)
             val barWidth = minOf(column * .48f, 36 * density)
-            val barTop = baseline - (range * week.distanceMeters / peak).toFloat()
+            val barTop = baseline - (range * week.distanceMeters / peak).toFloat() * growth
             paint.color = ink
-            paint.style = Paint.Style.FILL
+            val current = index == weeks.lastIndex
+            paint.style = if (current) Paint.Style.STROKE else Paint.Style.FILL
+            paint.strokeWidth = outline
+            val inset = if (current) outline / 2 else 0f
             if (week.distanceMeters > 0) {
                 canvas.drawRoundRect(
-                    center - barWidth / 2,
-                    barTop,
-                    center + barWidth / 2,
-                    baseline,
+                    center - barWidth / 2 + inset,
+                    barTop + inset,
+                    center + barWidth / 2 - inset,
+                    baseline - inset,
                     3 * density,
                     3 * density,
                     paint,
                 )
+                paint.style = Paint.Style.FILL
             } else {
+                paint.style = Paint.Style.FILL
                 canvas.drawRect(center - barWidth / 2, baseline - density, center + barWidth / 2, baseline, paint)
             }
             paint.textAlign = Paint.Align.CENTER
+            paint.typeface = valueFace
             canvas.drawText(values[index], center, max(textSize, barTop - textSize * .45f), paint)
+            paint.typeface = Typeface.DEFAULT
             paint.color = muted
             canvas.drawText(labels[index], center, baseline + textSize * 1.5f, paint)
         }
