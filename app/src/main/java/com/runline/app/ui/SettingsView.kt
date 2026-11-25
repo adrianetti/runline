@@ -52,6 +52,7 @@ internal class SettingsView(
         item(R.drawable.ic_shield_check, R.string.main_protection, actions.protection)
         item(R.drawable.ic_diagnostics, R.string.diag_v12_title, actions.diagnostics)
         item(R.drawable.ic_info, R.string.main_about, actions.about)
+        removeViewAt(childCount - 1)
     }
 
     constructor(context: Context) : this(context, SettingsActions({}, {}, {}, {}, {}, {}, {}, {}))

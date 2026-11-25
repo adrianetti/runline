@@ -24,7 +24,6 @@ internal class WeekStripView(
     private val rule = UiText.dp(context, Space.HAIRLINE) * 2f
     private val lane = UiText.dp(context, LANE_DP).toFloat()
     private val gap = UiText.dp(context, Space.S).toFloat()
-    private val dot = UiText.dp(context, Space.XS).toFloat()
     private val textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, TextScale.CAPTION.toFloat(), resources.displayMetrics)
 
     init {
@@ -41,7 +40,7 @@ internal class WeekStripView(
         widthMeasureSpec: Int,
         heightMeasureSpec: Int,
     ) {
-        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), (lane + gap + textSize * LINE_HEIGHT + dot * 2).toInt())
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), (lane + gap + textSize * LINE_HEIGHT).toInt())
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -55,12 +54,10 @@ internal class WeekStripView(
             val center = (left + right) / 2
             paint.color = if (active) ink else muted
             canvas.drawRoundRect(left, inset, right, lane - inset, lane / 2, lane / 2, paint)
-            paint.color = muted
+            val today = index == week.todayIndex
+            paint.color = if (today) ink else muted
+            paint.typeface = if (today) Type.emphasis() else Type.body()
             canvas.drawText(initial, center, lane + gap + textSize, paint)
-            if (index == week.todayIndex) {
-                paint.color = ink
-                canvas.drawCircle(center, lane + gap + textSize * LINE_HEIGHT + dot, dot / 2, paint)
-            }
         }
     }
 

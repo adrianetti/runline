@@ -163,7 +163,7 @@ class RouteDetailView(
             R.string.v19_route_difficulty to RouteField(RouteFormat.difficulty(context, stats.difficulty), ""),
             R.string.v19_route_shape to RouteField(shape, ""),
         )
-        content.addView(grid)
+        content.addView(grid, row(top = 16))
         if (stats.maxElevationMeters != null) content.addView(RouteProfileView(context, route), LinearLayout.LayoutParams(-1, dp(88)).apply { topMargin = dp(16) })
         daylight(locale)?.let { line ->
             content.addView(

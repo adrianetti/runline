@@ -130,6 +130,14 @@ internal class ElevationIsland(
         }
         range = (high - minimum).coerceAtLeast(MIN_RANGE_METERS)
         low = minimum + (high - minimum) / 2 - range / 2
+        locate()
+        baseline = (chartBounds.bottom - edge).toFloat()
+        profileHeight = (chartBounds.height() - 2 * edge).coerceAtLeast(0).toFloat()
+        trace.sections.forEach { section -> plot(section, section === trace.sections.last()) }
+        invalidate()
+    }
+
+    private fun locate() {
         val bounds = Rect()
         chartContent?.let {
             it.getDrawingRect(bounds)
@@ -143,31 +151,28 @@ internal class ElevationIsland(
             }
         }
         chartBounds.set(bounds)
-        baseline = (bounds.bottom - edge).toFloat()
-        profileHeight = (bounds.height() - 2 * edge).coerceAtLeast(0).toFloat()
-        trace.sections.forEach { section ->
-            val sectionArea = Path()
-            var firstX = 0f
-            var lastX = 0f
-            section.forEachIndexed { index, sample ->
-                val x = x(sample)
-                val y = y(sample)
-                if (index == 0) {
-                    firstX = x
-                    line.moveTo(x, y)
-                    sectionArea.moveTo(x, y)
-                } else {
-                    line.lineTo(x, y)
-                    sectionArea.lineTo(x, y)
-                }
-                lastX = x
-            }
-            sectionArea.lineTo(lastX, bounds.bottom.toFloat())
-            sectionArea.lineTo(firstX, bounds.bottom.toFloat())
-            sectionArea.close()
-            area.addPath(sectionArea)
+    }
+
+    private fun plot(
+        section: List<ObservedElevationTrace.Sample>,
+        extend: Boolean,
+    ) {
+        val first = section.firstOrNull() ?: return
+        val last = section.last()
+        val floor = chartBounds.bottom.toFloat()
+        val end = if (extend) chartBounds.right.toFloat() else x(last)
+        val sectionArea = Path()
+        line.moveTo(x(first), y(first))
+        sectionArea.moveTo(x(first), y(first))
+        section.drop(1).forEach { sample ->
+            line.lineTo(x(sample), y(sample))
+            sectionArea.lineTo(x(sample), y(sample))
         }
-        invalidate()
+        sectionArea.lineTo(end, y(last))
+        sectionArea.lineTo(end, floor)
+        sectionArea.lineTo(x(first), floor)
+        sectionArea.close()
+        area.addPath(sectionArea)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -201,21 +206,21 @@ internal class ElevationIsland(
     }
 
     private fun x(sample: ObservedElevationTrace.Sample): Float {
-        val lead = if (scrubbable) edge else 0
-        val span = (chartBounds.width() - lead - edge).coerceAtLeast(0)
-        return chartBounds.left + lead + (sample.positionMs.toDouble() / trace.durationMs * span).toFloat()
+        val tail = if (scrubbable) 0 else edge
+        val span = (chartBounds.width() - tail).coerceAtLeast(0)
+        return chartBounds.left + (sample.positionMs.toDouble() / trace.durationMs * span).toFloat()
     }
 
     private fun y(sample: ObservedElevationTrace.Sample) = baseline - ((sample.heightMeters - low) / range * profileHeight).toFloat()
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
-    companion object {
+    private companion object {
         const val RING_DP = 8
-        private const val MIN_RANGE_METERS = 12.0
-        private const val DOT_DP = 6
-        private const val MARK_RING_DP = 5
-        private const val MARK_DOT_DP = 3
-        private const val LINE_DP = 1.5f
+        const val MIN_RANGE_METERS = 12.0
+        const val DOT_DP = 6
+        const val MARK_RING_DP = 5
+        const val MARK_DOT_DP = 3
+        const val LINE_DP = 1.5f
     }
 }

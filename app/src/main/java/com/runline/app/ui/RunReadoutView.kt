@@ -50,7 +50,7 @@ internal class RunReadoutView(
             footer.addView(descent, LayoutParams(0, -2, QUARTER))
             footer.addView(average, LayoutParams(0, -2, HALF))
             addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.L) })
-            addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.S) })
+            addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.L) })
         }
     }
 

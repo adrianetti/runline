@@ -191,7 +191,7 @@ private class SlopeLine(
         lastFrame = now
         if (moving) postInvalidateOnAnimation()
         val density = resources.displayMetrics.density
-        val padding = 6 * density
+        val padding = EDGE_DP * density
 
         fun x(index: Int) = padding + index.toFloat() / (SlopeProfile.COUNT - 1) * (width - padding * 2)
 
@@ -205,7 +205,7 @@ private class SlopeLine(
             }
         if (targetGrade != null) ink.color = ColorUtils.blendARGB(neutral, ink.color, ((abs(shownGrade) - 1.5) / 1.5).toFloat().coerceIn(0f, 1f))
         ink.style = Paint.Style.STROKE
-        ink.strokeWidth = 2.5f * density
+        ink.strokeWidth = STROKE_DP * density
         path.reset()
         var segmentStart = 0
         while (segmentStart < shown.size) {
@@ -228,7 +228,7 @@ private class SlopeLine(
         canvas.drawPath(path, ink)
         shown.lastOrNull()?.let {
             ink.style = Paint.Style.FILL
-            canvas.drawCircle(x(shown.lastIndex), y(it), 3 * density, ink)
+            canvas.drawCircle(x(shown.lastIndex), y(it), EDGE_DP * density, ink)
         }
         if (shown.all { it == null }) {
             ink.style = Paint.Style.STROKE
@@ -250,5 +250,7 @@ private class SlopeLine(
 
     private companion object {
         const val DASH_DP = 6
+        const val STROKE_DP = 4f
+        const val EDGE_DP = 4f
     }
 }

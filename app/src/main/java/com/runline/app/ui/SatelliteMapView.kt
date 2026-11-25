@@ -44,6 +44,7 @@ import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.tile.TileOperation
 import org.maplibre.geojson.Feature
@@ -335,13 +336,9 @@ class SatelliteMapView(
                     LineLayer("route-line", "route").withProperties(lineColor(Color.WHITE), lineWidth(4f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)),
                 )
                 ready.addSource(GeoJsonSource(FINISH))
+                ready.addImage(FINISH, MapMarks.finish(context))
                 ready.addLayer(
-                    CircleLayer("finish-dot", FINISH).withProperties(
-                        circleColor(Color.BLACK),
-                        circleRadius(5f),
-                        circleStrokeColor(Color.WHITE),
-                        circleStrokeWidth(2f),
-                    ),
+                    SymbolLayer("finish-mark", FINISH).withProperties(iconImage(FINISH), iconAllowOverlap(true), iconIgnorePlacement(true)),
                 )
                 ready.addSource(GeoJsonSource("start"))
                 ready.addLayer(

@@ -171,11 +171,10 @@ class RunReplayView(
         val chart = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
         panel.setChartContent(chart)
         panel.scrubbable = true
-        val edge = dp(ElevationIsland.RING_DP) - dp(PLAYHEAD_DP) / 2
-        seek.setPadding(edge, 0, edge, 0)
+        seek.setPadding(0, 0, 0, 0)
         seek.progressDrawable = Color.TRANSPARENT.toDrawable()
         seek.background = null
-        seek.thumbOffset = 0
+        seek.thumbOffset = dp(PLAYHEAD_DP) / 2
         seek.thumb =
             android.graphics.drawable.GradientDrawable().apply {
                 setColor(context.getColor(R.color.on_surface))
@@ -187,7 +186,7 @@ class RunReplayView(
         val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         timeline.addView(track, LinearLayout.LayoutParams(0, dp(TRACK_DP), 1f))
         readout.total(duration(replay.durationMs))
-        panel.addView(timeline, row(top = 8))
+        panel.addView(timeline, row(top = 16))
         val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         controls.addView(play, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(speed, LinearLayout.LayoutParams(dp(SPEED_WIDTH_DP), -2).apply { marginStart = dp(8) })

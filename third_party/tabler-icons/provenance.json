@@ -99,9 +99,9 @@
       "sha256": "d0dfc538f966d03b72a9fe872fbb567d5e84db9d24b95af032305404ef71f587",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/world.svg"
     },
-    "icons/outline/message-chatbot.svg": {
-      "sha256": "20d03902c6d945b8098c8304dce6f5ebd5a60ed4a45ad14c0b4d9314ccef0a24",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/message-chatbot.svg"
+    "icons/outline/message.svg": {
+      "sha256": "0797af3ec861f73e60d4b98ac974ac2cbcfbe7240c97c5ec639a52815f075de3",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/message.svg"
     },
     "icons/outline/user.svg": {
       "sha256": "63554429f551522ea578a9bf72d1d350bd0ffdb8ede3af92a05e92d71cab6b9c",
@@ -142,10 +142,6 @@
     "icons/outline/trekking.svg": {
       "sha256": "3dd6c58967c358f57af789b0a18731284a9a6297b02b2c10557ccbbc35701363",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/trekking.svg"
-    },
-    "icons/outline/walk.svg": {
-      "sha256": "ade1c723b19596b31cd2976db72e05bee86b2fe8a3afcda5df05fb57f90fe036",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/walk.svg"
     },
     "icons/outline/arrow-bear-left.svg": {
       "sha256": "7c98b4e88307876770f851128ab8905400dc501715141e84d304800c0f15df94",

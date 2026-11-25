@@ -536,9 +536,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun activityIcon(type: ActivityType) =
         when (type) {
-            ActivityType.RUN -> R.drawable.ic_run
-            ActivityType.WALK -> R.drawable.ic_walk
-            ActivityType.HIKE -> R.drawable.ic_hike
+            ActivityType.RUN -> R.drawable.ic_sport_run
+            ActivityType.WALK -> R.drawable.ic_sport_walk
+            ActivityType.HIKE -> R.drawable.ic_sport_hike
         }
 
     private fun refreshRecording() {
