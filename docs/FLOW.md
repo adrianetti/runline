@@ -91,7 +91,7 @@ flowchart LR
 - Every full screen and sheet outside the tabs has a way back.
 - Every control has an English and a Spanish name.
 
-`ScreenAtlasAndroidTest` then walks the real app along this graph on an emulator, in English light and Spanish dark. It fails when a screen cannot be reached. On each screen it snapshots the view tree and scores it with the rules in `UiAudit`:
+`ScreenAtlasAndroidTest` then walks the real app along this graph on an emulator, in English light and Spanish dark. It fails when a screen cannot be reached or scores under 100 in either group. On each screen it snapshots the view tree and scores it with the rules in `UiAudit`:
 
 | Group | Rule |
 | --- | --- |

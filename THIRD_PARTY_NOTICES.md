@@ -2,7 +2,7 @@
 
 ## Tabler Icons
 
-Runline uses a subset of the outline icons from [Tabler Icons](https://github.com/tabler/tabler-icons), licensed under the MIT License. This is the app's pictogram family, including its running-figure launcher and foreground-notification glyph. One glyph is drawn in the same 24-unit, 2-unit-stroke style instead of imported: pause, as two plain strokes, so it does not read as digits beside condensed numerals.
+Runline uses a subset of the outline icons from [Tabler Icons](https://github.com/tabler/tabler-icons), licensed under the MIT License. This is the app's pictogram family, including its running-figure launcher and foreground-notification glyph. Four glyphs are drawn in the same 24-unit, 2-unit-stroke style instead of imported: pause, as two plain strokes, so it does not read as digits beside condensed numerals, and the run, walk and hike figures on activity rows, so they carry the weight of the rest of the set.
 
 The original SVG files and license are retained in `third_party/tabler-icons/`. They are pinned to upstream commit `ed177a085b652fe04ec4f37ced867c94621e7840`. `provenance.json` records each original source URL and SHA-256 checksum.
 
