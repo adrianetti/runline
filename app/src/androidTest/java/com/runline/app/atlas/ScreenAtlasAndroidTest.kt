@@ -45,10 +45,8 @@ class ScreenAtlasAndroidTest {
         recorder.finish()
         driver.close()
         fixtures.removeHistory()
-        instrumentation.runOnMainSync {
-            AppLanguage.select(driver.context, "")
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        }
+        AtlasLocale.select(instrumentation, "")
+        instrumentation.runOnMainSync { AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM) }
     }
 
     @Test fun everyScreenInTheFlowIsReachedAndAudited() {

@@ -34,8 +34,8 @@ internal class AtlasDriver(
     fun configure(next: AtlasLook) {
         close()
         look = next
+        AtlasLocale.select(instrumentation, next.locale)
         instrumentation.runOnMainSync {
-            AppLanguage.select(context, next.locale)
             AppCompatDelegate.setDefaultNightMode(if (next.night) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
         }
     }

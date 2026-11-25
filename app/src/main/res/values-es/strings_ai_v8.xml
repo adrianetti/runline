@@ -2,7 +2,7 @@
 <resources>
     <string name="ai_v8_title">IA</string>
     <string name="ai_v8_enabled">Activar IA</string>
-    <string name="ai_v8_summary">Envía resúmenes de actividad a Anthropic y consume saldo de tu API. Los puntos GPS y las fotos se quedan en este teléfono.</string>
+    <string name="ai_v8_summary">Envía resúmenes de actividad a Anthropic con saldo de tu API. Puntos GPS y fotos no salen del teléfono.</string>
     <string name="ai_v8_data_costs">Datos y costes de API</string>
     <string name="ai_v8_hide_details">Ocultar detalles</string>
     <string name="ai_v8_connection">Conexión</string>

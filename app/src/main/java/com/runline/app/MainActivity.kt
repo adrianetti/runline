@@ -171,6 +171,9 @@ class MainActivity : AppCompatActivity() {
                 addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_activities))
                 addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_route))
                 addTab(newTab().setText(R.string.v8_settings).setIcon(R.drawable.ic_settings))
+                repeat(tabCount) {
+                    getTabAt(it)?.view?.setPadding(dp(com.runline.app.ui.Space.XS), 0, dp(com.runline.app.ui.Space.XS), 0)
+                }
                 tabIconTint = navigationColors()
                 tabTextColors = navigationColors()
                 setSelectedTabIndicatorColor(getColor(R.color.primary))
