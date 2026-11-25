@@ -168,7 +168,7 @@ class MainActivity : AppCompatActivity() {
                 isInlineLabel = false
                 tabGravity = TabLayout.GRAVITY_FILL
                 addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_record))
-                addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_history))
+                addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_activities))
                 addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_route))
                 addTab(newTab().setText(R.string.v8_settings).setIcon(R.drawable.ic_settings))
                 tabIconTint = navigationColors()
@@ -1006,6 +1006,7 @@ class MainActivity : AppCompatActivity() {
         PopupMenu(this, anchor)
             .apply {
                 menu.add(0, DETAILS_ITEM, 0, R.string.replay_activity_details)
+                menu.add(0, EXPORT_ITEM, 0, R.string.replay_export_file)
                 menu.add(0, 13, 0, R.string.v7_edit_activity)
                 if (AiSettings.isReady(this@MainActivity) || currentRun?.let {
                         com.runline.app.ai
@@ -1019,6 +1020,7 @@ class MainActivity : AppCompatActivity() {
                 menu.add(0, 4, 2, R.string.main_delete_activity)
                 setOnMenuItemClickListener { item ->
                     if (item.itemId == DETAILS_ITEM) replayView?.openDetails()
+                    if (item.itemId == EXPORT_ITEM) replayView?.export()
                     when (item.itemId) {
                         13 -> {
                             currentRun?.let { showActivityEditor(it) }
@@ -1490,6 +1492,7 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val METERS_PER_KM = 1_000.0
         const val DETAILS_ITEM = 20
+        const val EXPORT_ITEM = 23
         const val PREVIEW_ITEM = 21
         const val UNFOLLOW_ITEM = 22
         const val SETTINGS_SCREEN = "settings"

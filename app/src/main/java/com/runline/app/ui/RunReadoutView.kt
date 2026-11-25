@@ -17,6 +17,7 @@ internal class RunReadoutView(
     private val fieldSize = if (compact) TextScale.VALUE else TextScale.DATA
     private val distance = RollingNumberView(context, fieldSize, TextScale.SECTION)
     private val time = RollingNumberView(context, fieldSize, TextScale.SECTION)
+    private val timeField = DataFieldView(context, context.getString(R.string.active_time), time)
     private val slope = SlopeIndicator(context)
     private val ascent = minor(R.string.v19_route_ascent, R.string.v26_unit_metres)
     private val descent = minor(R.string.v19_route_descent, R.string.v26_unit_metres)
@@ -42,7 +43,7 @@ internal class RunReadoutView(
             DataFieldView(context, context.getString(R.string.v19_route_distance), distance, context.getString(R.string.island_km)),
             LayoutParams(0, -2, 1f),
         )
-        secondary.addView(DataFieldView(context, context.getString(R.string.active_time), time), LayoutParams(0, -2, 1f))
+        secondary.addView(timeField, LayoutParams(0, -2, 1f))
         addView(secondary, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
         if (!compact) {
             addView(UiRows.hairline(context), rule(Space.S))
@@ -51,6 +52,10 @@ internal class RunReadoutView(
             addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
             addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.M) })
         }
+    }
+
+    fun total(value: String) {
+        timeField.relabel(context.getString(R.string.v26_time_of, context.getString(R.string.active_time), value))
     }
 
     fun hideProfile() {
@@ -105,7 +110,7 @@ internal class RunReadoutView(
     private fun minor(
         label: Int,
         unit: Int,
-    ) = DataFieldView(context, context.getString(label), DASH, context.getString(unit), TextScale.SECTION)
+    ) = DataFieldView(context, context.getString(label), DASH, context.getString(unit), TextScale.VALUE)
 
     private fun rule(top: Int) = LayoutParams(-1, dp(Space.HAIRLINE)).apply { topMargin = dp(top) }
 

@@ -79,8 +79,7 @@ class RunReplayView(
     private val title: TextView =
         label("", 24, bold = true).apply {
             UiText.heading(this)
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END
+            maxLines = 2
         }
     private val subtitle: TextView = label("", 14, muted = true).apply { gravity = Gravity.END }
     private val heading: LinearLayout =
@@ -152,21 +151,6 @@ class RunReplayView(
                 topMargin = dp(16)
             },
         )
-        if (!preview) {
-            addView(
-                UiButtons.floating(context, R.drawable.ic_download, context.getString(R.string.replay_export_file)).apply {
-                    isEnabled = replay.durationMs > 0L
-                    setOnClickListener {
-                        pausePlayback()
-                        onExport()
-                    }
-                },
-                LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
-                    marginEnd = dp(16)
-                    topMargin = dp(SECOND_SLOT_DP)
-                },
-            )
-        }
 
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(20))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -195,12 +179,12 @@ class RunReplayView(
         track.addView(seek, LayoutParams(-1, -1))
         val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         timeline.addView(track, LinearLayout.LayoutParams(0, dp(48), 1f))
-        timeline.addView(clock, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
+        readout.total(duration(replay.durationMs))
         panel.addView(timeline, row(top = 8))
         val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         controls.addView(play, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(speed, LinearLayout.LayoutParams(dp(SPEED_WIDTH_DP), -2).apply { marginStart = dp(8) })
-        panel.addView(controls, row(top = 4))
+        panel.addView(controls, row(top = 16))
         addView(
             panel,
             LayoutParams(if (compact) dp(340) else -1, -2, Gravity.BOTTOM or Gravity.START).apply {
@@ -436,6 +420,13 @@ class RunReplayView(
         heading.visibility = VISIBLE
     }
 
+    private val exporter: () -> Unit = onExport
+
+    fun export() {
+        pausePlayback()
+        exporter()
+    }
+
     fun openDetails() {
         showDetails()
     }
@@ -452,7 +443,10 @@ class RunReplayView(
                 setPadding(dp(24), dp(12), dp(24), dp(32))
             }
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(label(context.getString(R.string.replay_activity_details), 24, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(
+            label(context.getString(R.string.replay_activity_details), 24, bold = true).apply { UiText.heading(this) },
+            LinearLayout.LayoutParams(0, -2, 1f),
+        )
         var actions: androidx.appcompat.widget.PopupMenu? = null
         header.addView(
             UiButtons.icon(context, R.drawable.ic_more, context.getString(R.string.replay_options)).apply {
@@ -799,7 +793,6 @@ class RunReplayView(
         const val SPEED_WIDTH_DP = 88
         const val SEEK_PAD_DP = 10
         const val PLAYHEAD_DP = 2
-        const val SECOND_SLOT_DP = 80
         const val ISLAND_SHARE = 0.66f
     }
 }

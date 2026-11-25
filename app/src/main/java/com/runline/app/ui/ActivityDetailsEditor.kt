@@ -77,7 +77,7 @@ class ActivityDetailsEditor(
                 setPadding(dp(24), dp(12), dp(24), dp(24))
             }
         val header = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text(activity.getString(R.string.details_edit), 24, true), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(text(activity.getString(R.string.details_edit), 24, true).apply { UiText.heading(this) }, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(
             button(R.string.main_close, R.drawable.ic_close).apply {
                 text = ""

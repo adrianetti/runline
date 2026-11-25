@@ -94,9 +94,9 @@ object AppFlow {
             FlowScreen(
                 REPLAY,
                 UiWindowKind.SCREEN,
-                "replay_export_file",
+                "replay_options",
                 exit = "replay_back_to_activities",
-                steps = listOf(FlowStep("replay_options", "replayMenu"), FlowStep("replay_export_file", "activityFile")),
+                steps = listOf(FlowStep("replay_options", "replayMenu")),
                 arrange = listOf("replay_play", "replay_pause"),
             ),
             FlowScreen(
@@ -106,6 +106,7 @@ object AppFlow {
                 steps =
                     listOf(
                         FlowStep("replay_activity_details", "details"),
+                        FlowStep("replay_export_file", "activityFile"),
                         FlowStep("v7_edit_activity", "editor"),
                         FlowStep("v7_run_review", "review"),
                         FlowStep("diag_v12_coach", "coachLog"),

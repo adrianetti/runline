@@ -186,10 +186,9 @@ internal class ElevationIsland(
                 ink.style = Paint.Style.FILL
                 ink.alpha = 255
                 ink.color = context.getColor(R.color.surface)
-                canvas.drawCircle(x(it), y(it), dp(5).toFloat(), ink)
+                canvas.drawCircle(x(it), y(it), dp(RING_DP).toFloat(), ink)
                 ink.color = context.getColor(R.color.on_surface)
-                ink.alpha = 190
-                canvas.drawCircle(x(it), y(it), dp(3).toFloat(), ink)
+                canvas.drawCircle(x(it), y(it), dp(DOT_DP).toFloat(), ink)
             }
         }
     }
@@ -203,6 +202,8 @@ internal class ElevationIsland(
     private companion object {
         const val PROFILE_SHARE = 0.72f
         const val MIN_RANGE_METERS = 20.0
+        const val RING_DP = 8
+        const val DOT_DP = 6
         const val LINE_DP = 1.5f
     }
 }

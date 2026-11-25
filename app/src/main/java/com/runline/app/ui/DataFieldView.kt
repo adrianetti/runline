@@ -39,6 +39,10 @@ internal class DataFieldView(
 
     constructor(context: Context) : this(context, "", "")
 
+    fun relabel(value: String) {
+        name.text = value
+    }
+
     fun set(value: String) {
         if (number.text.toString() != value) number.text = value
     }

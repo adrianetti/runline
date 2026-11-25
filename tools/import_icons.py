@@ -39,7 +39,7 @@ ICONS = {
     "edit": "pencil",
     "photo": "photo",
     "calendar": "calendar-event",
-    "language": "language",
+    "language": "world",
     "ai": "brain",
     "user": "user",
     "effort": "gauge",
@@ -74,6 +74,7 @@ ICONS = {
     "repository": "brand-github",
     "fit": "arrows-maximize",
     "finish": "flag",
+    "activities": "list-details",
 }
 ANDROID = "http://schemas.android.com/apk/res/android"
 ET.register_namespace("android", ANDROID)

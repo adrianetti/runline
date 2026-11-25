@@ -95,9 +95,9 @@
       "sha256": "380f9ad3022a78c9ca76a33d4dc909bc7ab646c7e5b43ac182367fbc85742d1f",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/calendar-event.svg"
     },
-    "icons/outline/language.svg": {
-      "sha256": "136a28663951c55cc2260526288011b1717fe1ec991f5ef51d6352b667cb0ab3",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/language.svg"
+    "icons/outline/world.svg": {
+      "sha256": "d0dfc538f966d03b72a9fe872fbb567d5e84db9d24b95af032305404ef71f587",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/world.svg"
     },
     "icons/outline/brain.svg": {
       "sha256": "0075dfb728a3b28fddf35c0e0129733874d8eee9e4d745b2079a9adbef2797f5",
@@ -234,6 +234,10 @@
     "icons/outline/flag.svg": {
       "sha256": "91c224b828fd0716ef8617633a714ef6764a16618fe222becbcf0a4b83b35b9e",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/flag.svg"
+    },
+    "icons/outline/list-details.svg": {
+      "sha256": "ec0b6f3ce0fe74b5a8bca2e5430e00ab20d03e749296bea7b5030345b3db0ab3",
+      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/list-details.svg"
     },
     "LICENSE": {
       "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",

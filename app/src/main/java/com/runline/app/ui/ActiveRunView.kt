@@ -225,7 +225,7 @@ class ActiveRunView(
                 LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8) },
             )
         }
-        panel.addView(controls, row(top = 12))
+        panel.addView(controls, row(top = 16))
         addView(
             panel,
             LayoutParams(if (compact) dp(340) else -1, -2, Gravity.BOTTOM or Gravity.START).apply {
