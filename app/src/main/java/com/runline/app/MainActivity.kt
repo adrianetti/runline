@@ -471,7 +471,8 @@ class MainActivity : AppCompatActivity() {
             com.runline.app.ui.RecordHomeView(
                 this,
                 recordHome(),
-                com.runline.app.ui.RecordHomeActions(type = ::selectActivity, coach = { showCoach() }, route = ::openFollowedRoute),
+                com.runline.app.ui
+                    .RecordHomeActions(type = ::selectActivity, coach = { showCoach() }, route = ::openFollowedRoute),
             )
         content.addView(home)
         if (selectedActivity == ActivityType.RUN) {
@@ -499,7 +500,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun recordHome(): com.runline.app.ui.RecordHome {
-        val activities = history ?: com.runline.app.core.HistorySummary.prepare(runCatching { store.list() }.getOrDefault(emptyList())).also { history = it }
+        val activities =
+            history ?: com.runline.app.core.HistorySummary
+                .prepare(runCatching { store.list() }.getOrDefault(emptyList()))
+                .also { history = it }
         val goal = preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }
         val voice = getString(if (VoiceCoachSettings.load(this).enabled) R.string.v26_voice_on else R.string.v26_voice_off)
         val route = followedRoute()?.let { id -> runCatching { routes.entry(id, language())?.name }.getOrNull() }
@@ -686,34 +690,20 @@ class MainActivity : AppCompatActivity() {
             com.runline.app.ui.RouteDetailView(
                 this,
                 hiking,
-                entry,
-                catalog?.summary(language()),
-                catalog?.notes(language()).orEmpty(),
-                recording,
-                onBack = {
-                    screen = "routes"
-                    render()
-                },
-                onMore = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
-                onStart = {
-                    getPreferences(0).edit { putString("followRoute", id) }
-                    if (entry?.imported != true) selectedActivity = entry?.activity ?: ActivityType.HIKE
-                    getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
-                    preparation.intent = null
-                    screen = "record"
-                    tabs.getTabAt(0)?.select()
-                    render()
-                    requestRecording(TrackingService.ACTION_START)
-                },
-                onPreview = {
-                    screen = "routePreview"
-                    render()
-                },
-                onOpenRecording = {
-                    screen = "record"
-                    tabs.getTabAt(0)?.select()
-                    render()
-                },
+                com.runline.app.ui.RouteDetails(entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording),
+                com.runline.app.ui.RouteDetailActions(
+                    back = {
+                        screen = "routes"
+                        render()
+                    },
+                    more = { anchor -> showRouteOptions(anchor, id, entry?.imported == true) },
+                    start = { startRoute(id, entry) },
+                    openRecording = {
+                        screen = "record"
+                        tabs.getTabAt(0)?.select()
+                        render()
+                    },
+                ),
             )
         route = view.map
         body.addView(view, LinearLayout.LayoutParams(-1, -1))
@@ -723,6 +713,20 @@ class MainActivity : AppCompatActivity() {
                 .get(this)
                 .request(hiking.runPoints())
         }
+    }
+
+    private fun startRoute(
+        id: String,
+        entry: com.runline.app.data.RouteEntry?,
+    ) {
+        getPreferences(0).edit { putString("followRoute", id) }
+        if (entry?.imported != true) selectedActivity = entry?.activity ?: ActivityType.HIKE
+        getPreferences(0).edit { putString("activityType", selectedActivity.storageValue) }
+        preparation.intent = null
+        screen = "record"
+        tabs.getTabAt(0)?.select()
+        render()
+        requestRecording(TrackingService.ACTION_START)
     }
 
     private fun renderRoutePreview() {
@@ -765,6 +769,8 @@ class MainActivity : AppCompatActivity() {
         imported: Boolean,
     ) {
         PopupMenu(this, anchor).apply {
+            menu.add(0, PREVIEW_ITEM, 0, R.string.v20_route_preview).setIcon(R.drawable.ic_preview)
+            if (followedRoute() == id) menu.add(0, UNFOLLOW_ITEM, 0, R.string.v19_record_route_remove).setIcon(R.drawable.ic_close)
             menu.add(0, 4, 0, R.string.v21_directions).setIcon(R.drawable.ic_directions)
             menu.add(0, 1, 0, R.string.v19_route_share_gpx).setIcon(R.drawable.ic_share)
             menu.add(0, 2, 1, R.string.v19_route_save_gpx).setIcon(R.drawable.ic_download)
@@ -773,6 +779,15 @@ class MainActivity : AppCompatActivity() {
             setForceShowIcon(true)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    PREVIEW_ITEM -> {
+                        screen = "routePreview"
+                        render()
+                    }
+
+                    UNFOLLOW_ITEM -> {
+                        getPreferences(0).edit { remove("followRoute") }
+                    }
+
                     4 -> {
                         runCatching { routes.load(id)?.points?.first() }
                             .getOrNull()
@@ -860,7 +875,10 @@ class MainActivity : AppCompatActivity() {
             com.runline.app.tracking.RecordingSettings
                 .autoPause(this)
         runs.forEach { run ->
-            content.addView(com.runline.app.ui.HistoryRowView(this, historyRow(run, autoPause)) { openRun(run) })
+            content.addView(
+                com.runline.app.ui
+                    .HistoryRowView(this, historyRow(run, autoPause)) { openRun(run) },
+            )
             content.addView(divider())
         }
     }
@@ -1397,7 +1415,8 @@ class MainActivity : AppCompatActivity() {
         text = value
         textSize = size.toFloat()
         setTextColor(getColor(if (muted) R.color.on_surface_variant else R.color.on_surface))
-        com.runline.app.ui.UiText.restyle(this, size, bold)
+        com.runline.app.ui.UiText
+            .restyle(this, size, bold)
         includeFontPadding = false
         setLineSpacing(dp(3).toFloat(), 1f)
     }
@@ -1468,6 +1487,8 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val METERS_PER_KM = 1_000.0
         const val DETAILS_ITEM = 20
+        const val PREVIEW_ITEM = 21
+        const val UNFOLLOW_ITEM = 22
         val TAB_SCREENS = listOf("record", "history", "routes", "settings")
     }
 }

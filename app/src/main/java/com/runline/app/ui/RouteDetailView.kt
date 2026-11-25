@@ -28,18 +28,25 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import kotlin.math.roundToInt
 
+data class RouteDetails(
+    val entry: RouteEntry?,
+    val summary: String?,
+    val notes: Map<String, String>,
+    val recording: Boolean,
+)
+
+data class RouteDetailActions(
+    val back: () -> Unit,
+    val more: (View) -> Unit,
+    val start: () -> Unit,
+    val openRecording: () -> Unit,
+)
+
 class RouteDetailView(
     context: Context,
     val route: HikingRoute,
-    entry: RouteEntry?,
-    summary: String?,
-    notes: Map<String, String>,
-    recording: Boolean,
-    onBack: () -> Unit,
-    onMore: (View) -> Unit,
-    onStart: () -> Unit,
-    onPreview: () -> Unit,
-    onOpenRecording: () -> Unit,
+    details: RouteDetails,
+    actions: RouteDetailActions,
 ) : FrameLayout(context) {
     val map = SatelliteMapView(context)
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
@@ -54,24 +61,21 @@ class RouteDetailView(
         }
 
     init {
+        val entry = details.entry
+        val summary = details.summary
+        val notes = details.notes
+        val recording = details.recording
         setBackgroundColor(context.getColor(R.color.surface))
         map.setRoute(route.runPoints())
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         top.addView(
-            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.v19_route_back)).apply { setOnClickListener { onBack() } },
+            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.v19_route_back)).apply { setOnClickListener { actions.back() } },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         top.addView(
-            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.v19_route_options)).apply { setOnClickListener { onMore(this) } },
+            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.v19_route_options)).apply { setOnClickListener { actions.more(this) } },
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
-        )
-        addView(
-            UiButtons.floating(context, R.drawable.ic_preview, context.getString(R.string.v20_route_preview_description)).apply { setOnClickListener { onPreview() } },
-            LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
-                marginEnd = dp(16)
-                topMargin = dp(PREVIEW_TOP_DP)
-            },
         )
         addView(
             top,
@@ -184,7 +188,7 @@ class RouteDetailView(
                 cornerRadius = dp(24).toFloat()
             }
         panel.elevation = dp(3).toFloat()
-        panel.setPadding(dp(20), dp(16), dp(20), dp(12))
+        panel.setPadding(dp(20), dp(16), dp(20), dp(20))
         panel.addView(
             ScrollView(context).apply {
                 isFillViewport = false
@@ -194,14 +198,15 @@ class RouteDetailView(
         )
         val name = entry?.name ?: route.name
         val actions =
-            UiButtons.primary(
-                context,
-                context.getString(if (recording) R.string.v20_route_open_recording else R.string.v20_route_start),
-                if (recording) R.drawable.ic_route else R.drawable.ic_play,
-            ).apply {
-                contentDescription = if (recording) context.getString(R.string.v20_route_recording) else context.getString(R.string.v20_route_start_description, name)
-                setOnClickListener { if (recording) onOpenRecording() else onStart() }
-            }
+            UiButtons
+                .primary(
+                    context,
+                    context.getString(if (recording) R.string.v20_route_open_recording else R.string.v20_route_start),
+                    if (recording) R.drawable.ic_route else R.drawable.ic_play,
+                ).apply {
+                    contentDescription = if (recording) context.getString(R.string.v20_route_recording) else context.getString(R.string.v20_route_start_description, name)
+                    setOnClickListener { if (recording) actions.openRecording() else actions.start() }
+                }
         panel.addView(actions, row(top = 12))
         addView(panel, LayoutParams(if (compact) dp(360) else -1, -2, Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(16), 0, dp(16), dp(16)) })
         panel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> insets() }
@@ -266,7 +271,6 @@ class RouteDetailView(
     )
 
     private companion object {
-        const val PREVIEW_TOP_DP = 16
         const val MINUTES_PER_HOUR = 60
     }
 }

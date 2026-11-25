@@ -112,7 +112,12 @@ internal object ViewSnapshot {
                 face?.isBold == true -> BOLD_WEIGHT
                 else -> NORMAL_WEIGHT
             }
-        val bundled = BUNDLED.any { face != null && face == androidx.core.content.res.ResourcesCompat.getFont(view.context, it) }
+        val bundled =
+            BUNDLED.any {
+                face != null && face ==
+                    androidx.core.content.res.ResourcesCompat
+                        .getFont(view.context, it)
+            }
         val system = if (face != null && Build.VERSION.SDK_INT >= FAMILY_API) face.systemFontFamilyName else null
         val family = if (bundled) BUNDLED_FAMILY else system
         return UiText(

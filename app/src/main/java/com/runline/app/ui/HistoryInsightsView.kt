@@ -68,7 +68,7 @@ class HistoryInsightsView(
         val time = if (hours) String.format(locale, "%d:%02d", minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR) else minutes.toString()
         totals.addView(field(R.string.v19_route_distance, number(period.distanceMeters / METERS_PER_KM, 1), context.getString(R.string.island_km)), cell())
         totals.addView(field(R.string.active_time, time, context.getString(if (hours) R.string.v26_unit_hours else R.string.v26_unit_minutes)), cell())
-        totals.addView(field(R.string.v26_average_pace, pace, context.getString(R.string.v16_unit_pace)), cell())
+        totals.addView(field(R.string.v26_average_pace, pace, context.getString(R.string.v26_unit_per_km)), cell())
         content.addView(totals)
         content.addView(WeeklyDistanceChart(context, period, locale), row(top = Space.L))
         if (selected != null && period.paceTrend.size >= MIN_TREND) {
@@ -192,11 +192,13 @@ private class WeeklyDistanceChart(
                 paint.style = Paint.Style.FILL
             } else {
                 paint.style = Paint.Style.FILL
-                canvas.drawRect(center - barWidth / 2, baseline - density, center + barWidth / 2, baseline, paint)
+                paint.color = muted
+                canvas.drawRect(center - barWidth / 2, baseline - outline, center + barWidth / 2, baseline, paint)
+                paint.color = ink
             }
             paint.textAlign = Paint.Align.CENTER
             paint.typeface = valueFace
-            canvas.drawText(values[index], center, max(textSize, barTop - textSize * .45f), paint)
+            if (week.distanceMeters > 0) canvas.drawText(values[index], center, max(textSize, barTop - textSize * .45f), paint)
             paint.typeface = Typeface.DEFAULT
             paint.color = muted
             canvas.drawText(labels[index], center, baseline + textSize * 1.5f, paint)

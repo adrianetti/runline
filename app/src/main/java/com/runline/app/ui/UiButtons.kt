@@ -44,6 +44,8 @@ internal object UiButtons {
         iconTint = ColorStateList.valueOf(context.getColor(R.color.on_surface))
         stateListAnimator = null
         elevation = UiText.dp(context, FLOAT_ELEVATION).toFloat()
+        strokeWidth = UiText.dp(context, Space.HAIRLINE)
+        strokeColor = ColorStateList.valueOf(context.getColor(R.color.outline))
     }
 
     private fun action(

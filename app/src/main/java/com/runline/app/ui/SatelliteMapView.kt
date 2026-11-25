@@ -111,15 +111,9 @@ class SatelliteMapView(
                     cornerRadius = dp(10).toFloat()
                 }
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(5), dp(3), dp(7), dp(3))
+            setPadding(dp(7), dp(3), dp(7), dp(3))
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-            androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.ic_info)?.mutate()?.let { info ->
-                info.setTint(context.getColor(R.color.on_surface_variant))
-                info.setBounds(0, 0, dp(12), dp(12))
-                setCompoundDrawablesRelative(info, null, null, null)
-            }
-            compoundDrawablePadding = dp(3)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
     private val credits =
@@ -237,7 +231,7 @@ class SatelliteMapView(
                 setMargins(dp(8), dp(8), dp(64), 0)
             },
         )
-        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(8), 0, dp(64), dp(8)) })
+        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(16), 0, dp(64), dp(8)) })
         controls.addView(mapButton(R.drawable.ic_fit, context.getString(R.string.map_fit_route)) { fitRoute() })
         addView(
             controls,
@@ -589,7 +583,7 @@ class SatelliteMapView(
             status.layoutParams = this
         }
         (credits.layoutParams as LayoutParams).apply {
-            setMargins(next[0] + dp(8), 0, next[2] + dp(64), next[3] + dp(8))
+            setMargins(next[0] + dp(16), 0, next[2] + dp(64), next[3])
             credits.layoutParams = this
         }
         (followButton.layoutParams as LayoutParams).apply {

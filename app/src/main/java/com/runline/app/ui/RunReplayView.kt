@@ -86,7 +86,9 @@ class RunReplayView(
             addView(title, LinearLayout.LayoutParams(-2, -2))
             addView(subtitle, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
         }
-    private val averagePace = com.runline.app.core.RunMetrics.paceSecondsPerKm(replay.summary.distanceMeters, replay.durationMs)
+    private val averagePace =
+        com.runline.app.core.RunMetrics
+            .paceSecondsPerKm(replay.summary.distanceMeters, replay.durationMs)
     private val play = UiButtons.primary(context, context.getString(R.string.replay_play), R.drawable.ic_play)
     private val speed = UiButtons.outlined(context, "")
     private val seek =
@@ -161,7 +163,7 @@ class RunReplayView(
             )
         }
 
-        panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
+        panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(20))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         information.addView(heading, row(bottom = 4))
         information.addView(readout, row())
@@ -172,11 +174,17 @@ class RunReplayView(
                 addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
             }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        val timeline = FrameLayout(context)
         seek.setPadding(dp(SEEK_PAD_DP), 0, dp(SEEK_PAD_DP), 0)
-        timeline.addView(seek, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = -dp(SEEK_PAD_DP) })
-        timeline.addView(clock, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
-        panel.addView(timeline)
+        timeline.addView(
+            seek,
+            LayoutParams(-1, dp(48)).apply {
+                marginStart = -dp(SEEK_PAD_DP)
+                marginEnd = -dp(SEEK_PAD_DP)
+            },
+        )
+        timeline.addView(clock, LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END))
+        panel.addView(timeline, LinearLayout.LayoutParams(-1, dp(TIMELINE_DP)))
         val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         controls.addView(play, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(speed, LinearLayout.LayoutParams(dp(SPEED_WIDTH_DP), -2).apply { marginStart = dp(8) })
@@ -771,6 +779,7 @@ class RunReplayView(
     private companion object {
         const val SPEED_WIDTH_DP = 88
         const val SEEK_PAD_DP = 10
+        const val TIMELINE_DP = 60
         const val ISLAND_SHARE = 0.66f
     }
 }

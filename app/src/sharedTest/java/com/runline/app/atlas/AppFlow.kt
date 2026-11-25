@@ -141,9 +141,9 @@ object AppFlow {
                 UiWindowKind.SCREEN,
                 "v19_route_options",
                 exit = "v19_route_back",
-                steps = listOf(FlowStep("v19_route_options", "routeMenu"), FlowStep("v20_route_preview_description", "routePreview")),
+                steps = listOf(FlowStep("v19_route_options", "routeMenu")),
             ),
-            FlowScreen("routeMenu", UiWindowKind.MENU, "v21_directions"),
+            FlowScreen("routeMenu", UiWindowKind.MENU, "v21_directions", steps = listOf(FlowStep("v20_route_preview", "routePreview"))),
             FlowScreen("routePreview", UiWindowKind.SCREEN, "v20_preview_back_description", exit = "v20_preview_back_description"),
         )
 

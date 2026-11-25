@@ -36,7 +36,6 @@ internal class RecordHomeView(
                 context,
                 types.map { context.getString(TYPE_NAMES.getValue(it)) },
                 types.indexOf(home.type),
-                Measure.ROW,
             ) { actions.type(types[it]) }.apply { contentDescription = context.getString(R.string.main_activity_type) },
             row(),
         )

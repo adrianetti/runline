@@ -48,9 +48,10 @@ internal class AtlasDriver(
         settle()
         val arrived = AppFlow.path(screen.id).orEmpty().all { tap(it.control) }
         if (!arrived || capture(screen.id).top.kind != screen.kind || !shows(screen.marker)) return false
-        screen.arrange.forEach {
-            settle(pauseMs)
-            tap(it)
+        settle(pauseMs)
+        screen.arrange.forEachIndexed { index, control ->
+            if (index > 0) SystemClock.sleep(ARRANGE_GAP_MS)
+            tap(control)
         }
         settle(pauseMs)
         return true
@@ -141,10 +142,31 @@ internal class AtlasDriver(
     }
 
     fun screenshot(file: File) {
-        val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
+        var bitmap: Bitmap? = null
+        var calm = 0
+        val deadline = SystemClock.uptimeMillis() + TICK_TIMEOUT_MS
+        while (bitmap == null && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(TICK_POLL_MS)
+            instrumentation.runOnMainSync {
+                calm = if (rolling()) 0 else calm + 1
+                if (calm >= CALM_POLLS) bitmap = instrumentation.uiAutomation.takeScreenshot()
+            }
+        }
+        val shot = bitmap ?: instrumentation.uiAutomation.takeScreenshot() ?: return
         file.parentFile?.mkdirs()
-        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, it) }
-        bitmap.recycle()
+        file.outputStream().use { shot.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, it) }
+        shot.recycle()
+    }
+
+    private fun rolling(): Boolean {
+        val host = activity ?: return false
+        val pending = ArrayDeque<android.view.View>(listOf(host.window.decorView))
+        while (pending.isNotEmpty()) {
+            val view = pending.removeFirst()
+            if (view.javaClass.simpleName == ROLLING && ROLLING_ANIMATOR.get(view) != null) return true
+            (view as? android.view.ViewGroup)?.let { group -> (0 until group.childCount).forEach { pending += group.getChildAt(it) } }
+        }
+        return false
     }
 
     private fun shape(node: UiNode): String = node.walk().joinToString(";") { "${it.type}${it.bounds}" }
@@ -159,6 +181,13 @@ internal class AtlasDriver(
 
     companion object {
         private const val WINDOWS_API = 29
+        private const val ARRANGE_GAP_MS = 3_000L
+        private const val TICK_TIMEOUT_MS = 4_000L
+        private const val TICK_POLL_MS = 40L
+        private const val CALM_POLLS = 3
+        private const val ROLLING = "RollingNumberView"
+        private val ROLLING_ANIMATOR =
+            Class.forName("com.runline.app.ui.RollingNumberView").getDeclaredField("animator").apply { isAccessible = true }
         private const val MAX_TRIES = 6
         private const val PATIENT_TRIES = 2
         private val SCROLLABLE = setOf(UiWindowKind.SCREEN, UiWindowKind.SHEET)

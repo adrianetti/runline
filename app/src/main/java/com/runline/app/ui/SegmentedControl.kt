@@ -11,7 +11,7 @@ internal class SegmentedControl(
     context: Context,
     labels: List<String>,
     selected: Int,
-    height: Int = Measure.TOUCH,
+    height: Int = Measure.ROW,
     private val onSelect: (Int) -> Unit,
 ) : MaterialButtonToggleGroup(context) {
     init {
@@ -26,23 +26,23 @@ internal class SegmentedControl(
 
     private fun segment(label: String) =
         MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-        id = View.generateViewId()
-        text = label
-        isAllCaps = false
-        typeface = Type.emphasis()
-        textSize = TextScale.LABEL.toFloat()
-        maxLines = 1
-        insetTop = 0
-        insetBottom = 0
-        minWidth = 0
-        minimumWidth = 0
-        setPadding(UiText.dp(context, Space.XS), 0, UiText.dp(context, Space.XS), 0)
-        cornerRadius = UiText.dp(context, Corner.CONTROL)
-        strokeWidth = UiText.dp(context, Space.HAIRLINE)
-        strokeColor = ColorStateList.valueOf(context.getColor(R.color.outline))
-        backgroundTintList = states(context.getColor(R.color.primary), context.getColor(R.color.surface))
-        setTextColor(states(context.getColor(R.color.on_primary), context.getColor(R.color.on_surface)))
-    }
+            id = View.generateViewId()
+            text = label
+            isAllCaps = false
+            typeface = Type.emphasis()
+            textSize = TextScale.LABEL.toFloat()
+            maxLines = 1
+            insetTop = 0
+            insetBottom = 0
+            minWidth = 0
+            minimumWidth = 0
+            setPadding(UiText.dp(context, Space.XS), 0, UiText.dp(context, Space.XS), 0)
+            cornerRadius = UiText.dp(context, Corner.CONTROL)
+            strokeWidth = UiText.dp(context, Space.HAIRLINE)
+            strokeColor = ColorStateList.valueOf(context.getColor(R.color.outline))
+            backgroundTintList = states(context.getColor(R.color.primary), context.getColor(R.color.surface))
+            setTextColor(states(context.getColor(R.color.on_primary), context.getColor(R.color.on_surface)))
+        }
 
     private fun states(
         checked: Int,

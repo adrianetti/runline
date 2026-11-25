@@ -11,7 +11,11 @@ class WeekProgressTest {
     private fun at(
         day: Int,
         hour: Int = NOON,
-    ) = LocalDateTime.of(YEAR, NOVEMBER, day, hour, 0).atZone(zone).toInstant().toEpochMilli()
+    ) = LocalDateTime
+        .of(YEAR, NOVEMBER, day, hour, 0)
+        .atZone(zone)
+        .toInstant()
+        .toEpochMilli()
 
     private fun activity(
         day: Int,

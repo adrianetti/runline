@@ -42,7 +42,11 @@ class UiAuditTest {
     private fun broken(
         screen: UiScreen,
         policy: AuditPolicy = AuditPolicy(),
-    ) = UiAudit.audit(screen, policy).findings.map { it.rule }.toSet()
+    ) = UiAudit
+        .audit(screen, policy)
+        .findings
+        .map { it.rule }
+        .toSet()
 
     @Test fun cleanScreenScoresFullMarks() {
         val result = UiAudit.audit(screen(heading(), control("Start", emphasis = UiEmphasis.FILLED), control("Close", left = FAR)), AuditPolicy(exitName = "Close"))
@@ -146,9 +150,20 @@ class UiAuditTest {
     @Test fun everyRuleHasASeededFailure() {
         val seeded =
             setOf(
-                AuditRule.TOUCH_TARGET, AuditRule.NAME, AuditRule.CONTRAST, AuditRule.ICON_CONTRAST, AuditRule.TEXT_SIZE, AuditRule.TRUNCATED,
-                AuditRule.OVERLAP, AuditRule.HEADING, AuditRule.PRIMARY_ACTION, AuditRule.DUPLICATE_ACTION, AuditRule.ICON_REUSE, AuditRule.COPY,
-                AuditRule.CHOICES, AuditRule.EXIT,
+                AuditRule.TOUCH_TARGET,
+                AuditRule.NAME,
+                AuditRule.CONTRAST,
+                AuditRule.ICON_CONTRAST,
+                AuditRule.TEXT_SIZE,
+                AuditRule.TRUNCATED,
+                AuditRule.OVERLAP,
+                AuditRule.HEADING,
+                AuditRule.PRIMARY_ACTION,
+                AuditRule.DUPLICATE_ACTION,
+                AuditRule.ICON_REUSE,
+                AuditRule.COPY,
+                AuditRule.CHOICES,
+                AuditRule.EXIT,
             )
         assertEquals(AuditRule.entries.toSet(), seeded)
     }

@@ -114,7 +114,9 @@ internal class AiSheet(
             iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
             cornerRadius = dp(Corner.CONTROL)
             setTextColor(activity.getColor(R.color.on_surface))
-            iconTint = android.content.res.ColorStateList.valueOf(activity.getColor(R.color.on_surface))
+            iconTint =
+                android.content.res.ColorStateList
+                    .valueOf(activity.getColor(R.color.on_surface))
             setPadding(dp(Space.M), dp(Space.S), dp(Space.M), dp(Space.S))
         }
     }

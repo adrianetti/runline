@@ -34,6 +34,7 @@ internal class SlopeIndicator(
             setTextColor(context.getColor(R.color.on_surface))
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         }
+
     init {
         orientation = VERTICAL
         gravity = Gravity.CENTER
@@ -79,12 +80,19 @@ internal class SlopeIndicator(
                     else -> R.string.map_v9_terrain_unknown
                 },
             )
-        val percent = grade?.roundToInt()?.let { String.format(resources.configuration.locales[0], "%+d", it) }
-        val text = percent?.let { context.getString(R.string.island_grade_value, it) } ?: "—"
+        val percent = grade?.roundToInt()?.let(::signed)
+        val text = percent?.let { context.getString(R.string.island_grade_value, it) } ?: context.getString(R.string.v26_grade_unknown)
         if (amount.text.toString() != text) amount.text = text
         contentDescription = if (percent == null) name else context.getString(R.string.map_v9_terrain_accessibility, name, percent)
         line.setGrade(grade, profile, animate)
     }
+
+    private fun signed(value: Int) =
+        when {
+            value > 0 -> "+$value"
+            value < 0 -> "$MINUS${-value}"
+            else -> "0"
+        }
 
     fun settle() {
         line.settle()
@@ -94,6 +102,7 @@ internal class SlopeIndicator(
 
     private companion object {
         const val UNKNOWN_HOLD_MS = 5_000L
+        const val MINUS = "\u2212"
     }
 }
 
@@ -220,7 +229,9 @@ private class SlopeLine(
         }
         if (shown.all { it == null }) {
             ink.style = Paint.Style.STROKE
+            ink.pathEffect = android.graphics.DashPathEffect(floatArrayOf(padding, padding), 0f)
             canvas.drawLine(padding, height / 2f, width - padding, height / 2f, ink)
+            ink.pathEffect = null
         }
     }
 

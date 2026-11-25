@@ -15,4 +15,5 @@
     <string name="v26_unit_hours">h</string>
     <string name="v26_unit_minutes">min</string>
     <string name="v26_row_summary">%1$s km · %2$s</string>
+    <string name="v26_grade_unknown">– %</string>
 </resources>

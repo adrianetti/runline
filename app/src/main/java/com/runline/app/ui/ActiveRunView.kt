@@ -185,7 +185,7 @@ class ActiveRunView(
             },
         )
 
-        panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(12))
+        panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(20))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val status = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         status.addView(heading, LinearLayout.LayoutParams(-2, -2))
