@@ -37,25 +37,25 @@ internal class RunReadoutView(
         primary.addView(paceReadout, if (stacked) LayoutParams(-1, -2) else LayoutParams(0, -2, 1f))
         primary.addView(slope, LayoutParams(dp(SLOPE_DP), -2).apply { if (stacked) gravity = Gravity.END else marginStart = dp(Space.M) })
         addView(primary, LayoutParams(-1, -2))
-        addView(UiRows.hairline(context), rule(Space.S))
         val secondary = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
         secondary.addView(
             DataFieldView(context, context.getString(R.string.v19_route_distance), distance, context.getString(R.string.island_km)),
             LayoutParams(0, -2, 1f),
         )
         secondary.addView(timeField, LayoutParams(0, -2, 1f))
-        addView(secondary, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
+        addView(secondary, LayoutParams(-1, -2).apply { topMargin = dp(if (compact) Space.S else Space.L) })
         if (!compact) {
-            addView(UiRows.hairline(context), rule(Space.S))
             val footer = LinearLayout(context)
-            listOf(ascent, descent, average).forEach { footer.addView(it, LayoutParams(0, -2, 1f)) }
-            addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
-            addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.M) })
+            footer.addView(ascent, LayoutParams(0, -2, QUARTER))
+            footer.addView(descent, LayoutParams(0, -2, QUARTER))
+            footer.addView(average, LayoutParams(0, -2, HALF))
+            addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.L) })
+            addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.S) })
         }
     }
 
     fun total(value: String) {
-        timeField.relabel(context.getString(R.string.v26_time_of, context.getString(R.string.active_time), value))
+        timeField.outOf(value)
     }
 
     fun hideProfile() {
@@ -112,8 +112,6 @@ internal class RunReadoutView(
         unit: Int,
     ) = DataFieldView(context, context.getString(label), DASH, context.getString(unit), TextScale.VALUE)
 
-    private fun rule(top: Int) = LayoutParams(-1, dp(Space.HAIRLINE)).apply { topMargin = dp(top) }
-
     private fun number(
         value: Double?,
         decimals: Int,
@@ -127,7 +125,9 @@ internal class RunReadoutView(
         const val STACK_FONT_SCALE = 1.5f
         const val NARROW_DP = 360
         const val SLOPE_DP = 72
-        const val PROFILE_DP = 48
+        const val PROFILE_DP = 56
+        const val QUARTER = 1f
+        const val HALF = 2f
         const val MAX_PACE_SECONDS = 6_000
         const val SECONDS_PER_MINUTE = 60
     }

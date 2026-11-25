@@ -55,7 +55,7 @@ class HistoryInsightsView(
         content.removeAllViews()
         val count = resources.getQuantityString(R.plurals.history_activity_count, period.activities.size, period.activities.size)
         val summary = context.getString(R.string.main_activity_date, context.getString(R.string.history_progress), count)
-        content.addView(UiText.body(context, summary), row(bottom = Space.L))
+        content.addView(UiText.label(context, summary), row(bottom = Space.M))
         if (period.activities.isEmpty()) return
         val totals = LinearLayout(context)
         val paced = if (selected == null) periods.getValue(ActivityType.RUN) else period
@@ -171,45 +171,61 @@ private class WeeklyDistanceChart(
         super.onDraw(canvas)
         paint.textSize = textSize
         paint.typeface = Typeface.DEFAULT
-        val column = width / 4f
         val baseline = height - textSize * 2f
         val top = textSize * 2f
         val range = (baseline - top).coerceAtLeast(1f)
         paint.color = muted
         paint.style = Paint.Style.FILL
         canvas.drawRect(0f, baseline - density, width.toFloat(), baseline, paint)
-        weeks.forEachIndexed { index, week ->
-            val center = column * (index + .5f)
-            val barWidth = minOf(column * .48f, 36 * density)
-            val barTop = baseline - (range * week.distanceMeters / peak).toFloat() * growth
-            paint.color = ink
+        weeks.indices.forEach { index ->
+            val center = center(index)
+            val barWidth = barWidth()
             val current = index == weeks.lastIndex
-            paint.style = if (current) Paint.Style.STROKE else Paint.Style.FILL
-            paint.strokeWidth = outline
-            val inset = if (current) outline / 2 else 0f
-            if (week.distanceMeters > 0) {
-                canvas.drawRoundRect(
-                    center - barWidth / 2 + inset,
-                    barTop + inset,
-                    center + barWidth / 2 - inset,
-                    baseline - inset,
-                    3 * density,
-                    3 * density,
-                    paint,
-                )
-                paint.style = Paint.Style.FILL
+            paint.color = ink
+            paint.textAlign = Paint.Align.CENTER
+            if (weeks[index].distanceMeters > 0) {
+                bar(canvas, index, baseline, range)
             } else {
                 paint.style = Paint.Style.FILL
+                canvas.drawRect(center - barWidth / 2, baseline - outline, center + barWidth / 2, baseline, paint)
             }
-            paint.textAlign = Paint.Align.CENTER
-            paint.typeface = valueFace
-            paint.textSize = valueSize
-            if (week.distanceMeters > 0) canvas.drawText(values[index], center, max(valueSize, barTop - valueSize * .45f), paint)
-            paint.typeface = Typeface.DEFAULT
+            paint.typeface = if (current) Type.emphasis() else Typeface.DEFAULT
             paint.textSize = textSize
-            paint.color = muted
+            paint.color = if (current) ink else muted
             canvas.drawText(labels[index], center, baseline + textSize * 1.5f, paint)
         }
+    }
+
+    private fun center(index: Int) = width / 4f * (index + .5f)
+
+    private fun barWidth() = minOf(width / 4f * .48f, 36 * density)
+
+    private fun bar(
+        canvas: Canvas,
+        index: Int,
+        baseline: Float,
+        range: Float,
+    ) {
+        val current = index == weeks.lastIndex
+        val center = center(index)
+        val barWidth = barWidth()
+        val barTop = baseline - (range * weeks[index].distanceMeters / peak).toFloat() * growth
+        val inset = if (current) outline / 2 else 0f
+        paint.style = if (current) Paint.Style.STROKE else Paint.Style.FILL
+        paint.strokeWidth = outline
+        canvas.drawRoundRect(
+            center - barWidth / 2 + inset,
+            barTop + inset,
+            center + barWidth / 2 - inset,
+            baseline - inset,
+            3 * density,
+            3 * density,
+            paint,
+        )
+        paint.style = Paint.Style.FILL
+        paint.typeface = valueFace
+        paint.textSize = valueSize
+        canvas.drawText(values[index], center, max(valueSize, barTop - valueSize * .45f), paint)
     }
 }
 

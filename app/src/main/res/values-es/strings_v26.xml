@@ -13,4 +13,5 @@
     <string name="v26_unit_minutes">min</string>
     <string name="v26_grade_unknown">– %</string>
     <string name="v26_time_of">%1$s / %2$s</string>
+    <string name="v26_out_of">/ %1$s</string>
 </resources>

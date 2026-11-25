@@ -74,16 +74,20 @@ class RouteDetailView(
             },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
-        top.addView(
-            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.v19_route_options)).apply {
-                setOnClickListener { actions.more(this) }
-            },
-            LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
-        )
         addView(
             top,
             LayoutParams(-2, dp(48), Gravity.TOP or Gravity.START).apply {
                 marginStart = dp(16)
+                topMargin = dp(16)
+            },
+        )
+        map.controlsEndPx = dp(Measure.CONTROL_STEP)
+        addView(
+            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.v19_route_options)).apply {
+                setOnClickListener { actions.more(this) }
+            },
+            LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
+                marginEnd = dp(16)
                 topMargin = dp(16)
             },
         )
@@ -111,7 +115,6 @@ class RouteDetailView(
             first: Pair<Int, RouteField>,
             second: Pair<Int, RouteField>,
         ) {
-            grid.addView(UiRows.hairline(context), LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(8) })
             grid.addView(
                 LinearLayout(context).apply {
                     listOf(first, second).forEach { (name, field) ->
@@ -121,7 +124,7 @@ class RouteDetailView(
                         )
                     }
                 },
-                row(top = 8),
+                row(top = 16),
             )
         }
         val hours = stats.estimatedMinutes >= MINUTES_PER_HOUR
@@ -140,12 +143,12 @@ class RouteDetailView(
             R.string.v19_route_time to time,
         )
         pair(
-            TextScale.SECTION,
+            TextScale.VALUE,
             R.string.v19_route_ascent to height(stats.ascentMeters),
             R.string.v19_route_descent to height(stats.descentMeters),
         )
         pair(
-            TextScale.SECTION,
+            TextScale.VALUE,
             R.string.v19_route_highest to height(stats.maxElevationMeters),
             R.string.v19_route_lowest to height(stats.minElevationMeters),
         )
@@ -211,6 +214,7 @@ class RouteDetailView(
             GradientDrawable().apply {
                 setColor(context.getColor(R.color.surface))
                 cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), context.getColor(R.color.island_edge))
             }
         panel.elevation = dp(3).toFloat()
         panel.setPadding(dp(20), dp(16), dp(20), dp(20))
@@ -257,7 +261,7 @@ class RouteDetailView(
         heightMeasureSpec: Int,
     ) {
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(180)) else (h * 0.55f).roundToInt().coerceAtLeast(dp(220))
+        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(180)) else (h * ISLAND_SHARE).roundToInt().coerceAtLeast(dp(220))
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
@@ -297,6 +301,7 @@ class RouteDetailView(
 
     private companion object {
         const val MINUTES_PER_HOUR = 60
+        const val ISLAND_SHARE = 0.58f
     }
 }
 

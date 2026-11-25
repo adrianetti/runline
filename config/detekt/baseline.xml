@@ -673,13 +673,9 @@
     <ID>MagicNumber:ElevationChartView.kt$ElevationChartView.Plot$4</ID>
     <ID>MagicNumber:ElevationChartView.kt$ElevationChartView.Plot$6</ID>
     <ID>MagicNumber:ElevationChartView.kt$ElevationChartView.Plot$8</ID>
-    <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$.60f</ID>
-    <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$190</ID>
     <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$24</ID>
     <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$255</ID>
     <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$3</ID>
-    <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$5</ID>
-    <ID>MagicNumber:ElevationIsland.kt$ElevationIsland$8</ID>
     <ID>MagicNumber:ElevationProgress.kt$ElevationProgress$3.0</ID>
     <ID>MagicNumber:ElevationTrace.kt$ElevationTrace.Companion$30f</ID>
     <ID>MagicNumber:FollowCamera.kt$FollowCamera$240.0</ID>
@@ -978,7 +974,6 @@
     <ID>MagicNumber:RouteClimbs.kt$RouteClimbs$0.3</ID>
     <ID>MagicNumber:RouteClimbs.kt$RouteClimbs$4</ID>
     <ID>MagicNumber:RouteClimbs.kt$RouteClimbs$50</ID>
-    <ID>MagicNumber:RouteDetailView.kt$RouteDetailView$0.55f</ID>
     <ID>MagicNumber:RouteDetailView.kt$RouteDetailView$1000</ID>
     <ID>MagicNumber:RouteDetailView.kt$RouteDetailView$12</ID>
     <ID>MagicNumber:RouteDetailView.kt$RouteDetailView$13</ID>
@@ -1220,9 +1215,7 @@
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$0.85f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$0.9f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$1.5f</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$104.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$11.0</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$128.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$12_000</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$13.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$14f</ID>
@@ -1252,7 +1245,6 @@
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$7f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$8</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$80</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$80.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$85.051129</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SpainCoverage$19.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SpainCoverage$27.0</ID>
@@ -1674,7 +1666,6 @@
     <ID>MaxLineLength:ElevationChartView.kt$ElevationChartView.Plot$canvas.drawText(context.getString(R.string.replay_metres, String.format(locale, "%+.0f", high - heightOrigin)), pad, top - dp(8), ink)</ID>
     <ID>MaxLineLength:ElevationChartView.kt$ElevationChartView.Plot$canvas.drawText(context.getString(R.string.replay_metres, String.format(locale, "%+.0f", low - heightOrigin)), pad, height - dp(6).toFloat(), ink)</ID>
     <ID>MaxLineLength:ElevationChartView.kt$ElevationChartView.Plot$private fun x(position: Long)</ID>
-    <ID>MaxLineLength:ElevationIsland.kt$ElevationIsland$private fun x(sample: ObservedElevationTrace.Sample)</ID>
     <ID>MaxLineLength:ElevationProgress.kt$ElevationProgress$if (previous?.let { point.timestampMs - it.timestampMs &gt; RunReplay.MAX_GPS_GAP_MS || point.terrainModel != it.terrainModel } == true) anchor = null</ID>
     <ID>MaxLineLength:GlobalTerrain.kt$TerrainDownloadArea$for (dx in -1..1) for (dy in -1..1) add(TerrainDownloadKey.Spain(center.copy(eastKm = center.eastKm + dx, northKm = center.northKm + dy)))</ID>
     <ID>MaxLineLength:GlobalTerrainTest.kt$GlobalTerrainTest$assertEquals(original.copy(altitudeMeters = derived.altitudeMeters, verticalAccuracyMeters = null, terrainModel = derived.terrainModel), derived)</ID>

@@ -19,6 +19,7 @@ internal object Corner {
 internal object Measure {
     const val ICON = 24
     const val TOUCH = 48
+    const val CONTROL_STEP = 64
     const val ROW = 56
     const val ACTION = 64
     const val NAVIGATION = 72

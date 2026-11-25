@@ -2,6 +2,7 @@ package com.runline.app.ui
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Matrix
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -41,8 +42,13 @@ internal object UiRows {
             )
         }
         addView(
-            glyph(context, R.drawable.ic_chevron, R.color.on_surface_variant),
-            square(context).apply { marginStart = UiText.dp(context, Space.S) },
+            glyph(context, R.drawable.ic_chevron, R.color.on_surface_variant).apply {
+                scaleType = ImageView.ScaleType.MATRIX
+                imageMatrix = Matrix().apply { setTranslate(-UiText.dp(context, Space.S).toFloat(), 0f) }
+            },
+            LinearLayout.LayoutParams(UiText.dp(context, Space.S), UiText.dp(context, Measure.ICON)).apply {
+                marginStart = UiText.dp(context, Space.S)
+            },
         )
     }
 

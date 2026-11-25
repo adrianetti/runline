@@ -19,6 +19,12 @@ internal class ElevationIsland(
     context: Context,
 ) : LinearLayout(context) {
     var maxHeight = Int.MAX_VALUE
+    var scrubbable = false
+        set(value) {
+            field = value
+            rebuild()
+        }
+    private val edge get() = dp(if (scrubbable) RING_DP else MARK_RING_DP)
     private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Path()
     private val area = Path()
@@ -38,6 +44,7 @@ internal class ElevationIsland(
             GradientDrawable().apply {
                 setColor(context.getColor(R.color.surface))
                 cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), context.getColor(R.color.island_edge))
             }
         elevation = dp(3).toFloat()
         clipToOutline = true
@@ -136,8 +143,8 @@ internal class ElevationIsland(
             }
         }
         chartBounds.set(bounds)
-        baseline = if (bounds.height() > 0) bounds.bottom.toFloat() else height * .60f
-        profileHeight = (bounds.height().takeIf { it > 0 } ?: height) * PROFILE_SHARE
+        baseline = (bounds.bottom - edge).toFloat()
+        profileHeight = (bounds.height() - 2 * edge).coerceAtLeast(0).toFloat()
         trace.sections.forEach { section ->
             val sectionArea = Path()
             var firstX = 0f
@@ -155,8 +162,8 @@ internal class ElevationIsland(
                 }
                 lastX = x
             }
-            sectionArea.lineTo(lastX, baseline + dp(8))
-            sectionArea.lineTo(firstX, baseline + dp(8))
+            sectionArea.lineTo(lastX, bounds.bottom.toFloat())
+            sectionArea.lineTo(firstX, bounds.bottom.toFloat())
             sectionArea.close()
             area.addPath(sectionArea)
         }
@@ -186,24 +193,29 @@ internal class ElevationIsland(
                 ink.style = Paint.Style.FILL
                 ink.alpha = 255
                 ink.color = context.getColor(R.color.surface)
-                canvas.drawCircle(x(it), y(it), dp(RING_DP).toFloat(), ink)
+                canvas.drawCircle(x(it), y(it), dp(if (scrubbable) RING_DP else MARK_RING_DP).toFloat(), ink)
                 ink.color = context.getColor(R.color.on_surface)
-                canvas.drawCircle(x(it), y(it), dp(DOT_DP).toFloat(), ink)
+                canvas.drawCircle(x(it), y(it), dp(if (scrubbable) DOT_DP else MARK_DOT_DP).toFloat(), ink)
             }
         }
     }
 
-    private fun x(sample: ObservedElevationTrace.Sample) = chartBounds.left + (sample.positionMs.toDouble() / trace.durationMs * chartBounds.width().coerceAtLeast(0)).toFloat()
+    private fun x(sample: ObservedElevationTrace.Sample): Float {
+        val lead = if (scrubbable) edge else 0
+        val span = (chartBounds.width() - lead - edge).coerceAtLeast(0)
+        return chartBounds.left + lead + (sample.positionMs.toDouble() / trace.durationMs * span).toFloat()
+    }
 
     private fun y(sample: ObservedElevationTrace.Sample) = baseline - ((sample.heightMeters - low) / range * profileHeight).toFloat()
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
-    private companion object {
-        const val PROFILE_SHARE = 0.72f
-        const val MIN_RANGE_METERS = 20.0
+    companion object {
         const val RING_DP = 8
-        const val DOT_DP = 6
-        const val LINE_DP = 1.5f
+        private const val MIN_RANGE_METERS = 12.0
+        private const val DOT_DP = 6
+        private const val MARK_RING_DP = 5
+        private const val MARK_DOT_DP = 3
+        private const val LINE_DP = 1.5f
     }
 }

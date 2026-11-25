@@ -158,6 +158,11 @@ class SatelliteMapView(
         }
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     var controlsTopPx: Int? = null
+    var controlsEndPx = 0
+        set(value) {
+            field = value
+            placeControls()
+        }
     private val waitingSpinner =
         ProgressBar(context).apply {
             indeterminateTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
@@ -328,6 +333,15 @@ class SatelliteMapView(
                 )
                 ready.addLayer(
                     LineLayer("route-line", "route").withProperties(lineColor(Color.WHITE), lineWidth(4f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)),
+                )
+                ready.addSource(GeoJsonSource(FINISH))
+                ready.addLayer(
+                    CircleLayer("finish-dot", FINISH).withProperties(
+                        circleColor(Color.BLACK),
+                        circleRadius(5f),
+                        circleStrokeColor(Color.WHITE),
+                        circleStrokeWidth(2f),
+                    ),
                 )
                 ready.addSource(GeoJsonSource("start"))
                 ready.addLayer(
@@ -590,10 +604,7 @@ class SatelliteMapView(
             followButton.layoutParams = this
         }
         creditText.maxWidth = (width - next[0] - next[2] - dp(80)).coerceAtLeast(dp(64))
-        (controls.layoutParams as LayoutParams).apply {
-            setMargins(0, (controlsTopPx ?: next[1]) + dp(Space.L), next[2] + dp(Space.L), 0)
-            controls.layoutParams = this
-        }
+        placeControls()
         (fallback.layoutParams as LayoutParams).apply {
             setMargins(next[0], next[1], next[2], next[3] + dp(56))
             fallback.layoutParams = this
@@ -604,6 +615,12 @@ class SatelliteMapView(
         }
         applyCameraInsets()
         if (following) followMarker()
+    }
+
+    private fun placeControls() {
+        val params = controls.layoutParams as? LayoutParams ?: return
+        params.setMargins(0, (controlsTopPx ?: overlayInsets[1]) + dp(Space.L), overlayInsets[2] + dp(Space.L) + controlsEndPx, 0)
+        controls.layoutParams = params
     }
 
     fun fitRoute() {
@@ -633,8 +650,10 @@ class SatelliteMapView(
         val spanY = max(ys.max() - ys.min(), 0.000002)
         val density = resources.displayMetrics.density.toDouble()
         val padding = cameraInsets()
-        val usableWidth = max((width - padding[0] - padding[2]) / density - 128.0, 80.0)
-        val usableHeight = max((height - padding[1] - padding[3]) / density - 104.0, 80.0)
+        val sides = (padding[0] + padding[2] - overlayInsets[0] - overlayInsets[2]) / density
+        val ends = (padding[1] + padding[3] - overlayInsets[1] - overlayInsets[3]) / density
+        val usableWidth = max((width - padding[0] - padding[2]) / density - max(FIT_CLEARANCE_DP - sides, 0.0), MIN_FIT_DP)
+        val usableHeight = max((height - padding[1] - padding[3]) / density - max(FIT_CLEARANCE_DP - ends, 0.0), MIN_FIT_DP)
         val zoom = min(log2(usableWidth / 512.0 / spanX), log2(usableHeight / 512.0 / spanY)).coerceIn(1.0, 17.0)
         val centerLng = ((lngs.max() + lngs.min()) / 2.0 + 540.0) % 360.0 - 180.0
         val centerY = (ys.max() + ys.min()) / 2.0
@@ -747,6 +766,9 @@ class SatelliteMapView(
         ready.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(plannedRoute))
         val start = routePoints.firstOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         ready.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointCollection(start))
+        val finish = routePoints.lastOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
+        val finished = !progressiveRoute && !navigationMode && !replayMode && finish != start
+        ready.getSourceAs<GeoJsonSource>(FINISH)?.setGeoJson(pointCollection(finish.takeIf { finished }))
     }
 
     private fun lines(points: List<RunPoint>) =
@@ -993,6 +1015,9 @@ class SatelliteMapView(
         private const val TRAIL_RENDER_MS = 1_500L
         private const val MAX_HEAD_POINTS = 300
         private const val TRAIL_HEAD_METERS = 400.0
+        private const val FIT_CLEARANCE_DP = 96.0
+        private const val FINISH = "finish"
+        private const val MIN_FIT_DP = 80.0
         private const val BASE_STYLE = """
         {"version":8,"sources":{
           "world":{"type":"raster","tiles":["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"],"tileSize":256,"minzoom":0,"maxzoom":14},

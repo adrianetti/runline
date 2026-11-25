@@ -30,6 +30,7 @@ object AppFlow {
     const val ROUTE = "route"
     const val SETTINGS = "settings"
     private const val CLOSE = "main_close"
+    private const val REPLAY_OPTIONS = "replay_options"
     private const val DIAGNOSTICS_TITLE = "diag_v12_title"
     val TABS = setOf(RECORD, ACTIVITIES, ROUTES, SETTINGS)
     val COUNCIL = listOf(RECORD, RUN, ACTIVITIES, REPLAY, ROUTE, SETTINGS)
@@ -94,9 +95,9 @@ object AppFlow {
             FlowScreen(
                 REPLAY,
                 UiWindowKind.SCREEN,
-                "replay_options",
+                REPLAY_OPTIONS,
                 exit = "replay_back_to_activities",
-                steps = listOf(FlowStep("replay_options", "replayMenu")),
+                steps = listOf(FlowStep(REPLAY_OPTIONS, "replayMenu")),
                 arrange = listOf("replay_play", "replay_pause"),
             ),
             FlowScreen(
@@ -123,7 +124,7 @@ object AppFlow {
                 UiWindowKind.SHEET,
                 "replay_activity_details",
                 exit = "replay_close_details",
-                steps = listOf(FlowStep("replay_options", "detailsMenu"), FlowStep("map_v8_stats_info", "statsInfo")),
+                steps = listOf(FlowStep(REPLAY_OPTIONS, "detailsMenu"), FlowStep("map_v8_stats_info", "statsInfo")),
             ),
             FlowScreen("detailsMenu", UiWindowKind.MENU, "activity_action_edit"),
             FlowScreen("statsInfo", UiWindowKind.DIALOG, "map_v8_stats_info", reading = true),

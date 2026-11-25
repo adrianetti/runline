@@ -534,6 +534,13 @@ class MainActivity : AppCompatActivity() {
             },
         )
 
+    private fun activityIcon(type: ActivityType) =
+        when (type) {
+            ActivityType.RUN -> R.drawable.ic_run
+            ActivityType.WALK -> R.drawable.ic_walk
+            ActivityType.HIKE -> R.drawable.ic_hike
+        }
+
     private fun refreshRecording() {
         val state = TrackingService.state(this)
         val completion = getSharedPreferences("activity_completion", MODE_PRIVATE)
@@ -919,6 +926,7 @@ class MainActivity : AppCompatActivity() {
             pace = pace(RunMetrics.paceSecondsPerKm(distance, time)),
             summary = getString(R.string.main_activity_date, covered, duration(time)),
             description = if (title == null) spoken else "$title. $spoken",
+            icon = activityIcon(run.activityType),
         )
     }
 
@@ -1008,20 +1016,19 @@ class MainActivity : AppCompatActivity() {
                 menu.add(0, DETAILS_ITEM, 0, R.string.replay_activity_details)
                 menu.add(0, EXPORT_ITEM, 0, R.string.replay_export_file)
                 menu.add(0, 13, 0, R.string.v7_edit_activity)
-                if (AiSettings.isReady(this@MainActivity) || currentRun?.let {
-                        com.runline.app.ai
-                            .AiReviewStore(this@MainActivity)
-                            .get(it.id)
-                    } != null
-                ) {
-                    menu.add(0, 14, 1, R.string.v7_run_review)
-                }
+                if (reviewAvailable()) menu.add(0, 14, 1, R.string.v7_run_review)
                 menu.add(0, 16, 2, R.string.diag_v12_coach)
                 menu.add(0, 4, 2, R.string.main_delete_activity)
                 setOnMenuItemClickListener { item ->
-                    if (item.itemId == DETAILS_ITEM) replayView?.openDetails()
-                    if (item.itemId == EXPORT_ITEM) replayView?.export()
                     when (item.itemId) {
+                        DETAILS_ITEM -> {
+                            replayView?.openDetails()
+                        }
+
+                        EXPORT_ITEM -> {
+                            replayView?.export()
+                        }
+
                         13 -> {
                             currentRun?.let { showActivityEditor(it) }
                         }
@@ -1041,6 +1048,16 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
             }.show()
+    }
+
+    private fun reviewAvailable(): Boolean {
+        val stored =
+            currentRun?.let {
+                com.runline.app.ai
+                    .AiReviewStore(this)
+                    .get(it.id)
+            }
+        return AiSettings.isReady(this) || stored != null
     }
 
     private fun confirmDelete(run: RunSession) {

@@ -101,6 +101,7 @@ class RunReplayView(
             contentDescription = context.getString(R.string.replay_position)
         }
     private val clock = label("", 14, muted = true)
+    private val exporter: () -> Unit = onExport
     private val tick =
         object : Runnable {
             override fun run() {
@@ -133,17 +134,6 @@ class RunReplayView(
             },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
-        if (!preview) {
-            top.addView(
-                UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.replay_options)).apply {
-                    setOnClickListener {
-                        pausePlayback()
-                        onMore(this)
-                    }
-                },
-                LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
-            )
-        }
         addView(
             top,
             LayoutParams(-2, dp(48), Gravity.TOP or Gravity.START).apply {
@@ -151,6 +141,21 @@ class RunReplayView(
                 topMargin = dp(16)
             },
         )
+        if (!preview) {
+            map.controlsEndPx = dp(Measure.CONTROL_STEP)
+            addView(
+                UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.replay_options)).apply {
+                    setOnClickListener {
+                        pausePlayback()
+                        onMore(this)
+                    }
+                },
+                LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
+                    marginEnd = dp(16)
+                    topMargin = dp(16)
+                },
+            )
+        }
 
         panel.setPadding(dp(20), dp(if (compact) 12 else 16), dp(20), dp(20))
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -165,20 +170,22 @@ class RunReplayView(
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val chart = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
         panel.setChartContent(chart)
-        seek.setPadding(0, 0, 0, 0)
+        panel.scrubbable = true
+        val edge = dp(ElevationIsland.RING_DP) - dp(PLAYHEAD_DP) / 2
+        seek.setPadding(edge, 0, edge, 0)
         seek.progressDrawable = Color.TRANSPARENT.toDrawable()
         seek.background = null
         seek.thumbOffset = 0
         seek.thumb =
             android.graphics.drawable.GradientDrawable().apply {
                 setColor(context.getColor(R.color.on_surface))
-                setSize(dp(PLAYHEAD_DP), dp(48))
+                setSize(dp(PLAYHEAD_DP), dp(TRACK_DP))
             }
         val track = FrameLayout(context)
         track.addView(chart, LayoutParams(-1, -1))
         track.addView(seek, LayoutParams(-1, -1))
         val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        timeline.addView(track, LinearLayout.LayoutParams(0, dp(48), 1f))
+        timeline.addView(track, LinearLayout.LayoutParams(0, dp(TRACK_DP), 1f))
         readout.total(duration(replay.durationMs))
         panel.addView(timeline, row(top = 8))
         val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -419,8 +426,6 @@ class RunReplayView(
         subtitle.text = detail
         heading.visibility = VISIBLE
     }
-
-    private val exporter: () -> Unit = onExport
 
     fun export() {
         pausePlayback()
@@ -794,5 +799,6 @@ class RunReplayView(
         const val SEEK_PAD_DP = 10
         const val PLAYHEAD_DP = 2
         const val ISLAND_SHARE = 0.66f
+        const val TRACK_DP = 56
     }
 }

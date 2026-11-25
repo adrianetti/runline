@@ -175,17 +175,21 @@ class ActiveRunView(
             },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
-        header.addView(
-            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.active_options)).apply {
-                setOnClickListener { onOptions(this) }
-            },
-            LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
-        )
         addView(
             header,
             LayoutParams(-2, dp(48), Gravity.TOP or Gravity.START).apply {
                 topMargin = dp(16)
                 marginStart = dp(16)
+            },
+        )
+        map.controlsEndPx = dp(Measure.CONTROL_STEP)
+        addView(
+            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.active_options)).apply {
+                setOnClickListener { onOptions(this) }
+            },
+            LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
+                topMargin = dp(16)
+                marginEnd = dp(16)
             },
         )
 
@@ -678,6 +682,6 @@ class ActiveRunView(
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
     private companion object {
-        const val ISLAND_SHARE = 0.6f
+        const val ISLAND_SHARE = 0.66f
     }
 }

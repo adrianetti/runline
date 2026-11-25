@@ -1,8 +1,10 @@
 package com.runline.app.ui
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.TypedValue
 import android.view.Gravity
+import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.content.res.AppCompatResources
 import com.runline.app.R
@@ -13,6 +15,7 @@ internal data class HistoryRow(
     val pace: String,
     val summary: String,
     val description: String,
+    val icon: Int = 0,
 )
 
 internal class HistoryRowView(
@@ -33,6 +36,17 @@ internal class HistoryRowView(
                 AppCompatResources.getDrawable(context, value.resourceId)
             }
         setOnClickListener { open() }
+        if (row.icon != 0) {
+            val side = UiText.dp(context, Measure.ICON)
+            addView(
+                ImageView(context).apply {
+                    setImageResource(row.icon)
+                    imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
+                    importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                },
+                LayoutParams(side, side).apply { marginEnd = UiText.dp(context, Space.L) },
+            )
+        }
         val name = LinearLayout(context).apply { orientation = VERTICAL }
         name.addView(UiText.styled(context, row.title, TextScale.SECTION, bold = true))
         name.addView(UiText.label(context, row.date), wrap().apply { topMargin = UiText.dp(context, Space.XS) })
