@@ -12,7 +12,7 @@ flowchart LR
         activities["activities: Share or export all activities"]
         historyMenu[/"historyMenu: Share all"/]
         exportAll{{"exportAll: Summary · CSV"}}
-        replay["replay: Export GPX"]
+        replay["replay: Activity options"]
         replayMenu[/"replayMenu: Edit activity"/]
         activityFile{{"activityFile: Activity file"}}
         editor(["editor: Edit activity"])
@@ -55,82 +55,8 @@ flowchart LR
     activities -->|…, …, … kilometres, …. View activity.| replay
     historyMenu -->|Export all| exportAll
     replay -->|Activity options| replayMenu
-    replay -->|Export GPX| activityFile
     replayMenu -->|Details| details
-    replayMenu -->|Edit activity| editor
-    replayMenu -->|Coach review| review
-    replayMenu -->|Coach log| coachLog
-    replayMenu -->|Delete activity| deleteActivity
-    details -->|Activity options| detailsMenu
-    details -->|About GPS estimates| statsInfo
-    routes -->|Route options| routesMenu
-    routes -->|…. …. …. Open route.| route
-    routesMenu -->|About open routes| routesAbout
-    route -->|Route options| routeMenu
-    routeMenu -->|Preview| routePreview
-    settings -->|Runner profile| profile
-    settings -->|AI| ai
-    settings -->|Language| language
-    settings -->|Music| music
-    settings -->|Offline terrain| terrain
-    settings -->|Recording protection| protection
-    settings -->|Diagnostics| diagnostics
-    settings -->|About| about
-    run -->|Recording options| runMenu
-    paused -->|Recording options| pausedMenu
-    pausedMenu -->|Discard recording| discard" type="java.lang.AssertionError">java.lang.AssertionError: docs/FLOW.md is out of date. Its diagram must be:
-flowchart LR
-    subgraph idle
-        record["record: Start"]
-        coach(["coach: Spoken guidance"])
-        activities["activities: Share or export all activities"]
-        historyMenu[/"historyMenu: Share all"/]
-        exportAll{{"exportAll: Summary · CSV"}}
-        replay["replay: Export GPX"]
-        replayMenu[/"replayMenu: Edit activity"/]
-        activityFile{{"activityFile: Activity file"}}
-        editor(["editor: Edit activity"])
-        review(["review: Run review"])
-        coachLog(["coachLog: Diagnostics"])
-        deleteActivity{{"deleteActivity: Delete activity?"}}
-        details(["details: Details"])
-        detailsMenu[/"detailsMenu: Edit"/]
-        statsInfo{{"statsInfo: About GPS estimates"}}
-        routes["routes: Routes"]
-        routesMenu[/"routesMenu: Check for new routes"/]
-        routesAbout{{"routesAbout: About open routes"}}
-        route["route: Route options"]
-        routeMenu[/"routeMenu: Directions to start"/]
-        routePreview["routePreview: Back to the route"]
-        settings["settings: Auto-pause at stops"]
-        profile(["profile: Runner profile"])
-        ai(["ai: AI"])
-        language{{"language: Language"}}
-        music(["music: Music"])
-        terrain(["terrain: Offline terrain"])
-        protection{{"protection: Recording protection"}}
-        diagnostics(["diagnostics: Diagnostics"])
-        about(["about: About"])
-    end
-    subgraph recording
-        run["run: Pause"]
-        runMenu[/"runMenu: Voice coach"/]
-    end
-    subgraph paused
-        paused["paused: Resume"]
-        pausedMenu[/"pausedMenu: Discard recording"/]
-        discard{{"discard: Discard this recording?"}}
-    end
-    record -->|Activities| activities
-    record -->|Routes| routes
-    record -->|Settings| settings
-    record -->|Voice coach| coach
-    activities -->|Share or export all activities| historyMenu
-    activities -->|…, …, … kilometres, …. View activity.| replay
-    historyMenu -->|Export all| exportAll
-    replay -->|Activity options| replayMenu
-    replay -->|Export GPX| activityFile
-    replayMenu -->|Details| details
+    replayMenu -->|Export GPX| activityFile
     replayMenu -->|Edit activity| editor
     replayMenu -->|Coach review| review
     replayMenu -->|Coach log| coachLog

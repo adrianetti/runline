@@ -57,6 +57,14 @@ class ScreenAtlasAndroidTest {
         File(output, "report.json").writeText(JSONArray(visits.map(AtlasVisit::json)).toString(JSON_INDENT))
         val missed = visits.filter { !it.reached }.map { "${it.look}/${it.screen}" }
         assertEquals("Screens the flow could not reach", emptyList<String>(), missed)
+        assertEquals("Screens below the audit floor", emptyList<String>(), visits.mapNotNull(::shortfall))
+    }
+
+    private fun shortfall(visit: AtlasVisit): String? {
+        val result = visit.result ?: return null
+        val scores = AuditGroup.entries.joinToString { "${it.name.lowercase()} ${result.score(it)}" }
+        val findings = result.findings.joinToString { "${it.rule}: ${it.subject} (${it.detail})" }
+        return "${visit.look}/${visit.screen}: $scores. $findings".takeIf { AuditGroup.entries.any { result.score(it) < SCORE_FLOOR } }
     }
 
     private fun tour(look: AtlasLook): List<AtlasVisit> {
@@ -110,5 +118,6 @@ class ScreenAtlasAndroidTest {
         private const val NOTIFICATION_API = 33
         private const val GRANT_API = 28
         private const val JSON_INDENT = 1
+        private const val SCORE_FLOOR = 100
     }
 }

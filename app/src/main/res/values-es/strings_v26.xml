@@ -14,4 +14,14 @@
     <string name="v26_grade_unknown">– %</string>
     <string name="v26_time_of">%1$s / %2$s</string>
     <string name="v26_out_of">/ %1$s</string>
+    <string name="v26_profile_recent">Últimos 28 días</string>
+    <plurals name="v26_profile_runs">
+        <item quantity="one">carrera</item>
+        <item quantity="other">carreras</item>
+    </plurals>
+    <string name="v26_profile_weekly">Por semana</string>
+    <string name="v26_profile_longest">Más larga</string>
+    <string name="v26_profile_pace">Ritmo típico</string>
+    <string name="v26_profile_effort">Esfuerzo</string>
+    <string name="v26_unit_of_ten">/10</string>
 </resources>

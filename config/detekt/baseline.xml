@@ -1202,7 +1202,6 @@
     <ID>MagicNumber:RunnerProfileSheet.kt$RunnerProfileSheet$18</ID>
     <ID>MagicNumber:RunnerProfileSheet.kt$RunnerProfileSheet$4</ID>
     <ID>MagicNumber:RunnerProfileSheet.kt$RunnerProfileSheet$56</ID>
-    <ID>MagicNumber:RunnerProfileSheet.kt$RunnerProfileSheet$60</ID>
     <ID>MagicNumber:RunnerProfileSheet.kt$RunnerProfileSheet$8</ID>
     <ID>MagicNumber:RunnerProfileStore.kt$RunnerProfileStore$12_000</ID>
     <ID>MagicNumber:SatelliteMapView.kt$FollowMarkerView$11f</ID>
@@ -1907,10 +1906,7 @@
     <ID>MaxLineLength:RunnerInsights.kt$RunnerInsights.Companion$return RunnerInsights(experience, text("summary", SUMMARY_LIMIT), text("focus", FOCUS_LIMIT), updatedAtMs, runsConsidered, model)</ID>
     <ID>MaxLineLength:RunnerInsightsTest.kt$RunnerInsightsTest$val retyped = TrainingSnapshot.of(runs, { if (it == "walk") ActivityDetails(activityType = ActivityType.RUN) else ActivityDetails() }, now, ZoneOffset.UTC)</ID>
     <ID>MaxLineLength:RunnerInsightsTest.kt$RunnerInsightsTest$val valid = JSONObject().put("experience", "REGULAR").put("summary", "Runs three times a week, about 6:20/km.").put("focus", "Add one longer easy run.")</ID>
-    <ID>MaxLineLength:RunnerProfileSheet.kt$RunnerProfileSheet$lines += activity.getString(R.string.v17_profile_snapshot_pace, String.format(locale, "%.1f", snapshot.longestKilometres90Days), pace)</ID>
     <ID>MaxLineLength:RunnerProfileSheet.kt$RunnerProfileSheet$sheet.column.addView(sheet.text(activity.getString(if (aiReady) R.string.v17_profile_ai_hint else R.string.v17_profile_ai_needs_ai), 13), sheet.row(0, 8))</ID>
-    <ID>MaxLineLength:RunnerProfileSheet.kt$RunnerProfileSheet$val lines = mutableListOf(activity.getString(R.string.v17_profile_snapshot_volume, snapshot.runs28Days, String.format(locale, "%.1f", snapshot.kilometresPerWeek)))</ID>
-    <ID>MaxLineLength:RunnerProfileSheet.kt$RunnerProfileSheet$val pace = snapshot.typicalPaceSeconds?.let { kotlin.math.round(it).toInt() }?.let { String.format(locale, "%d:%02d", it / 60, it % 60) }</ID>
     <ID>MaxLineLength:SatelliteMapView.kt$SatelliteMapView$(now - trailPublishedAt &gt;= TRAIL_PUBLISH_MS || routePoints.getOrNull(trailEnd)?.segment != routePoints.getOrNull(publish)?.segment)</ID>
     <ID>MaxLineLength:SatelliteMapView.kt$SatelliteMapView$CircleLayer("start-dot", "start").withProperties(circleColor(Color.WHITE), circleRadius(5f), circleStrokeColor(Color.BLACK), circleStrokeWidth(2f))</ID>
     <ID>MaxLineLength:SatelliteMapView.kt$SatelliteMapView$LineLayer("approach-line", "approach").withProperties(lineColor(Color.WHITE), lineWidth(2f), lineOpacity(0.85f), lineDasharray(arrayOf(0.5f, 2f)), lineCap(Property.LINE_CAP_ROUND))</ID>

@@ -36,9 +36,6 @@
     </plurals>
 
     <string name="v17_profile_from_activities">Según tus actividades</string>
-    <string name="v17_profile_snapshot_volume">%1$d carreras en 28 días · %2$s km/semana</string>
-    <string name="v17_profile_snapshot_pace">Más larga %1$s km · ritmo típico %2$s/km</string>
-    <string name="v17_profile_snapshot_effort">Esfuerzo medio %1$s/10</string>
     <string name="v17_profile_snapshot_empty">Aún no hay carreras.</string>
     <string name="v17_profile_ai_managed">Que la IA mantenga mi perfil al día</string>
     <string name="v17_profile_ai_needs_ai">Activa primero la IA en Ajustes.</string>

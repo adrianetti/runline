@@ -36,9 +36,6 @@
     </plurals>
 
     <string name="v17_profile_from_activities">From your activities</string>
-    <string name="v17_profile_snapshot_volume">%1$d runs in 28 days · %2$s km/week</string>
-    <string name="v17_profile_snapshot_pace">Longest %1$s km · typical %2$s/km</string>
-    <string name="v17_profile_snapshot_effort">Average effort %1$s/10</string>
     <string name="v17_profile_snapshot_empty">No runs yet.</string>
     <string name="v17_profile_ai_managed">Let AI keep my profile up to date</string>
     <string name="v17_profile_ai_needs_ai">Turn on AI in Settings first.</string>
