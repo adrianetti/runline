@@ -3,7 +3,6 @@
     <string name="main_record">Grabar</string>
     <string name="main_activities">Actividades</string>
     <string name="main_back_activities">Volver a las actividades</string>
-    <string name="main_ready">Todo listo</string>
     <string name="main_activity_type">Actividad</string>
     <string name="main_type_run">Correr</string>
     <string name="main_type_walk">Caminar</string>
@@ -22,13 +21,11 @@
     <string name="main_delete">Eliminar</string>
     <string name="main_discard">Descartar</string>
     <string name="main_history_failed">No se pudo leer el historial. Tus archivos se han conservado.</string>
-    <string name="main_this_week">Esta semana</string>
     <string name="main_no_activities">Aún no hay actividades</string>
     <string name="main_saved_local">Guardado en este teléfono</string>
     <string name="main_history_row">%1$s, %2$s, %3$s kilómetros, %4$s. Ver actividad.</string>
     <string name="main_activity_date">%1$s · %2$s</string>
     <string name="main_distance_km">%1$s km</string>
-    <string name="main_history_stats">%1$s activo · %2$s /km</string>
     <string name="main_protection">Protección de la grabación</string>
     <string name="main_language">Idioma</string>
     <string name="main_about">Acerca de</string>
@@ -69,14 +66,13 @@
     <string name="active_loading">Buscando tu ubicación actual…</string>
     <string name="active_open_activities">Abrir actividades sin detener la grabación</string>
     <string name="active_options">Opciones de grabación</string>
-    <string name="active_distance">Distancia · km</string>
     <string name="active_time">Tiempo</string>
     <string name="active_pause">Pausar</string>
     <string name="active_resume">Reanudar</string>
     <string name="active_finish">Finalizar</string>
     <string name="active_paused_hint">Tiempo y GPS en pausa</string>
     <string name="active_recovered_hint">Guardado · reanuda o finaliza</string>
-    <string name="active_accuracy">GPS ±%1$d m · guardado</string>
+    <string name="active_accuracy">GPS ±%1$d m</string>
     <plurals name="main_week_summary">
         <item quantity="one">%1$s km · %2$d actividad · últimos 7 días</item>
         <item quantity="other">%1$s km · %2$d actividades · últimos 7 días</item>

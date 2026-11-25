@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v26_this_week">This week</string>
+    <string name="v26_week_days">%1$d of 7 days active</string>
+    <string name="v26_route">@string/route_name_route</string>
+    <string name="v26_none">@string/music_none</string>
+    <string name="v26_average_pace">Avg pace</string>
+    <string name="v26_voice_on">@string/main_on</string>
+    <string name="v26_voice_off">@string/main_off</string>
+    <string name="v26_unit_metres">m</string>
+    <string name="v26_unit_per_km">/km</string>
+    <string name="v26_unit_hours">h</string>
+    <string name="v26_unit_minutes">min</string>
+    <string name="v26_grade_unknown">– %</string>
+    <string name="v26_out_of">/ %1$s</string>
+    <string name="v26_profile_recent">Last 28 days</string>
+    <string name="v26_profile_runs">runs</string>
+    <string name="v26_profile_weekly">Per week</string>
+    <string name="v26_profile_longest">Longest</string>
+    <string name="v26_profile_pace">Typical pace</string>
+    <string name="v26_unit_of_ten">/10</string>
+</resources>

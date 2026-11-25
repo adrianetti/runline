@@ -201,17 +201,6 @@
 
     <issue
         id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;activities&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;history_pace_note&quot;>Latest %1$d activities in this period. Higher is faster; pace uses active time.&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_history.xml"
-            line="18"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
         message="Formatting %d followed by words (&quot;requests&quot;): This should probably be a plural rather than a string"
         errorLine1="    &lt;string name=&quot;diag_v12_requests&quot;>%1$d requests&lt;/string>"
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -525,17 +514,6 @@
         errorLine2="^">
         <location
             file="src/main/res/drawable/ic_calendar.xml"
-            line="3"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.ic_climb` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot; android:width=&quot;24dp&quot; android:height=&quot;24dp&quot; android:viewportWidth=&quot;24&quot; android:viewportHeight=&quot;24&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/ic_climb.xml"
             line="3"
             column="1"/>
     </issue>
@@ -878,17 +856,6 @@
         <location
             file="src/main/res/values/strings_main.xml"
             line="12"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.main_this_week` appears to be unused"
-        errorLine1="    &lt;string name=&quot;main_this_week&quot;>This week&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_main.xml"
-            line="25"
             column="13"/>
     </issue>
 
@@ -2192,17 +2159,6 @@
 
     <issue
         id="SyntheticAccessor"
-        message="Access to `private` method `setPlaybackSpeed` of class `RunReplayView` requires synthetic accessor"
-        errorLine1="                    if (fromUser) setPlaybackSpeed(ReplayPresentation.speeds[progress])"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/runline/app/ui/RunReplayView.kt"
-            line="240"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="SyntheticAccessor"
         message="Access to `private` method `setPosition` of class `RunReplayView` requires synthetic accessor"
         errorLine1="                    if (fromUser) setPosition((progress.toDouble() / bar.max * replay.durationMs).toLong(), smoothHeading = false)"
         errorLine2="                                  ~~~~~~~~~~~">
@@ -2481,80 +2437,6 @@
             line="30"
             column="5"
             message="Duplicates value in `coach_ui_goal_distance`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `Distance · km`, used in `active_distance`, `coach_ui_distance` and `history_distance`"
-        errorLine1="    &lt;string name=&quot;coach_ui_distance&quot;>Distance · km&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_coach_ui.xml"
-            line="13"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings_history.xml"
-            line="9"
-            column="5"
-            message="Duplicates value in `coach_ui_distance`"/>
-        <location
-            file="src/main/res/values/strings_main.xml"
-            line="72"
-            column="5"
-            message="Duplicates value in `coach_ui_distance`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `Distancia · km`, used in `active_distance`, `coach_ui_distance` and `history_distance`"
-        errorLine1="    &lt;string name=&quot;coach_ui_distance&quot;>Distancia · km&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings_coach_ui.xml"
-            line="13"
-            column="5"/>
-        <location
-            file="src/main/res/values-es/strings_history.xml"
-            line="9"
-            column="5"
-            message="Duplicates value in `coach_ui_distance`"/>
-        <location
-            file="src/main/res/values-es/strings_main.xml"
-            line="72"
-            column="5"
-            message="Duplicates value in `coach_ui_distance`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `Ajustes de voz`, used in `coach_ui_settings` and `v16_voice_settings`"
-        errorLine1="    &lt;string name=&quot;coach_ui_settings&quot;>Ajustes de voz&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings_coach_ui.xml"
-            line="18"
-            column="5"/>
-        <location
-            file="src/main/res/values-es/strings_v16.xml"
-            line="16"
-            column="5"
-            message="Duplicates value in `coach_ui_settings`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `Voice settings`, used in `coach_ui_settings` and `v16_voice_settings`"
-        errorLine1="    &lt;string name=&quot;coach_ui_settings&quot;>Voice settings&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_coach_ui.xml"
-            line="18"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings_v16.xml"
-            line="16"
-            column="5"
-            message="Duplicates value in `coach_ui_settings`"/>
     </issue>
 
     <issue
@@ -2908,70 +2790,6 @@
 
     <issue
         id="DuplicateStrings"
-        message="Duplicate string value `Active time`, used in `history_active_time` and `replay_active_time`"
-        errorLine1="    &lt;string name=&quot;history_active_time&quot;>Active time&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_history.xml"
-            line="10"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings_replay.xml"
-            line="27"
-            column="5"
-            message="Duplicates value in `history_active_time`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `Tiempo activo`, used in `history_active_time` and `replay_active_time`"
-        errorLine1="    &lt;string name=&quot;history_active_time&quot;>Tiempo activo&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings_history.xml"
-            line="10"
-            column="5"/>
-        <location
-            file="src/main/res/values-es/strings_replay.xml"
-            line="27"
-            column="5"
-            message="Duplicates value in `history_active_time`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `%1$d min`, used in `history_time_minutes` and `v19_duration_m`"
-        errorLine1="    &lt;string name=&quot;history_time_minutes&quot;>%1$d min&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings_history.xml"
-            line="23"
-            column="5"/>
-        <location
-            file="src/main/res/values-es/strings_v19.xml"
-            line="20"
-            column="5"
-            message="Duplicates value in `history_time_minutes`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `%1$d min`, used in `history_time_minutes` and `v19_duration_m`"
-        errorLine1="    &lt;string name=&quot;history_time_minutes&quot;>%1$d min&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_history.xml"
-            line="23"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings_v19.xml"
-            line="20"
-            column="5"
-            message="Duplicates value in `history_time_minutes`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
         message="Duplicate string value `Análisis del entrenador`, used in `review_v12_channel` and `v7_run_review`"
         errorLine1="    &lt;string name=&quot;review_v12_channel&quot;>Análisis del entrenador&lt;/string>"
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -2984,38 +2802,6 @@
             line="4"
             column="5"
             message="Duplicates value in `review_v12_channel`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `%1$s m`, used in `island_metres` and `replay_metres`"
-        errorLine1="    &lt;string name=&quot;island_metres&quot;>%1$s m&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings_island.xml"
-            line="6"
-            column="5"/>
-        <location
-            file="src/main/res/values-es/strings_replay.xml"
-            line="22"
-            column="5"
-            message="Duplicates value in `island_metres`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `%1$s m`, used in `island_metres` and `replay_metres`"
-        errorLine1="    &lt;string name=&quot;island_metres&quot;>%1$s m&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_island.xml"
-            line="6"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings_replay.xml"
-            line="22"
-            column="5"
-            message="Duplicates value in `island_metres`"/>
     </issue>
 
     <issue
@@ -3746,38 +3532,6 @@
 
     <issue
         id="DuplicateStrings"
-        message="Duplicate string value `Route`, used in `route_name_route` and `v20_preview_back`"
-        errorLine1="    &lt;string name=&quot;route_name_route&quot;>Route&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings_route_import.xml"
-            line="13"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings_v20.xml"
-            line="44"
-            column="5"
-            message="Duplicates value in `route_name_route`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
-        message="Duplicate string value `Ruta`, used in `route_name_route` and `v20_preview_back`"
-        errorLine1="    &lt;string name=&quot;route_name_route&quot;>Ruta&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings_route_import.xml"
-            line="13"
-            column="5"/>
-        <location
-            file="src/main/res/values-es/strings_v20.xml"
-            line="44"
-            column="5"
-            message="Duplicates value in `route_name_route`"/>
-    </issue>
-
-    <issue
-        id="DuplicateStrings"
         message="Duplicate string value `%1$s min`, used in `smart_duration_value` and `v16_minutes`"
         errorLine1="    &lt;string name=&quot;smart_duration_value&quot;>%1$s min&lt;/string>"
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -4118,17 +3872,6 @@
     <issue
         id="TypographyQuotes"
         message="Replace apostrophe (&apos;) with typographic apostrophe (’, &amp;#8217;) ?"
-        errorLine1="    &lt;string name=&quot;v19_route_time_note&quot;>Moving time at a steady pace without stops, from Tobler\&apos;s hiking function. While you follow the route, Runline adjusts it to your pace.&lt;/string>"
-        errorLine2="                                                                                               ~">
-        <location
-            file="src/main/res/values/strings_v19.xml"
-            line="38"
-            column="96"/>
-    </issue>
-
-    <issue
-        id="TypographyQuotes"
-        message="Replace apostrophe (&apos;) with typographic apostrophe (’, &amp;#8217;) ?"
         errorLine1="    &lt;string name=&quot;v19_route_finish_before_sunset&quot;>Sunset at %1$s. Starting now, you\&apos;d finish around %2$s.&lt;/string>"
         errorLine2="                                                                                    ~">
         <location
@@ -4168,17 +3911,6 @@
             file="src/main/res/values/strings_v19.xml"
             line="53"
             column="60"/>
-    </issue>
-
-    <issue
-        id="AlwaysShowAction"
-        message="Prefer &quot;`SHOW_AS_ACTION_IF_ROOM`&quot; instead of &quot;`SHOW_AS_ACTION_ALWAYS`&quot;"
-        errorLine1="            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)"
-        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/runline/app/MainActivity.kt"
-            line="1043"
-            column="38"/>
     </issue>
 
     <issue
@@ -4465,17 +4197,6 @@
             file="src/main/java/com/runline/app/MainActivity.kt"
             line="589"
             column="17"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Context.withStyledAttributes` instead?"
-        errorLine1="                        val attrs = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/runline/app/MainActivity.kt"
-            line="989"
-            column="37"/>
     </issue>
 
     <issue

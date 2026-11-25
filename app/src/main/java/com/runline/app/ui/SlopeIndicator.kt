@@ -3,6 +3,7 @@ package com.runline.app.ui
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.os.SystemClock
@@ -26,20 +27,12 @@ internal class SlopeIndicator(
     private val line = SlopeLine(context)
     private val amount =
         TextView(context).apply {
-            textSize = if (compact) 16f else 18f
+            textSize = TextScale.VALUE.toFloat()
             includeFontPadding = false
-            gravity = Gravity.CENTER
-            fontFeatureSettings = "tnum"
+            gravity = Gravity.END
+            typeface = Type.display(context)
+            fontFeatureSettings = Type.TABULAR
             setTextColor(context.getColor(R.color.on_surface))
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-    private val label =
-        TerrainLabel(context).apply {
-            text = context.getString(R.string.island_grade)
-            textSize = 12f
-            includeFontPadding = false
-            gravity = Gravity.CENTER
-            setTextColor(context.getColor(R.color.on_surface_variant))
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         }
 
@@ -49,7 +42,6 @@ internal class SlopeIndicator(
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         addView(line, LayoutParams(-1, dp(if (compact) 32 else 40)))
         addView(amount, LayoutParams(-1, -2))
-        addView(label, LayoutParams(-1, -2).apply { topMargin = dp(if (compact) 2 else 4) })
         update(TerrainEstimate(), false)
     }
 
@@ -89,82 +81,29 @@ internal class SlopeIndicator(
                     else -> R.string.map_v9_terrain_unknown
                 },
             )
-        val percent = grade?.roundToInt()?.let { String.format(resources.configuration.locales[0], "%+d", it) }
-        val text = percent?.let { context.getString(R.string.island_grade_value, it) } ?: "—"
+        val percent = grade?.roundToInt()?.let(::signed)
+        val text = percent?.let { context.getString(R.string.island_grade_value, it) } ?: context.getString(R.string.v26_grade_unknown)
         if (amount.text.toString() != text) amount.text = text
-        label.setTerrain(name, animate)
         contentDescription = if (percent == null) name else context.getString(R.string.map_v9_terrain_accessibility, name, percent)
         line.setGrade(grade, profile, animate)
     }
 
+    private fun signed(value: Int) =
+        when {
+            value > 0 -> "+$value"
+            value < 0 -> "$MINUS${-value}"
+            else -> "0"
+        }
+
     fun settle() {
         line.settle()
-        label.settle()
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
     private companion object {
         const val UNKNOWN_HOLD_MS = 5_000L
-    }
-}
-
-private class TerrainLabel(
-    context: Context,
-) : androidx.appcompat.widget.AppCompatTextView(context) {
-    private var target = ""
-    private var motion: ValueAnimator? = null
-
-    init {
-        maxLines = 1
-        cameraDistance = 8_000 * resources.displayMetrics.density
-    }
-
-    fun setTerrain(
-        value: String,
-        animate: Boolean,
-    ) {
-        if (value == target) {
-            if (!animate) settle()
-            return
-        }
-        settle()
-        val old = text.toString()
-        target = value
-        if (!animate || !isShown || !ValueAnimator.areAnimatorsEnabled() || old.isBlank()) {
-            settle()
-            return
-        }
-        motion =
-            ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 260
-                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                addUpdateListener {
-                    val progress = it.animatedValue as Float
-                    if (progress >= .5f) text = target
-                    rotationX = if (progress < .5f) 180 * progress else -180 * (1 - progress)
-                    alpha = abs(2 * progress - 1)
-                }
-                start()
-            }
-    }
-
-    fun settle() {
-        motion?.cancel()
-        motion = null
-        text = target
-        rotationX = 0f
-        alpha = 1f
-    }
-
-    override fun onDetachedFromWindow() {
-        settle()
-        super.onDetachedFromWindow()
-    }
-
-    override fun onVisibilityAggregated(isVisible: Boolean) {
-        super.onVisibilityAggregated(isVisible)
-        if (!isVisible) settle()
+        const val MINUS = "\u2212"
     }
 }
 
@@ -186,6 +125,8 @@ private class SlopeLine(
     private val uphill = context.getColor(R.color.grade_uphill)
     private val steep = context.getColor(R.color.grade_steep)
     private val downhill = context.getColor(R.color.grade_downhill)
+    private val dash = DASH_DP * resources.displayMetrics.density
+    private val dashes = DashPathEffect(floatArrayOf(dash, dash), 0f)
 
     init {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -200,7 +141,7 @@ private class SlopeLine(
         val low = valid.minOrNull() ?: 0.0
         val range = profile.drawRange()
         val middle = low + ((valid.maxOrNull() ?: low) - low) / 2
-        val next = profile.heights.map { it?.let { ((it - middle) / range).toFloat() } }
+        val next = profile.heights.map { height -> height?.takeIf { grade != null }?.let { ((it - middle) / range).toFloat() } }
         if (next == target && grade == targetGrade && animate) return
         val hadProfile = target.any { it != null }
         target = next
@@ -250,7 +191,7 @@ private class SlopeLine(
         lastFrame = now
         if (moving) postInvalidateOnAnimation()
         val density = resources.displayMetrics.density
-        val padding = 6 * density
+        val padding = EDGE_DP * density
 
         fun x(index: Int) = padding + index.toFloat() / (SlopeProfile.COUNT - 1) * (width - padding * 2)
 
@@ -264,7 +205,7 @@ private class SlopeLine(
             }
         if (targetGrade != null) ink.color = ColorUtils.blendARGB(neutral, ink.color, ((abs(shownGrade) - 1.5) / 1.5).toFloat().coerceIn(0f, 1f))
         ink.style = Paint.Style.STROKE
-        ink.strokeWidth = 2.5f * density
+        ink.strokeWidth = STROKE_DP * density
         path.reset()
         var segmentStart = 0
         while (segmentStart < shown.size) {
@@ -287,13 +228,13 @@ private class SlopeLine(
         canvas.drawPath(path, ink)
         shown.lastOrNull()?.let {
             ink.style = Paint.Style.FILL
-            canvas.drawCircle(x(shown.lastIndex), y(it), 3 * density, ink)
+            canvas.drawCircle(x(shown.lastIndex), y(it), EDGE_DP * density, ink)
         }
         if (shown.all { it == null }) {
-            ink.alpha = 70
-            ink.strokeWidth = density
+            ink.style = Paint.Style.STROKE
+            ink.pathEffect = dashes
             canvas.drawLine(padding, height / 2f, width - padding, height / 2f, ink)
-            ink.alpha = 255
+            ink.pathEffect = null
         }
     }
 
@@ -305,5 +246,11 @@ private class SlopeLine(
     override fun onDetachedFromWindow() {
         settle()
         super.onDetachedFromWindow()
+    }
+
+    private companion object {
+        const val DASH_DP = 6
+        const val STROKE_DP = 4f
+        const val EDGE_DP = 4f
     }
 }

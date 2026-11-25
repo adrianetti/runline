@@ -17,7 +17,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -29,6 +28,7 @@ import com.runline.app.core.GpsCourse
 import com.runline.app.core.MarkerMotion
 import com.runline.app.core.MarkerViewport
 import com.runline.app.core.ReplayTrail
+import com.runline.app.core.RouteFit
 import com.runline.app.core.RunPoint
 import com.runline.app.core.continuousSegments
 import com.runline.app.core.hasValidCoordinates
@@ -45,6 +45,7 @@ import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.tile.TileOperation
 import org.maplibre.geojson.Feature
@@ -102,7 +103,7 @@ class SatelliteMapView(
     private val creditText =
         TextView(context).apply {
             text = context.getString(R.string.map_v8_attribution)
-            textSize = 10f
+            textSize = TextScale.CAPTION.toFloat()
             includeFontPadding = false
             setTextColor(context.getColor(R.color.on_surface))
             background =
@@ -111,15 +112,9 @@ class SatelliteMapView(
                     cornerRadius = dp(10).toFloat()
                 }
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(5), dp(3), dp(7), dp(3))
+            setPadding(dp(7), dp(3), dp(7), dp(3))
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-            androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.ic_info)?.mutate()?.let { info ->
-                info.setTint(context.getColor(R.color.on_surface_variant))
-                info.setBounds(0, 0, dp(12), dp(12))
-                setCompoundDrawablesRelative(info, null, null, null)
-            }
-            compoundDrawablePadding = dp(3)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
     private val credits =
@@ -132,7 +127,7 @@ class SatelliteMapView(
         }
     private val followButton =
         mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
-            imageTintList = null
+            iconTint = null
             visibility = GONE
         }
     private var plannedRoute: List<RunPoint> = emptyList()
@@ -164,6 +159,12 @@ class SatelliteMapView(
             }
         }
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    var controlsTopPx: Int? = null
+    var controlsEndPx = 0
+        set(value) {
+            field = value
+            placeControls()
+        }
     private val waitingSpinner =
         ProgressBar(context).apply {
             indeterminateTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
@@ -236,15 +237,15 @@ class SatelliteMapView(
                 setMargins(dp(8), dp(8), dp(64), 0)
             },
         )
-        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(8), 0, dp(64), dp(8)) })
-        controls.addView(mapButton(R.drawable.ic_route, context.getString(R.string.map_fit_route)) { fitRoute() })
+        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(Space.L), 0, dp(64), dp(8)) })
+        controls.addView(mapButton(R.drawable.ic_fit, context.getString(R.string.map_fit_route)) { fitRoute() })
         addView(
             controls,
             LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
-                setMargins(0, dp(8), dp(8), 0)
+                setMargins(0, dp(Space.L), dp(Space.L), 0)
             },
         )
-        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(8), dp(8)) })
+        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(Space.L), dp(8)) })
         mapView.contentDescription = context.getString(R.string.map_accessibility)
         var downX = 0f
         var downY = 0f
@@ -334,6 +335,11 @@ class SatelliteMapView(
                 )
                 ready.addLayer(
                     LineLayer("route-line", "route").withProperties(lineColor(Color.WHITE), lineWidth(4f), lineJoin(Property.LINE_JOIN_ROUND), lineCap(Property.LINE_CAP_ROUND)),
+                )
+                ready.addSource(GeoJsonSource(FINISH))
+                ready.addImage(FINISH, MapMarks.finish(context))
+                ready.addLayer(
+                    SymbolLayer("finish-mark", FINISH).withProperties(iconImage(FINISH), iconAllowOverlap(true), iconIgnorePlacement(true)),
                 )
                 ready.addSource(GeoJsonSource("start"))
                 ready.addLayer(
@@ -588,18 +594,15 @@ class SatelliteMapView(
             status.layoutParams = this
         }
         (credits.layoutParams as LayoutParams).apply {
-            setMargins(next[0] + dp(8), 0, next[2] + dp(64), next[3] + dp(8))
+            setMargins(next[0] + dp(Space.L), 0, next[2] + dp(64), next[3])
             credits.layoutParams = this
         }
         (followButton.layoutParams as LayoutParams).apply {
-            setMargins(0, 0, next[2] + dp(8), next[3] + dp(8))
+            setMargins(0, 0, next[2] + dp(Space.L), next[3] + dp(8))
             followButton.layoutParams = this
         }
         creditText.maxWidth = (width - next[0] - next[2] - dp(80)).coerceAtLeast(dp(64))
-        (controls.layoutParams as LayoutParams).apply {
-            setMargins(0, next[1] + dp(8), next[2] + dp(8), 0)
-            controls.layoutParams = this
-        }
+        placeControls()
         (fallback.layoutParams as LayoutParams).apply {
             setMargins(next[0], next[1], next[2], next[3] + dp(56))
             fallback.layoutParams = this
@@ -610,6 +613,12 @@ class SatelliteMapView(
         }
         applyCameraInsets()
         if (following) followMarker()
+    }
+
+    private fun placeControls() {
+        val params = controls.layoutParams as? LayoutParams ?: return
+        params.setMargins(0, (controlsTopPx ?: overlayInsets[1]) + dp(Space.L), overlayInsets[2] + dp(Space.L) + controlsEndPx, 0)
+        controls.layoutParams = params
     }
 
     fun fitRoute() {
@@ -632,25 +641,19 @@ class SatelliteMapView(
             return
         }
         fitPending = false
-        val origin = valid.first().longitude
-        val lngs = valid.map { origin + ((it.longitude - origin + 540.0) % 360.0) - 180.0 }
-        val ys = valid.map { mercatorY(it.latitude) }
-        val spanX = max((lngs.max() - lngs.min()) / 360.0, 0.000002)
-        val spanY = max(ys.max() - ys.min(), 0.000002)
         val density = resources.displayMetrics.density.toDouble()
         val padding = cameraInsets()
-        val usableWidth = max((width - padding[0] - padding[2]) / density - 128.0, 80.0)
-        val usableHeight = max((height - padding[1] - padding[3]) / density - 104.0, 80.0)
-        val zoom = min(log2(usableWidth / 512.0 / spanX), log2(usableHeight / 512.0 / spanY)).coerceIn(1.0, 17.0)
-        val centerLng = ((lngs.max() + lngs.min()) / 2.0 + 540.0) % 360.0 - 180.0
-        val centerY = (ys.max() + ys.min()) / 2.0
-        val centerLat = Math.toDegrees(atan(sinh(Math.PI * (1.0 - 2.0 * centerY))))
+        val overlayAcross = (overlayInsets[0] + overlayInsets[2]) / density
+        val overlayAlong = (overlayInsets[1] + overlayInsets[3]) / density
+        val across = RouteFit.usable(width / density, (padding[0] + padding[2]) / density, overlayAcross)
+        val along = RouteFit.usable(height / density, (padding[1] + padding[3]) / density, overlayAlong)
+        val frame = RouteFit.frame(valid, across, along) ?: return
         currentMap.moveCamera(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition
                     .Builder(currentMap.cameraPosition)
-                    .target(LatLng(centerLat, centerLng))
-                    .zoom(zoom)
+                    .target(LatLng(frame.latitude, frame.longitude))
+                    .zoom(frame.zoom)
                     .bearing(0.0)
                     .tilt(0.0)
                     .padding(padding)
@@ -753,6 +756,9 @@ class SatelliteMapView(
         ready.getSourceAs<GeoJsonSource>("planned")?.setGeoJson(lines(plannedRoute))
         val start = routePoints.firstOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
         ready.getSourceAs<GeoJsonSource>("start")?.setGeoJson(pointCollection(start))
+        val finish = routePoints.lastOrNull { it.hasValidCoordinates() && abs(it.latitude) < 85.051129 }
+        val finished = !progressiveRoute && !navigationMode && !replayMode && finish != start
+        ready.getSourceAs<GeoJsonSource>(FINISH)?.setGeoJson(pointCollection(finish.takeIf { finished }))
     }
 
     private fun lines(points: List<RunPoint>) =
@@ -968,16 +974,7 @@ class SatelliteMapView(
         icon: Int,
         label: String,
         action: () -> Unit,
-    ) = ImageButton(context).apply {
-        setImageResource(icon)
-        imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        background =
-            GradientDrawable().apply {
-                setColor(context.getColor(R.color.surface))
-                cornerRadius = dp(12).toFloat()
-            }
-        contentDescription = label
-        setPadding(dp(12), dp(12), dp(12), dp(12))
+    ) = UiButtons.floating(context, icon, label).apply {
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { bottomMargin = dp(8) }
     }
@@ -1001,13 +998,12 @@ class SatelliteMapView(
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
-    private fun mercatorY(latitude: Double) = (1.0 - asinh(tan(Math.toRadians(latitude))) / Math.PI) / 2.0
-
     companion object {
         private const val TRAIL_PUBLISH_MS = 500L
         private const val TRAIL_RENDER_MS = 1_500L
         private const val MAX_HEAD_POINTS = 300
         private const val TRAIL_HEAD_METERS = 400.0
+        private const val FINISH = "finish"
         private const val BASE_STYLE = """
         {"version":8,"sources":{
           "world":{"type":"raster","tiles":["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"],"tileSize":256,"minzoom":0,"maxzoom":14},

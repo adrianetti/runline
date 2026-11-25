@@ -2,7 +2,7 @@
 <resources>
     <string name="smart_goal_title">Objetivo inteligente</string>
     <string name="smart_overall_goal">Objetivo general · opcional</string>
-    <string name="smart_overall_goal_hint">Por ejemplo: media maratón en abril. Se incluye cuando usas la IA.</string>
+    <string name="smart_overall_goal_hint">Ejemplo: media maratón en abril. Se incluye al usar la IA.</string>
     <string name="smart_ai_review_model">Análisis y objetivos inteligentes</string>
     <string name="smart_ai_disclosure">Anthropic recibe resúmenes, esfuerzo, tipo de rutina y tu objetivo general opcional. Los títulos y notas solo se comparten si lo eliges; el perfil tiene su propio permiso. Los puntos GPS y fotos nunca se envían. Las consultas consumen saldo de tu API. Los consejos en directo y los análisis automáticos tienen sus propios interruptores. Los objetivos inteligentes solo se preparan cuando lo pides. Tu clave se cifra en este teléfono.</string>
     <string name="smart_goal_context">Usa tus últimas salidas y el esfuerzo guardado.</string>

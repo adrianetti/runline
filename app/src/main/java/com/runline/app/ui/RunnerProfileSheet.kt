@@ -5,6 +5,7 @@ import android.text.InputFilter
 import android.text.InputType
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.ViewModel
@@ -54,7 +55,7 @@ class RunnerProfileSheet(
             isSaveEnabled = false
             setSaveFromParentEnabled(false)
         }
-    private val snapshotText = sheet.text("", 14)
+    private val snapshotFields = android.widget.LinearLayout(activity).apply { orientation = android.widget.LinearLayout.VERTICAL }
     private val insightsCard = android.widget.LinearLayout(activity).apply { orientation = android.widget.LinearLayout.VERTICAL }
     private var experienceField: View? = null
     val isShowing get() = sheet.isShowing
@@ -63,7 +64,7 @@ class RunnerProfileSheet(
         sheet.column.removeView(preference.first)
         sheet.column.removeView(health.first)
         sheet.column.addView(sheet.text(activity.getString(R.string.v17_profile_from_activities), 16, bold = true), sheet.row(0, 4))
-        sheet.column.addView(snapshotText, sheet.row(0, 16))
+        sheet.column.addView(snapshotFields, sheet.row(0, 16))
         loadSnapshot()
         sheet.column.addView(managed, sheet.row(0, 0))
         sheet.column.addView(sheet.text(activity.getString(if (aiReady) R.string.v17_profile_ai_hint else R.string.v17_profile_ai_needs_ai), 13), sheet.row(0, 8))
@@ -178,27 +179,59 @@ class RunnerProfileSheet(
     private fun loadSnapshot() {
         val app = activity.applicationContext
         Thread {
-            val text =
+            val snapshot =
                 runCatching {
                     val store =
                         com.runline.app.data
                             .RunStore(app)
                     TrainingSnapshot.of(store.list(), store::details, System.currentTimeMillis())
-                }.getOrNull()?.let(::describe) ?: activity.getString(R.string.v17_profile_snapshot_empty)
-            activity.runOnUiThread { if (!sheet.closed) snapshotText.text = text }
+                }.getOrNull()
+            activity.runOnUiThread { if (!sheet.closed) showSnapshot(snapshot) }
         }.start()
     }
 
-    private fun describe(snapshot: TrainingSnapshot): String {
-        if (snapshot.totalRuns == 0) return activity.getString(R.string.v17_profile_snapshot_empty)
-        val locale = activity.resources.configuration.locales[0]
-        val lines = mutableListOf(activity.getString(R.string.v17_profile_snapshot_volume, snapshot.runs28Days, String.format(locale, "%.1f", snapshot.kilometresPerWeek)))
-        val pace = snapshot.typicalPaceSeconds?.let { kotlin.math.round(it).toInt() }?.let { String.format(locale, "%d:%02d", it / 60, it % 60) }
-        if (snapshot.longestKilometres90Days != null && pace != null) {
-            lines += activity.getString(R.string.v17_profile_snapshot_pace, String.format(locale, "%.1f", snapshot.longestKilometres90Days), pace)
+    private fun showSnapshot(snapshot: TrainingSnapshot?) {
+        snapshotFields.removeAllViews()
+        if (snapshot == null || snapshot.totalRuns == 0) {
+            snapshotFields.addView(sheet.text(activity.getString(R.string.v17_profile_snapshot_empty), TextScale.LABEL))
+            return
         }
-        snapshot.averageEffort?.let { lines += activity.getString(R.string.v17_profile_snapshot_effort, String.format(locale, "%.1f", it)) }
-        return lines.joinToString("\n")
+        snapshotFields(snapshot).chunked(SNAPSHOT_COLUMNS).forEachIndexed { index, cells ->
+            val line = android.widget.LinearLayout(activity)
+            cells.forEach { line.addView(it, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)) }
+            repeat(SNAPSHOT_COLUMNS - cells.size) { line.addView(View(activity), android.widget.LinearLayout.LayoutParams(0, 0, 1f)) }
+            snapshotFields.addView(line, sheet.row(if (index == 0) 0 else Space.L, 0))
+        }
+    }
+
+    private fun snapshotFields(snapshot: TrainingSnapshot): List<DataFieldView> {
+        val locale = activity.resources.configuration.locales[0]
+        val km = activity.getString(R.string.island_km)
+        val single = activity.getString(R.string.export_activity_run).lowercase(locale)
+        val runs = if (snapshot.runs28Days == 1) single else activity.getString(R.string.v26_profile_runs)
+
+        fun field(
+            label: Int,
+            value: String,
+            unit: String,
+        ) = DataFieldView(activity, activity.getString(label), value, unit)
+
+        fun decimal(value: Double) = String.format(locale, ONE_DECIMAL, value)
+        val fields =
+            mutableListOf(
+                field(R.string.v26_profile_recent, snapshot.runs28Days.toString(), runs),
+                field(R.string.v26_profile_weekly, decimal(snapshot.kilometresPerWeek), km),
+            )
+        snapshot.longestKilometres90Days?.let { fields += field(R.string.v26_profile_longest, decimal(it), km) }
+        snapshot.typicalPaceSeconds?.let { seconds ->
+            val pace =
+                com.runline.app.core.ClockFormat
+                    .pair(kotlin.math.round(seconds).toLong(), locale)
+            fields += field(R.string.v26_profile_pace, pace, activity.getString(R.string.v26_unit_per_km))
+        }
+        val outOfTen = activity.getString(R.string.v26_unit_of_ten)
+        snapshot.averageEffort?.let { fields += field(R.string.details_effort, decimal(it), outOfTen) }
+        return fields
     }
 
     private fun renderInsights(value: RunnerInsights?) {
@@ -262,4 +295,9 @@ class RunnerProfileSheet(
             RunningExperience.REGULAR -> R.string.profile_v9_regular
             RunningExperience.EXPERIENCED -> R.string.profile_v9_experienced
         }
+
+    private companion object {
+        const val SNAPSHOT_COLUMNS = 3
+        const val ONE_DECIMAL = "%.1f"
+    }
 }

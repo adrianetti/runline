@@ -37,10 +37,8 @@
     <string name="v20_route_start">Empezar</string>
     <string name="v20_route_start_description">Empezar a grabar y seguir %1$s</string>
     <string name="v20_route_preview">Vista previa</string>
-    <string name="v20_route_preview_description">Ver la ruta en 3D</string>
     <string name="v20_route_recording">Hay una grabación en curso</string>
     <string name="v20_route_open_recording">Abrir grabación</string>
     <string name="v20_routes_selected">Elegida para tu próxima actividad</string>
-    <string name="v20_preview_back">Ruta</string>
     <string name="v20_preview_back_description">Volver a la ruta</string>
 </resources>

@@ -3,7 +3,6 @@ package com.runline.app.ui
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -78,7 +77,10 @@ class ActivityDetailsEditor(
                 setPadding(dp(24), dp(12), dp(24), dp(24))
             }
         val header = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text(activity.getString(R.string.details_edit), 24, true), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(
+            text(activity.getString(R.string.details_edit), 24, true).apply { UiText.heading(this) },
+            LinearLayout.LayoutParams(0, -2, 1f),
+        )
         header.addView(
             button(R.string.main_close, R.drawable.ic_close).apply {
                 text = ""
@@ -408,7 +410,7 @@ class ActivityDetailsEditor(
         text = value
         textSize = size.toFloat()
         setTextColor(activity.getColor(if (bold) R.color.on_surface else R.color.on_surface_variant))
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        UiText.restyle(this, size, bold)
     }
 
     private fun button(

@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -38,7 +37,7 @@ internal class RollingNumberView
             text = reading.text
             textSize = sizeSp.toFloat()
             includeFontPadding = false
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            typeface = Type.display(context)
             fontFeatureSettings = "tnum"
             maxLines = 1
             gravity = Gravity.START or Gravity.CENTER_VERTICAL

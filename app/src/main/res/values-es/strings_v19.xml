@@ -7,7 +7,6 @@
     <string name="v19_routes_about">Sobre las rutas abiertas</string>
     <string name="v19_routes_about_body">Las rutas de Runline son datos abiertos en su repositorio de GitHub, reconstruidas a partir de caminos públicos de OpenStreetMap. Cualquiera puede usarlas y compartirlas, y las rutas nuevas se añaden con una pull request. Trazado © colaboradores de OpenStreetMap (ODbL 1.0). Elevación © IGN/CNIG MDT05 (CC BY 4.0).</string>
     <string name="v19_routes_open_repo">Abrir repositorio</string>
-    <string name="v19_routes_intro">Sigue una ruta abierta o añade un archivo GPX.</string>
     <string name="v19_routes_imported_section">Importadas</string>
     <string name="v19_routes_catalog_section">Rutas abiertas</string>
     <string name="v19_routes_refreshing">Buscando rutas nuevas…</string>
@@ -35,7 +34,6 @@
     <string name="v19_route_lowest">Punto más bajo</string>
     <string name="v19_route_difficulty">Dificultad</string>
     <string name="v19_route_shape">Tipo</string>
-    <string name="v19_route_time_note">Tiempo en movimiento a ritmo constante y sin paradas, según la función de senderismo de Tobler. Mientras sigues la ruta, Runline lo ajusta a tu ritmo.</string>
     <string name="v19_route_finish_before_sunset">Anochece a las %1$s. Si empiezas ahora, terminarías hacia las %2$s.</string>
     <string name="v19_route_finish_after_sunset">Anochece a las %1$s. Si empiezas ahora, terminarías hacia las %2$s, ya de noche.</string>
     <string name="v19_route_after_dark">Hoy el sol se puso a las %1$s.</string>
@@ -51,8 +49,6 @@
     <string name="v19_route_delete_action">Eliminar</string>
     <string name="v19_route_delete_confirm">¿Eliminar %1$s de este teléfono? Tus actividades no cambian.</string>
     <string name="v19_route_unavailable">No se ha podido abrir esta ruta.</string>
-    <string name="v19_record_choose_route">Seguir una ruta</string>
-    <string name="v19_record_route">Ruta: %1$s</string>
     <string name="v19_record_route_remove">Dejar de seguir esta ruta</string>
     <string name="v19_island_route">Quedan %1$s km · ↑ %2$d m · llegada %3$s</string>
     <string name="v19_island_route_no_ascent">Quedan %1$s km · llegada %2$s</string>
