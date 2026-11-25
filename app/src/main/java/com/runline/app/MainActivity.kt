@@ -498,11 +498,13 @@ class MainActivity : AppCompatActivity() {
         prepareIdle()
     }
 
+    private fun preparedHistory(): List<com.runline.app.core.HistoryActivity> =
+        history ?: com.runline.app.core.HistorySummary
+            .prepare(runCatching { store.list() }.getOrDefault(emptyList()))
+            .also { history = it }
+
     private fun recordHome(): com.runline.app.ui.RecordHome {
-        val activities =
-            history ?: com.runline.app.core.HistorySummary
-                .prepare(runCatching { store.list() }.getOrDefault(emptyList()))
-                .also { history = it }
+        val activities = preparedHistory()
         val goal = preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }
         val locale = resources.configuration.locales[0]
         val state = getString(if (VoiceCoachSettings.load(this).enabled) R.string.v26_voice_on else R.string.v26_voice_off)
@@ -699,7 +701,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 hiking,
                 com.runline.app.ui
-                    .RouteDetails(entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording),
+                    .RouteDetails(entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording, routeRunPace(entry)),
                 com.runline.app.ui.RouteDetailActions(
                     back = {
                         screen = "routes"
@@ -723,6 +725,16 @@ class MainActivity : AppCompatActivity() {
                 .request(hiking.runPoints())
         }
     }
+
+    private fun routeActivity(entry: com.runline.app.data.RouteEntry?) =
+        when (entry?.imported) {
+            true -> selectedActivity
+            else -> entry?.activity ?: ActivityType.HIKE
+        }
+
+    private fun routeRunPace(entry: com.runline.app.data.RouteEntry?) =
+        com.runline.app.core.RouteRunEstimate
+            .recentPace(routeActivity(entry), preparedHistory(), System.currentTimeMillis(), ZoneId.systemDefault())
 
     private fun startRoute(
         id: String,
@@ -752,7 +764,7 @@ class MainActivity : AppCompatActivity() {
                 return
             }
         val entry = runCatching { routes.entry(id, language()) }.getOrNull()
-        val activity = if (entry?.imported == true) selectedActivity else entry?.activity ?: ActivityType.HIKE
+        val activity = routeActivity(entry)
         replayView =
             RunReplayView(
                 this,
