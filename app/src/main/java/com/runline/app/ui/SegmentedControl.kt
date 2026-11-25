@@ -11,25 +11,21 @@ internal class SegmentedControl(
     context: Context,
     labels: List<String>,
     selected: Int,
-    icons: List<Int> = emptyList(),
+    height: Int = Measure.TOUCH,
     private val onSelect: (Int) -> Unit,
 ) : MaterialButtonToggleGroup(context) {
-    private val tall = icons.isNotEmpty()
-
     init {
         isSingleSelection = true
         isSelectionRequired = true
-        labels.forEachIndexed { index, label ->
-            addView(segment(label, icons.getOrNull(index)), LayoutParams(0, UiText.dp(context, if (tall) Measure.NAVIGATION else Measure.TOUCH), 1f))
+        labels.forEach { label ->
+            addView(segment(label), LayoutParams(0, UiText.dp(context, height), 1f))
         }
         check(getChildAt(selected.coerceIn(0, labels.lastIndex)).id)
         addOnButtonCheckedListener { _, id, checked -> if (checked) onSelect(indexOfChild(findViewById(id))) }
     }
 
-    private fun segment(
-        label: String,
-        icon: Int?,
-    ) = MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+    private fun segment(label: String) =
+        MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
         id = View.generateViewId()
         text = label
         isAllCaps = false
@@ -46,13 +42,6 @@ internal class SegmentedControl(
         strokeColor = ColorStateList.valueOf(context.getColor(R.color.outline))
         backgroundTintList = states(context.getColor(R.color.primary), context.getColor(R.color.surface))
         setTextColor(states(context.getColor(R.color.on_primary), context.getColor(R.color.on_surface)))
-        if (icon != null) {
-            setIconResource(icon)
-            iconGravity = MaterialButton.ICON_GRAVITY_TOP
-            iconSize = UiText.dp(context, Measure.ICON)
-            iconPadding = UiText.dp(context, Space.XS)
-            iconTint = states(context.getColor(R.color.on_primary), context.getColor(R.color.on_surface))
-        }
     }
 
     private fun states(

@@ -13,7 +13,10 @@ data class UiRect(
     val height get() = bottom - top
     val isEmpty get() = width <= 0 || height <= 0
 
-    fun intersects(other: UiRect) = left < other.right && other.left < right && top < other.bottom && other.top < bottom
+    fun overlaps(
+        other: UiRect,
+        slack: Int,
+    ) = minOf(right, other.right) - maxOf(left, other.left) > slack && minOf(bottom, other.bottom) - maxOf(top, other.top) > slack
 
     fun contains(other: UiRect) = left <= other.left && top <= other.top && right >= other.right && bottom >= other.bottom
 

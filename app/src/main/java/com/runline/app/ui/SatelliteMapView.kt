@@ -132,7 +132,7 @@ class SatelliteMapView(
         }
     private val followButton =
         mapButton(R.drawable.ic_navigation, context.getString(R.string.map_follow_marker)) { setFollowing(true) }.apply {
-            imageTintList = null
+            iconTint = null
             visibility = GONE
         }
     private var plannedRoute: List<RunPoint> = emptyList()
@@ -164,6 +164,7 @@ class SatelliteMapView(
             }
         }
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    var controlsTopPx: Int? = null
     private val waitingSpinner =
         ProgressBar(context).apply {
             indeterminateTintList = ColorStateList.valueOf(context.getColor(R.color.primary))
@@ -241,10 +242,10 @@ class SatelliteMapView(
         addView(
             controls,
             LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
-                setMargins(0, dp(8), dp(8), 0)
+                setMargins(0, dp(16), dp(16), 0)
             },
         )
-        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(8), dp(8)) })
+        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(16), dp(8)) })
         mapView.contentDescription = context.getString(R.string.map_accessibility)
         var downX = 0f
         var downY = 0f
@@ -592,12 +593,12 @@ class SatelliteMapView(
             credits.layoutParams = this
         }
         (followButton.layoutParams as LayoutParams).apply {
-            setMargins(0, 0, next[2] + dp(8), next[3] + dp(8))
+            setMargins(0, 0, next[2] + dp(16), next[3] + dp(8))
             followButton.layoutParams = this
         }
         creditText.maxWidth = (width - next[0] - next[2] - dp(80)).coerceAtLeast(dp(64))
         (controls.layoutParams as LayoutParams).apply {
-            setMargins(0, next[1] + dp(8), next[2] + dp(8), 0)
+            setMargins(0, (controlsTopPx ?: next[1]) + dp(16), next[2] + dp(16), 0)
             controls.layoutParams = this
         }
         (fallback.layoutParams as LayoutParams).apply {
@@ -968,18 +969,7 @@ class SatelliteMapView(
         icon: Int,
         label: String,
         action: () -> Unit,
-    ) = ImageButton(context).apply {
-        setImageResource(icon)
-        imageTintList = ColorStateList.valueOf(context.getColor(R.color.on_surface))
-        background =
-            GradientDrawable().apply {
-                setColor(context.getColor(R.color.surface))
-                cornerRadius = dp(24).toFloat()
-            }
-        contentDescription = label
-        tooltipText = label
-        elevation = dp(3).toFloat()
-        setPadding(dp(12), dp(12), dp(12), dp(12))
+    ) = UiButtons.floating(context, icon, label).apply {
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { bottomMargin = dp(8) }
     }

@@ -23,6 +23,6 @@
     <string name="terrain_enabled">Use terrain maps</string>
     <string name="terrain_storage_failed">Could not save this area. Check free storage and retry.</string>
     <string name="terrain_polar_unavailable">Offline areas are not available beyond 85° latitude. Recording still works.</string>
-    <string name="terrain_offline_hint">Elevation data only; satellite images need internet. Recording works without this download. When you travel, prepare your new area.</string>
-    <string name="terrain_download_privacy">Nearby tiles come directly from public Mapzen/AWS and IGN services. They receive area requests and your IP, never your run file. Resolution varies; uncertain slopes stay unknown.</string>
+    <string name="terrain_offline_hint">Elevation only. Recording works without it.</string>
+    <string name="terrain_download_privacy">Tiles come from public Mapzen/AWS and IGN servers, which see the area and your IP, never your run.</string>
 </resources>

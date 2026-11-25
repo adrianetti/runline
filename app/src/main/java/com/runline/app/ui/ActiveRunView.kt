@@ -165,6 +165,7 @@ class ActiveRunView(
 
     init {
         map.setNavigationMode(true)
+        map.controlsTopPx = 0
         map.setFollowing(true)
         addView(map, LayoutParams(-1, -1))
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -239,7 +240,7 @@ class ActiveRunView(
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
         val strip = if (musicRow.visibility == VISIBLE) dp(52) else 0
-        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else ((h * 0.55f).roundToInt() + strip).coerceAtLeast(dp(180))
+        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else ((h * ISLAND_SHARE).roundToInt() + strip).coerceAtLeast(dp(180))
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -666,4 +667,8 @@ class ActiveRunView(
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
+
+    private companion object {
+        const val ISLAND_SHARE = 0.6f
+    }
 }

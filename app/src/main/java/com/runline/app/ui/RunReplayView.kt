@@ -86,6 +86,7 @@ class RunReplayView(
             addView(title, LinearLayout.LayoutParams(-2, -2))
             addView(subtitle, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
         }
+    private val averagePace = com.runline.app.core.RunMetrics.paceSecondsPerKm(replay.summary.distanceMeters, replay.durationMs)
     private val play = UiButtons.primary(context, context.getString(R.string.replay_play), R.drawable.ic_play)
     private val speed = UiButtons.outlined(context, "")
     private val seek =
@@ -229,7 +230,7 @@ class RunReplayView(
     ) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(180)) else (h * 0.55f).roundToInt().coerceAtLeast(dp(200))
+        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(180)) else (h * ISLAND_SHARE).roundToInt().coerceAtLeast(dp(200))
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -392,6 +393,7 @@ class RunReplayView(
             frame?.let { replayTerrain.at(positionMs, it.segmentIndex) } ?: TerrainEstimate(),
             elevationReplay.at(positionMs)?.elevationGainMeters,
             elevationReplay.at(positionMs)?.elevationLossMeters,
+            averagePace = averagePace,
             animate = animate,
             profile = frame?.let { panel.slopeProfile(positionMs, it.segmentIndex) } ?: com.runline.app.core.SlopeProfile.EMPTY,
         )
@@ -769,5 +771,6 @@ class RunReplayView(
     private companion object {
         const val SPEED_WIDTH_DP = 88
         const val SEEK_PAD_DP = 10
+        const val ISLAND_SHARE = 0.66f
     }
 }

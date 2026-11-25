@@ -79,6 +79,6 @@ internal class PaceReadoutView
         }
 
         private companion object {
-            const val LINE_HEIGHT = 1.04f
+            const val LINE_HEIGHT = 1.2f
         }
     }

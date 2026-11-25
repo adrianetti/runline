@@ -62,9 +62,12 @@ class HistoryInsightsView(
         content.addView(UiText.label(context, context.getString(R.string.v26_period_summary, context.getString(R.string.history_progress), count)), row(bottom = Space.S))
         if (period.activities.isEmpty()) return
         val totals = LinearLayout(context)
-        val pace = period.paceSecondsPerKm?.takeIf { selected != null }?.let { formatPace(it, locale) } ?: DASH
+        val pace = (if (selected == null) periods.getValue(ActivityType.RUN) else period).paceSecondsPerKm?.let { formatPace(it, locale) } ?: DASH
+        val minutes = period.activeDurationMs / MS_PER_MINUTE
+        val hours = minutes >= MINUTES_PER_HOUR
+        val time = if (hours) String.format(locale, "%d:%02d", minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR) else minutes.toString()
         totals.addView(field(R.string.v19_route_distance, number(period.distanceMeters / METERS_PER_KM, 1), context.getString(R.string.island_km)), cell())
-        totals.addView(field(R.string.active_time, duration(period.activeDurationMs), ""), cell())
+        totals.addView(field(R.string.active_time, time, context.getString(if (hours) R.string.v26_unit_hours else R.string.v26_unit_minutes)), cell())
         totals.addView(field(R.string.v26_average_pace, pace, context.getString(R.string.v16_unit_pace)), cell())
         content.addView(totals)
         content.addView(WeeklyDistanceChart(context, period, locale), row(top = Space.L))
@@ -86,15 +89,6 @@ class HistoryInsightsView(
         value: Double,
         decimals: Int,
     ) = String.format(locale, "%.${decimals}f", value)
-
-    private fun duration(value: Long): String {
-        val minutes = value / MS_PER_MINUTE
-        return if (minutes >= MINUTES_PER_HOUR) {
-            context.getString(R.string.history_time_hours_minutes, minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR)
-        } else {
-            context.getString(R.string.history_time_minutes, minutes)
-        }
-    }
 
     private fun row(
         top: Int = 0,

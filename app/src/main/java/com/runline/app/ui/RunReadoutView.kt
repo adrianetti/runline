@@ -38,14 +38,16 @@ internal class RunReadoutView(
         addView(UiRows.hairline(context), rule(Space.S))
         val secondary = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
         secondary.addView(DataFieldView(context, context.getString(R.string.v19_route_distance), distance, context.getString(R.string.island_km)), LayoutParams(0, -2, 1f))
-        secondary.addView(DataFieldView(context, context.getString(R.string.active_time), time), LayoutParams(0, -2, 1f).apply { marginStart = dp(Space.L) })
+        secondary.addView(DataFieldView(context, context.getString(R.string.active_time), time), LayoutParams(0, -2, 1f))
         addView(secondary, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
         if (!compact) {
             addView(UiRows.hairline(context), rule(Space.S))
             val footer = LinearLayout(context)
-            listOf(ascent, descent, average).forEach { footer.addView(it, LayoutParams(0, -2, 1f)) }
+            val climbs = LinearLayout(context)
+            listOf(ascent, descent).forEach { climbs.addView(it, LayoutParams(0, -2, 1f)) }
+            listOf(climbs, average).forEach { footer.addView(it, LayoutParams(0, -2, 1f)) }
             addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
-            addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.XS) })
+            addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.M) })
         }
     }
 
@@ -83,7 +85,7 @@ internal class RunReadoutView(
         ascent.contentDescription = context.getString(R.string.island_climbed_accessibility, number(climbedMeters, 0))
         descent.contentDescription = context.getString(R.string.island_descended_accessibility, number(descendedMeters, 0))
         val averageValue = averagePace?.takeIf { it.isFinite() && it > 0 && it < MAX_PACE_SECONDS }?.roundToInt()
-        average.visibility = if (averagePace != null) VISIBLE else GONE
+        average.visibility = if (averagePace != null) VISIBLE else INVISIBLE
         average.set(averageValue?.let { String.format(locale, "%d:%02d", it / SECONDS_PER_MINUTE, it % SECONDS_PER_MINUTE) } ?: DASH)
     }
 

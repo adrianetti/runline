@@ -121,7 +121,7 @@ internal class ElevationIsland(
             invalidate()
             return
         }
-        range = (high - minimum).coerceAtLeast(10.0)
+        range = (high - minimum).coerceAtLeast(MIN_RANGE_METERS)
         low = minimum + (high - minimum) / 2 - range / 2
         val bounds = Rect()
         chartContent?.let {
@@ -167,12 +167,11 @@ internal class ElevationIsland(
         super.onDraw(canvas)
         if (chartBounds.isEmpty) return
         canvas.withClip(0, chartBounds.top, width, chartBounds.bottom) {
-            ink.color = context.getColor(R.color.on_surface)
+            ink.color = context.getColor(R.color.surface_variant)
             ink.style = Paint.Style.FILL
-            ink.alpha = AREA_ALPHA
             canvas.drawPath(area, ink)
+            ink.color = context.getColor(R.color.on_surface_variant)
             ink.style = Paint.Style.STROKE
-            ink.alpha = LINE_ALPHA
             ink.strokeWidth = LINE_DP * resources.displayMetrics.density
             ink.strokeJoin = Paint.Join.ROUND
             ink.strokeCap = Paint.Cap.ROUND
@@ -197,8 +196,7 @@ internal class ElevationIsland(
 
     private companion object {
         const val PROFILE_SHARE = 0.72f
-        const val AREA_ALPHA = 20
-        const val LINE_ALPHA = 150
+        const val MIN_RANGE_METERS = 20.0
         const val LINE_DP = 1.5f
     }
 }

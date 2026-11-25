@@ -36,7 +36,7 @@ internal class RecordHomeView(
                 context,
                 types.map { context.getString(TYPE_NAMES.getValue(it)) },
                 types.indexOf(home.type),
-                types.map(TYPE_ICONS::getValue),
+                Measure.ROW,
             ) { actions.type(types[it]) }.apply { contentDescription = context.getString(R.string.main_activity_type) },
             row(),
         )
@@ -57,6 +57,5 @@ internal class RecordHomeView(
     private companion object {
         const val METERS_PER_KM = 1_000.0
         val TYPE_NAMES = mapOf(ActivityType.RUN to R.string.main_type_run, ActivityType.WALK to R.string.main_type_walk, ActivityType.HIKE to R.string.main_type_hike)
-        val TYPE_ICONS = mapOf(ActivityType.RUN to R.drawable.ic_run, ActivityType.WALK to R.drawable.ic_walk, ActivityType.HIKE to R.drawable.ic_hike)
     }
 }

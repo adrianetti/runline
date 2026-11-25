@@ -10,6 +10,7 @@ object AccessibilityRules {
     private const val LARGE_BOLD_TEXT_SP = 14f
     private const val BOLD_WEIGHT = 700
     private const val TOLERANCE = 0.5f
+    private const val OVERLAP_SLACK_DP = 2
 
     fun apply(
         tally: AuditTally,
@@ -22,7 +23,7 @@ object AccessibilityRules {
         controls.forEach { name(tally, it.node) }
         controls.forEach { icon(tally, it) }
         placed.filter { it.node.text != null && it.node.enabled }.forEach { text(tally, environment, it) }
-        overlaps(tally, controls.filter { !it.insideControl && it.node.role != UiRole.MAP }.map { it.node })
+        overlaps(tally, controls.filter { !it.insideControl && it.node.role != UiRole.MAP }.map { it.node }, (OVERLAP_SLACK_DP * environment.density).toInt())
         heading(tally, window, placed)
     }
 
@@ -80,10 +81,11 @@ object AccessibilityRules {
     private fun overlaps(
         tally: AuditTally,
         controls: List<UiNode>,
+        slack: Int,
     ) {
         controls.forEachIndexed { index, first ->
             controls.drop(index + 1).forEach { second ->
-                tally.check(AuditRule.OVERLAP, !first.bounds.intersects(second.bounds), UiAudit.describe(first)) {
+                tally.check(AuditRule.OVERLAP, !first.bounds.overlaps(second.bounds, slack), UiAudit.describe(first)) {
                     "overlaps ${UiAudit.describe(second)}"
                 }
             }

@@ -21,7 +21,7 @@ enum class AuditRule(
     DUPLICATE_ACTION(AuditGroup.INTUITIVENESS, "No two controls on a screen share a name."),
     ICON_REUSE(AuditGroup.INTUITIVENESS, "No two controls on a screen share an icon."),
     COPY(AuditGroup.INTUITIVENESS, "A screen explains itself in at most one short sentence."),
-    CHOICES(AuditGroup.INTUITIVENESS, "A screen offers at most twelve controls at once."),
+    CHOICES(AuditGroup.INTUITIVENESS, "A screen offers at most twelve controls at once, besides the navigation bar."),
     EXIT(AuditGroup.INTUITIVENESS, "Every screen that is not a tab shows its way back."),
 }
 

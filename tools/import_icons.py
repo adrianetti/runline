@@ -18,7 +18,6 @@ DESTINATION = ROOT / "app/src/main/res/drawable"
 ICONS = {
     "run": "run",
     "play": "player-play",
-    "pause": "player-pause",
     "stop": "player-stop",
     "history": "history",
     "route": "route",

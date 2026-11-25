@@ -77,7 +77,7 @@ object IntuitivenessRules {
         controls: List<UiNode>,
     ) {
         if (window.kind == UiWindowKind.MENU) return
-        val count = controls.count { it.role != UiRole.LIST_ITEM }
+        val count = controls.count { it.role != UiRole.LIST_ITEM && it.role != UiRole.TAB }
         tally.check(AuditRule.CHOICES, count <= MAX_CHOICES, window.kind.name) { "$count controls" }
     }
 

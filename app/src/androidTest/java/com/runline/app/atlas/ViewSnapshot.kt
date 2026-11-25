@@ -25,6 +25,8 @@ internal object ViewSnapshot {
     private const val WEIGHT_API = 28
     private const val WINDOWS_API = 29
     private const val FAMILY_API = 34
+    private const val BUNDLED_FAMILY = "barlow-condensed"
+    private val BUNDLED = listOf(com.runline.app.R.font.barlow_condensed_semibold, com.runline.app.R.font.barlow_condensed_medium)
     private val WEIGHT_SUFFIX = Regex("-(thin|light|medium|semibold|black)$")
 
     fun windows(fallback: View): List<UiWindow> {
@@ -110,7 +112,9 @@ internal object ViewSnapshot {
                 face?.isBold == true -> BOLD_WEIGHT
                 else -> NORMAL_WEIGHT
             }
-        val family = if (face != null && Build.VERSION.SDK_INT >= FAMILY_API) face.systemFontFamilyName else null
+        val bundled = BUNDLED.any { face != null && face == androidx.core.content.res.ResourcesCompat.getFont(view.context, it) }
+        val system = if (face != null && Build.VERSION.SDK_INT >= FAMILY_API) face.systemFontFamilyName else null
+        val family = if (bundled) BUNDLED_FAMILY else system
         return UiText(
             value = view.text?.toString().orEmpty(),
             sizePx = view.textSize,
@@ -126,6 +130,6 @@ internal object ViewSnapshot {
         val lines = 0 until layout.lineCount
         val room = view.width - view.compoundPaddingLeft - view.compoundPaddingRight + FIT_SLACK_PX
         val height = view.height - view.compoundPaddingTop - view.compoundPaddingBottom + FIT_SLACK_PX
-        return lines.any { layout.getEllipsisCount(it) > 0 || layout.getLineWidth(it) > room } || layout.height > height
+        return lines.any { layout.getEllipsisCount(it) > 0 || layout.getLineMax(it) > room } || layout.height > height
     }
 }

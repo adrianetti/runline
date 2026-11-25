@@ -55,7 +55,7 @@ internal class AboutSheet(
         sheet.column.addView(storage, sheet.row(0, 4))
         sheet.column.addView(terrain, sheet.row(0, 20))
         sheet.column.addView(
-            sheet.button(activity.getString(R.string.v16_repository), R.drawable.ic_external_link).apply {
+            sheet.button(activity.getString(R.string.v16_repository), R.drawable.ic_repository).apply {
                 setOnClickListener { open(ReleaseChecker.REPOSITORY) }
             },
             sheet.row(),

@@ -91,7 +91,8 @@ class UiAuditTest {
     }
 
     @Test fun stackedControlsBreakOverlap() {
-        assertEquals(setOf(AuditRule.OVERLAP), broken(screen(heading(), control("Share"), control("Export", left = 1))))
+        assertEquals(setOf(AuditRule.OVERLAP), broken(screen(heading(), control("Share"), control("Export", left = HALF))))
+        assertEquals(emptySet<AuditRule>(), broken(screen(heading(), control("Run"), control("Walk", left = TARGET * DENSITY.toInt() - 2))))
     }
 
     @Test fun mapUnderFloatingControlsIsNotAnOverlap() {
@@ -159,6 +160,7 @@ class UiAuditTest {
         const val TARGET = 48
         const val SMALL = 40
         const val FAR = 120
+        const val HALF = 40
         const val BODY_SP = 16f
         const val HERO_SP = 32f
         const val TINY_SP = 10f

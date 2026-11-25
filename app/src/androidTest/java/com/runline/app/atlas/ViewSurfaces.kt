@@ -51,7 +51,7 @@ internal object ViewSurfaces {
         view: View,
         surface: UiSurface,
     ): UiEmphasis {
-        if (view !is MaterialButton) return UiEmphasis.NONE
+        if (view !is MaterialButton || view.isCheckable) return UiEmphasis.NONE
         val primary = MaterialColors.getColor(view, androidx.appcompat.R.attr.colorPrimary)
         return when {
             surface.color == primary -> UiEmphasis.FILLED

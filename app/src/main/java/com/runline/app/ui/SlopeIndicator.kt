@@ -129,7 +129,7 @@ private class SlopeLine(
         val low = valid.minOrNull() ?: 0.0
         val range = profile.drawRange()
         val middle = low + ((valid.maxOrNull() ?: low) - low) / 2
-        val next = profile.heights.map { it?.let { ((it - middle) / range).toFloat() } }
+        val next = profile.heights.map { height -> height?.takeIf { grade != null }?.let { ((it - middle) / range).toFloat() } }
         if (next == target && grade == targetGrade && animate) return
         val hadProfile = target.any { it != null }
         target = next
@@ -219,10 +219,8 @@ private class SlopeLine(
             canvas.drawCircle(x(shown.lastIndex), y(it), 3 * density, ink)
         }
         if (shown.all { it == null }) {
-            ink.alpha = 70
-            ink.strokeWidth = density
+            ink.style = Paint.Style.STROKE
             canvas.drawLine(padding, height / 2f, width - padding, height / 2f, ink)
-            ink.alpha = 255
         }
     }
 

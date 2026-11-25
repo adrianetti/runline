@@ -110,10 +110,11 @@ internal class AtlasDriver(
 
     fun tap(control: String): Boolean {
         var bounds = find(control)?.bounds
-        var scrolls = 0
-        while (bounds == null && scrolls < MAX_SCROLLS) {
-            scrolls++
-            touch.swipeUp(capture(control).environment)
+        var tries = 0
+        while (bounds == null && tries < MAX_TRIES) {
+            tries++
+            val top = capture(control)
+            if (tries > PATIENT_TRIES && top.top.kind in SCROLLABLE) touch.swipeUp(top.environment) else SystemClock.sleep(POLL_MS)
             settle()
             bounds = find(control)?.bounds
         }
@@ -158,7 +159,9 @@ internal class AtlasDriver(
 
     companion object {
         private const val WINDOWS_API = 29
-        private const val MAX_SCROLLS = 4
+        private const val MAX_TRIES = 6
+        private const val PATIENT_TRIES = 2
+        private val SCROLLABLE = setOf(UiWindowKind.SCREEN, UiWindowKind.SHEET)
         private const val IDLE_TIMEOUT_MS = 800L
         private const val POLL_MS = 150L
         private const val STABLE_POLLS = 2

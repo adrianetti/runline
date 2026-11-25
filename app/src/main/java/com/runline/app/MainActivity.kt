@@ -898,8 +898,8 @@ class MainActivity : AppCompatActivity() {
         return com.runline.app.ui.HistoryRow(
             title = title ?: type,
             date = date(run.startedAtMs),
-            distance = number(distance / METERS_PER_KM, 2),
-            stats = getString(R.string.main_history_stats, duration(time), pace(RunMetrics.paceSecondsPerKm(distance, time))),
+            pace = pace(RunMetrics.paceSecondsPerKm(distance, time)),
+            summary = getString(R.string.v26_row_summary, number(distance / METERS_PER_KM, 2), duration(time)),
             description = if (title == null) spoken else "$title. $spoken",
         )
     }
