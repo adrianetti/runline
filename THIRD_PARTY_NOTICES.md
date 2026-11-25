@@ -2,7 +2,7 @@
 
 ## Tabler Icons
 
-Runline uses a subset of the outline icons from [Tabler Icons](https://github.com/tabler/tabler-icons), licensed under the MIT License. This is the app's only pictogram family, including its running-figure launcher and foreground-notification glyph.
+Runline uses a subset of the outline icons from [Tabler Icons](https://github.com/tabler/tabler-icons), licensed under the MIT License. This is the app's pictogram family, including its running-figure launcher and foreground-notification glyph. One glyph is drawn in the same 24-unit, 2-unit-stroke style instead of imported: pause, as two plain strokes, so it does not read as digits beside condensed numerals.
 
 The original SVG files and license are retained in `third_party/tabler-icons/`. They are pinned to upstream commit `ed177a085b652fe04ec4f37ced867c94621e7840`. `provenance.json` records each original source URL and SHA-256 checksum.
 
@@ -11,6 +11,10 @@ The original SVG files and license are retained in `third_party/tabler-icons/`. 
 To regenerate offline, run `python3 tools/import_icons.py`. To verify the checked-in resources, run `python3 tools/import_icons.py --check`. `--fetch` downloads the same pinned originals; it does not silently follow the latest upstream revision.
 
 The full upstream MIT notice is in [third_party/tabler-icons/LICENSE](third_party/tabler-icons/LICENSE).
+
+## Barlow Condensed
+
+Numbers and headings are set in [Barlow Condensed](https://github.com/jpt/barlow) Medium and SemiBold, copyright 2017 The Barlow Project Authors, under the SIL Open Font License 1.1. The two font files in `app/src/main/res/font/` come unmodified from [google/fonts](https://github.com/google/fonts/tree/main/ofl/barlowcondensed). The full licence is in [third_party/barlow-condensed/OFL.txt](third_party/barlow-condensed/OFL.txt) and is bundled in the app as `app/src/main/assets/licenses/barlow-condensed.txt`.
 
 ## Spotify
 

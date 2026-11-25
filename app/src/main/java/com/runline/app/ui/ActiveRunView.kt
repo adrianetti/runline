@@ -159,7 +159,7 @@ class ActiveRunView(
                     else -> R.string.active_recording
                 },
             ),
-            if (compact) 14 else 16,
+            if (compact) 14 else 24,
             bold = true,
         ).apply { UiText.heading(this) }
 

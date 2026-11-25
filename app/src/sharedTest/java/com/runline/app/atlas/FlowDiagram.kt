@@ -5,7 +5,10 @@ object FlowDiagram {
     private val ARGUMENT = Regex(FORMAT_ARGUMENT)
     private val PUNCTUATION = Regex("[\"\\[\\]{}|<>]")
 
-    fun depth(id: String): Int = AppFlow.path(id)?.size ?: Int.MAX_VALUE
+    fun depth(id: String): Int {
+        val path = AppFlow.path(id) ?: return Int.MAX_VALUE
+        return path.size - 1 - path.indexOfLast { it.to in AppFlow.TABS }
+    }
 
     fun mermaid(labels: Map<String, String>): String {
         val lines = mutableListOf("flowchart LR")

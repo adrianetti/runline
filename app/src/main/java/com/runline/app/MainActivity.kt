@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
                 tabGravity = TabLayout.GRAVITY_FILL
                 addTab(newTab().setText(R.string.main_record).setIcon(R.drawable.ic_record))
                 addTab(newTab().setText(R.string.main_activities).setIcon(R.drawable.ic_history))
-                addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_map))
+                addTab(newTab().setText(R.string.v19_tab_routes).setIcon(R.drawable.ic_route))
                 addTab(newTab().setText(R.string.v8_settings).setIcon(R.drawable.ic_settings))
                 tabIconTint = navigationColors()
                 tabTextColors = navigationColors()

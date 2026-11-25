@@ -26,9 +26,9 @@ internal class SlopeIndicator(
     private val line = SlopeLine(context)
     private val amount =
         TextView(context).apply {
-            textSize = TextScale.SECTION.toFloat()
+            textSize = TextScale.VALUE.toFloat()
             includeFontPadding = false
-            gravity = Gravity.CENTER
+            gravity = Gravity.END
             typeface = Type.display(context)
             fontFeatureSettings = Type.TABULAR
             setTextColor(context.getColor(R.color.on_surface))

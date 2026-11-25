@@ -176,6 +176,12 @@ internal class ElevationIsland(
             ink.strokeJoin = Paint.Join.ROUND
             ink.strokeCap = Paint.Cap.ROUND
             canvas.drawPath(line, ink)
+            cursor?.takeIf { trace.durationMs > 0 }?.let { played ->
+                canvas.withClip(chartBounds.left.toFloat(), chartBounds.top.toFloat(), x(played), chartBounds.bottom.toFloat()) {
+                    ink.color = context.getColor(R.color.on_surface)
+                    canvas.drawPath(line, ink)
+                }
+            }
             cursor?.takeIf { trace.durationMs > 0 && trace.sections.isNotEmpty() }?.let {
                 ink.style = Paint.Style.FILL
                 ink.alpha = 255
@@ -188,7 +194,7 @@ internal class ElevationIsland(
         }
     }
 
-    private fun x(sample: ObservedElevationTrace.Sample) = paddingLeft + (sample.positionMs.toDouble() / trace.durationMs * (width - paddingLeft - paddingRight).coerceAtLeast(0)).toFloat()
+    private fun x(sample: ObservedElevationTrace.Sample) = chartBounds.left + (sample.positionMs.toDouble() / trace.durationMs * chartBounds.width().coerceAtLeast(0)).toFloat()
 
     private fun y(sample: ObservedElevationTrace.Sample) = baseline - ((sample.heightMeters - low) / range * profileHeight).toFloat()
 

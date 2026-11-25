@@ -24,6 +24,10 @@ internal class RunReadoutView(
     private val locale get() = resources.configuration.locales[0]
     val profile = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
+    fun hideProfile() {
+        profile.visibility = GONE
+    }
+
     init {
         orientation = VERTICAL
         val stacked = resources.configuration.fontScale > STACK_FONT_SCALE || (!compact && resources.configuration.screenWidthDp < NARROW_DP)
@@ -43,9 +47,7 @@ internal class RunReadoutView(
         if (!compact) {
             addView(UiRows.hairline(context), rule(Space.S))
             val footer = LinearLayout(context)
-            val climbs = LinearLayout(context)
-            listOf(ascent, descent).forEach { climbs.addView(it, LayoutParams(0, -2, 1f)) }
-            listOf(climbs, average).forEach { footer.addView(it, LayoutParams(0, -2, 1f)) }
+            listOf(ascent, descent, average).forEach { footer.addView(it, LayoutParams(0, -2, 1f)) }
             addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
             addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.M) })
         }
@@ -75,7 +77,7 @@ internal class RunReadoutView(
             if (seconds >= 3600) {
                 String.format(locale, "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60)
             } else {
-                String.format(locale, "%02d:%02d", seconds / 60, seconds % 60)
+                String.format(locale, "%d:%02d", seconds / 60, seconds % 60)
             }
         time.setValue(duration, seconds.toDouble(), animate)
         time.contentDescription = context.getString(R.string.island_time_accessibility, duration)
@@ -114,7 +116,7 @@ internal class RunReadoutView(
         const val DASH = "\u2014"
         const val STACK_FONT_SCALE = 1.5f
         const val NARROW_DP = 360
-        const val SLOPE_DP = 88
+        const val SLOPE_DP = 72
         const val PROFILE_DP = 48
         const val MAX_PACE_SECONDS = 6_000
         const val SECONDS_PER_MINUTE = 60

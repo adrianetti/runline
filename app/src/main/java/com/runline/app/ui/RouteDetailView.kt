@@ -67,6 +67,7 @@ class RouteDetailView(
         val recording = details.recording
         setBackgroundColor(context.getColor(R.color.surface))
         map.setRoute(route.runPoints())
+        map.controlsTopPx = 0
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         top.addView(

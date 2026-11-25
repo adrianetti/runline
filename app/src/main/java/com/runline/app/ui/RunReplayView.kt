@@ -77,14 +77,19 @@ class RunReplayView(
     private var terrainStatus = ""
     private var terrainDetailsChanged: (() -> Unit)? = null
     private val terrainListener: () -> Unit = { refreshTerrain() }
-    private val title: TextView = label("", 16, bold = true).apply { UiText.heading(this) }
+    private val title: TextView =
+        label("", 24, bold = true).apply {
+            UiText.heading(this)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
     private val subtitle: TextView = label("", 14, muted = true).apply { gravity = Gravity.END }
     private val heading: LinearLayout =
         LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
             visibility = GONE
-            addView(title, LinearLayout.LayoutParams(-2, -2))
-            addView(subtitle, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
+            addView(title, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(subtitle, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(12) })
         }
     private val averagePace =
         com.runline.app.core.RunMetrics
@@ -112,6 +117,7 @@ class RunReplayView(
 
     init {
         map.setReplayMode()
+        map.controlsTopPx = 0
         map.setProgressiveRoute(true)
         val displayPoints = replay.segments.flatMapIndexed { index, points -> points.map { it.copy(segment = index) } }
         map.setRoute(displayPoints)
@@ -158,7 +164,7 @@ class RunReplayView(
                 },
                 LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
                     marginEnd = dp(16)
-                    topMargin = dp(16)
+                    topMargin = dp(SECOND_SLOT_DP)
                 },
             )
         }
@@ -167,24 +173,31 @@ class RunReplayView(
         val information = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         information.addView(heading, row(bottom = 4))
         information.addView(readout, row())
-        panel.setChartContent(readout.profile)
+        readout.hideProfile()
         val scroll =
             ScrollView(context).apply {
                 isFillViewport = false
                 addView(information, android.view.ViewGroup.LayoutParams(-1, -2))
             }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        val timeline = FrameLayout(context)
-        seek.setPadding(dp(SEEK_PAD_DP), 0, dp(SEEK_PAD_DP), 0)
-        timeline.addView(
-            seek,
-            LayoutParams(-1, dp(48)).apply {
-                marginStart = -dp(SEEK_PAD_DP)
-                marginEnd = -dp(SEEK_PAD_DP)
-            },
-        )
-        timeline.addView(clock, LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END))
-        panel.addView(timeline, LinearLayout.LayoutParams(-1, dp(TIMELINE_DP)))
+        val chart = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+        panel.setChartContent(chart)
+        seek.setPadding(0, 0, 0, 0)
+        seek.progressDrawable = android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        seek.background = null
+        seek.thumbOffset = 0
+        seek.thumb =
+            android.graphics.drawable.GradientDrawable().apply {
+                setColor(context.getColor(R.color.on_surface))
+                setSize(dp(PLAYHEAD_DP), dp(48))
+            }
+        val track = FrameLayout(context)
+        track.addView(chart, LayoutParams(-1, -1))
+        track.addView(seek, LayoutParams(-1, -1))
+        val timeline = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        timeline.addView(track, LinearLayout.LayoutParams(0, dp(48), 1f))
+        timeline.addView(clock, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
+        panel.addView(timeline, row(top = 8))
         val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         controls.addView(play, LinearLayout.LayoutParams(0, -2, 1f))
         controls.addView(speed, LinearLayout.LayoutParams(dp(SPEED_WIDTH_DP), -2).apply { marginStart = dp(8) })
@@ -779,7 +792,8 @@ class RunReplayView(
     private companion object {
         const val SPEED_WIDTH_DP = 88
         const val SEEK_PAD_DP = 10
-        const val TIMELINE_DP = 60
+        const val PLAYHEAD_DP = 2
+        const val SECOND_SLOT_DP = 80
         const val ISLAND_SHARE = 0.66f
     }
 }

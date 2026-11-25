@@ -59,7 +59,7 @@ class HistoryInsightsView(
         val period = periods.getValue(selected)
         content.removeAllViews()
         val count = resources.getQuantityString(R.plurals.history_activity_count, period.activities.size, period.activities.size)
-        content.addView(UiText.label(context, context.getString(R.string.v26_period_summary, context.getString(R.string.history_progress), count)), row(bottom = Space.S))
+        content.addView(UiText.body(context, context.getString(R.string.v26_period_summary, context.getString(R.string.history_progress), count)), row(bottom = Space.L))
         if (period.activities.isEmpty()) return
         val totals = LinearLayout(context)
         val pace = (if (selected == null) periods.getValue(ActivityType.RUN) else period).paceSecondsPerKm?.let { formatPace(it, locale) } ?: DASH
@@ -132,7 +132,8 @@ private class WeeklyDistanceChart(
     private val peak = weeks.maxOf { it.distanceMeters }.coerceAtLeast(1000.0)
     private val outline = 2 * density
     private val valueFace = Type.display(context)
-    private val chartHeight = 112 * density
+    private val chartHeight = 88 * density
+    private val valueSize = 18f * resources.displayMetrics.scaledDensity
     private var growth = 0f
     private var growing: android.animation.ValueAnimator? = null
 
@@ -170,6 +171,9 @@ private class WeeklyDistanceChart(
         val baseline = height - textSize * 2f
         val top = textSize * 2f
         val range = (baseline - top).coerceAtLeast(1f)
+        paint.color = muted
+        paint.style = Paint.Style.FILL
+        canvas.drawRect(0f, baseline - density, width.toFloat(), baseline, paint)
         weeks.forEachIndexed { index, week ->
             val center = column * (index + .5f)
             val barWidth = minOf(column * .48f, 36 * density)
@@ -192,14 +196,13 @@ private class WeeklyDistanceChart(
                 paint.style = Paint.Style.FILL
             } else {
                 paint.style = Paint.Style.FILL
-                paint.color = muted
-                canvas.drawRect(center - barWidth / 2, baseline - outline, center + barWidth / 2, baseline, paint)
-                paint.color = ink
             }
             paint.textAlign = Paint.Align.CENTER
             paint.typeface = valueFace
-            if (week.distanceMeters > 0) canvas.drawText(values[index], center, max(textSize, barTop - textSize * .45f), paint)
+            paint.textSize = valueSize
+            if (week.distanceMeters > 0) canvas.drawText(values[index], center, max(valueSize, barTop - valueSize * .45f), paint)
             paint.typeface = Typeface.DEFAULT
+            paint.textSize = textSize
             paint.color = muted
             canvas.drawText(labels[index], center, baseline + textSize * 1.5f, paint)
         }

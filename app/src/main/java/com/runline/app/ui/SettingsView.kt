@@ -23,7 +23,12 @@ internal class SettingsView(
 ) : LinearLayout(context) {
     init {
         orientation = VERTICAL
-        addView(UiText.title(context, context.getString(R.string.v8_settings)))
+        addView(
+            UiText.title(context, context.getString(R.string.v8_settings)).apply {
+                minHeight = UiText.dp(context, Measure.TOUCH)
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            },
+        )
         addView(UiRows.hairline(context), LayoutParams(LayoutParams.MATCH_PARENT, UiText.dp(context, Space.HAIRLINE)).apply { topMargin = UiText.dp(context, Space.L) })
         item(R.drawable.ic_user, R.string.profile_v9_title, actions.profile)
         item(R.drawable.ic_ai, R.string.v8_ai, actions.ai)

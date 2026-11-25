@@ -28,7 +28,7 @@ class AppFlowTest {
         assertEquals(emptyList<String>(), AppFlow.screens.filter { AppFlow.path(it.id) == null }.map { it.id })
     }
 
-    @Test fun nothingIsMoreThanFourTapsAwayAndScreensAreWithinThree() {
+    @Test fun nothingIsMoreThanFourTapsFromItsTabAndScreensAreWithinThree() {
         val deep = AppFlow.screens.filter { FlowDiagram.depth(it.id) > MAX_TAPS }.map { it.id }
         val buried = AppFlow.screens.filter { it.kind == UiWindowKind.SCREEN && FlowDiagram.depth(it.id) > MAX_SCREEN_TAPS }.map { it.id }
         assertEquals(emptyList<String>(), deep + buried)
@@ -62,7 +62,7 @@ class AppFlowTest {
     @Test fun flowDocumentMatchesTheGraph() {
         val diagram = FlowDiagram.mermaid(strings("values"))
         val document = File("../docs/FLOW.md").readText()
-        assertTrue("Regenerate the diagram in docs/FLOW.md from FlowDiagram.mermaid", document.contains(diagram))
+        assertTrue("docs/FLOW.md is out of date. Its diagram must be:\n$diagram", document.contains(diagram))
     }
 
     private companion object {

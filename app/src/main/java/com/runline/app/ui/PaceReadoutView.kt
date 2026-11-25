@@ -20,7 +20,7 @@ internal class PaceReadoutView
         val number = RollingNumberView(context, maximumSp)
         private val unit =
             TextView(context).apply {
-                text = context.getString(R.string.v16_unit_pace)
+                text = context.getString(R.string.v26_unit_per_km)
                 textSize = (if (compact) TextScale.BODY else TextScale.SECTION).toFloat()
                 includeFontPadding = false
                 maxLines = 1
