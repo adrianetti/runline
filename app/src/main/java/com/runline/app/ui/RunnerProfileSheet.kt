@@ -207,7 +207,8 @@ class RunnerProfileSheet(
     private fun snapshotFields(snapshot: TrainingSnapshot): List<DataFieldView> {
         val locale = activity.resources.configuration.locales[0]
         val km = activity.getString(R.string.island_km)
-        val runs = activity.resources.getQuantityString(R.plurals.v26_profile_runs, snapshot.runs28Days)
+        val single = activity.getString(R.string.export_activity_run).lowercase(locale)
+        val runs = if (snapshot.runs28Days == 1) single else activity.getString(R.string.v26_profile_runs)
 
         fun field(
             label: Int,
@@ -223,12 +224,13 @@ class RunnerProfileSheet(
             )
         snapshot.longestKilometres90Days?.let { fields += field(R.string.v26_profile_longest, decimal(it), km) }
         snapshot.typicalPaceSeconds?.let { seconds ->
-            val total = kotlin.math.round(seconds).toInt()
-            val pace = String.format(locale, "%d:%02d", total / SECONDS_PER_MINUTE, total % SECONDS_PER_MINUTE)
+            val pace =
+                com.runline.app.core.ClockFormat
+                    .pair(kotlin.math.round(seconds).toLong(), locale)
             fields += field(R.string.v26_profile_pace, pace, activity.getString(R.string.v26_unit_per_km))
         }
         val outOfTen = activity.getString(R.string.v26_unit_of_ten)
-        snapshot.averageEffort?.let { fields += field(R.string.v26_profile_effort, decimal(it), outOfTen) }
+        snapshot.averageEffort?.let { fields += field(R.string.details_effort, decimal(it), outOfTen) }
         return fields
     }
 
@@ -297,6 +299,5 @@ class RunnerProfileSheet(
     private companion object {
         const val SNAPSHOT_COLUMNS = 3
         const val ONE_DECIMAL = "%.1f"
-        const val SECONDS_PER_MINUTE = 60
     }
 }

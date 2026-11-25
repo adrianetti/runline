@@ -751,7 +751,6 @@
     <ID>MagicNumber:HikingRoute.kt$RouteEstimates$6</ID>
     <ID>MagicNumber:HikingRoute.kt$RouteEstimates$60</ID>
     <ID>MagicNumber:HikingRoute.kt$RouteGeometry$360</ID>
-    <ID>MagicNumber:HistoryInsightsView.kt$60</ID>
     <ID>MagicNumber:HistoryInsightsView.kt$HistoryInsightsView$2</ID>
     <ID>MagicNumber:HistoryInsightsView.kt$PaceTrendChart$.32f</ID>
     <ID>MagicNumber:HistoryInsightsView.kt$PaceTrendChart$.35f</ID>
@@ -1139,8 +1138,6 @@
     <ID>MagicNumber:RunReadoutView.kt$RunReadoutView$1000</ID>
     <ID>MagicNumber:RunReadoutView.kt$RunReadoutView$1_000</ID>
     <ID>MagicNumber:RunReadoutView.kt$RunReadoutView$2</ID>
-    <ID>MagicNumber:RunReadoutView.kt$RunReadoutView$3600</ID>
-    <ID>MagicNumber:RunReadoutView.kt$RunReadoutView$60</ID>
     <ID>MagicNumber:RunReadoutView.kt$RunReadoutView$6_000</ID>
     <ID>MagicNumber:RunReplay.kt$RunReplay$1000.0</ID>
     <ID>MagicNumber:RunReplay.kt$RunReplay.Companion$180.0</ID>
@@ -1207,7 +1204,6 @@
     <ID>MagicNumber:SatelliteMapView.kt$FollowMarkerView$11f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$FollowMarkerView$8f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$.16</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$0.000002</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$0.25</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$0.45f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$0.5f</ID>
@@ -1220,7 +1216,6 @@
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$14f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$15.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$16.0</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$17.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$18.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$180.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$19.0</ID>
@@ -1229,14 +1224,11 @@
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$3</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$30</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$30L</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$360.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$3f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$42</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$44</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$48</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$4f</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$512.0</ID>
-    <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$540.0</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$56</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$5f</ID>
     <ID>MagicNumber:SatelliteMapView.kt$SatelliteMapView$64</ID>

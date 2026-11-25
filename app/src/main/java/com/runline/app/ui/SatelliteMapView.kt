@@ -28,6 +28,7 @@ import com.runline.app.core.GpsCourse
 import com.runline.app.core.MarkerMotion
 import com.runline.app.core.MarkerViewport
 import com.runline.app.core.ReplayTrail
+import com.runline.app.core.RouteFit
 import com.runline.app.core.RunPoint
 import com.runline.app.core.continuousSegments
 import com.runline.app.core.hasValidCoordinates
@@ -640,27 +641,19 @@ class SatelliteMapView(
             return
         }
         fitPending = false
-        val origin = valid.first().longitude
-        val lngs = valid.map { origin + ((it.longitude - origin + 540.0) % 360.0) - 180.0 }
-        val ys = valid.map { mercatorY(it.latitude) }
-        val spanX = max((lngs.max() - lngs.min()) / 360.0, 0.000002)
-        val spanY = max(ys.max() - ys.min(), 0.000002)
         val density = resources.displayMetrics.density.toDouble()
         val padding = cameraInsets()
-        val sides = (padding[0] + padding[2] - overlayInsets[0] - overlayInsets[2]) / density
-        val ends = (padding[1] + padding[3] - overlayInsets[1] - overlayInsets[3]) / density
-        val usableWidth = max((width - padding[0] - padding[2]) / density - max(FIT_CLEARANCE_DP - sides, 0.0), MIN_FIT_DP)
-        val usableHeight = max((height - padding[1] - padding[3]) / density - max(FIT_CLEARANCE_DP - ends, 0.0), MIN_FIT_DP)
-        val zoom = min(log2(usableWidth / 512.0 / spanX), log2(usableHeight / 512.0 / spanY)).coerceIn(1.0, 17.0)
-        val centerLng = ((lngs.max() + lngs.min()) / 2.0 + 540.0) % 360.0 - 180.0
-        val centerY = (ys.max() + ys.min()) / 2.0
-        val centerLat = Math.toDegrees(atan(sinh(Math.PI * (1.0 - 2.0 * centerY))))
+        val overlayAcross = (overlayInsets[0] + overlayInsets[2]) / density
+        val overlayAlong = (overlayInsets[1] + overlayInsets[3]) / density
+        val across = RouteFit.usable(width / density, (padding[0] + padding[2]) / density, overlayAcross)
+        val along = RouteFit.usable(height / density, (padding[1] + padding[3]) / density, overlayAlong)
+        val frame = RouteFit.frame(valid, across, along) ?: return
         currentMap.moveCamera(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition
                     .Builder(currentMap.cameraPosition)
-                    .target(LatLng(centerLat, centerLng))
-                    .zoom(zoom)
+                    .target(LatLng(frame.latitude, frame.longitude))
+                    .zoom(frame.zoom)
                     .bearing(0.0)
                     .tilt(0.0)
                     .padding(padding)
@@ -1005,16 +998,12 @@ class SatelliteMapView(
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
-    private fun mercatorY(latitude: Double) = (1.0 - asinh(tan(Math.toRadians(latitude))) / Math.PI) / 2.0
-
     companion object {
         private const val TRAIL_PUBLISH_MS = 500L
         private const val TRAIL_RENDER_MS = 1_500L
         private const val MAX_HEAD_POINTS = 300
         private const val TRAIL_HEAD_METERS = 400.0
-        private const val FIT_CLEARANCE_DP = 96.0
         private const val FINISH = "finish"
-        private const val MIN_FIT_DP = 80.0
         private const val BASE_STYLE = """
         {"version":8,"sources":{
           "world":{"type":"raster","tiles":["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"],"tileSize":256,"minzoom":0,"maxzoom":14},

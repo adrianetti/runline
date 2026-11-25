@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.LinearLayout
 import com.runline.app.R
 import com.runline.app.core.ActivityType
+import com.runline.app.core.ClockFormat
 import com.runline.app.core.HistoryPeriod
 import com.runline.app.core.HistorySummary
 import com.runline.app.core.RunSession
@@ -62,12 +63,7 @@ class HistoryInsightsView(
         val pace = paced.paceSecondsPerKm?.let { formatPace(it, locale) } ?: DASH
         val minutes = period.activeDurationMs / MS_PER_MINUTE
         val hours = minutes >= MINUTES_PER_HOUR
-        val time =
-            if (hours) {
-                String.format(locale, "%d:%02d", minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR)
-            } else {
-                minutes.toString()
-            }
+        val time = if (hours) ClockFormat.pair(minutes, locale) else minutes.toString()
         val distance = number(period.distanceMeters / METERS_PER_KM, 1)
         val timeUnit = context.getString(if (hours) R.string.v26_unit_hours else R.string.v26_unit_minutes)
         totals.addView(field(R.string.v19_route_distance, distance, context.getString(R.string.island_km)), cell())
@@ -114,10 +110,7 @@ class HistoryInsightsView(
 private fun formatPace(
     seconds: Double,
     locale: Locale,
-): String {
-    val total = seconds.roundToInt().coerceAtLeast(0)
-    return String.format(locale, "%d:%02d", total / 60, total % 60)
-}
+): String = ClockFormat.pair(seconds.roundToInt().coerceAtLeast(0).toLong(), locale)
 
 private class WeeklyDistanceChart(
     context: Context,

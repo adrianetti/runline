@@ -63,7 +63,7 @@ internal class DataFieldView(
         val beside = context.getString(R.string.v26_out_of, total)
         val needed = number.paint.measureText(total) + gap + suffix.paint.measureText(beside)
         val fits = available <= 0 || needed <= available
-        val caption = if (fits) label else context.getString(R.string.v26_time_of, label, total)
+        val caption = if (fits) label else context.getString(R.string.replay_time_of, label, total)
         if (name.text.toString() != caption) name.text = caption
         if (suffix.text.toString() != beside) suffix.text = beside
         suffix.visibility = if (fits) VISIBLE else GONE

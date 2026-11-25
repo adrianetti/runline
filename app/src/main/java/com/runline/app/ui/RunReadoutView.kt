@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import com.runline.app.R
+import com.runline.app.core.ClockFormat
 import com.runline.app.core.TerrainEstimate
 import kotlin.math.roundToInt
 
@@ -74,7 +75,7 @@ internal class RunReadoutView(
         profile: com.runline.app.core.SlopeProfile = com.runline.app.core.SlopeProfile.EMPTY,
     ) {
         val paceValue = paceSeconds?.takeIf { it.isFinite() && it > 0 && it < 6_000 }?.roundToInt()
-        val paceText = paceValue?.let { String.format(locale, CLOCK, it / 60, it % 60) } ?: "—"
+        val paceText = paceValue?.let { ClockFormat.pair(it.toLong(), locale) } ?: "—"
         pace.setValue(paceText, paceValue?.toDouble(), animate)
         pace.contentDescription = context.getString(R.string.island_pace_accessibility, paceText)
         val km = distanceMeters?.takeIf { it.isFinite() && it >= 0 }?.div(1000)
@@ -82,12 +83,7 @@ internal class RunReadoutView(
         distance.setValue(distanceText, km, animate)
         distance.contentDescription = context.getString(R.string.replay_kilometres, distanceText)
         val seconds = durationMs.coerceAtLeast(0) / 1_000
-        val duration =
-            if (seconds >= 3600) {
-                String.format(locale, "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60)
-            } else {
-                String.format(locale, CLOCK, seconds / 60, seconds % 60)
-            }
+        val duration = ClockFormat.duration(seconds, locale)
         time.setValue(duration, seconds.toDouble(), animate)
         time.contentDescription = context.getString(R.string.island_time_accessibility, duration)
         slope.update(terrain, animate, profile)
@@ -97,7 +93,7 @@ internal class RunReadoutView(
         descent.contentDescription = context.getString(R.string.island_descended_accessibility, number(descendedMeters, 0))
         val averageValue = averagePace?.takeIf { it.isFinite() && it > 0 && it < MAX_PACE_SECONDS }?.roundToInt()
         average.visibility = if (averagePace != null) VISIBLE else INVISIBLE
-        average.set(averageValue?.let { String.format(locale, CLOCK, it / SECONDS_PER_MINUTE, it % SECONDS_PER_MINUTE) } ?: DASH)
+        average.set(averageValue?.let { ClockFormat.pair(it.toLong(), locale) } ?: DASH)
     }
 
     fun settle() {
@@ -121,7 +117,6 @@ internal class RunReadoutView(
 
     private companion object {
         const val DASH = "\u2014"
-        const val CLOCK = "%d:%02d"
         const val STACK_FONT_SCALE = 1.5f
         const val NARROW_DP = 360
         const val SLOPE_DP = 72
@@ -129,6 +124,5 @@ internal class RunReadoutView(
         const val QUARTER = 1f
         const val HALF = 2f
         const val MAX_PACE_SECONDS = 6_000
-        const val SECONDS_PER_MINUTE = 60
     }
 }
