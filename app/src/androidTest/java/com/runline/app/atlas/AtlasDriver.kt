@@ -102,7 +102,8 @@ internal class AtlasDriver(
         return capture(control)
             .top.root
             .walk()
-            .firstOrNull { it.actionable && it.enabled && names(it).any(pattern::matches) }
+            .filter { it.actionable && it.enabled && names(it).any(pattern::matches) }
+            .minByOrNull { it.bounds.width.toLong() * it.bounds.height }
     }
 
     private fun names(node: UiNode): List<String> {
