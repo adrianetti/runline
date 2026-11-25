@@ -24,6 +24,8 @@ internal class SegmentedControl(
         addOnButtonCheckedListener { _, id, checked -> if (checked) onSelect(indexOfChild(findViewById(id))) }
     }
 
+    constructor(context: Context) : this(context, listOf(""), 0, onSelect = {})
+
     private fun segment(label: String) =
         MaterialButton(context, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             id = View.generateViewId()

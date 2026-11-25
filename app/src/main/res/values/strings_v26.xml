@@ -2,18 +2,14 @@
 <resources>
     <string name="v26_this_week">This week</string>
     <string name="v26_week_days">%1$d of 7 days active</string>
-    <string name="v26_route">Route</string>
-    <string name="v26_none">None</string>
+    <string name="v26_route">@string/route_name_route</string>
+    <string name="v26_none">@string/music_none</string>
     <string name="v26_average_pace">Avg pace</string>
-    <string name="v26_voice_on">On</string>
-    <string name="v26_voice_off">Off</string>
-    <string name="v26_speed">%1$d×</string>
-    <string name="v26_fit_route">Show the whole route</string>
-    <string name="v26_period_summary">%1$s · %2$s</string>
+    <string name="v26_voice_on">@string/main_on</string>
+    <string name="v26_voice_off">@string/main_off</string>
     <string name="v26_unit_metres">m</string>
     <string name="v26_unit_per_km">/km</string>
     <string name="v26_unit_hours">h</string>
     <string name="v26_unit_minutes">min</string>
-    <string name="v26_row_summary">%1$s km · %2$s</string>
     <string name="v26_grade_unknown">– %</string>
 </resources>

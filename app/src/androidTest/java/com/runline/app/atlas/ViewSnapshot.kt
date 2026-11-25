@@ -49,13 +49,15 @@ internal object ViewSnapshot {
         insideMap: Boolean,
     ): UiNode? {
         val visible = Rect()
-        if (insideMap || view.visibility != View.VISIBLE || view.alpha == 0f || !view.getGlobalVisibleRect(visible)) return null
+        if (insideMap || hidden(view) || !view.getGlobalVisibleRect(visible)) return null
         val origin = IntArray(2).also(view.rootView::getLocationOnScreen)
         visible.offset(origin[0], origin[1])
         val bounds = UiRect(visible.left, visible.top, visible.right, visible.bottom)
         val role = role(view)
         val surface = if (role == UiRole.MAP) UiSurface(opaqueImage = true) else ViewSurfaces.surface(view)
-        val children = (view as? ViewGroup)?.takeIf { role != UiRole.MAP }?.let { group -> (0 until group.childCount).mapNotNull { node(group.getChildAt(it), false) } }
+        val group = (view as? ViewGroup)?.takeIf { role != UiRole.MAP }
+        val children = group?.let { parent -> (0 until parent.childCount).mapNotNull { node(parent.getChildAt(it), false) } }
+        val operable = view.isClickable || role in setOf(UiRole.FIELD, UiRole.SLIDER, UiRole.LIST_ITEM)
         return UiNode(
             type =
                 view.javaClass.simpleName.ifBlank {
@@ -69,7 +71,7 @@ internal object ViewSnapshot {
             text = (view as? TextView)?.let(::text),
             label = label(view),
             icon = ViewSurfaces.icon(view, bounds),
-            actionable = view.isImportantForAccessibility && (view.isClickable || role in setOf(UiRole.FIELD, UiRole.SLIDER, UiRole.LIST_ITEM)),
+            actionable = view.isImportantForAccessibility && operable,
             enabled = view.isEnabled,
             emphasis = ViewSurfaces.emphasis(view, surface),
             clipped = visible.width() < view.width || visible.height() < view.height,
@@ -86,13 +88,18 @@ internal object ViewSnapshot {
             view is Button || view is ImageButton -> UiRole.BUTTON
             view is TabLayout.TabView -> UiRole.TAB
             view.parent is AbsListView -> UiRole.LIST_ITEM
-            view is TextView -> if (heading(view)) UiRole.HEADING else UiRole.TEXT
+            view is TextView -> textRole(view)
             view is ImageView -> UiRole.IMAGE
             view is ViewGroup -> UiRole.GROUP
             else -> UiRole.GRAPHIC
         }
 
-    private fun heading(view: View) = Build.VERSION.SDK_INT >= WEIGHT_API && view.isAccessibilityHeading
+    private fun textRole(view: View): UiRole {
+        val heading = Build.VERSION.SDK_INT >= WEIGHT_API && view.isAccessibilityHeading
+        return if (heading) UiRole.HEADING else UiRole.TEXT
+    }
+
+    private fun hidden(view: View) = view.visibility != View.VISIBLE || view.alpha == 0f
 
     private fun label(view: View): String? =
         view.contentDescription?.toString()

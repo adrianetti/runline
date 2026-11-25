@@ -10,6 +10,7 @@ internal object Type {
     const val TABULAR = "tnum"
     private const val BODY_FAMILY = "sans-serif"
     private const val EMPHASIS_FAMILY = "sans-serif-medium"
+    private const val SNAP = 4
 
     fun display(context: Context): Typeface = ResourcesCompat.getFont(context, R.font.barlow_condensed_semibold) ?: Typeface.DEFAULT_BOLD
 
@@ -37,6 +38,4 @@ internal object Type {
         view.typeface = display(view.context)
         view.fontFeatureSettings = TABULAR
     }
-
-    private const val SNAP = 4
 }

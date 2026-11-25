@@ -3,6 +3,8 @@ package com.runline.app.atlas
 import org.json.JSONArray
 import org.json.JSONObject
 
+private const val COLOR_KEY = "color"
+
 data class UiRect(
     val left: Int,
     val top: Int,
@@ -35,7 +37,7 @@ data class UiText(
         JSONObject()
             .put("value", value)
             .put("sizePx", sizePx.toDouble())
-            .put("color", UiColor.hex(color))
+            .put(COLOR_KEY, UiColor.hex(color))
             .put("weight", weight)
             .put("family", family)
             .put("truncated", truncated)
@@ -54,7 +56,7 @@ data class UiSurface(
 ) {
     fun json(): JSONObject =
         JSONObject()
-            .put("color", color?.let(UiColor::hex) ?: JSONObject.NULL)
+            .put(COLOR_KEY, color?.let(UiColor::hex) ?: JSONObject.NULL)
             .put("radiusPx", radiusPx.toDouble())
             .put("strokeColor", strokeColor?.let(UiColor::hex) ?: JSONObject.NULL)
             .put("strokeWidthPx", strokeWidthPx.toDouble())
@@ -69,7 +71,7 @@ data class UiIcon(
     fun json(): JSONObject =
         JSONObject()
             .put("shape", shape)
-            .put("color", color?.let(UiColor::hex) ?: JSONObject.NULL)
+            .put(COLOR_KEY, color?.let(UiColor::hex) ?: JSONObject.NULL)
             .put("bounds", bounds.json())
 }
 

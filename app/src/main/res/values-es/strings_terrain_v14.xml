@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="terrain_maps_title">Mapas de relieve</string>
     <string name="terrain_maps_download">Descargar relieve cercano</string>
     <string name="terrain_maps_description">El relieve se guarda para usar sin conexión. La cobertura global excluye los polos. La resolución varía; las pendientes inciertas quedan desconocidas.</string>
     <string name="terrain_maps_clear">Borrar relieve descargado</string>

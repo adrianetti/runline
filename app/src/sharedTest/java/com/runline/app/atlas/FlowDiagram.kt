@@ -38,5 +38,9 @@ object FlowDiagram {
     private fun label(
         labels: Map<String, String>,
         key: String,
-    ) = labels.getValue(key).replace(ARGUMENT, "…").replace(PUNCTUATION, "").trim()
+    ) = labels
+        .getValue(key)
+        .replace(ARGUMENT, "…")
+        .replace(PUNCTUATION, "")
+        .trim()
 }

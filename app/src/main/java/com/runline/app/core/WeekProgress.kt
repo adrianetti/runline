@@ -27,7 +27,10 @@ data class WeekProgress(
             val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             val startMs = monday.atStartOfDay(zone).toInstant().toEpochMilli()
             val included = activities.filter { it.startedAtMs in startMs..nowMs }
-            val days = included.map { ChronoUnit.DAYS.between(monday, Instant.ofEpochMilli(it.startedAtMs).atZone(zone).toLocalDate()).toInt() }.toSet()
+            val days =
+                included
+                    .map { ChronoUnit.DAYS.between(monday, Instant.ofEpochMilli(it.startedAtMs).atZone(zone).toLocalDate()).toInt() }
+                    .toSet()
             return WeekProgress(
                 distanceMeters = included.sumOf { it.distanceMeters },
                 activeDurationMs = included.sumOf { it.activeDurationMs },

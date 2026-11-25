@@ -35,7 +35,7 @@ internal class HistoryRowView(
         setOnClickListener { open() }
         val name = LinearLayout(context).apply { orientation = VERTICAL }
         name.addView(UiText.styled(context, row.title, TextScale.SECTION, bold = true))
-        name.addView(UiText.label(context, row.date), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = UiText.dp(context, Space.XS) })
+        name.addView(UiText.label(context, row.date), wrap().apply { topMargin = UiText.dp(context, Space.XS) })
         addView(name, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
         val result =
             LinearLayout(context).apply {
@@ -44,9 +44,16 @@ internal class HistoryRowView(
             }
         val pace = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
         pace.addView(UiText.value(context, row.pace))
-        pace.addView(UiText.label(context, context.getString(R.string.v26_unit_per_km)), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = UiText.dp(context, Space.XS) })
-        result.addView(pace, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
-        result.addView(UiText.label(context, row.summary), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
-        addView(result, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = UiText.dp(context, Space.L) })
+        pace.addView(
+            UiText.label(context, context.getString(R.string.v26_unit_per_km)),
+            wrap().apply { marginStart = UiText.dp(context, Space.XS) },
+        )
+        result.addView(pace, wrap())
+        result.addView(UiText.label(context, row.summary), wrap())
+        addView(result, wrap().apply { marginStart = UiText.dp(context, Space.L) })
     }
+
+    constructor(context: Context) : this(context, HistoryRow("", "", "", "", ""), {})
+
+    private fun wrap() = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
 }

@@ -17,7 +17,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -231,15 +230,15 @@ class SatelliteMapView(
                 setMargins(dp(8), dp(8), dp(64), 0)
             },
         )
-        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(16), 0, dp(64), dp(8)) })
+        addView(credits, LayoutParams(-2, dp(48), Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(Space.L), 0, dp(64), dp(8)) })
         controls.addView(mapButton(R.drawable.ic_fit, context.getString(R.string.map_fit_route)) { fitRoute() })
         addView(
             controls,
             LayoutParams(dp(48), -2, Gravity.TOP or Gravity.END).apply {
-                setMargins(0, dp(16), dp(16), 0)
+                setMargins(0, dp(Space.L), dp(Space.L), 0)
             },
         )
-        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(16), dp(8)) })
+        addView(followButton, LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(Space.L), dp(8)) })
         mapView.contentDescription = context.getString(R.string.map_accessibility)
         var downX = 0f
         var downY = 0f
@@ -583,16 +582,16 @@ class SatelliteMapView(
             status.layoutParams = this
         }
         (credits.layoutParams as LayoutParams).apply {
-            setMargins(next[0] + dp(16), 0, next[2] + dp(64), next[3])
+            setMargins(next[0] + dp(Space.L), 0, next[2] + dp(64), next[3])
             credits.layoutParams = this
         }
         (followButton.layoutParams as LayoutParams).apply {
-            setMargins(0, 0, next[2] + dp(16), next[3] + dp(8))
+            setMargins(0, 0, next[2] + dp(Space.L), next[3] + dp(8))
             followButton.layoutParams = this
         }
         creditText.maxWidth = (width - next[0] - next[2] - dp(80)).coerceAtLeast(dp(64))
         (controls.layoutParams as LayoutParams).apply {
-            setMargins(0, (controlsTopPx ?: next[1]) + dp(16), next[2] + dp(16), 0)
+            setMargins(0, (controlsTopPx ?: next[1]) + dp(Space.L), next[2] + dp(Space.L), 0)
             controls.layoutParams = this
         }
         (fallback.layoutParams as LayoutParams).apply {

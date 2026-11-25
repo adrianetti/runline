@@ -7,7 +7,6 @@
     <string name="v19_routes_about">About open routes</string>
     <string name="v19_routes_about_body">Runline\'s routes are open data in its GitHub repository, rebuilt from public paths in OpenStreetMap. Anyone can use and share them, and new routes are added by pull request. Route geometry © OpenStreetMap contributors (ODbL 1.0). Elevation © IGN/CNIG MDT05 (CC BY 4.0).</string>
     <string name="v19_routes_open_repo">Open repository</string>
-    <string name="v19_routes_intro">Follow an open route or add a GPX file.</string>
     <string name="v19_routes_imported_section">Imported</string>
     <string name="v19_routes_catalog_section">Open routes</string>
     <string name="v19_routes_refreshing">Checking for new routes…</string>
@@ -35,7 +34,6 @@
     <string name="v19_route_lowest">Lowest point</string>
     <string name="v19_route_difficulty">Difficulty</string>
     <string name="v19_route_shape">Shape</string>
-    <string name="v19_route_time_note">Moving time at a steady pace without stops, from Tobler\'s hiking function. While you follow the route, Runline adjusts it to your pace.</string>
     <string name="v19_route_finish_before_sunset">Sunset at %1$s. Starting now, you\'d finish around %2$s.</string>
     <string name="v19_route_finish_after_sunset">Sunset at %1$s. Starting now, you\'d finish around %2$s, after dark.</string>
     <string name="v19_route_after_dark">The sun set at %1$s today.</string>
@@ -51,8 +49,6 @@
     <string name="v19_route_delete_action">Delete</string>
     <string name="v19_route_delete_confirm">Delete %1$s from this phone? Your recordings stay.</string>
     <string name="v19_route_unavailable">This route couldn\'t be opened.</string>
-    <string name="v19_record_choose_route">Follow a route</string>
-    <string name="v19_record_route">Route: %1$s</string>
     <string name="v19_record_route_remove">Stop following this route</string>
     <string name="v19_island_route">%1$s km left · ↑ %2$d m · arrive %3$s</string>
     <string name="v19_island_route_no_ascent">%1$s km left · arrive %2$s</string>

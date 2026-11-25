@@ -3,6 +3,7 @@ package com.runline.app.ui
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.os.SystemClock
@@ -124,6 +125,8 @@ private class SlopeLine(
     private val uphill = context.getColor(R.color.grade_uphill)
     private val steep = context.getColor(R.color.grade_steep)
     private val downhill = context.getColor(R.color.grade_downhill)
+    private val dash = DASH_DP * resources.displayMetrics.density
+    private val dashes = DashPathEffect(floatArrayOf(dash, dash), 0f)
 
     init {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -229,7 +232,7 @@ private class SlopeLine(
         }
         if (shown.all { it == null }) {
             ink.style = Paint.Style.STROKE
-            ink.pathEffect = android.graphics.DashPathEffect(floatArrayOf(padding, padding), 0f)
+            ink.pathEffect = dashes
             canvas.drawLine(padding, height / 2f, width - padding, height / 2f, ink)
             ink.pathEffect = null
         }
@@ -243,5 +246,9 @@ private class SlopeLine(
     override fun onDetachedFromWindow() {
         settle()
         super.onDetachedFromWindow()
+    }
+
+    private companion object {
+        const val DASH_DP = 6
     }
 }

@@ -8,6 +8,7 @@ import android.view.View
 import com.runline.app.R
 import com.runline.app.core.WeekProgress
 import java.time.DayOfWeek
+import java.time.ZoneOffset
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -32,6 +33,8 @@ internal class WeekStripView(
         paint.textSize = textSize
         paint.typeface = Type.body()
     }
+
+    constructor(context: Context) : this(context, WeekProgress.of(emptyList(), 0L, ZoneOffset.UTC), Locale.ROOT)
 
     override fun onMeasure(
         widthMeasureSpec: Int,

@@ -36,7 +36,8 @@ internal object UiText {
         } else {
             view.typeface = Type.body()
             view.textSize = Type.bodySize(size).toFloat()
-            view.setLineSpacing(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, LINE_GAP_DP.toFloat(), view.resources.displayMetrics), 1f)
+            val gap = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, LINE_GAP_DP.toFloat(), view.resources.displayMetrics)
+            view.setLineSpacing(gap, 1f)
         }
     }
 

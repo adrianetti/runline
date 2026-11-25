@@ -1,6 +1,7 @@
 package com.runline.app.atlas
 
 import android.content.Context
+import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
 import android.location.provider.ProviderProperties
@@ -71,8 +72,10 @@ internal class AtlasFixtures(
 
     fun installHistory() {
         removeHistory()
-        save("atlas-long", DAY_MS * LONG_DAYS_AGO, LONG_SECONDS, SyntheticLap.EASY_SPEED, ActivityDetails("Sunday long run", routine = RoutineType.LONG))
-        save("atlas-tempo", DAY_MS * TEMPO_DAYS_AGO, TEMPO_SECONDS, SyntheticLap.STEADY_SPEED, ActivityDetails("Tempo laps", effort = TEMPO_EFFORT))
+        val long = ActivityDetails("Sunday long run", routine = RoutineType.LONG)
+        val tempo = ActivityDetails("Tempo laps", effort = TEMPO_EFFORT)
+        save("atlas-long", DAY_MS * LONG_DAYS_AGO, LONG_SECONDS, SyntheticLap.EASY_SPEED, long)
+        save("atlas-tempo", DAY_MS * TEMPO_DAYS_AGO, TEMPO_SECONDS, SyntheticLap.STEADY_SPEED, tempo)
         save("atlas-easy", DAY_MS, EASY_SECONDS, SyntheticLap.EASY_SPEED, ActivityDetails("Easy loop", routine = RoutineType.EASY))
         AiReviewStore(context).save(
             "atlas-easy",
@@ -80,7 +83,12 @@ internal class AtlasFixtures(
                 "",
                 "atlas",
                 nowMs,
-                ReviewCard("Steady from the first lap", "Every kilometre landed within five seconds.", "Hold form on the climb.", "40 easy minutes."),
+                ReviewCard(
+                    "Steady from the first lap",
+                    "Every kilometre landed within five seconds.",
+                    "Hold form on the climb.",
+                    "40 easy minutes.",
+                ),
             ),
         )
     }
@@ -108,8 +116,8 @@ internal class AtlasFixtures(
             true,
             true,
             true,
-            if (Build.VERSION.SDK_INT >= PROVIDER_API) ProviderProperties.POWER_USAGE_LOW else LEGACY_POWER_LOW,
-            if (Build.VERSION.SDK_INT >= PROVIDER_API) ProviderProperties.ACCURACY_FINE else LEGACY_ACCURACY_FINE,
+            powerUsage(),
+            accuracy(),
         )
         locations.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
         return true
@@ -139,6 +147,10 @@ internal class AtlasFixtures(
         runCatching { locations.removeTestProvider(LocationManager.GPS_PROVIDER) }
     }
 
+    private fun powerUsage() = if (Build.VERSION.SDK_INT >= PROVIDER_API) ProviderProperties.POWER_USAGE_LOW else Criteria.POWER_LOW
+
+    private fun accuracy() = if (Build.VERSION.SDK_INT >= PROVIDER_API) ProviderProperties.ACCURACY_FINE else Criteria.ACCURACY_FINE
+
     private fun save(
         id: String,
         agoMs: Long,
@@ -163,7 +175,5 @@ internal class AtlasFixtures(
         private const val LIVE_SECONDS = 1_548
         private const val DRAFT_STEP = 3
         private const val PROVIDER_API = 31
-        private const val LEGACY_POWER_LOW = 1
-        private const val LEGACY_ACCURACY_FINE = 1
     }
 }

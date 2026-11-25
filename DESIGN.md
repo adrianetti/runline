@@ -1,6 +1,6 @@
 ---
 name: "Runline"
-description: "An Android running recorder with monochrome controls, real satellite imagery and GPS replay."
+description: "An Android running recorder styled as a GPS sport-watch instrument: monochrome chrome, condensed tabular numerals, real satellite imagery and GPS replay."
 colors:
   primary: "#171717"
   on-primary: "#FFFFFF"
@@ -24,58 +24,43 @@ colors:
   on-primary-container-dark: "#F5F5F5"
   surface-dark: "#141414"
   on-surface-dark: "#F5F5F5"
+  hairline: "#E0E0E0"
+  hairline-dark: "#2E2E2E"
   surface-variant-dark: "#242424"
   on-surface-variant-dark: "#B8B8B8"
   outline-dark: "#888888"
   error-dark: "#E5E5E5"
 typography:
-  display:
-    fontFamily: "sans-serif-medium"
-    fontSize: "30sp"
-    fontWeight: 500
+  hero-pace:
+    fontFamily: "Barlow Condensed SemiBold"
+    fontSize: "88sp portrait / 44sp landscape"
+    fontWeight: 600
     fontFeature: "tnum"
-  display-detail:
-    fontFamily: "sans-serif-medium"
-    fontSize: "22sp"
-    fontWeight: 500
-  headline:
-    fontFamily: "sans-serif-medium"
-    fontSize: "24sp"
-    fontWeight: 500
-  history-value:
-    fontFamily: "sans-serif-medium"
-    fontSize: "26sp"
-    fontWeight: 500
-  live-metric:
-    fontFamily: "sans-serif-medium"
-    fontSize: "32sp"
-    fontWeight: 500
+  data:
+    fontFamily: "Barlow Condensed SemiBold"
+    fontSize: "44sp"
+    fontWeight: 600
     fontFeature: "tnum"
-  island-pace:
-    fontFamily: "sans-serif-medium"
-    fontSize: "56sp portrait / 40sp landscape"
-    fontWeight: 500
+  heading:
+    fontFamily: "Barlow Condensed SemiBold"
+    fontSize: "28sp"
+    fontWeight: 600
+  value:
+    fontFamily: "Barlow Condensed SemiBold"
+    fontSize: "20sp"
+    fontWeight: 600
     fontFeature: "tnum"
-  metric-value:
-    fontFamily: "sans-serif-medium"
-    fontSize: "22sp"
-    fontWeight: 500
-    fontFeature: "tnum"
-  title:
-    fontFamily: "sans-serif-medium"
-    fontSize: "24sp"
-    fontWeight: 500
   body:
     fontFamily: "sans"
     fontSize: "16sp"
     fontWeight: 400
-  body-small:
+  label:
     fontFamily: "sans"
     fontSize: "14sp"
     fontWeight: 400
-  label:
+  caption:
     fontFamily: "sans"
-    fontSize: "13sp"
+    fontSize: "12sp"
     fontWeight: 400
 rounded:
   control: "16dp"
@@ -162,6 +147,30 @@ components:
 ---
 
 # Design System: Runline
+
+## 0.26 race instrument
+
+This section describes the current interface. Where an older section below differs, this one wins.
+
+**Direction.** A GPS running watch on a phone. Chrome is black, white and gray. Numbers and headings are set in Barlow Condensed SemiBold with tabular figures; labels and body text use the system sans. One scale: 88sp hero pace, 44sp data, 28sp headings, 20sp small values, 16sp body, 14sp labels, 12sp captions. Units sit beside their number in muted regular text. Pace always leads and reads in `/km`.
+
+**Structure.** A 72dp bottom bar holds four destinations: Record, Activities, Routes and Settings. Swiping moves between them. There is no title bar; each tab starts with its own 28sp heading, which is also its accessibility heading. Settings is a screen of 64dp rows with an icon, a label, a value and a chevron, separated by 1dp hairlines. Each feature has one entry point.
+
+**Record.** A three-segment Run, Walk, Hike switch replaces the dropdown. Below it, This week shows the week's distance at 88sp over a seven-day strip: a filled bar is a day with an activity, and today's letter is ink. Two rows follow, Route and Voice coach, each with its current value. Start is one 64dp ink bar above the navigation.
+
+**Islands.** Run, replay and route share one floating island with 24dp corners and 20dp padding. A heading row names the state or the activity. Data fields are a small muted label over a condensed number with its unit, on rows separated by hairlines: pace beside the grade instrument, then Distance and Time, then Ascent, Descent and Avg pace on thirds. The elevation profile has its own 48dp row. On replay the profile is the scrubber: the played part is ink, a 2dp playhead marks the position, and total time sits at the right. Play is a 64dp ink bar beside a speed button that opens the list of speeds. Details, edit, review, coach log and delete live in the overflow menu.
+
+**Grade.** The instrument is a fixed 72dp box at the island's right edge. A known grade shows the coloured profile line and a signed percent with a true minus sign. An unknown grade shows a dashed muted line and `– %`.
+
+**Activities.** A segmented All, Run, Walk, Hike filter sits over three fields for the last four weeks: distance, time and average pace. The weekly chart draws the week in progress as an outline. Rows read like a results table: title and date on the left, pace at 28sp on the right over distance and time.
+
+**Map controls.** Every floating control is a 48dp circle with a 1dp outline. Fit route takes the top-right slot; on replay, download sits under it. Route preview and stop following are items of the route menu.
+
+**Icons.** The set is still pinned Tabler outline, re-picked so one glyph has one meaning: stopwatch for Record, pulse for Diagnostics, mountain for Offline terrain, clock-pause for Auto-pause, flag for Finish, four arrows for fit route. Pause is drawn by hand as two plain strokes.
+
+**Motion.** Tab content slides and fades in the direction of travel in 220ms. Islands rise 24dp and fade in over 320ms. Weekly bars grow in 320ms. Digits roll as before. All of it is skipped when Android's Remove animations is on.
+
+**Verification.** `docs/FLOW.md` holds the screen graph. JVM tests check the graph and the audit rules; an instrumented atlas walks every screen and scores accessibility and intuitiveness. The council that judged this redesign saw six screens in light and dark.
 
 ## Overview
 

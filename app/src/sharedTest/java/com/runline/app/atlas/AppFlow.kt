@@ -29,6 +29,8 @@ object AppFlow {
     const val REPLAY = "replay"
     const val ROUTE = "route"
     const val SETTINGS = "settings"
+    private const val CLOSE = "main_close"
+    private const val DIAGNOSTICS_TITLE = "diag_v12_title"
     val TABS = setOf(RECORD, ACTIVITIES, ROUTES, SETTINGS)
     val COUNCIL = listOf(RECORD, RUN, ACTIVITIES, REPLAY, ROUTE, SETTINGS)
 
@@ -76,7 +78,7 @@ object AppFlow {
                         FlowStep("coach_ui_title", "coach"),
                     ),
             ),
-            FlowScreen("coach", UiWindowKind.SHEET, "coach_ui_enabled", exit = "main_close"),
+            FlowScreen("coach", UiWindowKind.SHEET, "coach_ui_enabled", exit = CLOSE),
         )
 
     private fun activityScreens() =
@@ -111,9 +113,9 @@ object AppFlow {
                     ),
             ),
             FlowScreen("activityFile", UiWindowKind.DIALOG, "main_activity_file"),
-            FlowScreen("editor", UiWindowKind.SHEET, "details_edit", exit = "main_close"),
-            FlowScreen("review", UiWindowKind.SHEET, "ai_review_title", exit = "main_close", reading = true),
-            FlowScreen("coachLog", UiWindowKind.SHEET, "diag_v12_title", exit = "main_close", reading = true),
+            FlowScreen("editor", UiWindowKind.SHEET, "details_edit", exit = CLOSE),
+            FlowScreen("review", UiWindowKind.SHEET, "ai_review_title", exit = CLOSE, reading = true),
+            FlowScreen("coachLog", UiWindowKind.SHEET, DIAGNOSTICS_TITLE, exit = CLOSE, reading = true),
             FlowScreen("deleteActivity", UiWindowKind.DIALOG, "main_delete_title"),
             FlowScreen(
                 "details",
@@ -161,25 +163,37 @@ object AppFlow {
                         FlowStep("music_title", "music"),
                         FlowStep("terrain_offline_title", "terrain"),
                         FlowStep("main_protection", "protection"),
-                        FlowStep("diag_v12_title", "diagnostics"),
+                        FlowStep(DIAGNOSTICS_TITLE, "diagnostics"),
                         FlowStep("main_about", "about"),
                     ),
             ),
-            FlowScreen("profile", UiWindowKind.SHEET, "profile_v9_title", exit = "main_close"),
-            FlowScreen("ai", UiWindowKind.SHEET, "ai_v8_title", exit = "main_close"),
+            FlowScreen("profile", UiWindowKind.SHEET, "profile_v9_title", exit = CLOSE),
+            FlowScreen("ai", UiWindowKind.SHEET, "ai_v8_title", exit = CLOSE),
             FlowScreen("language", UiWindowKind.DIALOG, "main_language"),
-            FlowScreen("music", UiWindowKind.SHEET, "music_title", exit = "main_close"),
-            FlowScreen("terrain", UiWindowKind.SHEET, "terrain_offline_title", exit = "main_close"),
+            FlowScreen("music", UiWindowKind.SHEET, "music_title", exit = CLOSE),
+            FlowScreen("terrain", UiWindowKind.SHEET, "terrain_offline_title", exit = CLOSE),
             FlowScreen("protection", UiWindowKind.DIALOG, "main_protection", reading = true),
-            FlowScreen("diagnostics", UiWindowKind.SHEET, "diag_v12_title", exit = "main_close"),
-            FlowScreen("about", UiWindowKind.SHEET, "main_about", exit = "main_close"),
+            FlowScreen("diagnostics", UiWindowKind.SHEET, DIAGNOSTICS_TITLE, exit = CLOSE),
+            FlowScreen("about", UiWindowKind.SHEET, "main_about", exit = CLOSE),
         )
 
     private fun recordingScreens() =
         listOf(
-            FlowScreen(RUN, UiWindowKind.SCREEN, "active_pause", FlowState.RECORDING, steps = listOf(FlowStep("active_options", "runMenu"))),
+            FlowScreen(
+                RUN,
+                UiWindowKind.SCREEN,
+                "active_pause",
+                FlowState.RECORDING,
+                steps = listOf(FlowStep("active_options", "runMenu")),
+            ),
             FlowScreen("runMenu", UiWindowKind.MENU, "coach_ui_title", FlowState.RECORDING),
-            FlowScreen(PAUSED, UiWindowKind.SCREEN, "active_resume", FlowState.PAUSED, steps = listOf(FlowStep("active_options", "pausedMenu"))),
+            FlowScreen(
+                PAUSED,
+                UiWindowKind.SCREEN,
+                "active_resume",
+                FlowState.PAUSED,
+                steps = listOf(FlowStep("active_options", "pausedMenu")),
+            ),
             FlowScreen(
                 "pausedMenu",
                 UiWindowKind.MENU,

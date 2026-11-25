@@ -7,6 +7,7 @@ import android.os.SystemClock
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.test.core.app.ActivityScenario
 import com.runline.app.MainActivity
+import com.runline.app.R
 import com.runline.app.i18n.AppLanguage
 import java.io.File
 
@@ -44,7 +45,10 @@ internal class AtlasDriver(
         pauseMs: Long = 0,
     ): Boolean {
         close()
-        scenario = ActivityScenario.launch<MainActivity>(Intent(context, MainActivity::class.java)).also { started -> started.onActivity { activity = it } }
+        scenario =
+            ActivityScenario.launch<MainActivity>(Intent(context, MainActivity::class.java)).also { started ->
+                started.onActivity { activity = it }
+            }
         settle()
         val arrived = AppFlow.path(screen.id).orEmpty().all { tap(it.control) }
         if (!arrived || capture(screen.id).top.kind != screen.kind || !shows(screen.marker)) return false
@@ -87,7 +91,8 @@ internal class AtlasDriver(
             windows = ViewSnapshot.windows(host.window.decorView)
             val metrics = host.resources.displayMetrics
             val root = host.window.decorView
-            environment = UiEnvironment(look.locale, look.night, metrics.density, host.resources.configuration.fontScale, root.width, root.height)
+            val fontScale = host.resources.configuration.fontScale
+            environment = UiEnvironment(look.locale, look.night, metrics.density, fontScale, root.width, root.height)
         }
         return UiScreen(id, checkNotNull(environment), windows)
     }
@@ -100,7 +105,10 @@ internal class AtlasDriver(
             .firstOrNull { it.actionable && it.enabled && names(it).any(pattern::matches) }
     }
 
-    private fun names(node: UiNode): List<String> = (listOf(node.spokenName()) + node.walk().mapNotNull { it.text?.value }).map(String::trim).filter(String::isNotBlank)
+    private fun names(node: UiNode): List<String> {
+        val texts = node.walk().mapNotNull { it.text?.value }
+        return (listOf(node.spokenName()) + texts).map(String::trim).filter(String::isNotBlank)
+    }
 
     fun shows(marker: String): Boolean {
         val pattern = pattern(marker)
@@ -159,21 +167,23 @@ internal class AtlasDriver(
     }
 
     private fun rolling(): Boolean {
-        val host = activity ?: return false
-        val pending = ArrayDeque<android.view.View>(listOf(host.window.decorView))
-        while (pending.isNotEmpty()) {
+        val pending = ArrayDeque<android.view.View>(listOfNotNull(activity?.window?.decorView))
+        var found = false
+        while (!found && pending.isNotEmpty()) {
             val view = pending.removeFirst()
-            if (view.javaClass.simpleName == ROLLING && ROLLING_ANIMATOR.get(view) != null) return true
+            found = view.javaClass.simpleName == ROLLING && ROLLING_ANIMATOR.get(view) != null
             (view as? android.view.ViewGroup)?.let { group -> (0 until group.childCount).forEach { pending += group.getChildAt(it) } }
         }
-        return false
+        return found
     }
+
+    fun stringId(name: String): Int = runCatching { R.string::class.java.getField(name).getInt(null) }.getOrDefault(0)
 
     private fun shape(node: UiNode): String = node.walk().joinToString(";") { "${it.type}${it.bounds}" }
 
     private fun pattern(name: String): Regex {
         val resources = AppLanguage.localizedContext(context).resources
-        val id = resources.getIdentifier(name, "string", context.packageName)
+        val id = stringId(name)
         check(id != 0) { "Unknown string $name" }
         val parts = resources.getString(id).split(FORMAT_ARGUMENT)
         return Regex(parts.joinToString(".*") { Regex.escape(it) }, setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))

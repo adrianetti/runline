@@ -33,14 +33,17 @@ internal object UiRows {
         background = ripple(context)
         setOnClickListener { action() }
         addView(glyph(context, icon, R.color.on_surface), square(context))
-        addView(UiText.body(context, label), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = UiText.dp(context, Space.L) })
+        addView(UiText.body(context, label), weighted().apply { marginStart = UiText.dp(context, Space.L) })
         if (value.isNotBlank()) {
             addView(
                 UiText.label(context, value).apply { gravity = Gravity.END },
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = UiText.dp(context, Space.M) },
+                weighted().apply { marginStart = UiText.dp(context, Space.M) },
             )
         }
-        addView(glyph(context, R.drawable.ic_chevron, R.color.on_surface_variant), square(context).apply { marginStart = UiText.dp(context, Space.S) })
+        addView(
+            glyph(context, R.drawable.ic_chevron, R.color.on_surface_variant),
+            square(context).apply { marginStart = UiText.dp(context, Space.S) },
+        )
     }
 
     fun toggle(
@@ -73,6 +76,8 @@ internal object UiRows {
         imageTintList = ColorStateList.valueOf(context.getColor(tint))
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
+
+    private fun weighted() = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
 
     private fun square(context: Context) = LinearLayout.LayoutParams(UiText.dp(context, Measure.ICON), UiText.dp(context, Measure.ICON))
 

@@ -5,7 +5,6 @@ import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
@@ -14,7 +13,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import com.google.android.material.button.MaterialButton
 import com.runline.app.R
 import com.runline.app.core.HikingRoute
 import com.runline.app.core.RouteGeometry
@@ -71,11 +69,15 @@ class RouteDetailView(
         addView(map, LayoutParams(-1, -1))
         val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         top.addView(
-            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.v19_route_back)).apply { setOnClickListener { actions.back() } },
+            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.v19_route_back)).apply {
+                setOnClickListener { actions.back() }
+            },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         top.addView(
-            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.v19_route_options)).apply { setOnClickListener { actions.more(this) } },
+            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.v19_route_options)).apply {
+                setOnClickListener { actions.more(this) }
+            },
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
         )
         addView(
@@ -113,7 +115,10 @@ class RouteDetailView(
             grid.addView(
                 LinearLayout(context).apply {
                     listOf(first, second).forEach { (name, field) ->
-                        addView(DataFieldView(context, context.getString(name), field.value, field.unit, size), LinearLayout.LayoutParams(0, -2, 1f))
+                        addView(
+                            DataFieldView(context, context.getString(name), field.value, field.unit, size),
+                            LinearLayout.LayoutParams(0, -2, 1f),
+                        )
                     }
                 },
                 row(top = 8),
@@ -122,20 +127,39 @@ class RouteDetailView(
         val hours = stats.estimatedMinutes >= MINUTES_PER_HOUR
         val time =
             if (hours) {
-                RouteField(String.format(locale, "%d:%02d", stats.estimatedMinutes / MINUTES_PER_HOUR, stats.estimatedMinutes % MINUTES_PER_HOUR), context.getString(R.string.v26_unit_hours))
+                RouteField(
+                    String.format(locale, "%d:%02d", stats.estimatedMinutes / MINUTES_PER_HOUR, stats.estimatedMinutes % MINUTES_PER_HOUR),
+                    context.getString(R.string.v26_unit_hours),
+                )
             } else {
                 RouteField(stats.estimatedMinutes.toString(), context.getString(R.string.v26_unit_minutes))
             }
-        pair(TextScale.DATA, R.string.v19_route_distance to RouteField(km(stats.distanceMeters), context.getString(R.string.island_km)), R.string.v19_route_time to time)
-        pair(TextScale.SECTION, R.string.v19_route_ascent to height(stats.ascentMeters), R.string.v19_route_descent to height(stats.descentMeters))
-        pair(TextScale.SECTION, R.string.v19_route_highest to height(stats.maxElevationMeters), R.string.v19_route_lowest to height(stats.minElevationMeters))
+        pair(
+            TextScale.DATA,
+            R.string.v19_route_distance to RouteField(km(stats.distanceMeters), context.getString(R.string.island_km)),
+            R.string.v19_route_time to time,
+        )
+        pair(
+            TextScale.SECTION,
+            R.string.v19_route_ascent to height(stats.ascentMeters),
+            R.string.v19_route_descent to height(stats.descentMeters),
+        )
+        pair(
+            TextScale.SECTION,
+            R.string.v19_route_highest to height(stats.maxElevationMeters),
+            R.string.v19_route_lowest to height(stats.minElevationMeters),
+        )
         val shape =
             if (entry?.imported != false) {
                 RouteFormat.shape(context, RouteImportNaming.shape(route))
             } else {
                 context.getString(if (entry.loop) R.string.v19_shape_loop else R.string.v19_shape_line)
             }
-        pair(TextScale.SECTION, R.string.v19_route_difficulty to RouteField(RouteFormat.difficulty(context, stats.difficulty), ""), R.string.v19_route_shape to RouteField(shape, ""))
+        pair(
+            TextScale.SECTION,
+            R.string.v19_route_difficulty to RouteField(RouteFormat.difficulty(context, stats.difficulty), ""),
+            R.string.v19_route_shape to RouteField(shape, ""),
+        )
         content.addView(grid)
         if (stats.maxElevationMeters != null) content.addView(RouteProfileView(context, route), LinearLayout.LayoutParams(-1, dp(88)).apply { topMargin = dp(16) })
         daylight(locale)?.let { line ->

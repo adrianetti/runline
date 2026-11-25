@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.graphics.Typeface
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
@@ -17,12 +16,10 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.edit
 import androidx.core.net.toUri
@@ -32,7 +29,6 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
-import com.google.android.material.textfield.TextInputLayout
 import com.runline.app.ai.AiActivityCompletion
 import com.runline.app.ai.AiSettings
 import com.runline.app.coaching.VoiceCoachSettings
@@ -84,7 +80,10 @@ class MainActivity : AppCompatActivity() {
     private var historyType: ActivityType? = null
     private var detailsEditor: ActivityDetailsEditor? = null
     private var aiSettings: AiSettingsSheet? = null
-    private lateinit var navigationRule: View
+    private val navigationRule by lazy {
+        com.runline.app.ui.UiRows
+            .hairline(this)
+    }
     private var history: List<com.runline.app.core.HistoryActivity>? = null
     private var musicSheet: com.runline.app.ui.MusicSheet? = null
     private var terrainSettings: com.runline.app.ui.TerrainSettingsSheet? = null
@@ -191,9 +190,6 @@ class MainActivity : AppCompatActivity() {
                     },
                 ).apply { orientation = LinearLayout.VERTICAL }
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
-        navigationRule =
-            com.runline.app.ui.UiRows
-                .hairline(this)
         root.addView(navigationRule)
         root.addView(tabs, LinearLayout.LayoutParams(-1, dp(com.runline.app.ui.Measure.NAVIGATION)))
         tabs.addOnTabSelectedListener(
@@ -230,7 +226,7 @@ class MainActivity : AppCompatActivity() {
         if (screen == "detail" && currentRun == null) screen = "history"
         if ((screen == "route" || screen == "routePreview") && routeId == null) screen = "routes"
         if (screen == "history") tabs.getTabAt(1)?.select()
-        if (screen == "settings") tabs.getTabAt(TAB_SCREENS.lastIndex)?.select()
+        if (screen == SETTINGS_SCREEN) tabs.getTabAt(TAB_SCREENS.lastIndex)?.select()
         if (screen == "routes" || screen == "route" || screen == "routePreview") {
             val keep = screen
             tabs.getTabAt(2)?.select()
@@ -382,7 +378,7 @@ class MainActivity : AppCompatActivity() {
         } else if (screen == "route") {
             screen = "routes"
             render()
-        } else if (screen == "history" || screen == "routes" || screen == "settings") {
+        } else if (screen == "history" || screen == "routes" || screen == SETTINGS_SCREEN) {
             tabs.getTabAt(0)?.select()
         } else {
             super.onBackPressed()
@@ -409,7 +405,7 @@ class MainActivity : AppCompatActivity() {
             "routes" -> renderRoutes()
             "route" -> renderRoute()
             "routePreview" -> renderRoutePreview()
-            "settings" -> renderSettings()
+            SETTINGS_SCREEN -> renderSettings()
             else -> renderRecord()
         }
     }
@@ -505,7 +501,9 @@ class MainActivity : AppCompatActivity() {
                 .prepare(runCatching { store.list() }.getOrDefault(emptyList()))
                 .also { history = it }
         val goal = preparation.intent?.takeIf { it.source == "manual" && it.goal.goal != com.runline.app.core.CoachGoal.NONE }
-        val voice = getString(if (VoiceCoachSettings.load(this).enabled) R.string.v26_voice_on else R.string.v26_voice_off)
+        val locale = resources.configuration.locales[0]
+        val state = getString(if (VoiceCoachSettings.load(this).enabled) R.string.v26_voice_on else R.string.v26_voice_off)
+        val voice = state.replaceFirstChar { it.titlecase(locale) }
         val route = followedRoute()?.let { id -> runCatching { routes.entry(id, language())?.name }.getOrNull() }
         return com.runline.app.ui.RecordHome(
             type = selectedActivity,
@@ -690,7 +688,8 @@ class MainActivity : AppCompatActivity() {
             com.runline.app.ui.RouteDetailView(
                 this,
                 hiking,
-                com.runline.app.ui.RouteDetails(entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording),
+                com.runline.app.ui
+                    .RouteDetails(entry, catalog?.summary(language()), catalog?.notes(language()).orEmpty(), recording),
                 com.runline.app.ui.RouteDetailActions(
                     back = {
                         screen = "routes"
@@ -913,11 +912,12 @@ class MainActivity : AppCompatActivity() {
         val type = activityName(run.activityType)
         val title = runCatching { store.details(run.id).title }.getOrNull()?.takeIf { it.isNotBlank() }
         val spoken = getString(R.string.main_history_row, type, date(run.startedAtMs), number(distance / METERS_PER_KM, 2), duration(time))
+        val covered = getString(R.string.main_distance_km, number(distance / METERS_PER_KM, 2))
         return com.runline.app.ui.HistoryRow(
             title = title ?: type,
             date = date(run.startedAtMs),
             pace = pace(RunMetrics.paceSecondsPerKm(distance, time)),
-            summary = getString(R.string.v26_row_summary, number(distance / METERS_PER_KM, 2), duration(time)),
+            summary = getString(R.string.main_activity_date, covered, duration(time)),
             description = if (title == null) spoken else "$title. $spoken",
         )
     }
@@ -945,7 +945,8 @@ class MainActivity : AppCompatActivity() {
                 onEdit = { showActivityEditor(run) },
                 onReview = { showRunReview(run) },
             ).also { view ->
-                val name = runCatching { store.details(run.id).title }.getOrNull()?.takeIf { it.isNotBlank() } ?: activityName(run.activityType)
+                val title = runCatching { store.details(run.id).title }.getOrNull()?.takeIf { it.isNotBlank() }
+                val name = title ?: activityName(run.activityType)
                 view.setHeading(name, date(run.startedAtMs))
                 view.restore(restoredReplayPosition, restoredReplaySpeed)
                 body.addView(view, LinearLayout.LayoutParams(-1, -1))
@@ -1017,7 +1018,7 @@ class MainActivity : AppCompatActivity() {
                 menu.add(0, 16, 2, R.string.diag_v12_coach)
                 menu.add(0, 4, 2, R.string.main_delete_activity)
                 setOnMenuItemClickListener { item ->
-                    if (item.itemId == DETAILS_ITEM) replayView?.showDetails()
+                    if (item.itemId == DETAILS_ITEM) replayView?.openDetails()
                     when (item.itemId) {
                         13 -> {
                             currentRun?.let { showActivityEditor(it) }
@@ -1032,26 +1033,28 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         4 -> {
-                            currentRun?.let { run ->
-                                MaterialAlertDialogBuilder(this@MainActivity)
-                                    .setTitle(R.string.main_delete_title)
-                                    .setMessage(R.string.main_delete_body)
-                                    .setNegativeButton(R.string.main_keep, null)
-                                    .setPositiveButton(R.string.main_delete) { _, _ ->
-                                        try {
-                                            store.delete(run.id)
-                                            AiActivityCompletion.onDeleted(this@MainActivity, run.id)
-                                            screen = "history"
-                                            tabs.getTabAt(1)?.select()
-                                            render()
-                                        } catch (_: Exception) {
-                                            notice(getString(R.string.main_delete_failed))
-                                        }
-                                    }.show()
-                            }
+                            currentRun?.let { confirmDelete(it) }
                         }
                     }
                     true
+                }
+            }.show()
+    }
+
+    private fun confirmDelete(run: RunSession) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.main_delete_title)
+            .setMessage(R.string.main_delete_body)
+            .setNegativeButton(R.string.main_keep, null)
+            .setPositiveButton(R.string.main_delete) { _, _ ->
+                try {
+                    store.delete(run.id)
+                    AiActivityCompletion.onDeleted(this, run.id)
+                    screen = "history"
+                    tabs.getTabAt(1)?.select()
+                    render()
+                } catch (_: Exception) {
+                    notice(getString(R.string.main_delete_failed))
                 }
             }.show()
     }
@@ -1489,6 +1492,7 @@ class MainActivity : AppCompatActivity() {
         const val DETAILS_ITEM = 20
         const val PREVIEW_ITEM = 21
         const val UNFOLLOW_ITEM = 22
-        val TAB_SCREENS = listOf("record", "history", "routes", "settings")
+        const val SETTINGS_SCREEN = "settings"
+        val TAB_SCREENS = listOf("record", "history", "routes", SETTINGS_SCREEN)
     }
 }

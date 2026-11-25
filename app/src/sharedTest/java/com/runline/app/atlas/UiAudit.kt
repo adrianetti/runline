@@ -46,7 +46,7 @@ data class AuditResult(
     fun score(group: AuditGroup): Int {
         val total = checks.filterKeys { it.group == group }.values.sum()
         val failed = findings.count { it.rule.group == group }
-        return if (total == 0) FULL_SCORE else (FULL_SCORE * (total - failed).coerceAtLeast(0)) / total
+        return if (total == 0) FULL_SCORE else FULL_SCORE * (total - failed).coerceAtLeast(0) / total
     }
 
     fun json(): JSONObject =
@@ -86,6 +86,8 @@ data class PlacedNode(
 )
 
 object UiAudit {
+    private const val SUBJECT_LENGTH = 48
+
     fun audit(
         screen: UiScreen,
         policy: AuditPolicy = AuditPolicy(),
@@ -117,6 +119,4 @@ object UiAudit {
     }
 
     fun describe(node: UiNode): String = node.spokenName().ifBlank { node.type }.take(SUBJECT_LENGTH)
-
-    private const val SUBJECT_LENGTH = 48
 }

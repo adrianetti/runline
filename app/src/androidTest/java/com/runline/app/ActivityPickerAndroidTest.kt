@@ -51,6 +51,8 @@ class ActivityPickerAndroidTest {
 
     private inline fun <reified T : View> find(view: View): T? = all(view).firstNotNullOfOrNull { it as? T }
 
-    private fun all(view: View): List<View> =
-        listOf(view) + ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { all(group.getChildAt(it)) } } ?: emptyList())
+    private fun all(view: View): List<View> {
+        val children = (view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { all(group.getChildAt(it)) } }
+        return listOf(view) + (children ?: emptyList())
+    }
 }

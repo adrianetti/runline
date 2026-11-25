@@ -1,7 +1,6 @@
 package com.runline.app.atlas
 
 import android.content.res.ColorStateList
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -12,6 +11,7 @@ import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.graphics.createBitmap
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
@@ -68,12 +68,24 @@ internal object ViewSurfaces {
             when (view) {
                 is MaterialButton -> view.icon
                 is ImageView -> view.drawable
-                is TextView -> view.compoundDrawablesRelative.firstOrNull { it != null } ?: view.compoundDrawables.firstOrNull { it != null }
+                is TextView -> compound(view)
                 else -> null
-            } ?: return null
-        val bitmap = Bitmap.createBitmap(ICON_GRID, ICON_GRID, Bitmap.Config.ARGB_8888)
-        val copy = drawable.constantState?.newDrawable(view.resources)?.mutate() ?: return null
+            }
+        val copy = drawable?.constantState?.newDrawable(view.resources)?.mutate() ?: return null
         copy.state = view.drawableState
+        return sample(copy, bounds)
+    }
+
+    private fun compound(view: TextView): Drawable? {
+        val relative = view.compoundDrawablesRelative.firstOrNull { it != null }
+        return relative ?: view.compoundDrawables.firstOrNull { it != null }
+    }
+
+    private fun sample(
+        copy: Drawable,
+        bounds: UiRect,
+    ): UiIcon? {
+        val bitmap = createBitmap(ICON_GRID, ICON_GRID)
         copy.setBounds(0, 0, ICON_GRID, ICON_GRID)
         copy.draw(Canvas(bitmap))
         val pixels = IntArray(ICON_GRID * ICON_GRID)
@@ -90,32 +102,37 @@ internal object ViewSurfaces {
         when (drawable) {
             is ColorDrawable -> UiSurface(color = drawable.color)
             is MaterialShapeDrawable -> shape(drawable)
-            is GradientDrawable -> UiSurface(color = drawable.color?.defaultColor, radiusPx = runCatching { drawable.cornerRadius }.getOrDefault(0f))
+            is GradientDrawable -> gradient(drawable)
             is DrawableWrapper -> drawable.drawable?.let(::drawable) ?: UiSurface()
             is LayerDrawable -> layers(drawable)
             else -> UiSurface(opaqueImage = drawable.opacity == android.graphics.PixelFormat.OPAQUE)
         }
 
+    private fun gradient(drawable: GradientDrawable): UiSurface {
+        val radius = runCatching { drawable.cornerRadius }.getOrDefault(0f)
+        return UiSurface(color = drawable.color?.defaultColor, radiusPx = radius)
+    }
+
     private fun shape(drawable: MaterialShapeDrawable): UiSurface {
         val fill = drawable.fillColor?.getColorForState(drawable.state, drawable.fillColor?.defaultColor ?: Color.TRANSPARENT)
         val tinted = drawable.tintList?.getColorForState(drawable.state, Color.TRANSPARENT)?.takeIf { Color.alpha(it) > 0 }
         val stroke = drawable.strokeColor?.getColorForState(drawable.state, Color.TRANSPARENT)?.takeIf { drawable.strokeWidth > 0 }
+        val faded = fill?.let { Color.argb(Color.alpha(it) * drawable.alpha / OPAQUE, Color.red(it), Color.green(it), Color.blue(it)) }
         return UiSurface(
-            color = tinted ?: fill?.let { Color.argb(Color.alpha(it) * drawable.alpha / OPAQUE, Color.red(it), Color.green(it), Color.blue(it)) },
+            color = tinted ?: faded,
             radiusPx = drawable.topLeftCornerResolvedSize,
             strokeColor = stroke,
             strokeWidthPx = drawable.strokeWidth,
         )
     }
 
-    private fun layers(drawable: LayerDrawable): UiSurface {
-        for (index in 0 until drawable.numberOfLayers) {
-            if (drawable.getId(index) == android.R.id.mask) continue
-            val found = drawable.getDrawable(index)?.let(::drawable) ?: continue
-            if (found.color != null || found.opaqueImage) return found
-        }
-        return UiSurface()
-    }
+    private fun layers(drawable: LayerDrawable): UiSurface =
+        (0 until drawable.numberOfLayers)
+            .asSequence()
+            .filter { drawable.getId(it) != android.R.id.mask }
+            .mapNotNull { index -> drawable.getDrawable(index)?.let(::drawable) }
+            .firstOrNull { it.color != null || it.opaqueImage }
+            ?: UiSurface()
 
     private fun state(
         colors: ColorStateList,

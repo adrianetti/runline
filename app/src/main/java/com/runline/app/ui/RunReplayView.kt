@@ -1,8 +1,7 @@
 package com.runline.app.ui
 
 import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.Typeface
+import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -14,9 +13,9 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.drawable.toDrawable
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.runline.app.R
 import com.runline.app.ai.AiSettings
@@ -183,7 +182,7 @@ class RunReplayView(
         val chart = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
         panel.setChartContent(chart)
         seek.setPadding(0, 0, 0, 0)
-        seek.progressDrawable = android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        seek.progressDrawable = Color.TRANSPARENT.toDrawable()
         seek.background = null
         seek.thumbOffset = 0
         seek.thumb =
@@ -216,7 +215,9 @@ class RunReplayView(
         play.setOnClickListener { if (playing) pausePlayback() else startPlayback() }
         speed.setOnClickListener { anchor ->
             androidx.appcompat.widget.PopupMenu(context, anchor).apply {
-                ReplayPresentation.speeds.forEachIndexed { index, value -> menu.add(0, index, index, context.getString(R.string.replay_multiplier, value)) }
+                ReplayPresentation.speeds.forEachIndexed { index, value ->
+                    menu.add(0, index, index, context.getString(R.string.replay_multiplier, value))
+                }
                 setOnMenuItemClickListener {
                     setPlaybackSpeed(ReplayPresentation.speeds[it.itemId])
                     true
@@ -382,7 +383,8 @@ class RunReplayView(
         playing = false
         handler.removeCallbacks(tick)
         readout.settle()
-        play.text = context.getString(if (positionMs >= replay.durationMs && replay.durationMs > 0) R.string.replay_restart else R.string.replay_play)
+        val ended = positionMs >= replay.durationMs && replay.durationMs > 0
+        play.text = context.getString(if (ended) R.string.replay_restart else R.string.replay_play)
         play.setIconResource(R.drawable.ic_play)
     }
 
@@ -434,7 +436,11 @@ class RunReplayView(
         heading.visibility = VISIBLE
     }
 
-    fun showDetails() {
+    fun openDetails() {
+        showDetails()
+    }
+
+    private fun showDetails() {
         if (disposed || details?.isShowing == true) return
         pausePlayback()
         val run = replay.session

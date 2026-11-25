@@ -19,7 +19,12 @@ class UiAuditTest {
         color: Int = INK,
         sizeSp: Float = BODY_SP,
         truncated: Boolean = false,
-    ) = UiNode("TextView", UiRole.TEXT, box(0, 0, TARGET, TARGET), text = UiText(value, sizeSp * DENSITY, color, REGULAR, "sans-serif", truncated))
+    ) = UiNode(
+        "TextView",
+        UiRole.TEXT,
+        box(0, 0, TARGET, TARGET),
+        text = UiText(value, sizeSp * DENSITY, color, REGULAR, "sans-serif", truncated),
+    )
 
     private fun heading() = label("Settings").copy(role = UiRole.HEADING)
 
@@ -35,7 +40,14 @@ class UiAuditTest {
         vararg children: UiNode,
         kind: UiWindowKind = UiWindowKind.SCREEN,
     ): UiScreen {
-        val root = UiNode("Root", UiRole.GROUP, UiRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), UiSurface(color = PAPER), children = children.toList())
+        val root =
+            UiNode(
+                "Root",
+                UiRole.GROUP,
+                UiRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                UiSurface(color = PAPER),
+                children = children.toList(),
+            )
         return UiScreen("test", environment, listOf(UiWindow(kind, root)))
     }
 
@@ -49,7 +61,8 @@ class UiAuditTest {
         .toSet()
 
     @Test fun cleanScreenScoresFullMarks() {
-        val result = UiAudit.audit(screen(heading(), control("Start", emphasis = UiEmphasis.FILLED), control("Close", left = FAR)), AuditPolicy(exitName = "Close"))
+        val clean = screen(heading(), control("Start", emphasis = UiEmphasis.FILLED), control("Close", left = FAR))
+        val result = UiAudit.audit(clean, AuditPolicy(exitName = "Close"))
         assertEquals(emptyList<AuditFinding>(), result.findings)
         assertEquals(AuditResult.FULL_SCORE, result.score(AuditGroup.ACCESSIBILITY))
         assertEquals(AuditResult.FULL_SCORE, result.score(AuditGroup.INTUITIVENESS))
@@ -77,7 +90,14 @@ class UiAuditTest {
     }
 
     @Test fun textOverImageryIsNotGuessed() {
-        val map = UiNode("MapView", UiRole.MAP, UiRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), UiSurface(opaqueImage = true), children = listOf(label("Credits", color = FAINT)))
+        val map =
+            UiNode(
+                "MapView",
+                UiRole.MAP,
+                UiRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                UiSurface(opaqueImage = true),
+                children = listOf(label("Credits", color = FAINT)),
+            )
         assertEquals(emptySet<AuditRule>(), broken(screen(heading(), map)))
     }
 
@@ -100,7 +120,15 @@ class UiAuditTest {
     }
 
     @Test fun mapUnderFloatingControlsIsNotAnOverlap() {
-        val map = UiNode("MapView", UiRole.MAP, UiRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), UiSurface(opaqueImage = true), label = "Map", actionable = true)
+        val map =
+            UiNode(
+                "MapView",
+                UiRole.MAP,
+                UiRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                UiSurface(opaqueImage = true),
+                label = "Map",
+                actionable = true,
+            )
         assertEquals(emptySet<AuditRule>(), broken(screen(heading(), map, control("Share"))))
     }
 
@@ -110,7 +138,9 @@ class UiAuditTest {
     }
 
     @Test fun twoFilledActionsBreakPrimaryAction() {
-        val found = broken(screen(heading(), control("Start", emphasis = UiEmphasis.FILLED), control("Save", left = FAR, emphasis = UiEmphasis.FILLED)))
+        val start = control("Start", emphasis = UiEmphasis.FILLED)
+        val save = control("Save", left = FAR, emphasis = UiEmphasis.FILLED)
+        val found = broken(screen(heading(), start, save))
         assertEquals(setOf(AuditRule.PRIMARY_ACTION), found)
     }
 
@@ -120,7 +150,8 @@ class UiAuditTest {
 
     @Test fun sameIconOnTwoActionsBreaksIconReuse() {
         val icon = UiIcon("a", INK, box(0, 0, TARGET, TARGET))
-        assertEquals(setOf(AuditRule.ICON_REUSE), broken(screen(heading(), control("Download", icon = icon), control("Export", left = FAR, icon = icon))))
+        val shared = screen(heading(), control("Download", icon = icon), control("Export", left = FAR, icon = icon))
+        assertEquals(setOf(AuditRule.ICON_REUSE), broken(shared))
     }
 
     @Test fun paragraphsBreakCopyUnlessTheScreenIsForReading() {

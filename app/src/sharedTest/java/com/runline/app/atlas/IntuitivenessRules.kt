@@ -6,6 +6,8 @@ object IntuitivenessRules {
     const val SENTENCE_WORDS = 12
     const val MAX_SENTENCE_WORDS = 20
     const val MAX_SENTENCES = 1
+    private val WHITESPACE = Regex("\\s+")
+    private const val SUBJECT_LENGTH = 48
 
     fun apply(
         tally: AuditTally,
@@ -91,7 +93,4 @@ object IntuitivenessRules {
     }
 
     fun words(text: String): Int = text.trim().split(WHITESPACE).count(String::isNotBlank)
-
-    private val WHITESPACE = Regex("\\s+")
-    private const val SUBJECT_LENGTH = 48
 }

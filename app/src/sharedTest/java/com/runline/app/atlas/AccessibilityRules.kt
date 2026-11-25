@@ -11,6 +11,7 @@ object AccessibilityRules {
     private const val BOLD_WEIGHT = 700
     private const val TOLERANCE = 0.5f
     private const val OVERLAP_SLACK_DP = 2
+    private const val SUBJECT_LENGTH = 48
 
     fun apply(
         tally: AuditTally,
@@ -23,7 +24,8 @@ object AccessibilityRules {
         controls.forEach { name(tally, it.node) }
         controls.forEach { icon(tally, it) }
         placed.filter { it.node.text != null && it.node.enabled }.forEach { text(tally, environment, it) }
-        overlaps(tally, controls.filter { !it.insideControl && it.node.role != UiRole.MAP }.map { it.node }, (OVERLAP_SLACK_DP * environment.density).toInt())
+        val separate = controls.filter { !it.insideControl && it.node.role != UiRole.MAP }.map { it.node }
+        overlaps(tally, separate, (OVERLAP_SLACK_DP * environment.density).toInt())
         heading(tally, window, placed)
     }
 
@@ -34,7 +36,8 @@ object AccessibilityRules {
     ) {
         val width = environment.dp(node.bounds.width)
         val height = environment.dp(node.bounds.height)
-        tally.check(AuditRule.TOUCH_TARGET, width + TOLERANCE >= MIN_TARGET_DP && height + TOLERANCE >= MIN_TARGET_DP, UiAudit.describe(node)) {
+        val large = width + TOLERANCE >= MIN_TARGET_DP && height + TOLERANCE >= MIN_TARGET_DP
+        tally.check(AuditRule.TOUCH_TARGET, large, UiAudit.describe(node)) {
             "%.0f x %.0f dp".format(width, height)
         }
     }
@@ -63,8 +66,7 @@ object AccessibilityRules {
         environment: UiEnvironment,
         placed: PlacedNode,
     ) {
-        val text = placed.node.text ?: return
-        if (text.value.isBlank()) return
+        val text = placed.node.text?.takeIf { it.value.isNotBlank() } ?: return
         val subject = text.value.take(SUBJECT_LENGTH)
         val size = environment.sp(text.sizePx)
         tally.check(AuditRule.TEXT_SIZE, size + TOLERANCE >= MIN_TEXT_SP, subject) { "%.1f sp".format(size) }
@@ -100,6 +102,4 @@ object AccessibilityRules {
         if (window.kind != UiWindowKind.SCREEN && window.kind != UiWindowKind.SHEET) return
         tally.check(AuditRule.HEADING, placed.any { it.node.role == UiRole.HEADING }, window.kind.name) { "no heading" }
     }
-
-    private const val SUBJECT_LENGTH = 48
 }

@@ -2,7 +2,6 @@ package com.runline.app.ui
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
 import android.view.View

@@ -170,11 +170,15 @@ class ActiveRunView(
         addView(map, LayoutParams(-1, -1))
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(
-            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.active_open_activities)).apply { setOnClickListener { onOpenRuns() } },
+            UiButtons.floating(context, R.drawable.ic_back, context.getString(R.string.active_open_activities)).apply {
+                setOnClickListener { onOpenRuns() }
+            },
             LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         header.addView(
-            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.active_options)).apply { setOnClickListener { onOptions(this) } },
+            UiButtons.floating(context, R.drawable.ic_more, context.getString(R.string.active_options)).apply {
+                setOnClickListener { onOptions(this) }
+            },
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) },
         )
         addView(
@@ -240,7 +244,12 @@ class ActiveRunView(
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
         val strip = if (musicRow.visibility == VISIBLE) dp(52) else 0
-        panel.maxHeight = if (compact) (h - dp(88)).coerceAtLeast(dp(150)) else ((h * ISLAND_SHARE).roundToInt() + strip).coerceAtLeast(dp(180))
+        panel.maxHeight =
+            if (compact) {
+                (h - dp(88)).coerceAtLeast(dp(150))
+            } else {
+                ((h * ISLAND_SHARE).roundToInt() + strip).coerceAtLeast(dp(180))
+            }
         val params = panel.layoutParams as LayoutParams
         params.width = if (compact) minOf(dp(340), (w * 0.45).roundToInt()) else -1
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)

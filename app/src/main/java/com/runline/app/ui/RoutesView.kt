@@ -1,9 +1,7 @@
 package com.runline.app.ui
 
 import android.content.Context
-import android.graphics.Typeface
 import android.view.Gravity
-import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.PopupMenu

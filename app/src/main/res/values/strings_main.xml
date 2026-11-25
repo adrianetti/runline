@@ -3,7 +3,6 @@
     <string name="main_record">Record</string>
     <string name="main_activities">Activities</string>
     <string name="main_back_activities">Back to activities</string>
-    <string name="main_ready">Ready when you are</string>
     <string name="main_activity_type">Activity</string>
     <string name="main_type_run">Run</string>
     <string name="main_type_walk">Walk</string>
@@ -22,13 +21,11 @@
     <string name="main_delete">Delete</string>
     <string name="main_discard">Discard</string>
     <string name="main_history_failed">Couldn’t read activity history. Your files have been kept.</string>
-    <string name="main_this_week">This week</string>
     <string name="main_no_activities">No activities yet</string>
     <string name="main_saved_local">Saved on this phone</string>
     <string name="main_history_row">%1$s, %2$s, %3$s kilometres, %4$s. View activity.</string>
     <string name="main_activity_date">%1$s · %2$s</string>
     <string name="main_distance_km">%1$s km</string>
-    <string name="main_history_stats">%1$s active · %2$s /km</string>
     <string name="main_protection">Recording protection</string>
     <string name="main_language">Language</string>
     <string name="main_about">About</string>
@@ -69,7 +66,6 @@
     <string name="active_loading">Loading your current location…</string>
     <string name="active_open_activities">Open activities without stopping recording</string>
     <string name="active_options">Recording options</string>
-    <string name="active_distance">Distance · km</string>
     <string name="active_time">Time</string>
     <string name="active_pause">Pause</string>
     <string name="active_resume">Resume</string>

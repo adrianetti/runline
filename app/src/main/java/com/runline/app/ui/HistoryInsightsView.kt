@@ -1,17 +1,12 @@
 package com.runline.app.ui
 
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
-import android.view.Gravity
 import android.view.View
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
-import android.widget.TextView
-import com.google.android.material.button.MaterialButton
 import com.runline.app.R
 import com.runline.app.core.ActivityType
 import com.runline.app.core.HistoryPeriod
@@ -59,15 +54,24 @@ class HistoryInsightsView(
         val period = periods.getValue(selected)
         content.removeAllViews()
         val count = resources.getQuantityString(R.plurals.history_activity_count, period.activities.size, period.activities.size)
-        content.addView(UiText.body(context, context.getString(R.string.v26_period_summary, context.getString(R.string.history_progress), count)), row(bottom = Space.L))
+        val summary = context.getString(R.string.main_activity_date, context.getString(R.string.history_progress), count)
+        content.addView(UiText.body(context, summary), row(bottom = Space.L))
         if (period.activities.isEmpty()) return
         val totals = LinearLayout(context)
-        val pace = (if (selected == null) periods.getValue(ActivityType.RUN) else period).paceSecondsPerKm?.let { formatPace(it, locale) } ?: DASH
+        val paced = if (selected == null) periods.getValue(ActivityType.RUN) else period
+        val pace = paced.paceSecondsPerKm?.let { formatPace(it, locale) } ?: DASH
         val minutes = period.activeDurationMs / MS_PER_MINUTE
         val hours = minutes >= MINUTES_PER_HOUR
-        val time = if (hours) String.format(locale, "%d:%02d", minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR) else minutes.toString()
-        totals.addView(field(R.string.v19_route_distance, number(period.distanceMeters / METERS_PER_KM, 1), context.getString(R.string.island_km)), cell())
-        totals.addView(field(R.string.active_time, time, context.getString(if (hours) R.string.v26_unit_hours else R.string.v26_unit_minutes)), cell())
+        val time =
+            if (hours) {
+                String.format(locale, "%d:%02d", minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR)
+            } else {
+                minutes.toString()
+            }
+        val distance = number(period.distanceMeters / METERS_PER_KM, 1)
+        val timeUnit = context.getString(if (hours) R.string.v26_unit_hours else R.string.v26_unit_minutes)
+        totals.addView(field(R.string.v19_route_distance, distance, context.getString(R.string.island_km)), cell())
+        totals.addView(field(R.string.active_time, time, timeUnit), cell())
         totals.addView(field(R.string.v26_average_pace, pace, context.getString(R.string.v26_unit_per_km)), cell())
         content.addView(totals)
         content.addView(WeeklyDistanceChart(context, period, locale), row(top = Space.L))

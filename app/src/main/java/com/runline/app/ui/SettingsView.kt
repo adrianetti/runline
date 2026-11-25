@@ -6,7 +6,7 @@ import com.runline.app.R
 import com.runline.app.i18n.AppLanguage
 import com.runline.app.tracking.RecordingSettings
 
-internal class SettingsActions(
+internal data class SettingsActions(
     val profile: () -> Unit,
     val ai: () -> Unit,
     val music: () -> Unit,
@@ -29,14 +29,22 @@ internal class SettingsView(
                 gravity = android.view.Gravity.CENTER_VERTICAL
             },
         )
-        addView(UiRows.hairline(context), LayoutParams(LayoutParams.MATCH_PARENT, UiText.dp(context, Space.HAIRLINE)).apply { topMargin = UiText.dp(context, Space.L) })
+        addView(
+            UiRows.hairline(context),
+            LayoutParams(LayoutParams.MATCH_PARENT, UiText.dp(context, Space.HAIRLINE)).apply { topMargin = UiText.dp(context, Space.L) },
+        )
         item(R.drawable.ic_user, R.string.profile_v9_title, actions.profile)
         item(R.drawable.ic_ai, R.string.v8_ai, actions.ai)
         item(R.drawable.ic_music, R.string.music_title, actions.music)
         item(R.drawable.ic_climb, R.string.terrain_offline_title, actions.terrain)
         item(R.drawable.ic_language, R.string.main_language, actions.language, language())
         addView(
-            UiRows.toggle(context, R.drawable.ic_auto_pause, context.getString(R.string.v17_auto_pause), RecordingSettings.autoPause(context)) {
+            UiRows.toggle(
+                context,
+                R.drawable.ic_auto_pause,
+                context.getString(R.string.v17_auto_pause),
+                RecordingSettings.autoPause(context),
+            ) {
                 RecordingSettings.setAutoPause(context, it)
             },
         )
@@ -45,6 +53,8 @@ internal class SettingsView(
         item(R.drawable.ic_diagnostics, R.string.diag_v12_title, actions.diagnostics)
         item(R.drawable.ic_info, R.string.main_about, actions.about)
     }
+
+    constructor(context: Context) : this(context, SettingsActions({}, {}, {}, {}, {}, {}, {}, {}))
 
     private fun item(
         icon: Int,

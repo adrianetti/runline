@@ -24,7 +24,8 @@ class WeekProgressTest {
     ) = HistoryActivity("run-$day-$hour", ActivityType.RUN, at(day, hour), MINUTES_30, metres, PACE)
 
     @Test fun sumsOnlyTheCurrentMondayWeek() {
-        val week = WeekProgress.of(listOf(activity(SUNDAY_BEFORE, FIVE_KM), activity(MONDAY, FIVE_KM), activity(WEDNESDAY, TEN_KM)), at(THURSDAY), zone)
+        val activities = listOf(activity(SUNDAY_BEFORE, FIVE_KM), activity(MONDAY, FIVE_KM), activity(WEDNESDAY, TEN_KM))
+        val week = WeekProgress.of(activities, at(THURSDAY), zone)
         assertEquals(FIVE_KM + TEN_KM, week.distanceMeters, 0.0)
         assertEquals(2 * MINUTES_30, week.activeDurationMs)
         assertEquals(2, week.activityCount)

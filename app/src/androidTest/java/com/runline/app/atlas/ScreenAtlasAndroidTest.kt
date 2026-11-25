@@ -34,9 +34,9 @@ class ScreenAtlasAndroidTest {
     @Before fun prepare() {
         val automation = instrumentation.uiAutomation
         val name = driver.context.packageName
-        automation.grantRuntimePermission(name, Manifest.permission.ACCESS_FINE_LOCATION)
-        automation.grantRuntimePermission(name, Manifest.permission.ACCESS_COARSE_LOCATION)
-        if (Build.VERSION.SDK_INT >= NOTIFICATION_API) automation.grantRuntimePermission(name, Manifest.permission.POST_NOTIFICATIONS)
+        grant(Manifest.permission.ACCESS_FINE_LOCATION)
+        grant(Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= NOTIFICATION_API) grant(Manifest.permission.POST_NOTIFICATIONS)
         automation.executeShellCommand("appops set $name android:mock_location allow").close()
         fixtures.installHistory()
     }
@@ -55,7 +55,8 @@ class ScreenAtlasAndroidTest {
         val looks = (arguments.getString("atlasLooks") ?: DEFAULT_LOOKS).split(',').map(AtlasLook::parse)
         val visits = looks.flatMap(::tour)
         File(output, "report.json").writeText(JSONArray(visits.map(AtlasVisit::json)).toString(JSON_INDENT))
-        assertEquals("Screens the flow could not reach", emptyList<String>(), visits.filter { !it.reached }.map { "${it.look}/${it.screen}" })
+        val missed = visits.filter { !it.reached }.map { "${it.look}/${it.screen}" }
+        assertEquals("Screens the flow could not reach", emptyList<String>(), missed)
     }
 
     private fun tour(look: AtlasLook): List<AtlasVisit> {
@@ -79,13 +80,21 @@ class ScreenAtlasAndroidTest {
         val pause = if (screen.id in wanted) arguments.getString("atlasSettleMs")?.toLongOrNull() ?: 0 else 0
         if (!driver.open(screen, pause)) return AtlasVisit(look.name, screen.id, false, null)
         val snapshot = driver.capture(screen.id)
-        val exit = screen.exit?.let { AppLanguage.localizedContext(driver.context).getString(resource(it)) }
+        val exit = screen.exit?.let { AppLanguage.localizedContext(driver.context).getString(driver.stringId(it)) }
         File(output, "${look.name}/${screen.id}.json").apply { parentFile?.mkdirs() }.writeText(snapshot.json().toString())
         if (screen.id in wanted) driver.screenshot(File(output, "${look.name}/${screen.id}.png"))
         return AtlasVisit(look.name, screen.id, true, UiAudit.audit(snapshot, AuditPolicy(screen.reading, exit)))
     }
 
-    private fun resource(name: String) = driver.context.resources.getIdentifier(name, "string", driver.context.packageName)
+    private fun grant(permission: String) {
+        val automation = instrumentation.uiAutomation
+        val name = driver.context.packageName
+        if (Build.VERSION.SDK_INT >= GRANT_API) {
+            automation.grantRuntimePermission(name, permission)
+        } else {
+            automation.executeShellCommand("pm grant $name $permission").close()
+        }
+    }
 
     private data class AtlasVisit(
         val look: String,
@@ -99,6 +108,7 @@ class ScreenAtlasAndroidTest {
     companion object {
         private const val DEFAULT_LOOKS = "en-light,es-dark"
         private const val NOTIFICATION_API = 33
+        private const val GRANT_API = 28
         private const val JSON_INDENT = 1
     }
 }

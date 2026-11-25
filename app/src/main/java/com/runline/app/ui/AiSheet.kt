@@ -1,6 +1,5 @@
 package com.runline.app.ui
 
-import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout

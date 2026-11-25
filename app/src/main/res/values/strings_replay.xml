@@ -3,16 +3,13 @@
     <string name="replay_play">Play</string>
     <string name="replay_pause">Pause</string>
     <string name="replay_restart">Replay</string>
-    <string name="replay_back">Back</string>
     <string name="replay_back_to_activities">Back to activities</string>
     <string name="replay_options">Activity options</string>
     <string name="replay_export_file">Export GPX</string>
-    <string name="replay_open_details">Show activity details and elevation</string>
     <string name="replay_close_details">Close details</string>
     <string name="replay_activity_details">Details</string>
     <string name="replay_position">Replay position</string>
     <string name="replay_position_description">Replay position %1$s of %2$s</string>
-    <string name="replay_playback_speed">Playback speed</string>
     <string name="replay_speed_description">Playback speed, %1$d times</string>
     <string name="replay_multiplier">%1$d×</string>
     <string name="replay_cancel">Cancel</string>

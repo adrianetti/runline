@@ -111,10 +111,6 @@
       "sha256": "e7284d4e0f7e83f1b20ff31bd5254e4bd019ce89007e2b3c8f8b69358c9950e9",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/gauge.svg"
     },
-    "icons/outline/volume-off.svg": {
-      "sha256": "2cb9e81af317a9884c5fdc059f55dba2ec67a55b471a5448fe5a381eefc02156",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/volume-off.svg"
-    },
     "icons/outline/alert-circle.svg": {
       "sha256": "7aff9be6b14daf212f982513de43ad7784752c021995719d00006cad8a75bef0",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/alert-circle.svg"
@@ -122,14 +118,6 @@
     "icons/outline/refresh.svg": {
       "sha256": "9dd8ab8cac268489501cbb0a106d93cc3f367add493d20c47ec1e1d9804c760a",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/refresh.svg"
-    },
-    "icons/outline/trending-up.svg": {
-      "sha256": "df5ab21c69d17e8d1a978ca86273b3390c109ae7b66fbe1016362ab279b9feb0",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/trending-up.svg"
-    },
-    "icons/outline/trending-down.svg": {
-      "sha256": "7899ddc54071313218d054d633490eb7431e8c757a8da90a19f6d9ff5f4a4fc8",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/trending-down.svg"
     },
     "icons/outline/arrow-right.svg": {
       "sha256": "7e602a26d53e78ceb788f38cb89ec1d1091130c56d7829ca294b7ed0642277c6",
@@ -142,10 +130,6 @@
     "icons/outline/file-zip.svg": {
       "sha256": "0dc8b74962e79d9e5aed2496bfe3542d87ab4eca21ca8a22c0c5579d0fffb740",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/file-zip.svg"
-    },
-    "icons/outline/map-2.svg": {
-      "sha256": "42c520c32ac78185f95729b37a3d10f9eb753c2188f4c2a7c7a05566cc4b28d9",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/map-2.svg"
     },
     "icons/outline/alert-triangle.svg": {
       "sha256": "25b1f0c39f34647017df84a0cdc9e691c697737094a5956c360ab448a7fd5bef",
@@ -227,17 +211,9 @@
       "sha256": "83733bb6e03e1d20fd2674d06a493642c8ea6eef76c44ebb2239b9ef17dedff7",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/chevron-right.svg"
     },
-    "icons/outline/walk.svg": {
-      "sha256": "ade1c723b19596b31cd2976db72e05bee86b2fe8a3afcda5df05fb57f90fe036",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/walk.svg"
-    },
     "icons/outline/stopwatch.svg": {
       "sha256": "49e499198a6797a13f46f3bcccb8c1847fbb9bf0fdceb7acd5b63034f1afbe88",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/stopwatch.svg"
-    },
-    "icons/outline/list-details.svg": {
-      "sha256": "ec0b6f3ce0fe74b5a8bca2e5430e00ab20d03e749296bea7b5030345b3db0ab3",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/list-details.svg"
     },
     "icons/outline/activity.svg": {
       "sha256": "2279e7a64688d1e730e42a7b277792350fbfade1fd3b992ad3971737e88ccde8",
@@ -246,10 +222,6 @@
     "icons/outline/clock-pause.svg": {
       "sha256": "7f15fc758ce0925e8754d1d5e2348161dcc94ad5e868d5faf49a9b5e067b499a",
       "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/clock-pause.svg"
-    },
-    "icons/outline/target.svg": {
-      "sha256": "1874e1180c0fbe2a570c59986adfbed4e4eb9e839f7dd100bc871e08f5aabb1d",
-      "url": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/outline/target.svg"
     },
     "icons/outline/brand-github.svg": {
       "sha256": "1ba4d43069f269d4aedc71bd5887632ae08b17435d64f47f331b18c316ffeb37",

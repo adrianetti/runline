@@ -24,13 +24,10 @@ internal class RunReadoutView(
     private val locale get() = resources.configuration.locales[0]
     val profile = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
-    fun hideProfile() {
-        profile.visibility = GONE
-    }
-
     init {
         orientation = VERTICAL
-        val stacked = resources.configuration.fontScale > STACK_FONT_SCALE || (!compact && resources.configuration.screenWidthDp < NARROW_DP)
+        val narrow = !compact && resources.configuration.screenWidthDp < NARROW_DP
+        val stacked = resources.configuration.fontScale > STACK_FONT_SCALE || narrow
         val primary =
             LinearLayout(context).apply {
                 orientation = if (stacked) VERTICAL else HORIZONTAL
@@ -41,7 +38,10 @@ internal class RunReadoutView(
         addView(primary, LayoutParams(-1, -2))
         addView(UiRows.hairline(context), rule(Space.S))
         val secondary = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
-        secondary.addView(DataFieldView(context, context.getString(R.string.v19_route_distance), distance, context.getString(R.string.island_km)), LayoutParams(0, -2, 1f))
+        secondary.addView(
+            DataFieldView(context, context.getString(R.string.v19_route_distance), distance, context.getString(R.string.island_km)),
+            LayoutParams(0, -2, 1f),
+        )
         secondary.addView(DataFieldView(context, context.getString(R.string.active_time), time), LayoutParams(0, -2, 1f))
         addView(secondary, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
         if (!compact) {
@@ -51,6 +51,10 @@ internal class RunReadoutView(
             addView(footer, LayoutParams(-1, -2).apply { topMargin = dp(Space.S) })
             addView(profile, LayoutParams(-1, dp(PROFILE_DP)).apply { topMargin = dp(Space.M) })
         }
+    }
+
+    fun hideProfile() {
+        profile.visibility = GONE
     }
 
     fun update(
@@ -65,7 +69,7 @@ internal class RunReadoutView(
         profile: com.runline.app.core.SlopeProfile = com.runline.app.core.SlopeProfile.EMPTY,
     ) {
         val paceValue = paceSeconds?.takeIf { it.isFinite() && it > 0 && it < 6_000 }?.roundToInt()
-        val paceText = paceValue?.let { String.format(locale, "%d:%02d", it / 60, it % 60) } ?: "—"
+        val paceText = paceValue?.let { String.format(locale, CLOCK, it / 60, it % 60) } ?: "—"
         pace.setValue(paceText, paceValue?.toDouble(), animate)
         pace.contentDescription = context.getString(R.string.island_pace_accessibility, paceText)
         val km = distanceMeters?.takeIf { it.isFinite() && it >= 0 }?.div(1000)
@@ -77,7 +81,7 @@ internal class RunReadoutView(
             if (seconds >= 3600) {
                 String.format(locale, "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60)
             } else {
-                String.format(locale, "%d:%02d", seconds / 60, seconds % 60)
+                String.format(locale, CLOCK, seconds / 60, seconds % 60)
             }
         time.setValue(duration, seconds.toDouble(), animate)
         time.contentDescription = context.getString(R.string.island_time_accessibility, duration)
@@ -88,7 +92,7 @@ internal class RunReadoutView(
         descent.contentDescription = context.getString(R.string.island_descended_accessibility, number(descendedMeters, 0))
         val averageValue = averagePace?.takeIf { it.isFinite() && it > 0 && it < MAX_PACE_SECONDS }?.roundToInt()
         average.visibility = if (averagePace != null) VISIBLE else INVISIBLE
-        average.set(averageValue?.let { String.format(locale, "%d:%02d", it / SECONDS_PER_MINUTE, it % SECONDS_PER_MINUTE) } ?: DASH)
+        average.set(averageValue?.let { String.format(locale, CLOCK, it / SECONDS_PER_MINUTE, it % SECONDS_PER_MINUTE) } ?: DASH)
     }
 
     fun settle() {
@@ -114,6 +118,7 @@ internal class RunReadoutView(
 
     private companion object {
         const val DASH = "\u2014"
+        const val CLOCK = "%d:%02d"
         const val STACK_FONT_SCALE = 1.5f
         const val NARROW_DP = 360
         const val SLOPE_DP = 72

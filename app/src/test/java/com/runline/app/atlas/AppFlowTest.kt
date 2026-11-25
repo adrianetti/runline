@@ -7,21 +7,41 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 class AppFlowTest {
+    private val keys =
+        AppFlow.screens
+            .flatMap { screen -> listOfNotNull(screen.marker, screen.exit) + screen.steps.map { it.control } + screen.arrange }
+            .toSet()
+
     private fun strings(folder: String): Map<String, String> {
         val files = File("src/main/res/$folder").listFiles { file -> file.name.startsWith("strings") }.orEmpty()
         return files
             .flatMap { file ->
-                val nodes = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).getElementsByTagName("string")
-                (0 until nodes.length).map { nodes.item(it).attributes.getNamedItem("name").nodeValue to nodes.item(it).textContent }
+                val nodes =
+                    DocumentBuilderFactory
+                        .newInstance()
+                        .newDocumentBuilder()
+                        .parse(file)
+                        .getElementsByTagName("string")
+                (0 until nodes.length).map {
+                    nodes
+                        .item(it)
+                        .attributes
+                        .getNamedItem("name")
+                        .nodeValue to nodes.item(it).textContent
+                }
             }.toMap()
     }
-
-    private val keys = AppFlow.screens.flatMap { screen -> listOfNotNull(screen.marker, screen.exit) + screen.steps.map { it.control } + screen.arrange }.toSet()
 
     @Test fun screenIdsAreUniqueAndEveryStepLeadsSomewhere() {
         val ids = AppFlow.screens.map { it.id }
         assertEquals(ids.size, ids.toSet().size)
-        assertEquals(emptyList<String>(), AppFlow.screens.flatMap { it.steps }.map { it.to }.filter { it !in ids })
+        assertEquals(
+            emptyList<String>(),
+            AppFlow.screens
+                .flatMap { it.steps }
+                .map { it.to }
+                .filter { it !in ids },
+        )
     }
 
     @Test fun everyScreenIsReachableFromItsRoot() {
@@ -35,8 +55,22 @@ class AppFlowTest {
     }
 
     @Test fun everyDestinationHasOneEntryFromEachScreen() {
-        val repeated = AppFlow.screens.flatMap { screen -> screen.steps.groupBy { it.to }.filterValues { it.size > 1 }.keys.map { "${screen.id}->$it" } }
-        val sameControl = AppFlow.screens.flatMap { screen -> screen.steps.groupBy { it.control }.filterValues { it.size > 1 }.keys.map { "${screen.id}:$it" } }
+        val repeated =
+            AppFlow.screens.flatMap { screen ->
+                screen.steps
+                    .groupBy { it.to }
+                    .filterValues { it.size > 1 }
+                    .keys
+                    .map { "${screen.id}->$it" }
+            }
+        val sameControl =
+            AppFlow.screens.flatMap { screen ->
+                screen.steps
+                    .groupBy { it.control }
+                    .filterValues { it.size > 1 }
+                    .keys
+                    .map { "${screen.id}:$it" }
+            }
         assertEquals(emptyList<String>(), repeated + sameControl)
     }
 
