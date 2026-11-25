@@ -38,6 +38,7 @@ The route chosen for the next recording is ticked in the Routes list. It also sh
 ## Estimates
 
 - **Moving time.** [Tobler's hiking function](https://en.wikipedia.org/wiki/Tobler%27s_hiking_function), 6·e^(−3.5·|grade + 0.05|) km/h, applied every 50 m of the route profile. Grades are capped at ±60%. Stops are not included. While you follow a route, the time left is scaled to your own pace on it from the first kilometre onwards, between 0.6× and 2×.
+- **Running time.** When the route would be recorded as a run and you have a timed run in the last four weeks, the route details show a running time instead of Tobler's. It is your recent average run pace, the same figure as on the Activities tab, over the route's distance plus 7.92 m of flat distance for each metre of ascent (Scarf's 2007 equivalence of distance and climb, a refinement of [Naismith's rule](https://en.wikipedia.org/wiki/Naismith%27s_rule)). Descent is not counted. If the ascent is unknown, distance alone is used. The figure never exceeds Tobler's moving time. With Walk or Hike, or without a recent run, the details keep Tobler's moving time. The Routes list, Preview, difficulty and the time left while you follow a route always use Tobler's moving time.
 - **Difficulty.** Effort kilometres: distance plus 1 km per 100 m of ascent.
 
   | Effort kilometres | Difficulty |

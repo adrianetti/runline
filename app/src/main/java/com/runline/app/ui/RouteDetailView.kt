@@ -14,9 +14,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.runline.app.R
+import com.runline.app.core.ClockFormat
 import com.runline.app.core.HikingRoute
 import com.runline.app.core.RouteGeometry
 import com.runline.app.core.RouteImportNaming
+import com.runline.app.core.RouteRunEstimate
 import com.runline.app.core.SunTimes
 import com.runline.app.data.RouteEntry
 import java.time.Instant
@@ -31,6 +33,7 @@ data class RouteDetails(
     val summary: String?,
     val notes: Map<String, String>,
     val recording: Boolean,
+    val runPaceSecondsPerKm: Double?,
 )
 
 data class RouteDetailActions(
@@ -48,6 +51,7 @@ class RouteDetailView(
 ) : FrameLayout(context) {
     val map = SatelliteMapView(context)
     private val compact = resources.configuration.screenWidthDp > resources.configuration.screenHeightDp
+    private val estimatedMinutes = RouteRunEstimate.forRoute(route.stats, details.runPaceSecondsPerKm)
     private val panel =
         object : LinearLayout(context) {
             var maxHeight = Int.MAX_VALUE
@@ -127,15 +131,12 @@ class RouteDetailView(
                 row(top = 16),
             )
         }
-        val hours = stats.estimatedMinutes >= MINUTES_PER_HOUR
+        val hours = estimatedMinutes >= MINUTES_PER_HOUR
         val time =
             if (hours) {
-                RouteField(
-                    String.format(locale, "%d:%02d", stats.estimatedMinutes / MINUTES_PER_HOUR, stats.estimatedMinutes % MINUTES_PER_HOUR),
-                    context.getString(R.string.v26_unit_hours),
-                )
+                RouteField(ClockFormat.pair(estimatedMinutes.toLong(), locale), context.getString(R.string.v26_unit_hours))
             } else {
-                RouteField(stats.estimatedMinutes.toString(), context.getString(R.string.v26_unit_minutes))
+                RouteField(estimatedMinutes.toString(), context.getString(R.string.v26_unit_minutes))
             }
         pair(
             TextScale.DATA,
@@ -248,7 +249,7 @@ class RouteDetailView(
         val now = System.currentTimeMillis()
         val fmt = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).withZone(ZoneId.systemDefault())
         if (sunset < now) return context.getString(R.string.v19_route_after_dark, fmt.format(Instant.ofEpochMilli(sunset)))
-        val finish = now + route.stats.estimatedMinutes * 60_000L
+        val finish = now + estimatedMinutes * 60_000L
         return context.getString(
             if (finish > sunset) R.string.v19_route_finish_after_sunset else R.string.v19_route_finish_before_sunset,
             fmt.format(Instant.ofEpochMilli(sunset)),
